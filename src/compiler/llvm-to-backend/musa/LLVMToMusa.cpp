@@ -114,7 +114,7 @@ LLVMToMusaTranslator::LLVMToMusaTranslator(const std::vector<std::string> &KN)
 
 
 bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
-  std::string Triple = "mtgpu-mt-cuda";
+  std::string Triple = "mtgpu-mt-musa";
   std::string DataLayout = "e-p:64:64:64:64-p1:64:64:64:64-p2:64:64:64:64-p3:32:32-p4:32:32-p5:64:"
                            "64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128";
 
@@ -148,7 +148,7 @@ bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       Operands.push_back(llvm::ValueAsMetadata::getConstant(
           llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 1)));
 
-      M.getOrInsertNamedMetadata("nvvm.annotations")
+      M.getOrInsertNamedMetadata("musa.annotations")
           ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
@@ -216,23 +216,10 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
   std::string ClangPath = HIPSYCL_CLANG_PATH;
 
-  std::string PtxVersionArg = "+ptx" + std::to_string(PtxVersion);
-  std::string PtxTargetArg = "mp_" + std::to_string(PtxTarget);
-  llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath,
-                                                    "-cc1",
-                                                    "-triple",
-                                                    "mtgpu-mt-cuda",
-//                                                    "-target-feature",
-//                                                    PtxVersionArg,
-//                                                    "-target-cpu",
-//                                                    PtxTargetArg,
-                                                    "-O3",
-                                                    "-emit-obj",
-                                                    "-x",
-                                                    "ir",
-                                                    "-o",
-                                                    IntermediateFile->TmpName,
-                                                    InputFile->TmpName};
+  // TODO: remove this part after MUSA compiler supports debug info
+  std::string OptPath = llvm::sys::path::parent_path(ClangPath).str() + "/opt";
+  llvm::SmallVector<llvm::StringRef, 16> Invocation = 
+    {OptPath, "-strip-debug", "-o", InputFile->TmpName, InputFile->TmpName};
 
   std::string ArgString;
   for(const auto& S : Invocation) {
@@ -242,6 +229,28 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   HIPSYCL_DEBUG_INFO << "LLVMToMusa: Invoking " << ArgString << "\n";
 
   int R = llvm::sys::ExecuteAndWait(
+      OptPath, Invocation);
+  
+  if(R != 0) {
+    this->registerError("LLVMToMusa: llvm-strip invocation failed with exit code " +
+                        std::to_string(R));
+    return false;
+  }
+
+  std::string TargetArg = "mp_" + std::to_string(MusaTarget);
+  Invocation = {ClangPath, "-cc1", "-triple", "mtgpu-mt-musa", 
+                "-target-cpu", TargetArg, "-O3", "-emit-obj", "-x", "ir", 
+                "-o", IntermediateFile->TmpName, InputFile->TmpName};
+
+
+  ArgString.clear();
+  for(const auto& S : Invocation) {
+    ArgString += S;
+    ArgString += " ";
+  }
+  HIPSYCL_DEBUG_INFO << "LLVMToMusa: Invoking " << ArgString << "\n";
+
+  R = llvm::sys::ExecuteAndWait(
       ClangPath, Invocation);
   
   if(R != 0) {
@@ -283,11 +292,8 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 }
 
 bool LLVMToMusaTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
-  if(Option == "ptx-version") {
-    this->PtxVersion = std::stoi(Value);
-    return true;
-  } else if(Option == "ptx-target-device") {
-    this->PtxTarget = std::stoi(Value);
+  if(Option == "musa-target-device") {
+    this->MusaTarget = std::stoi(Value);
     return true;
   }
 

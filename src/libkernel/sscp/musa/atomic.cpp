@@ -33,405 +33,405 @@
 // Atomic definitions adapted from __clang_cuda_device_functions.h
 
 double __dAtomicAdd(double *__p, double __v) {
-  return __nvvm_atom_add_gen_d(__p, __v);
+  return __musa_atom_add_gen_d(__p, __v);
 }
 double __dAtomicAdd_block(double *__p, double __v) {
-  return __nvvm_atom_cta_add_gen_d(__p, __v);
+  return __musa_atom_cta_add_gen_d(__p, __v);
 }
 double __dAtomicAdd_system(double *__p, double __v) {
-  return __nvvm_atom_sys_add_gen_d(__p, __v);
+  return __musa_atom_sys_add_gen_d(__p, __v);
 }
 
 float __fAtomicAdd(float *__p, float __v) {
-  return __nvvm_atom_add_gen_f(__p, __v);
+  return __musa_atom_add_gen_f(__p, __v);
 }
 float __fAtomicAdd_block(float *__p, float __v) {
-  return __nvvm_atom_cta_add_gen_f(__p, __v);
+  return __musa_atom_cta_add_gen_f(__p, __v);
 }
 float __fAtomicAdd_system(float *__p, float __v) {
-  return __nvvm_atom_sys_add_gen_f(__p, __v);
+  return __musa_atom_sys_add_gen_f(__p, __v);
 }
 float __fAtomicExch(float *__p, float __v) {
   return __mt_int_as_float(
-      __nvvm_atom_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
+      __musa_atom_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
 }
 float __fAtomicExch_block(float *__p, float __v) {
   return __mt_int_as_float(
-      __nvvm_atom_cta_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
+      __musa_atom_cta_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
 }
 float __fAtomicExch_system(float *__p, float __v) {
-  return __mt_int_as_float(
-      __nvvm_atom_sys_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
+ return __mt_int_as_float(
+     __musa_atom_sys_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
 }
 
 int __iAtomicAdd(int *__p, int __v) {
-  return __nvvm_atom_add_gen_i(__p, __v);
+  return __musa_atom_add_gen_i(__p, __v);
 }
 int __iAtomicAdd_block(int *__p, int __v) {
-  return __nvvm_atom_cta_add_gen_i(__p, __v);
+  return __musa_atom_cta_add_gen_i(__p, __v);
 }
 int __iAtomicAdd_system(int *__p, int __v) {
-  return __nvvm_atom_sys_add_gen_i(__p, __v);
+  return __musa_atom_sys_add_gen_i(__p, __v);
 }
 
 int __iAtomicAnd(int *__p, int __v) {
-  return __nvvm_atom_and_gen_i(__p, __v);
+  return __musa_atom_and_gen_i(__p, __v);
 }
 int __iAtomicAnd_block(int *__p, int __v) {
-  return __nvvm_atom_cta_and_gen_i(__p, __v);
+  return __musa_atom_cta_and_gen_i(__p, __v);
 }
 int __iAtomicAnd_system(int *__p, int __v) {
-  return __nvvm_atom_sys_and_gen_i(__p, __v);
+  return __musa_atom_sys_and_gen_i(__p, __v);
 }
 
 int __iAtomicCAS(int *__p, int __cmp, int __v) {
-  return __nvvm_atom_cas_gen_i(__p, __cmp, __v);
+  return __musa_atom_cas_gen_i(__p, __cmp, __v);
 }
 int __iAtomicCAS_block(int *__p, int __cmp, int __v) {
-  return __nvvm_atom_cta_cas_gen_i(__p, __cmp, __v);
+  return __musa_atom_cta_cas_gen_i(__p, __cmp, __v);
 }
 int __iAtomicCAS_system(int *__p, int __cmp, int __v) {
-  return __nvvm_atom_sys_cas_gen_i(__p, __cmp, __v);
+  return __musa_atom_sys_cas_gen_i(__p, __cmp, __v);
 }
 
 int __iAtomicExch(int *__p, int __v) {
-  return __nvvm_atom_xchg_gen_i(__p, __v);
+  return __musa_atom_xchg_gen_i(__p, __v);
 }
 int __iAtomicExch_block(int *__p, int __v) {
-  return __nvvm_atom_cta_xchg_gen_i(__p, __v);
+  return __musa_atom_cta_xchg_gen_i(__p, __v);
 }
 int __iAtomicExch_system(int *__p, int __v) {
-  return __nvvm_atom_sys_xchg_gen_i(__p, __v);
+  return __musa_atom_sys_xchg_gen_i(__p, __v);
 }
 
 int __iAtomicMax(int *__p, int __v) {
-  return __nvvm_atom_max_gen_i(__p, __v);
+  return __musa_atom_max_gen_i(__p, __v);
 }
 int __iAtomicMax_block(int *__p, int __v) {
-  return __nvvm_atom_cta_max_gen_i(__p, __v);
+  return __musa_atom_cta_max_gen_i(__p, __v);
 }
 int __iAtomicMax_system(int *__p, int __v) {
-  return __nvvm_atom_sys_max_gen_i(__p, __v);
+  return __musa_atom_sys_max_gen_i(__p, __v);
 }
 
 int __iAtomicMin(int *__p, int __v) {
-  return __nvvm_atom_min_gen_i(__p, __v);
+  return __musa_atom_min_gen_i(__p, __v);
 }
 int __iAtomicMin_block(int *__p, int __v) {
-  return __nvvm_atom_cta_min_gen_i(__p, __v);
+  return __musa_atom_cta_min_gen_i(__p, __v);
 }
 int __iAtomicMin_system(int *__p, int __v) {
-  return __nvvm_atom_sys_min_gen_i(__p, __v);
+  return __musa_atom_sys_min_gen_i(__p, __v);
 }
 
 int __iAtomicOr(int *__p, int __v) {
-  return __nvvm_atom_or_gen_i(__p, __v);
+  return __musa_atom_or_gen_i(__p, __v);
 }
 int __iAtomicOr_block(int *__p, int __v) {
-  return __nvvm_atom_cta_or_gen_i(__p, __v);
+  return __musa_atom_cta_or_gen_i(__p, __v);
 }
 int __iAtomicOr_system(int *__p, int __v) {
-  return __nvvm_atom_sys_or_gen_i(__p, __v);
+  return __musa_atom_sys_or_gen_i(__p, __v);
 }
 
 int __iAtomicXor(int *__p, int __v) {
-  return __nvvm_atom_xor_gen_i(__p, __v);
+  return __musa_atom_xor_gen_i(__p, __v);
 }
 int __iAtomicXor_block(int *__p, int __v) {
-  return __nvvm_atom_cta_xor_gen_i(__p, __v);
+  return __musa_atom_cta_xor_gen_i(__p, __v);
 }
 int __iAtomicXor_system(int *__p, int __v) {
-  return __nvvm_atom_sys_xor_gen_i(__p, __v);
+  return __musa_atom_sys_xor_gen_i(__p, __v);
 }
 
 long long __illAtomicMax(long long *__p, long long __v) {
-  return __nvvm_atom_max_gen_ll(__p, __v);
+  return __musa_atom_max_gen_ll(__p, __v);
 }
 long long __illAtomicMax_block(long long *__p, long long __v) {
-  return __nvvm_atom_cta_max_gen_ll(__p, __v);
+  return __musa_atom_cta_max_gen_ll(__p, __v);
 }
 long long __illAtomicMax_system(long long *__p, long long __v) {
-  return __nvvm_atom_sys_max_gen_ll(__p, __v);
+  return __musa_atom_sys_max_gen_ll(__p, __v);
 }
 
 long long __illAtomicMin(long long *__p, long long __v) {
-  return __nvvm_atom_min_gen_ll(__p, __v);
+  return __musa_atom_min_gen_ll(__p, __v);
 }
 long long __illAtomicMin_block(long long *__p, long long __v) {
-  return __nvvm_atom_cta_min_gen_ll(__p, __v);
+  return __musa_atom_cta_min_gen_ll(__p, __v);
 }
 long long __illAtomicMin_system(long long *__p, long long __v) {
-  return __nvvm_atom_sys_min_gen_ll(__p, __v);
+  return __musa_atom_sys_min_gen_ll(__p, __v);
 }
 
 long long __llAtomicAnd(long long *__p, long long __v) {
-  return __nvvm_atom_and_gen_ll(__p, __v);
+  return __musa_atom_and_gen_ll(__p, __v);
 }
 long long __llAtomicAnd_block(long long *__p, long long __v) {
-  return __nvvm_atom_cta_and_gen_ll(__p, __v);
+  return __musa_atom_cta_and_gen_ll(__p, __v);
 }
 long long __llAtomicAnd_system(long long *__p, long long __v) {
-  return __nvvm_atom_sys_and_gen_ll(__p, __v);
+  return __musa_atom_sys_and_gen_ll(__p, __v);
 }
 
 long long __llAtomicOr(long long *__p, long long __v) {
-  return __nvvm_atom_or_gen_ll(__p, __v);
+  return __musa_atom_or_gen_ll(__p, __v);
 }
 long long __llAtomicOr_block(long long *__p, long long __v) {
-  return __nvvm_atom_cta_or_gen_ll(__p, __v);
+  return __musa_atom_cta_or_gen_ll(__p, __v);
 }
 long long __llAtomicOr_system(long long *__p, long long __v) {
-  return __nvvm_atom_sys_or_gen_ll(__p, __v);
+  return __musa_atom_sys_or_gen_ll(__p, __v);
 }
 
 long long __llAtomicXor(long long *__p, long long __v) {
-  return __nvvm_atom_xor_gen_ll(__p, __v);
+  return __musa_atom_xor_gen_ll(__p, __v);
 }
 long long __llAtomicXor_block(long long *__p, long long __v) {
-  return __nvvm_atom_cta_xor_gen_ll(__p, __v);
+  return __musa_atom_cta_xor_gen_ll(__p, __v);
 }
 long long __llAtomicXor_system(long long *__p, long long __v) {
-  return __nvvm_atom_sys_xor_gen_ll(__p, __v);
+  return __musa_atom_sys_xor_gen_ll(__p, __v);
 }
 
 unsigned int __uAtomicAdd(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_add_gen_i((int *)__p, __v);
+  return __musa_atom_add_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicAdd_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_add_gen_i((int *)__p, __v);
+  return __musa_atom_cta_add_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicAdd_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_add_gen_i((int *)__p, __v);
+  return __musa_atom_sys_add_gen_i((int *)__p, __v);
 }
 
 unsigned int __uAtomicAnd(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_and_gen_i((int *)__p, __v);
+  return __musa_atom_and_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicAnd_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_and_gen_i((int *)__p, __v);
+  return __musa_atom_cta_and_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicAnd_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_and_gen_i((int *)__p, __v);
+  return __musa_atom_sys_and_gen_i((int *)__p, __v);
 }
 
 unsigned int __uAtomicCAS(unsigned int *__p, unsigned int __cmp,
                           unsigned int __v) {
-  return __nvvm_atom_cas_gen_i((int *)__p, __cmp, __v);
+  return __musa_atom_cas_gen_i((int *)__p, __cmp, __v);
 }
 unsigned int __uAtomicCAS_block(unsigned int *__p, unsigned int __cmp,
                                 unsigned int __v) {
-  return __nvvm_atom_cta_cas_gen_i((int *)__p, __cmp, __v);
+  return __musa_atom_cta_cas_gen_i((int *)__p, __cmp, __v);
 }
 unsigned int __uAtomicCAS_system(unsigned int *__p, unsigned int __cmp,
                                  unsigned int __v) {
-  return __nvvm_atom_sys_cas_gen_i((int *)__p, __cmp, __v);
+  return __musa_atom_sys_cas_gen_i((int *)__p, __cmp, __v);
 }
 
 unsigned int __uAtomicDec(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_dec_gen_ui(__p, __v);
+  return __musa_atom_dec_gen_ui(__p, __v);
 }
 unsigned int __uAtomicDec_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_dec_gen_ui(__p, __v);
+  return __musa_atom_cta_dec_gen_ui(__p, __v);
 }
 unsigned int __uAtomicDec_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_dec_gen_ui(__p, __v);
+  return __musa_atom_sys_dec_gen_ui(__p, __v);
 }
 
 unsigned int __uAtomicExch(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_xchg_gen_i((int *)__p, __v);
+  return __musa_atom_xchg_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicExch_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_xchg_gen_i((int *)__p, __v);
+  return __musa_atom_cta_xchg_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicExch_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_xchg_gen_i((int *)__p, __v);
+  return __musa_atom_sys_xchg_gen_i((int *)__p, __v);
 }
 
 unsigned int __uAtomicInc(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_inc_gen_ui(__p, __v);
+  return __musa_atom_inc_gen_ui(__p, __v);
 }
 unsigned int __uAtomicInc_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_inc_gen_ui(__p, __v);
+  return __musa_atom_cta_inc_gen_ui(__p, __v);
 }
 unsigned int __uAtomicInc_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_inc_gen_ui(__p, __v);
+  return __musa_atom_sys_inc_gen_ui(__p, __v);
 }
 
 unsigned int __uAtomicMax(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_max_gen_ui(__p, __v);
+  return __musa_atom_max_gen_ui(__p, __v);
 }
 unsigned int __uAtomicMax_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_max_gen_ui(__p, __v);
+  return __musa_atom_cta_max_gen_ui(__p, __v);
 }
 unsigned int __uAtomicMax_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_max_gen_ui(__p, __v);
+  return __musa_atom_sys_max_gen_ui(__p, __v);
 }
 
 unsigned int __uAtomicMin(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_min_gen_ui(__p, __v);
+  return __musa_atom_min_gen_ui(__p, __v);
 }
 unsigned int __uAtomicMin_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_min_gen_ui(__p, __v);
+  return __musa_atom_cta_min_gen_ui(__p, __v);
 }
 unsigned int __uAtomicMin_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_min_gen_ui(__p, __v);
+  return __musa_atom_sys_min_gen_ui(__p, __v);
 }
 
 unsigned int __uAtomicOr(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_or_gen_i((int *)__p, __v);
+  return __musa_atom_or_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicOr_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_or_gen_i((int *)__p, __v);
+  return __musa_atom_cta_or_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicOr_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_or_gen_i((int *)__p, __v);
+  return __musa_atom_sys_or_gen_i((int *)__p, __v);
 }
 
 unsigned int __uAtomicXor(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_xor_gen_i((int *)__p, __v);
+  return __musa_atom_xor_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicXor_block(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_cta_xor_gen_i((int *)__p, __v);
+  return __musa_atom_cta_xor_gen_i((int *)__p, __v);
 }
 unsigned int __uAtomicXor_system(unsigned int *__p, unsigned int __v) {
-  return __nvvm_atom_sys_xor_gen_i((int *)__p, __v);
+  return __musa_atom_sys_xor_gen_i((int *)__p, __v);
 }
 
 unsigned long long __ullAtomicAdd(unsigned long long *__p,
                                   unsigned long long __v) {
-  return __nvvm_atom_add_gen_ll((long long *)__p, __v);
+  return __musa_atom_add_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicAdd_block(unsigned long long *__p,
                                         unsigned long long __v) {
-  return __nvvm_atom_cta_add_gen_ll((long long *)__p, __v);
+  return __musa_atom_cta_add_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicAdd_system(unsigned long long *__p,
                                          unsigned long long __v) {
-  return __nvvm_atom_sys_add_gen_ll((long long *)__p, __v);
+  return __musa_atom_sys_add_gen_ll((long long *)__p, __v);
 }
 
 long long __llAtomicAdd(long long *__p, long long __v) {
-  return __nvvm_atom_add_gen_ll(__p, __v);
+  return __musa_atom_add_gen_ll(__p, __v);
 }
 long long __llAtomicAdd_block(long long *__p, long long __v) {
-  return __nvvm_atom_cta_add_gen_ll(__p, __v);
+  return __musa_atom_cta_add_gen_ll(__p, __v);
 }
 long long __llAtomicAdd_system(long long *__p, long long __v) {
-  return __nvvm_atom_sys_add_gen_ll(__p, __v);
+  return __musa_atom_sys_add_gen_ll(__p, __v);
 }
 
 unsigned long long __ullAtomicAnd(unsigned long long *__p,
                                   unsigned long long __v) {
-  return __nvvm_atom_and_gen_ll((long long *)__p, __v);
+  return __musa_atom_and_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicAnd_block(unsigned long long *__p,
                                         unsigned long long __v) {
-  return __nvvm_atom_cta_and_gen_ll((long long *)__p, __v);
+  return __musa_atom_cta_and_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicAnd_system(unsigned long long *__p,
                                          unsigned long long __v) {
-  return __nvvm_atom_sys_and_gen_ll((long long *)__p, __v);
+  return __musa_atom_sys_and_gen_ll((long long *)__p, __v);
 }
 
 long long __llAtomicCAS(long long *__p, long long __cmp, long long __v) {
-  return __nvvm_atom_cas_gen_ll(__p, __cmp, __v);
+  return __musa_atom_cas_gen_ll(__p, __cmp, __v);
 }
 long long __llAtomicCAS_block(long long *__p, long long __cmp, long long __v) {
-  return __nvvm_atom_cta_cas_gen_ll(__p, __cmp, __v);
+  return __musa_atom_cta_cas_gen_ll(__p, __cmp, __v);
 }
 long long __llAtomicCAS_system(long long *__p, long long __cmp, long long __v) {
-  return __nvvm_atom_sys_cas_gen_ll(__p, __cmp, __v);
+  return __musa_atom_sys_cas_gen_ll(__p, __cmp, __v);
 }
 
 unsigned long long __ullAtomicCAS(unsigned long long *__p,
                                   unsigned long long __cmp,
                                   unsigned long long __v) {
-  return __nvvm_atom_cas_gen_ll((long long *)__p, __cmp, __v);
+  return __musa_atom_cas_gen_ll((long long *)__p, __cmp, __v);
 }
 unsigned long long __ullAtomicCAS_block(unsigned long long *__p,
                                         unsigned long long __cmp,
                                         unsigned long long __v) {
-  return __nvvm_atom_cta_cas_gen_ll((long long *)__p, __cmp, __v);
+  return __musa_atom_cta_cas_gen_ll((long long *)__p, __cmp, __v);
 }
 unsigned long long __ullAtomicCAS_system(unsigned long long *__p,
                                          unsigned long long __cmp,
                                          unsigned long long __v) {
-  return __nvvm_atom_sys_cas_gen_ll((long long *)__p, __cmp, __v);
+  return __musa_atom_sys_cas_gen_ll((long long *)__p, __cmp, __v);
 }
 
 unsigned long long __ullAtomicExch(unsigned long long *__p,
                                    unsigned long long __v) {
-  return __nvvm_atom_xchg_gen_ll((long long *)__p, __v);
+  return __musa_atom_xchg_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicExch_block(unsigned long long *__p,
                                          unsigned long long __v) {
-  return __nvvm_atom_cta_xchg_gen_ll((long long *)__p, __v);
+  return __musa_atom_cta_xchg_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicExch_system(unsigned long long *__p,
                                           unsigned long long __v) {
-  return __nvvm_atom_sys_xchg_gen_ll((long long *)__p, __v);
+  return __musa_atom_sys_xchg_gen_ll((long long *)__p, __v);
 }
 
 long long __llAtomicExch(long long *__p, long long __v) {
-  return __nvvm_atom_xchg_gen_ll(__p, __v);
+  return __musa_atom_xchg_gen_ll(__p, __v);
 }
 long long __llAtomicExch_block(long long *__p, long long __v) {
-  return __nvvm_atom_cta_xchg_gen_ll(__p, __v);
+  return __musa_atom_cta_xchg_gen_ll(__p, __v);
 }
 long long __llAtomicExch_system(long long *__p, long long __v) {
-  return __nvvm_atom_sys_xchg_gen_ll(__p, __v);
+  return __musa_atom_sys_xchg_gen_ll(__p, __v);
 }
 
 unsigned long long __ullAtomicMax(unsigned long long *__p,
                                   unsigned long long __v) {
-  return __nvvm_atom_max_gen_ull(__p, __v);
+  return __musa_atom_max_gen_ull(__p, __v);
 }
 unsigned long long __ullAtomicMax_block(unsigned long long *__p,
                                         unsigned long long __v) {
-  return __nvvm_atom_cta_max_gen_ull(__p, __v);
+  return __musa_atom_cta_max_gen_ull(__p, __v);
 }
 unsigned long long __ullAtomicMax_system(unsigned long long *__p,
                                          unsigned long long __v) {
-  return __nvvm_atom_sys_max_gen_ull(__p, __v);
+  return __musa_atom_sys_max_gen_ull(__p, __v);
 }
 
 unsigned long long __ullAtomicMin(unsigned long long *__p,
                                   unsigned long long __v) {
-  return __nvvm_atom_min_gen_ull(__p, __v);
+  return __musa_atom_min_gen_ull(__p, __v);
 }
 unsigned long long __ullAtomicMin_block(unsigned long long *__p,
                                         unsigned long long __v) {
-  return __nvvm_atom_cta_min_gen_ull(__p, __v);
+  return __musa_atom_cta_min_gen_ull(__p, __v);
 }
 unsigned long long __ullAtomicMin_system(unsigned long long *__p,
                                          unsigned long long __v) {
-  return __nvvm_atom_sys_min_gen_ull(__p, __v);
+  return __musa_atom_sys_min_gen_ull(__p, __v);
 }
 
 unsigned long long __ullAtomicOr(unsigned long long *__p,
                                  unsigned long long __v) {
-  return __nvvm_atom_or_gen_ll((long long *)__p, __v);
+  return __musa_atom_or_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicOr_block(unsigned long long *__p,
                                        unsigned long long __v) {
-  return __nvvm_atom_cta_or_gen_ll((long long *)__p, __v);
+  return __musa_atom_cta_or_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicOr_system(unsigned long long *__p,
                                         unsigned long long __v) {
-  return __nvvm_atom_sys_or_gen_ll((long long *)__p, __v);
+  return __musa_atom_sys_or_gen_ll((long long *)__p, __v);
 }
 
 unsigned long long __ullAtomicXor(unsigned long long *__p,
                                   unsigned long long __v) {
-  return __nvvm_atom_xor_gen_ll((long long *)__p, __v);
+  return __musa_atom_xor_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicXor_block(unsigned long long *__p,
                                         unsigned long long __v) {
-  return __nvvm_atom_cta_xor_gen_ll((long long *)__p, __v);
+  return __musa_atom_cta_xor_gen_ll((long long *)__p, __v);
 }
 unsigned long long __ullAtomicXor_system(unsigned long long *__p,
                                          unsigned long long __v) {
-  return __nvvm_atom_sys_xor_gen_ll((long long *)__p, __v);
+  return __musa_atom_sys_xor_gen_ll((long long *)__p, __v);
 }
 
 
@@ -455,28 +455,44 @@ inline constexpr int builtin_memory_order(__hipsycl_sscp_memory_order o) noexcep
 
 // ********************** atomic store ***************************
 
+// TODO: __atomic_load_n not working any more
+void mem_fence(__hipsycl_sscp_memory_scope fence_scope) {
+  if(fence_scope == hipsycl::sycl::memory_scope::system) {
+    // TODO: __musa_membar_sys();
+    __musa_membar_gl();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
+    __musa_membar_gl();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::work_group) {
+    __musa_membar_cta();
+  }
+}
+
 HIPSYCL_SSCP_BUILTIN void __hipsycl_sscp_atomic_store_i8(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int8 *ptr, __hipsycl_int8 x) {
-  return __atomic_store_n(ptr, x, builtin_memory_order(order));
+  *ptr = x;
+  mem_fence(scope);
 }
 
 HIPSYCL_SSCP_BUILTIN void __hipsycl_sscp_atomic_store_i16(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int16 *ptr, __hipsycl_int16 x) {
-  return __atomic_store_n(ptr, x, builtin_memory_order(order));
+  *ptr = x;
+  mem_fence(scope);
 }
 
 HIPSYCL_SSCP_BUILTIN void __hipsycl_sscp_atomic_store_i32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int32 *ptr, __hipsycl_int32 x) {
-  return __atomic_store_n(ptr, x, builtin_memory_order(order));
+  *ptr = x;
+  mem_fence(scope);
 }
 
 HIPSYCL_SSCP_BUILTIN void __hipsycl_sscp_atomic_store_i64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int64 *ptr, __hipsycl_int64 x) {
-  return __atomic_store_n(ptr, x, builtin_memory_order(order));
+  *ptr = x;
+  mem_fence(scope);
 }
 
 
@@ -562,11 +578,11 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_int64 __hipsycl_sscp_atomic_exchange_i64(
     __hipsycl_sscp_memory_scope scope, __hipsycl_int64 *ptr,
     __hipsycl_int64 x) {
    if (scope == __hipsycl_sscp_memory_scope::system) {
-    return __llAtomicExch_system(ptr, x);
+    return __ullAtomicExch_system((__hipsycl_uint64*) ptr, x);
   } else if (scope == __hipsycl_sscp_memory_scope::device) {
-    return __llAtomicExch(ptr, x);
+    return __ullAtomicExch((__hipsycl_uint64*) ptr, x);
   } else /* work group, sub group or work item */ {
-    return __llAtomicExch_block(ptr, x);
+    return __ullAtomicExch_block((__hipsycl_uint64*) ptr, x);
   }
 }
 
@@ -651,11 +667,11 @@ HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_cmp_exch_strong_i64(
 
   __hipsycl_int64 old = *expected;
   if (scope == __hipsycl_sscp_memory_scope::system) {
-    *expected = __llAtomicCAS_system(ptr, *expected, desired);
+    *expected = __ullAtomicCAS_system((__hipsycl_uint64*) ptr, *expected, desired);
   } else if (scope == __hipsycl_sscp_memory_scope::device) {
-    *expected = __llAtomicCAS(ptr, *expected, desired);
+    *expected = __ullAtomicCAS((__hipsycl_uint64*) ptr, *expected, desired);
   } else /* work group, sub group or work item */ {
-    *expected = __llAtomicCAS_block(ptr, *expected, desired);
+    *expected = __ullAtomicCAS_block((__hipsycl_uint64*) ptr, *expected, desired);
   }
   return old == *expected;
 }
@@ -848,11 +864,11 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_int64 __hipsycl_sscp_atomic_fetch_add_i64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int64 *ptr, __hipsycl_int64 x) {
   if (scope == __hipsycl_sscp_memory_scope::system) {
-    return __llAtomicAdd_system(ptr, x);
+    return __ullAtomicAdd_system((__hipsycl_uint64*) ptr, x);
   } else if (scope == __hipsycl_sscp_memory_scope::device) {
-    return __llAtomicAdd(ptr, x);
+    return __ullAtomicAdd((__hipsycl_uint64*) ptr, x);
   } else /* work group, sub group or work item */ {
-    return __llAtomicAdd_block(ptr, x);
+    return __ullAtomicAdd_block((__hipsycl_uint64*) ptr, x);
   }
 }
 
@@ -954,11 +970,11 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_int64 __hipsycl_sscp_atomic_fetch_sub_i64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int64 *ptr, __hipsycl_int64 x) {
   if (scope == __hipsycl_sscp_memory_scope::system) {
-    return __llAtomicAdd_system(ptr, -x);
+    return __ullAtomicAdd_system((__hipsycl_uint64*) ptr, -x);
   } else if (scope == __hipsycl_sscp_memory_scope::device) {
-    return __llAtomicAdd(ptr, -x);
+    return __ullAtomicAdd((__hipsycl_uint64*) ptr, -x);
   } else /* work group, sub group or work item */ {
-    return __llAtomicAdd_block(ptr, -x);
+    return __ullAtomicAdd_block((__hipsycl_uint64*) ptr, -x);
   }
 }
 

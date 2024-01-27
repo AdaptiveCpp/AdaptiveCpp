@@ -32,14 +32,16 @@ __hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
                                   __hipsycl_sscp_memory_order) {
 
   if(fence_scope == hipsycl::sycl::memory_scope::system) {
-    // TODO: __mtgpu_membar_sys();
-    __mtgpu_membar_gl();
+    // TODO: __musa_membar_sys();
+    __musa_membar_gl();
   } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
-    __mtgpu_membar_gl();
-  }
+    __musa_membar_gl();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::work_group) {
+    __musa_membar_cta();
+  } 
   // syncthreads is already a clang builtin
-  // TODO: __syncthreads();
-  __mtgpu_barrier0();
+  // __syncthreads();
+  __musa_barrier0();
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
@@ -47,13 +49,12 @@ __hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
                                  __hipsycl_sscp_memory_order) {
 
   if(fence_scope == hipsycl::sycl::memory_scope::system) {
-    // TODO: __mtgpu_membar_sys();
-    __mtgpu_membar_gl();
+    // TODO: __musa_membar_sys();
+    __musa_membar_gl();
   } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
-    __mtgpu_membar_gl();
+    __musa_membar_gl();
   } else if(fence_scope == hipsycl::sycl::memory_scope::work_group) {
-    __mtgpu_membar_cta();
+    __musa_membar_cta();
   }
-  // TODO: __mtvm_bar_warp_sync(-1);
-  __mtgpu_barrier0();
+  __musa_syncwarp();
 }

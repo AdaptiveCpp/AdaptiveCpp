@@ -29,7 +29,14 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_local_id() {
-  return __nvvm_read_ptx_sreg_laneid();
+  // TODO: return __musa_read_ptx_sreg_laneid();
+  auto sg_size = __hipsycl_sscp_get_subgroup_max_size();
+  auto linear_local_id =
+      __hipsycl_sscp_get_local_id_x() +
+      __hipsycl_sscp_get_local_id_y() * __hipsycl_sscp_get_local_size_x() +
+      __hipsycl_sscp_get_local_id_z() * __hipsycl_sscp_get_local_size_x() *
+          __hipsycl_sscp_get_local_size_y();
+  return linear_local_id % sg_size;
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_size() {

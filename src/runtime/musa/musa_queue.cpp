@@ -671,8 +671,7 @@ result musa_queue::submit_sscp_kernel_from_code_object(
 
     // TODO Shouldn't we compile with the most recent ptx version supported
     // by clang/CUDA?
-    translator->setBuildOption("ptx-version", compute_capability);
-    translator->setBuildOption("ptx-target-device", compute_capability);
+    translator->setBuildOption("musa-target-device", compute_capability);
 
     // Lower kernels to MUSA code
     std::string ptx_image;

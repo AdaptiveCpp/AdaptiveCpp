@@ -52,8 +52,7 @@ protected:
   virtual AddressSpaceMap getAddressSpaceMap() const override;
 private:
   std::vector<std::string> KernelNames;
-  unsigned PtxVersion = 30;
-  unsigned PtxTarget = 10;
+  unsigned MusaTarget = 10;
 };
 
 }

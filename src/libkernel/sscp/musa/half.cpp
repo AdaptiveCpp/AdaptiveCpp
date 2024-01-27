@@ -30,83 +30,49 @@
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/musa/builtin.hpp"
 
-using hipsycl::fp16::as_integer;
+using hipsycl::fp16::as_native_float16;
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_add(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  __hipsycl_uint16 result;
-  asm("{add.f16 %0,%1,%2;\n}"
-    : "=h"(result)
-    : "h"(as_integer(a)),"h"(as_integer(b)));
-  return hipsycl::fp16::create(result);
+  return hipsycl::fp16::create(as_native_float16(a) + as_native_float16(b));
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_sub(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  __hipsycl_uint16 result;
-  asm("{sub.f16 %0,%1,%2;\n}"
-    : "=h"(result)
-    : "h"(as_integer(a)),"h"(as_integer(b)));
-  return hipsycl::fp16::create(result);
+  return hipsycl::fp16::create(as_native_float16(a) - as_native_float16(b));
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_mul(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  __hipsycl_uint16 result;
-  asm("{mul.f16 %0,%1,%2;\n}"
-    : "=h"(result)
-    : "h"(as_integer(a)),"h"(as_integer(b)));
-  return hipsycl::fp16::create(result);
+  return hipsycl::fp16::create(as_native_float16(a) * as_native_float16(b));
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_div(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::create(__mt_fast_fdivide_f32(
-      hipsycl::fp16::promote_to_float(a), hipsycl::fp16::promote_to_float(b)));
+  return hipsycl::fp16::create(as_native_float16(a) / as_native_float16(b));
 }
-
 
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_lt(hipsycl::fp16::half_storage a,
                        hipsycl::fp16::half_storage b) {
-  __hipsycl_uint16 v;
-  asm( "{ .reg .pred __$temp3;\n"
-      "  setp.lt.f16  __$temp3, %1, %2;\n"
-      "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(as_integer(a)), "h"(as_integer(b)));
-  return v != 0;
+  return as_native_float16(a) < as_native_float16(b);
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_lte(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  __hipsycl_uint16 v;
-  asm( "{ .reg .pred __$temp3;\n"
-      "  setp.le.f16  __$temp3, %1, %2;\n"
-      "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(as_integer(a)), "h"(as_integer(b)));
-  return v != 0;
+  return as_native_float16(a) <= as_native_float16(b);
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_gt(hipsycl::fp16::half_storage a,
                        hipsycl::fp16::half_storage b) {
-  __hipsycl_uint16 v;
-  asm( "{ .reg .pred __$temp3;\n"
-      "  setp.gt.f16  __$temp3, %1, %2;\n"
-      "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(as_integer(a)), "h"(as_integer(b)));
-  return v != 0;
+  return as_native_float16(a) > as_native_float16(b);
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  __hipsycl_uint16 v;
-  asm( "{ .reg .pred __$temp3;\n"
-      "  setp.ge.f16  __$temp3, %1, %2;\n"
-      "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(as_integer(a)), "h"(as_integer(b)));
-  return v != 0;
+  return as_native_float16(a) >= as_native_float16(b);
 }

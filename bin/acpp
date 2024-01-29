@@ -2011,9 +2011,9 @@ if __name__ == '__main__':
     sys.exit(-1)
   
   filename = os.path.basename(os.path.realpath(__file__))
-  if os.path.basename(os.path.realpath(__file__)) == "syclcc":
+  if filename == "syclcc":
     print("acpp warning: syclcc is deprecated; please use acpp instead.")
-  if os.path.basename(os.path.realpath(__file__)) == "syclcc-clang":
+  if filename == "syclcc-clang":
     print("acpp warning: syclcc-clang is deprecated; please use acpp instead.")
 
   args = sys.argv[1:]

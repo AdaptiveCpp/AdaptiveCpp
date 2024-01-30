@@ -192,6 +192,9 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
         if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(CI->getOperand(0))) {
           llvm::Type *T = AI->getAllocatedType();
           StructTypeInfoForBuiltin[F] = getTypeInformation(T, M);
+        } else if (auto *BI = llvm::dyn_cast<llvm::BitCastInst>(CI->getOperand(0))) {
+          llvm::Type *T = BI->getSrcTy()->getNonOpaquePointerElementType();
+          StructTypeInfoForBuiltin[F] = getTypeInformation(T, M);
         } else {
           HIPSYCL_DEBUG_WARNING
               << "IntrospectStructPass: " << F->getName().str()

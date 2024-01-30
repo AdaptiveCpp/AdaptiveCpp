@@ -11,7 +11,7 @@ inline sycl::queue get_queue() {
     if(rt->backends().get(dev_id.get_backend())
                    ->get_hardware_manager()
                    ->get_device(dev_id.get_id())->has(hipsycl::rt::device_support_aspect::sscp_kernels)) {
-      return sycl::queue{dev};  
+      return sycl::queue{dev};
     }
   }
   throw std::runtime_error{"No suitable device was found"};

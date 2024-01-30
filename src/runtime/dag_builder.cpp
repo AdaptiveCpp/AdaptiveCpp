@@ -96,12 +96,12 @@ void add_to_data_users(dag_node_ptr node, memory_requirement *mem_req) {
     // modes or ranges) on the same operation.
     // This cannot introduce duplicate dependency edges in the DAG because
     // dag_node::add_requirement() only inserts requirements to nodes
-    // that are not listed yet as requirement. 
+    // that are not listed yet as requirement.
     data_users.add_user(
         node, mem_req->get_access_mode(), mem_req->get_access_target(),
         mem_req->get_access_offset3d(), mem_req->get_access_range3d(),
         replaces_user);
-  
+
   } else
     assert(false && "dag: Image requirements are not yet implemented");
 }
@@ -171,7 +171,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
 
   auto operation_node = std::make_shared<dag_node>(
       hints, requirements.get(), std::move(op), _rt);
-  
+
   bool is_req = operation_node->get_operation()->is_requirement();
 
   // Do not change order between add_conflicts_as_requirements()
@@ -181,7 +181,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
     // If we are an explicit requirement, consider conflicts not only
     // with our requirements, but with the node itself
     add_conflicts_as_requirements(operation_node);
-  
+
   for (auto weak_node : operation_node->get_requirements()) {
     if(auto node = weak_node.lock())
       add_conflicts_as_requirements(node);

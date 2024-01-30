@@ -47,7 +47,7 @@ class ocl_queue : public inorder_queue
 {
 public:
   ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index);
-  
+
   ocl_queue(const ocl_queue&) = delete;
   ocl_queue& operator=(const ocl_queue&) = delete;
 
@@ -61,7 +61,7 @@ public:
   virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
   virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
   virtual result submit_memset(memset_operation&, dag_node_ptr) override;
-  
+
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
   virtual result submit_queue_wait_for(dag_node_ptr evt) override;

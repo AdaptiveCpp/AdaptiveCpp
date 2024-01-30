@@ -98,7 +98,7 @@ hardware_platform ze_backend::get_hardware_platform() const {
 backend_id ze_backend::get_unique_backend_id() const {
   return backend_id::level_zero;
 }
-  
+
 backend_hardware_manager* ze_backend::get_hardware_manager() const {
   return _hardware_manager.get();
 }

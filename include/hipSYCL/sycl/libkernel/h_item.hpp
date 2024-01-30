@@ -126,7 +126,7 @@ public:
   {
   const range<Dimensions> _num_groups;
   #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-    return lhs._logical_local_id == rhs._logical_local_id && 
+    return lhs._logical_local_id == rhs._logical_local_id &&
            lhs._logical_range == rhs._logical_range;
   #else
     return lhs._logical_local_id == rhs._logical_local_id &&
@@ -198,7 +198,7 @@ public:
     __hipsycl_if_target_host(
       range<Dimensions> size;
       for(int i = 0; i < Dimensions; ++i)
-        size[i] = 1; 
+        size[i] = 1;
       return size;
     );
 
@@ -222,7 +222,7 @@ public:
     __hipsycl_if_target_host(
       id<Dimensions> local_id;
       for(int i = 0; i < Dimensions; ++i)
-        local_id[i] = 0; 
+        local_id[i] = 0;
       return local_id;
     );
   }

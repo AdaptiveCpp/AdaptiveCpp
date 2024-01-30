@@ -56,7 +56,7 @@ public:
 
   void insert(std::size_t bin) {
     submission new_submission {};
-    
+
     new_submission.bin = bin;
     new_submission.timestamp = now();
 
@@ -119,7 +119,7 @@ private:
   std::vector<submission> _last_submissions;
 };
 
-/// An executor that submits tasks by serializing them onto 
+/// An executor that submits tasks by serializing them onto
 /// to multiple inorder queues (e.g. CUDA streams)
 class multi_queue_executor : public backend_executor
 {
@@ -160,7 +160,7 @@ public:
 
   bool find_assigned_lane_index(dag_node_ptr node, std::size_t& index_out) const;
 private:
-  
+
 
   struct per_device_data
   {

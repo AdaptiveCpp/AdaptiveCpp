@@ -152,6 +152,6 @@ __device__ T __hipsycl_exclusive_scan_over_group(sub_group g, V x, T init,
 } // namespace sycl
 } // namespace hipsycl
 
-#endif 
+#endif
 #endif // HIPSYCL_LIBKERNEL_HIP_GROUP_FUNCTIONS_HPP
 

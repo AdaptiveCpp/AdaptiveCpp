@@ -80,7 +80,7 @@ public:
       _per_thread_results[0].value = _desc.combiner(
           _per_thread_results[0].value, _per_thread_results[i].value);
     }
-    
+
     *(_desc.get_pointer()) = _per_thread_results[0].value;
   }
 private:

@@ -216,7 +216,7 @@ public:
   }
 
   bool operator>(const accessor_iterator &other) const {
-    return other < *this; 
+    return other < *this;
   }
 
   bool operator <=(const accessor_iterator &other) const {
@@ -230,7 +230,7 @@ public:
   difference_type operator-(const accessor_iterator &rhs) const {
     return linear_id - rhs.linear_id;
   }
-  
+
 private:
   template <typename, int,
             sycl::access_mode,
@@ -248,14 +248,14 @@ private:
   // Constructs an iterator pointing to the beginning of the accessor's data
   accessor_iterator(const Accessor* acc_ptr)
     : acc_ptr{acc_ptr}, linear_id{0} {}
-  
+
   static accessor_iterator make_begin(const Accessor *acc_ptr) {
     return accessor_iterator{acc_ptr};
   }
 
   static accessor_iterator make_end(const Accessor *acc_ptr) {
     auto end = accessor_iterator{acc_ptr};
-    end.linear_id = acc_ptr->get_range().size();    
+    end.linear_id = acc_ptr->get_range().size();
     return end;
   }
 
@@ -348,7 +348,7 @@ class subscript_proxy
   }
 public:
   static_assert(dimensions > 1, "dimension must be > 1");
-  
+
   using accessor_type = sycl::accessor<dataT, dimensions, accessmode,
                                        accessTarget, isPlaceholder>;
   using reference = typename accessor_type::reference;
@@ -522,7 +522,7 @@ class conditional_storage<TagT, true, T> {
 public:
 
   conditional_storage() = default;
-  conditional_storage(const T& v) 
+  conditional_storage(const T& v)
   : _val{v} {}
 
   conditional_storage(const conditional_storage&) = default;
@@ -603,7 +603,7 @@ rt::range<3> get_effective_range(const std::shared_ptr<rt::buffer_data_region> &
                                   const rt::range<Dim> range, const rt::range<Dim> buffer_shape,
                                   const bool has_access_range) {
   // todo: optimize range / offset (would have to calculate a bounding box for reshaped buffers..)
-  if(!has_access_range || sizeof(T) != mem_region->get_element_size() 
+  if(!has_access_range || sizeof(T) != mem_region->get_element_size()
       || rt::embed_in_range3(buffer_shape) != mem_region->get_num_elements())
     return mem_region->get_num_elements();
 
@@ -612,7 +612,7 @@ rt::range<3> get_effective_range(const std::shared_ptr<rt::buffer_data_region> &
 
 template <class T, int Dim>
 rt::id<3> get_effective_offset(const std::shared_ptr<rt::buffer_data_region> &mem_region,
-                                  const rt::id<Dim> offset, const rt::range<Dim> buffer_shape, 
+                                  const rt::id<Dim> offset, const rt::range<Dim> buffer_shape,
                                   const bool has_access_range) {
   // todo: optimize range / offset (would have to calculate a bounding box for reshaped buffers..)
   if(!has_access_range || sizeof(T) != mem_region->get_element_size()
@@ -686,7 +686,7 @@ class HIPSYCL_EMPTY_BASES accessor
       detail::accessor::stores_buffer_range(AccessorVariant);
   static constexpr bool has_accessor_properties =
       detail::accessor::stores_accessor_properties(AccessorVariant);
-  
+
   static constexpr bool is_raw_accessor =
       AccessorVariant == accessor_variant::raw;
   static constexpr bool has_placeholder_constructors =
@@ -758,7 +758,7 @@ class HIPSYCL_EMPTY_BASES accessor
     else if(is_placeholder_variant(dest) && is_nonplaceholder_variant(src))
       // should both directions be forbidden? reversed?
       return false;
-    
+
     return true;
   }
 public:
@@ -1084,7 +1084,7 @@ public:
           has_access_range, dimensions>::ptr()->offset;
     }
   }
-  
+
   template<int D = dimensions,
             std::enable_if_t<(D == 0), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
@@ -1243,7 +1243,7 @@ private:
   template <class BufferT>
   void init(BufferT &buff, id<dimensions> offset,
             range<dimensions> access_range, const property_list &prop_list) {
-    
+
     bool is_no_init_access = false;
     bool is_placeholder_access = true;
 
@@ -1262,7 +1262,7 @@ private:
       init_host_buffer(buff.hipSYCL_runtime(), is_no_init_access);
     }
   }
-  
+
   template <class BufferT>
   void init(BufferT& buff, const property_list& prop_list) {
     init(buff, id<dimensions>{}, detail::extract_buffer_range(buff), prop_list);
@@ -1293,8 +1293,8 @@ private:
     init(buff, cgh, id<dimensions>{}, detail::extract_buffer_range(buff),
          prop_list);
   }
-  
-  
+
+
 
   HIPSYCL_UNIVERSAL_TARGET
   size_t get_linear_id(id<dimensions> idx) const noexcept {
@@ -1362,7 +1362,7 @@ private:
     rt::dag_node_ptr node;
     {
       rt::dag_build_guard build{rt->dag()};
-      
+
       const rt::range<dimensions> buffer_shape = rt::make_range(get_buffer_shape());
       auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
         data,
@@ -1384,7 +1384,7 @@ private:
       node = build.builder()->add_explicit_mem_requirement(
           std::move(explicit_requirement), rt::requirements_list{rt},
           enforce_bind_to_host);
-      
+
       HIPSYCL_DEBUG_INFO << "accessor [host]: forcing DAG flush for host access..." << std::endl;
       rt->dag().flush_sync();
     }
@@ -1399,7 +1399,7 @@ private:
       assert(req->has_device_ptr());
       void* host_ptr = req->get_device_ptr();
       assert(host_ptr);
-      
+
       // For host accessors, we need to manually trigger the initialization
       // of the embedded pointer
       this->_ptr.explicit_init(host_ptr);
@@ -1537,7 +1537,7 @@ accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
 
 template <typename T, int Dim, typename AllocatorT, typename TagDescT>
 accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
-         range<Dim> accessRange, id<Dim> accessOffset, 
+         range<Dim> accessRange, id<Dim> accessOffset,
          detail::mode_tag<TagDescT> tag, const property_list &propList = {})
     -> accessor<T, Dim, detail::mode_tag<TagDescT>::mode,
                 detail::mode_tag<TagDescT>::target,
@@ -1656,8 +1656,8 @@ public:
   /* Available only when: (dimensions > 0) */
   template <typename AllocatorT, typename TagDescT, int D = dimensions,
             std::enable_if_t<(D > 0), bool> = true>
-  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef, 
-                detail::mode_tag<TagDescT> tag, 
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                detail::mode_tag<TagDescT> tag,
                 const property_list &propList = {})
       : _impl{bufferRef, tag, propList} {
     validate_host_accessor_tag(tag);
@@ -1845,19 +1845,19 @@ host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
 template <typename T, int Dim, typename AllocatorT>
 host_accessor(buffer<T, Dim, AllocatorT> &bufferRef,
           const property_list &prop_list = {})
-    -> host_accessor<T, Dim, 
+    -> host_accessor<T, Dim,
           detail::default_access_tag<T>().mode>;
 
 template <typename T, int Dim, typename AllocatorT>
 host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
               const property_list &propList = {})
-    -> host_accessor<T, Dim, 
+    -> host_accessor<T, Dim,
           detail::default_access_tag<T>().mode>;
 
 template <typename T, int Dim, typename AllocatorT>
 host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
          id<Dim> accessOffset, const property_list &propList = {})
-    -> host_accessor<T, Dim, 
+    -> host_accessor<T, Dim,
           detail::default_access_tag<T>().mode>;
 
 /// Accessor specialization for local memory
@@ -2041,7 +2041,7 @@ public:
   {
     sycl::id<dimensions> initial_index;
     initial_index[0] = index;
-    
+
     return detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
                                              access::target::local, isPlaceholder> {
       this, initial_index

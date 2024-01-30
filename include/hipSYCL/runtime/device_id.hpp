@@ -100,18 +100,18 @@ public:
   device_id() = default;
   device_id(const device_id&) = default;
   device_id(backend_descriptor b, int id);
-  
+
   bool is_host() const;
   backend_id get_backend() const;
   backend_descriptor get_full_backend_descriptor() const;
-  
+
   int get_id() const;
 
   void dump(std::ostream& ostr) const;
 
   friend bool operator==(const device_id& a, const device_id& b)
   {
-    return a._backend == b._backend && 
+    return a._backend == b._backend &&
            a._device_id == b._device_id;
   }
 
@@ -160,7 +160,7 @@ struct hash<hipsycl::rt::device_id>
 {
   std::size_t operator()(const hipsycl::rt::device_id& k) const
   {
-    return hash<int>()(static_cast<int>(k.get_backend())) ^ 
+    return hash<int>()(static_cast<int>(k.get_backend())) ^
           (hash<int>()(k.get_id()) << 8);
   }
 };
@@ -170,7 +170,7 @@ struct hash<hipsycl::rt::platform_id>
 {
   std::size_t operator()(const hipsycl::rt::platform_id& p) const
   {
-    return hash<int>()(static_cast<int>(p.get_backend())) ^ 
+    return hash<int>()(static_cast<int>(p.get_backend())) ^
           (hash<int>()(p.get_platform()) << 8);
   }
 };

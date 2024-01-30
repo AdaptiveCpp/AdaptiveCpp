@@ -87,7 +87,7 @@ void initialize_memory_access(buffer_memory_requirement *bmem_req,
   void *device_pointer = bmem_req->get_data_region()->get_memory(target_dev);
   bmem_req->initialize_device_data(device_pointer);
   HIPSYCL_DEBUG_INFO << "dag_direct_scheduler: Setting device data pointer of "
-                        "requirement node " << dump(bmem_req) << " to " 
+                        "requirement node " << dump(bmem_req) << " to "
                      << device_pointer << std::endl;
 }
 
@@ -126,14 +126,14 @@ void for_each_explicit_operation(
     dag_node_ptr node, std::function<void(operation *)> explicit_op_handler) {
   if (node->is_submitted())
     return;
-  
+
   if (!node->get_operation()->is_requirement()) {
     explicit_op_handler(node->get_operation());
     return;
   } else {
     execute_if_buffer_requirement(node,
                                   [&](buffer_memory_requirement *bmem_req) {
-          
+
           device_id target_device = node->get_assigned_device();
 
           std::vector<range_store::rect> outdated_regions;
@@ -202,7 +202,7 @@ select_executor(runtime *rt, dag_node_ptr node, operation *op) {
         preferred_device);
 
   } else {
-    
+
     if (user_preferred_executor &&
         user_preferred_executor->can_execute_on_device(dev))
       return std::make_pair(user_preferred_executor, dev);
@@ -213,7 +213,7 @@ select_executor(runtime *rt, dag_node_ptr node, operation *op) {
 }
 
 void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
-  
+
   node_list_t reqs;
   node->for_each_nonvirtual_requirement([&](dag_node_ptr req) {
     if(std::find(reqs.begin(), reqs.end(), req) == reqs.end())
@@ -226,7 +226,7 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
              reqs.end());
 
   node->assign_to_executor(executor);
-  
+
   executor->submit_directly(node, op, reqs);
   assert(node->is_submitted());
   // After node submission, no additional instrumentations can be added.
@@ -250,7 +250,7 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
   });
   if (!res.is_success())
     return res;
-  
+
   // Then initialize memory accesses
   execute_if_buffer_requirement(
     req, [&](buffer_memory_requirement *bmem_req) {
@@ -282,7 +282,7 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
               select_executor(rt, req, op);
           // TODO What if we need to copy between two device backends through
           // host?
-          
+
           // TODO: The following is super-hacky and hints that we might
           // have to do some larger architectural changes here:
           //
@@ -330,7 +330,7 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
   }
   // This must be executed even if the requirement did
   // not result in actual operations in order to make sure
-  // that regions are valid after discard accesses 
+  // that regions are valid after discard accesses
   execute_if_buffer_requirement(
       req, [&](buffer_memory_requirement *bmem_req) {
         if (access_mode == sycl::access::mode::read) {
@@ -344,7 +344,7 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
         }
       });
 
-  
+
   return make_success();
 }
 }
@@ -366,7 +366,7 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
                                 .get_hint<hints::bind_to_device>()
                                 ->get_device_id();
   node->assign_to_device(target_device);
-  
+
   for (auto weak_req : node->get_requirements()) {
     if(auto req = weak_req.lock())
       assign_devices_or_default(req, target_device);
@@ -397,7 +397,7 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
 
   if (node->get_operation()->is_requirement()) {
     result res = submit_requirement(_rt, node);
-    
+
     if (!res.is_success()) {
       register_error(res);
       abort_submission(node);

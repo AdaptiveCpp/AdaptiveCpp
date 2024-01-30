@@ -69,7 +69,7 @@ public:
   virtual std::size_t get_property(device_uint_property prop) const override;
   virtual std::vector<std::size_t>
   get_property(device_uint_list_property prop) const override;
-  
+
   virtual std::string get_driver_version() const override;
   virtual std::string get_profile() const override;
 
@@ -103,13 +103,13 @@ public:
   virtual device_id get_device_id(std::size_t index) const override;
 
   virtual ~ocl_hardware_manager() {}
-  
+
   cl::Platform get_platform(int platform_id);
   cl::Context get_context(device_id dev);
 private:
   std::vector<ocl_hardware_context> _devices;
   std::vector<cl::Platform> _platforms;
-  
+
   hardware_platform _hw_platform;
 };
 

@@ -42,7 +42,7 @@ namespace hipsycl {
 namespace sycl {
 
 // This class is mostly a dummy implementation
-class kernel 
+class kernel
 {
 private:
   friend class program;
@@ -52,13 +52,13 @@ private:
 
   context _ctx;
 public:
-  template<class Kernel_type>  
+  template<class Kernel_type>
   kernel(Kernel_type clKernel, const context& syclContext)
   : _ctx{syclContext}
   {}
-  
+
   /* -- common interface members -- */
-  
+
   //cl_kernel get() const;
 
   bool is_host() const
@@ -72,7 +72,7 @@ public:
   }
 
   program get_program() const;
-  
+
   template <typename Param>
   typename Param::return_type get_info() const;
 
@@ -101,7 +101,7 @@ public:
 
     } else if constexpr (std::is_same_v<KernelDeviceSpecificT,
                                         max_num_sub_groups>) {
-                                          
+
       auto subgroups = dev.get_info<info::device::sub_group_sizes>();
       return static_cast<uint32_t>(
           dev.get_info<info::device::max_work_group_size>() /

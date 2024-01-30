@@ -48,7 +48,7 @@ void test_replace(std::size_t problem_size, Generator gen, int old_val,
   std::replace(std::execution::par_unseq, data.begin(), data.end(), old_val,
                new_val);
   std::replace(host_data.begin(), host_data.end(), old_val,
-               new_val);               
+               new_val);
   BOOST_CHECK(data == host_data);
 }
 

@@ -106,15 +106,15 @@ public:
   /* -- common interface members -- */
   HIPSYCL_UNIVERSAL_TARGET
   size_t get_size() const { return _total_buff_size; }
-  
+
   HIPSYCL_UNIVERSAL_TARGET
   size_t get_work_item_buffer_size() const { return _work_item_buff_size; }
-  
+
   [[deprecated]]
   HIPSYCL_UNIVERSAL_TARGET
   size_t get_max_statement_size() const
   { return get_work_item_buffer_size(); }
-  
+
 private:
   size_t _total_buff_size;
   size_t _work_item_buff_size;
@@ -253,7 +253,7 @@ template<int Dim, bool with_offset>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, item<Dim, with_offset> v){
   if constexpr(with_offset)
-    os << "item { id: " << v.get_id() << " range: " << v.get_range() 
+    os << "item { id: " << v.get_id() << " range: " << v.get_range()
        << " offset: " << v.get_offset() << "}";
   else
     os << "item { id: " << v.get_id() << " range: " << v.get_range() << "}";
@@ -263,7 +263,7 @@ const stream& operator<<(const stream& os, item<Dim, with_offset> v){
 template<int Dim>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, nd_item<Dim> v){
-  os << "nd_item {" 
+  os << "nd_item {"
      << " local_id: "     << v.get_local_id()
      << " local_range: "  << v.get_local_range()
      << " group_id: "     << v.get_group().get_id()
@@ -290,7 +290,7 @@ const stream& operator<<(const stream& os, nd_range<Dim> v){
 template<int Dim>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, group<Dim> v){
-  os << "group {" 
+  os << "group {"
      << " group_id: "     << v.get_id()
      << " group_range: "  << v.get_group_range()
      << " local_range: "  << v.get_local_range()
@@ -302,7 +302,7 @@ const stream& operator<<(const stream& os, group<Dim> v){
 template<int Dim>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, h_item<Dim> v){
-  os << "h_item {" 
+  os << "h_item {"
      << " logical_local_id: "  << v.get_logical_local()
      << " logical_local_range: "  << v.get_logical_local_range()
      << " physical_local_id: " << v.get_physical_local()
@@ -317,7 +317,7 @@ const stream& operator<<(const stream& os, h_item<Dim> v){
 template <typename ElementType, access::address_space Space>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, multi_ptr<ElementType, Space> v){
-  
+
   if constexpr(Space == access::address_space::global_space)
     os << "global_memory@";
   else if constexpr(Space == access::address_space::local_space)
@@ -326,9 +326,9 @@ const stream& operator<<(const stream& os, multi_ptr<ElementType, Space> v){
     os << "constant_memory@";
   else if constexpr(Space == access::address_space::private_space)
     os << "private_memory@";
-  
+
   os << v.get();
-  
+
   return os;
 }
 

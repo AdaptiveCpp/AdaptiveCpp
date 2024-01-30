@@ -50,7 +50,7 @@ public:
   virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
   virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
   virtual result submit_memset(memset_operation&, dag_node_ptr) override;
-  
+
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
   virtual result submit_queue_wait_for(dag_node_ptr evt) override;
@@ -62,7 +62,7 @@ public:
   virtual void *get_native_type() const override;
 
   virtual result query_status(inorder_queue_status& status) override;
-  
+
   worker_thread& get_worker();
 private:
   const backend_id _backend_id;

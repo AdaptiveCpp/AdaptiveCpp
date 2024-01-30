@@ -32,7 +32,7 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #else
-#include <windows.h> 
+#include <windows.h>
 #endif
 
 #include HIPSYCL_CXX_FILESYSTEM_HEADER
@@ -53,7 +53,7 @@ std::string get_install_directory() {
     if(lib_path.has_parent_path())
       paths.emplace_back(lib_path.parent_path());
   }
-  
+
 #else
   if(HMODULE handle = GetModuleHandleA(HIPSYCL_COMMON_LIBRARY_NAME))
   {
@@ -65,7 +65,7 @@ std::string get_install_directory() {
         paths.emplace_back(lib_path.parent_path());
     }
   }
-  
+
 #endif
   if(paths.empty() || !fs::is_directory(paths.back()))
     return fs::path{HIPSYCL_INSTALL_PREFIX}.string();
@@ -98,8 +98,8 @@ std::vector<std::string> list_regular_files(const std::string& directory) {
 }
 
 std::vector<std::string> list_regular_files(const std::string& directory,
-  const std::string& extension) { 
-  
+  const std::string& extension) {
+
   auto all_files = list_regular_files(directory);
   std::vector<std::string> result;
   for(const auto& f : all_files) {

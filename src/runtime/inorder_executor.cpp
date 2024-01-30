@@ -107,7 +107,7 @@ bool inorder_executor::is_taskgraph() const {
 
 void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
                                        const node_list_t &reqs) {
-  
+
   HIPSYCL_DEBUG_INFO << "inorder_executor: Processing node " << node.get()
 	  << " with " << reqs.size() << " non-virtual requirement(s) and "
 	  << node->get_requirements().size() << " direct requirement(s)." << std::endl;
@@ -163,7 +163,7 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
               req->get_assigned_execution_lane());
           std::size_t maximum_execution_index =
               get_maximum_execution_index_for_lane(reqs, req_q);
-          
+
           if(req->get_assigned_execution_index() != maximum_execution_index) {
             HIPSYCL_DEBUG_INFO
                 << "  --> (Skipping unnecessary synchronization; another "
@@ -185,7 +185,7 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
   HIPSYCL_DEBUG_INFO
       << "inorder_executor: Dispatching to lane " << _q.get() << ": "
       << dump(op) << std::endl;
-  
+
   queue_operation_dispatcher dispatcher{_q.get()};
   res = op->dispatch(&dispatcher, node);
   if (!res.is_success()) {

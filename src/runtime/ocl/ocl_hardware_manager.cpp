@@ -554,7 +554,7 @@ ocl_hardware_manager::ocl_hardware_manager()
 
   int global_device_index = 0;
   for(const auto& p : platforms) {
-    
+
     std::string platform_name;
     err = p.getInfo(CL_PLATFORM_NAME, &platform_name);
     if(err != CL_SUCCESS) {

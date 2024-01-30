@@ -95,7 +95,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: Submitting kernel!" << std::endl;
   rt::range<3> global_size = num_groups * group_size;
-  
+
   cl::NDRange cl_global_size{global_size[0], global_size[1], global_size[2]};
   cl::NDRange cl_local_size{group_size[0], group_size[1], group_size[2]};
   cl::NDRange offset{0, 0, 0};
@@ -171,7 +171,7 @@ std::shared_ptr<dag_node_event> ocl_queue::insert_event() {
                 error_code{"CL", err}});
     }
     register_submitted_op(wait_evt);
-    
+
   }
 
   return _state.get_most_recent_event();
@@ -214,7 +214,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
       op.source().get_access_offset() == id<3>{} &&
       op.dest().get_access_offset() == id<3>{})
     dimension = 1;
-  
+
   assert(dimension >= 1 && dimension <= 3);
 
   cl::Event evt;
@@ -257,7 +257,7 @@ result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_invoker);
   l->set_backend_capabilities(cap);
-  
+
   // TODO: Instrumentation
   l->invoke(node.get(), op.get_launcher().get_kernel_configuration());
 
@@ -315,7 +315,7 @@ result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
 
   ocl_node_event *ocl_evt =
       static_cast<ocl_node_event *>(evt->get_event().get());
-  
+
   std::vector<cl::Event> events{ocl_evt->get_event()};
 
   if (_hw_manager->get_context(ocl_evt->get_device()) !=
@@ -451,7 +451,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
     const ocl_executable_object *obj =
         static_cast<const ocl_executable_object *>(candidate);
-    
+
     if(obj->configuration_id() != configuration_id)
       return false;
 
@@ -460,25 +460,25 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   auto code_object_constructor = [&]() -> code_object* {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
-    
+
     std::vector<std::string> kernel_names;
     std::string selected_image_name =
         glue::jit::select_image(kernel_info, &kernel_names);
 
     // Construct SPIR-V translator to compile the specified kernels
-    std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
+    std::unique_ptr<compiler::LLVMToBackendTranslator> translator =
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
 
     translator->setBuildOption("spirv-dynamic-local-mem-allocation-size",
                                local_mem_size);
     // TODO: Enable this if we are on Intel
     // translator->setBuildFlag("enable-intel-llvm-spirv-options");
-    
+
     // Lower kernels to SPIR-V
     std::string compiled_image;
     auto err = glue::jit::compile(translator.get(),
         hcf, selected_image_name, config, compiled_image);
-    
+
     if(!err.is_success()) {
       register_error(err);
       return nullptr;
@@ -509,7 +509,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   cl::Kernel kernel;
   result res = static_cast<const ocl_executable_object *>(obj)->get_kernel(
       kernel_name, kernel);
-  
+
   if(!res.is_success())
     return res;
 

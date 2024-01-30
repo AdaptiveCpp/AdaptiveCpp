@@ -60,8 +60,8 @@ bool dag::is_requirement_from_this_dag(const dag_node_ptr& node) const
 {
   assert_is<requirement>(node->get_operation());
 
-  return std::find(_memory_requirements.begin(), 
-                  _memory_requirements.end(), node) 
+  return std::find(_memory_requirements.begin(),
+                  _memory_requirements.end(), node)
                   != _memory_requirements.end();
 }
 
@@ -77,9 +77,9 @@ bool dag::contains_node(dag_node_ptr node) const
 
 void dag::for_each_node(std::function<void(dag_node_ptr)> handler) const
 {
-  std::for_each(_command_groups.begin(), 
+  std::for_each(_command_groups.begin(),
                 _command_groups.end(), handler);
-  std::for_each(_memory_requirements.begin(), 
+  std::for_each(_memory_requirements.begin(),
                 _memory_requirements.end(), handler);
 }
 

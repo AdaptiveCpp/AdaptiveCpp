@@ -31,5 +31,5 @@
 extern "C" int vprintf(const char *, const char *);
 
 void __hipsycl_sscp_print(const char* msg) {
-  vprintf(msg, nullptr);  
+  vprintf(msg, nullptr);
 }

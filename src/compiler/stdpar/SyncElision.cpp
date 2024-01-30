@@ -114,7 +114,7 @@ void identifyStoresPotentiallyForStdparArgHandling(
             if(auto* SI = llvm::dyn_cast<llvm::StoreInst>(U)) {
               for(auto* U : Users) {
                 Out[SI].push_back(U);
-              }  
+              }
             }
           }
         }
@@ -170,7 +170,7 @@ bool isSucceedingInBB(llvm::Instruction* From, llvm::Instruction* To) {
       if(I == To)
         return true;
     }
-  } 
+  }
   return false;
 }
 
@@ -340,13 +340,13 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
 
     llvm::SmallPtrSet<llvm::Instruction*, 16> SyncCallsToRemove;
     llvm::SmallVector<llvm::Instruction*, 16> StdparCallPositions;
-    
+
     for(auto* U : SyncF->users()) {
       if(auto* I = llvm::dyn_cast<llvm::CallBase>(U)){
-        
+
         llvm::Function* Caller = I->getParent()->getParent();
         if(StdparFunctions.contains(Caller)) {
-          
+
           for(auto* CallerU : Caller->users()) {
             if(auto* CB = llvm::dyn_cast<llvm::CallBase>(CallerU)) {
               HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Found stdpar call in potential need of "
@@ -363,7 +363,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
         }
       }
     }
-    
+
     // Remove synchronization calls present in stdpar function definitions
     for(auto* I : SyncCallsToRemove) {
       I->eraseFromParent();

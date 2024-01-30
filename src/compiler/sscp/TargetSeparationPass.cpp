@@ -79,7 +79,7 @@ public:
 
   double stopAndPrint() {
     double T = stop();
-    HIPSYCL_DEBUG_INFO << "SSCP: Phase '" << Name << "' took " << T << " seconds\n"; 
+    HIPSYCL_DEBUG_INFO << "SSCP: Phase '" << Name << "' took " << T << " seconds\n";
     return T;
   }
 
@@ -94,11 +94,11 @@ private:
   bool IsRunning = false;
   std::string Name, Description;
 
-  using TimePointT = 
+  using TimePointT =
     std::chrono::time_point<std::chrono::high_resolution_clock>;
   TimePointT Start;
   TimePointT Stop;
-  
+
 };
 
 class ScopedPrintingTimer : private Timer {
@@ -181,7 +181,7 @@ struct KernelInfo {
         }
 
         KernelParam KP;
-        
+
         auto BitSize = M.getDataLayout().getTypeSizeInBits(ParamT);
         assert(BitSize % CHAR_BIT == 0);
         KP.ByteSize = BitSize / CHAR_BIT;
@@ -202,7 +202,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   std::unique_ptr<llvm::Module> DeviceModule = llvm::CloneModule(M);
   DeviceModule->setModuleIdentifier("device." + DeviceModule->getModuleIdentifier());
-  
+
   llvm::LoopAnalysisManager LAM;
   llvm::FunctionAnalysisManager FAM;
   llvm::CGSCCAnalysisManager CGAM;
@@ -263,7 +263,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   EntrypointPreparationPass EPP;
   EPP.run(*DeviceModule, DeviceMAM);
-  
+
   ExportedSymbolsOutput = EPP.getNonKernelOutliningEntrypoints();
 
   KernelArgumentCanonicalizationPass KACPass{EPP.getKernelNames()};
@@ -348,7 +348,7 @@ std::string generateHCF(llvm::Module& DeviceModule,
   for(const auto& IS : ImportedSymbols) {
     HIPSYCL_DEBUG_INFO << "HCF generation: Image imports symbol: " << IS << "\n";
   }
-  
+
   LLVMIRNode->set_as_list("exported-symbols", ExportedSymbols);
   LLVMIRNode->set_as_list("imported-symbols", ImportedSymbols);
 
@@ -378,7 +378,7 @@ std::string generateHCF(llvm::Module& DeviceModule,
       P->set("type", TypeDescription);
     }
   }
-  
+
 
   return HcfObject.serialize();
 }
@@ -398,12 +398,12 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
     // Only run SSCP kernel extraction in the host pass in case
     // there are also CUDA/HIP compilation flows going on
     if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
-      
+
       std::vector<KernelInfo> Kernels;
       std::vector<std::string> ExportedSymbols;
       std::vector<std::string> ImportedSymbols;
-      
-      
+
+
       Timer IRGenTimer{"generateDeviceIR", true};
       std::unique_ptr<llvm::Module> DeviceIR =
           generateDeviceIR(M, Kernels, ExportedSymbols, ImportedSymbols);

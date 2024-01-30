@@ -85,14 +85,14 @@ public:
   instrumentation_set()
   : _registration_complete{false} {}
 
-  /// Wait for the given instrumentation to make results available. 
+  /// Wait for the given instrumentation to make results available.
   /// Returns nullptr if the given instrumentation was not set up.
   template<typename Instr> const std::shared_ptr<Instr> get() const {
     // First wait until all instrumentations have been set up
-    
+
     while(!_registration_complete)
       ;
-    
+
     std::shared_ptr<Instr> i = nullptr;
 
     for(const auto& current : _instrs) {

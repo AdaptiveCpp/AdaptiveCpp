@@ -114,7 +114,7 @@ public:
   offload_heuristic_db& get_offload_db() {
     return _offload_db;
   }
-  
+
   sycl::queue& get_queue() {
     return _queue;
   }
@@ -143,10 +143,10 @@ public:
     uint64_t batch_end = get_time_now();
     double mean_time = static_cast<double>(batch_end - _batch_start_timestamp) /
                        _instrumented_ops_in_batch.size();
-    
+
     assert(_instrumented_ops_in_batch.size() ==
            _instrumented_op_problem_sizes_in_batch.size());
-    
+
     for(int i = 0; i < _instrumented_ops_in_batch.size(); ++i) {
       std::size_t problem_size = _instrumented_op_problem_sizes_in_batch[i];
       _offload_db.update_entry(_instrumented_ops_in_batch[i], problem_size,
@@ -249,7 +249,7 @@ public:
 
     uint64_t address = 0;
     if(_free_space_map.claim(size, address)) {
-      
+
       void* ptr = static_cast<void*>((char*)_base_address + address);
       assert(is_from_pool(ptr));
       assert(is_from_pool((char*)ptr+size));
@@ -308,7 +308,7 @@ private:
 };
 
 class unified_shared_memory {
-  
+
   struct allocation_map_payload {
     // Note: This gets updated when logic, such as the prefetch
     // heuristic, touches this value - so it may not be up to date
@@ -326,14 +326,14 @@ public:
   static void push_disabled() {
     thread_local_storage::get().disabled_stack++;
   }
-  
+
   static void* malloc(std::size_t n, std::size_t alignment = 0) {
     // Seems some apps rely on n==0 still returning a valid pointer
     if(n == 0)
       n = 1;
-    
+
     if(thread_local_storage::get().disabled_stack == 0) {
-      
+
       void* ptr = nullptr;
       push_disabled();
       if (alignment != 0) {
@@ -388,7 +388,7 @@ public:
     }
 
     if (thread_local_storage::get().disabled_stack == 0) {
-          
+
       push_disabled();
       static detail::usm_context ctx;
       pop_disabled();
@@ -441,7 +441,7 @@ private:
   memory_pool* get_memory_pool() const {
     return __atomic_load_n(&_memory_pool, __ATOMIC_ACQUIRE);
   }
-  
+
   void init_mem_pool() {
     std::lock_guard<std::mutex> pool_construction_lock{_pool_construction_lock};
     if (!get_memory_pool()) {
@@ -462,7 +462,7 @@ private:
     if (rt::try_get_environment_variable("stdpar_mem_pool_size",
                                          user_defined_mem_pool_size))
       return user_defined_mem_pool_size;
-    
+
     // If we have system allocations, mem pool is not really needed.
     // Note: This also excludes OpenMP backend from the following calculations,
     // which might be important since it return 2^64 for both queries.
@@ -480,7 +480,7 @@ private:
 
   unified_shared_memory()
       : _is_initialized{false}, _memory_pool{nullptr} {}
-  
+
   ~unified_shared_memory() {
     if(_memory_pool) {
       _memory_pool->~memory_pool();
@@ -643,7 +643,7 @@ void operator delete[]( void* ptr, std::align_val_t,
 }
 
 /* Both libc++ and libstdc++ define std::malloc as ::malloc and similarly
- * for std::calloc, std::aligned_alloc, and std::free, so it is enough to 
+ * for std::calloc, std::aligned_alloc, and std::free, so it is enough to
  * implement the global functions here. */
 HIPSYCL_STDPAR_ALLOC
 void* malloc(std::size_t size) {

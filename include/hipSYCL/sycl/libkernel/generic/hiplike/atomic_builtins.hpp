@@ -190,7 +190,7 @@ HIPSYCL_HIPLIKE_BUILTIN bool __hipsycl_bitcast_compare_exchange_strong(
     memory_scope scope) noexcept {
 
   InvokedT cast_expected = bit_cast<InvokedT>(expected);
-  
+
   bool r = __hipsycl_atomic_compare_exchange_strong<S>(
       reinterpret_cast<InvokedT *>(addr), cast_expected,
       bit_cast<InvokedT>(desired), success, failure, scope);
@@ -205,7 +205,7 @@ HIPSYCL_HIPLIKE_BUILTIN bool __hipsycl_staticcast_compare_exchange_strong(
     memory_scope scope) noexcept {
 
   InvokedT cast_expected = static_cast<InvokedT>(expected);
-  
+
   bool r = __hipsycl_atomic_compare_exchange_strong<S>(
       reinterpret_cast<InvokedT *>(addr), cast_expected,
       static_cast<InvokedT>(desired), success, failure, scope);
@@ -380,7 +380,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_atomic_fetch_sub(
 }
 
 // Need CAS loop for 64bit types - the definition of this
-// is required in order to be able to use the 
+// is required in order to be able to use the
 // HIPSYCL_DEFINE_HIPLIKE_ATOMIC_INTEGRAL_NONNATIVE_OVERLOADS macro
 
 #define HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(Type)                   \

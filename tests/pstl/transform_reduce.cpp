@@ -46,7 +46,7 @@ void test_basic_reduction(T init, std::size_t size) {
       data.begin(), data.end(), init, std::plus<>{}, [](auto x) { return x; });
   T res = std::transform_reduce(std::execution::par_unseq,
       data.begin(), data.end(), init, std::plus<>{}, [](auto x) { return x; });
-  
+
   BOOST_CHECK(res == reference_result);
 }
 

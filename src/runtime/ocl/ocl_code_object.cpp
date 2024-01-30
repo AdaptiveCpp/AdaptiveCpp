@@ -78,7 +78,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
     std::string msg = "ocl_code_object: Building CL program failed.";
     if(access_build_log_err == CL_SUCCESS)
       msg += " Build log: " + build_log;
-    
+
     _build_status = register_error(
         __hipsycl_here(), error_info{msg,
                                      error_code{"CL", static_cast<int>(err)}});
@@ -89,7 +89,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
   //err = _program.createKernels(&kernels);
   std::string concatenated_name_list;
   err = _program.getInfo(CL_PROGRAM_KERNEL_NAMES, &concatenated_name_list);
-  
+
   if(err != CL_SUCCESS) {
     _build_status = register_error(
         __hipsycl_here(),
@@ -177,7 +177,7 @@ cl::Device ocl_executable_object::get_cl_device() const {
 cl::Context ocl_executable_object::get_cl_context() const {
   return _ctx;
 }
-  
+
 result ocl_executable_object::get_kernel(const std::string& name, cl::Kernel& out) const {
   if(!_build_status.is_success())
     return _build_status;

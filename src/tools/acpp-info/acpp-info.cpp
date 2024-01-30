@@ -97,11 +97,11 @@ void list_device_details(rt::device_id dev, rt::backend *b,
   print_info("Is in-order queue", b->get_executor(dev)->is_inorder_queue(), 2);
   print_info("Is out-of-order queue", b->get_executor(dev)->is_outoforder_queue(), 2);
   print_info("Is task graph", b->get_executor(dev)->is_taskgraph(), 2);
-  
+
   std::cout << " Device support queries:" << std::endl;
 #define PRINT_DEVICE_SUPPORT_ASPECT(name) \
   print_info(#name, hw->has(rt::device_support_aspect::name), 2);
-  
+
   PRINT_DEVICE_SUPPORT_ASPECT(images)
   PRINT_DEVICE_SUPPORT_ASPECT(error_correction)
   PRINT_DEVICE_SUPPORT_ASPECT(host_unified_memory)

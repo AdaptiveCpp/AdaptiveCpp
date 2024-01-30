@@ -74,15 +74,15 @@ visibility_mask_t::mapped_type parse_device_visibility_mask(const std::string& s
       if(is_number(components[0])) {
         current.device_index_equality = std::stoi(components[0]);
       } else if(components[0] != "*") {
-        current.device_name_match = components[0]; 
+        current.device_name_match = components[0];
       }
     } else if (components.size() > 1) {
       if(is_number(components[0])) {
         current.platform_index_equality = std::stoi(components[0]);
       } else if(components[0] != "*") {
-        current.platform_name_match = components[0]; 
+        current.platform_name_match = components[0];
       }
-      
+
       if(is_number(components[1])) {
         current.device_index_equality = std::stoi(components[1]);
       } else if(components[1] != "*") {
@@ -91,7 +91,7 @@ visibility_mask_t::mapped_type parse_device_visibility_mask(const std::string& s
     }
     device_visibility_conditions.push_back(current);
   }
-  
+
   return device_visibility_conditions;
 }
 
@@ -101,7 +101,7 @@ bool device_matches(const visibility_mask_t::mapped_type &conditions,
                     const std::string &platform_name) {
   if(conditions.empty())
     return true;
-  
+
   // The logic is: All individual device visibility conditions are connected by or,
   // but the conditions within each condition are connected by and.
   for(const auto& c : conditions) {
@@ -159,7 +159,7 @@ std::istream &operator>>(std::istream &istr, visibility_mask_t &out) {
   while(std::getline(istream, backend_specific_substring, ';')) {
     if(backend_specific_substring.empty())
       continue;
-    
+
     std::size_t delimiter = backend_specific_substring.find(':');
     std::string name;
     if(delimiter != std::string::npos) {

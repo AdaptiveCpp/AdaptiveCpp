@@ -122,14 +122,14 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
       // fixme: investigate where the invalid decls come from..
       if(!D)
         return true;
-      
+
       clang::Decl* DefinitionDecl = D;
       clang::FunctionDecl* FD = clang::dyn_cast<clang::FunctionDecl>(D);
 
       if(FD){
         const clang::FunctionDecl* ActualDefinition;
         if(FD->isDefined(ActualDefinition)) {
-          
+
           DefinitionDecl = const_cast<clang::FunctionDecl*>(ActualDefinition);
         }
       }
@@ -138,7 +138,7 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
               DefinitionDecl)) == visitedDecls.end())
         return clang::RecursiveASTVisitor<CompleteCallSet>::TraverseDecl(
             DefinitionDecl);
-      
+
       return true;
     }
 
@@ -213,7 +213,7 @@ getDeviceSideName(clang::NamedDecl *ND, clang::ASTContext &Ctx,
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 {
   clang::CompilerInstance &Instance;
-  
+
 
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
@@ -258,7 +258,7 @@ public:
     DeviceKernelNameMangler.reset(DeviceNameMangler);
 #ifdef _WIN32
 #if LLVM_VERSION_MAJOR == 11 || LLVM_VERSION_MAJOR == 12
-    // necessary, to rely on device mangling. API introduced in 
+    // necessary, to rely on device mangling. API introduced in
     // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
     KernelNameMangler->setDeviceMangleContext(
       Instance.getASTContext().getTargetInfo().getCXXABI().isMicrosoft()
@@ -269,13 +269,13 @@ public:
 
   ~FrontendASTVisitor()
   {}
-  
+
   bool shouldVisitTemplateInstantiations() const { return true; }
 
   /// Return whether this visitor should recurse into implicit
   /// code, e.g., implicit constructors and destructors.
   bool shouldVisitImplicitCode() const { return true; }
-  
+
   // We also need to have look at all statements to identify Lambda declarations
   bool VisitStmt(clang::Stmt *S) {
 
@@ -286,10 +286,10 @@ public:
       if(callOp)
         this->VisitFunctionDecl(callOp);
     }
-    
+
     return true;
   }
-  
+
   bool VisitDecl(clang::Decl* D){
     if(clang::VarDecl* V = clang::dyn_cast<clang::VarDecl>(D)){
       if(isLocalMemory(V))
@@ -302,7 +302,7 @@ public:
   bool VisitFunctionDecl(clang::FunctionDecl *f) {
     if(!f)
       return true;
-    
+
     this->processFunctionDecl(f);
 
     return true;
@@ -345,7 +345,7 @@ public:
           CustomAttributes::SyclKernel.isAttachedTo(F)) {
 
         auto* NewAttr = clang::CUDAGlobalAttr::CreateImplicit(Instance.getASTContext());
-        
+
         F->addAttr(NewAttr);
       }
     }
@@ -475,13 +475,13 @@ private:
         == "hipsycl::glue::hiplike_dispatch::parallel_for_workgroup")
     {
       clang::FunctionDecl* Kernel = f;
-      
+
       HierarchicalKernels.insert(Kernel);
     }
-  
-    
+
+
     if(CustomAttributes::SyclKernel.isAttachedTo(f)){
-      markAsKernel(f); 
+      markAsKernel(f);
     }
 
     // Need to iterate over all attributes to support the case
@@ -504,7 +504,7 @@ private:
     const clang::CXXRecordDecl* R = V->getType()->getAsCXXRecordDecl();
     if(R)
       return R->getQualifiedNameAsString() == "hipsycl::sycl::private_memory";
-  
+
     return false;
   }
 
@@ -513,7 +513,7 @@ private:
     const clang::CXXRecordDecl* R = V->getType()->getAsCXXRecordDecl();
     if(R)
       return R->getQualifiedNameAsString() == "hipsycl::sycl::local_memory";
-  
+
     return false;
   }
 
@@ -547,7 +547,7 @@ private:
       }
     }
   }
-  
+
   void storeVariableInLocalMemory(clang::VarDecl* V) const {
     HIPSYCL_DEBUG_INFO
                   << "AST Processing: Marking variable "
@@ -826,10 +826,10 @@ private:
 
 
 class FrontendASTConsumer : public clang::ASTConsumer {
-  
+
   FrontendASTVisitor Visitor;
   clang::CompilerInstance& Instance;
-  
+
 public:
   FrontendASTConsumer(clang::CompilerInstance &I)
       : Visitor{I}, Instance{I}
@@ -844,7 +844,7 @@ public:
   }
 
   void HandleTranslationUnit(clang::ASTContext& context) override {
-    
+
     CompilationStateManager::getASTPassState().setDeviceCompilation(
         Instance.getSema().getLangOpts().CUDAIsDevice);
 

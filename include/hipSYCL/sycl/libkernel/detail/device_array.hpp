@@ -253,7 +253,7 @@ struct device_array<T, 3>
     else
       return _z;
   }
-  
+
   // Zero initialise to make device_array constexpr-constructible
   T _x = 0;
   T _y = 0;

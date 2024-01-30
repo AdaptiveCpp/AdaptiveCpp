@@ -42,7 +42,7 @@ void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
                                       llvm::SmallVector<int, 16> CurrentIndices = {}) {
   if(!T)
     return;
-  
+
   if(T->isArrayTy()) {
     llvm::Type* ArrayElementT = T->getArrayElementType();
     for(int i = 0; i < T->getArrayNumElements(); ++i) {
@@ -56,7 +56,7 @@ void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
       NextIndices.push_back(i);
       llvm::Type* SubType = T->getContainedType(i);
 
-      ForEachNonAggregateContainedType(SubType, Handler, NextIndices);   
+      ForEachNonAggregateContainedType(SubType, Handler, NextIndices);
     }
   } else {
     Handler(T, CurrentIndices);

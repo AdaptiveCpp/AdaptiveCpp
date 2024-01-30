@@ -85,7 +85,7 @@ public:
 
   backend_manager();
   ~backend_manager();
-  
+
   backend* get(backend_id) const;
   hw_model& hardware_model();
   const hw_model& hardware_model() const;

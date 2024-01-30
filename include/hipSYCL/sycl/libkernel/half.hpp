@@ -56,7 +56,7 @@ private:
 
 public:
   constexpr half() : _data{} {};
-  
+
   half(float f) noexcept
   : _data{fp16::create(f)} {}
 
@@ -187,7 +187,7 @@ public:
   friend half& operator-(half& a) noexcept {
     constexpr __hipsycl_uint16 sign_mask = 0x8000;
     a._data ^= sign_mask;
-    return a; 
+    return a;
   }
 
   HIPSYCL_UNIVERSAL_TARGET

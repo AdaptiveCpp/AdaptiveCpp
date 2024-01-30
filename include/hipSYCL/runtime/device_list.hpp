@@ -87,7 +87,7 @@ public:
       if (_rt->backends().get(b)->get_hardware_platform() == plat)
         ++count;
     });
-    
+
     return count;
   }
 

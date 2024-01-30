@@ -109,25 +109,25 @@ public:
 
   HIPSYCL_UNIVERSAL_TARGET
   const T* get() const
-  { 
+  {
     __hipsycl_if_target_device(
       // Use sizeof(_data) to make sure it doesn't get optimized away
       return reinterpret_cast<T*>(sizeof(_data));
     );
     __hipsycl_if_target_host(
-      return get_shared_ptr_ref().get(); 
+      return get_shared_ptr_ref().get();
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   T* get()
-  { 
+  {
     __hipsycl_if_target_device(
       // Use sizeof(_data) to make sure it doesn't get optimized away
       return reinterpret_cast<T*>(sizeof(_data));
     );
     __hipsycl_if_target_host(
-      return get_shared_ptr_ref().get(); 
+      return get_shared_ptr_ref().get();
     );
   }
 

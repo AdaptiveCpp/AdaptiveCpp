@@ -37,7 +37,7 @@ void fill_test_helper(cl::sycl::id<d> offset = cl::sycl::id<d>{}) {
 
   auto buff_size = make_test_value<s::range, d>({64}, {64, 64}, {64, 64, 64});
   s::buffer<s::id<d>, d> buff{buff_size};
-  
+
   q.submit([&](s::handler& cgh){
     auto buff_acc = buff.template get_access<s::access::mode::discard_write>(cgh);
     cgh.parallel_for<kernel_name<class fill_init_kernel, d>>(buff_size,
@@ -70,7 +70,7 @@ void fill_test_helper(cl::sycl::id<d> offset = cl::sycl::id<d>{}) {
   const auto after_offset = [&](s::id<d> idx) {
     if constexpr (d == 1)
       return offset[0] <= idx[0];
-    if constexpr (d == 2) 
+    if constexpr (d == 2)
       return (offset[0] <= idx[0]) && (offset[1] <= idx[1]);
     if constexpr (d == 3)
       return (offset[0] <= idx[0]) && (offset[1] <= idx[1]) && (offset[2] <= idx[2]);
@@ -79,7 +79,7 @@ void fill_test_helper(cl::sycl::id<d> offset = cl::sycl::id<d>{}) {
   for(size_t i = 0; i < buff_size[0]; ++i)
     for(size_t j = 0; j < j_validation_range; ++j)
       for(size_t k = 0; k < k_validation_range; ++k)
-      {        
+      {
         auto idx = make_test_value<s::id, d>({i}, {i,j}, {i,j,k});
         if (after_offset(idx))
           assert_array_equality(buff_host[idx], fill_value);

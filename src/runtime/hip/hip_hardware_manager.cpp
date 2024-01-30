@@ -40,7 +40,7 @@ namespace rt {
 
 hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
     : _hw_platform(hw_platform) {
-  
+
   if (has_device_visibility_mask(
           application::get_settings().get<setting::visibility_mask>(),
           backend_id::hip)) {
@@ -64,7 +64,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
                     error_code{"HIP", err}});
     }
   }
-  
+
   for (int dev = 0; dev < num_devices; ++dev) {
     _devices.emplace_back(dev);
   }
@@ -407,7 +407,7 @@ std::string hip_hardware_context::get_driver_version() const {
         error_info{"hip_hardware_manager: Querying driver version failed",
                    error_code{"HIP", err}});
   }
-  
+
   return std::to_string(driver_version);
 }
 

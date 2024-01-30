@@ -67,7 +67,7 @@ bool needsExpansion(llvm::Function& F, int ArgNo) {
 struct ExpandedArgumentInfo {
   // Original value type
   llvm::Type* OriginalByValType = nullptr;
-  
+
   // Indices for getelementptr to all expanded arguments of the original
   // arg
   llvm::SmallVector<llvm::SmallVector<int, 16>> GEPIndices;
@@ -121,7 +121,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
       NewArgumentTypes.push_back(EI.OriginalByValType);
     }
   }
-  
+
   std::string FunctionName = F.getName().str();
   F.setName(FunctionName + "_PreArgumentExpansion");
   auto OldLinkage = F.getLinkage();
@@ -137,7 +137,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
 
     llvm::BasicBlock *BB =
           llvm::BasicBlock::Create(M.getContext(), "", NewF);
-    
+
     llvm::SmallVector<llvm::Value*, 8> CallArgs;
 
     int CurrentNewIndex = 0;
@@ -163,7 +163,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
               EI.OriginalByValType, Alloca, llvm::ArrayRef<llvm::Value *>{GEPIndicesRef}, "", BB);
           // Store expanded argument into allocated space
           assert(CurrentNewIndex + j < NewF->getFunctionType()->getNumParams());
-          
+
           auto *StoredVal = NewF->getArg(CurrentNewIndex + j);
           auto *StoreInst = new llvm::StoreInst(StoredVal, GEPInst, BB);
 
@@ -183,7 +183,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
 
       CurrentNewIndex += EI.NumExpandedArguments;
     }
-    
+
     auto *Call = llvm::CallInst::Create(llvm::FunctionCallee(&F), CallArgs,
                                             "", BB);
     for(int i = 0; i < CallArgs.size(); ++i) {

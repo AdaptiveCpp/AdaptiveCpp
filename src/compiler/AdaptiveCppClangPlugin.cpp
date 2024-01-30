@@ -151,7 +151,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
                 MPM.addPass(MallocToUSMPass{});
               }
             });
-          
+
             PB.registerOptimizerLastEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
               MPM.addPass(SyncElisionInliningPass{});
               MPM.addPass(llvm::AlwaysInlinerPass{});

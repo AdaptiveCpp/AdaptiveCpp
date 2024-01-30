@@ -42,7 +42,7 @@ void __hipsycl_sscp_print(const char* msg) {
     if(msg[length] == '\0') {
       // string length needs to include the null terminator
       ++length;
-      break; 
+      break;
     } else {
       ++length;
     }

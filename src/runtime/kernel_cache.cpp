@@ -161,7 +161,7 @@ hcf_image_info::hcf_image_info(const common::hcf_container *hcf,
     return;
   if(!image_node->has_key("variant"))
     return;
-  
+
   _format = *image_node->get_value("format");
   _variant = *image_node->get_value("variant");
 
@@ -170,7 +170,7 @@ hcf_image_info::hcf_image_info(const common::hcf_container *hcf,
   auto* kernels = hcf->root_node()->get_subnode("kernels");
   if(!kernels)
     return;
-  
+
   std::string image_name = image_node->node_id;
   for(const auto& kernel : kernels->get_subnodes()) {
     std::vector<std::string> image_providers =
@@ -275,7 +275,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
       for(const auto& image_name : images_node->get_subnodes()) {
         std::unique_ptr<hcf_image_info> image_info{new hcf_image_info{
             stored_obj, images_node->get_subnode(image_name)}};
-        
+
         if(image_info->is_valid()) {
           HIPSYCL_DEBUG_INFO << "hcf_cache: Registering image info for image "
                              << image_name << " from HCF object " << id
@@ -294,7 +294,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
 
     if(out_filename.back() != '/' && out_filename.back() != '\\')
       out_filename += '/';
-    
+
     out_filename += "hipsycl_object_"+std::to_string(id)+".hcf";
 
     std::ofstream out_file(out_filename.c_str(), std::ios::binary);
@@ -327,7 +327,7 @@ void hcf_cache::unregister_hcf_object(hcf_object_id id) {
                  const std::vector<std::string> &exported_symbols) {
           // 2. Iterate over all symbols exported in this HCF
           for (const auto &symbol : exported_symbols) {
-            // 3. Remove all references to this HCF in the symbol providers map  
+            // 3. Remove all references to this HCF in the symbol providers map
             auto& symbol_providers = _exported_symbol_providers[symbol];
             symbol_providers.erase(
                 std::remove_if(symbol_providers.begin(), symbol_providers.end(),
@@ -339,7 +339,7 @@ void hcf_cache::unregister_hcf_object(hcf_object_id id) {
         });
     // Then we can remove the HCF itself.
     // Note: We don't necessarily need to remove the HCF kernel info, since
-    // just maintaining this data won't have any side effects as long as 
+    // just maintaining this data won't have any side effects as long as
     // the HCF object is no longer selected for execution.
     _hcf_objects.erase(id);
   }

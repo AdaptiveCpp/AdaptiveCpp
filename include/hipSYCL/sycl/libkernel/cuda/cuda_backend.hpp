@@ -33,7 +33,7 @@
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 1
  #if defined(__NVCOMPILER)
   #define HIPSYCL_LIBKERNEL_CUDA_NVCXX
- #else 
+ #else
   #define HIPSYCL_LIBKERNEL_CUDA_CLANG
  #endif
 

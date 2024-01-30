@@ -51,7 +51,7 @@ memcpy_model::estimate_runtime_cost(const memory_location &source,
 
 memory_location memcpy_model::choose_source(
     const std::vector<memory_location> &candidate_sources,
-    const memory_location &target, range<3> num_elements) const 
+    const memory_location &target, range<3> num_elements) const
 {
   std::size_t best_transfer_index = 0;
   cost_type best_cost = std::numeric_limits<cost_type>::max();

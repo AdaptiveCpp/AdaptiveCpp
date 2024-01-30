@@ -118,7 +118,7 @@ void for_each_contained_pointer(Handler&& h, const Args&... args) {
 template<typename... Args>
 bool validate_all_pointers(const Args&... args){
   bool result = true;
-  
+
   auto& q = detail::single_device_dispatch::get_queue();
   auto* allocator = q.get_context()
       .hipSYCL_runtime()
@@ -201,7 +201,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
-  
+
   // Use "first" mode in case of automatic prefetch decision for now
   const auto prefetch_mode =
       (get_prefetch_mode() == prefetch_mode::automatic) ? prefetch_mode::first
@@ -209,7 +209,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
 
   auto prefetch_handler = [&](void* ptr){
     unified_shared_memory::allocation_lookup_result lookup_result;
-    
+
     if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
       int64_t *most_recent_offload_batch_ptr =
           &(lookup_result.info->most_recent_offload_batch);
@@ -219,7 +219,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
       // Need to use atomic builtins until we can use C++ 20 atomic_ref :(
       int64_t most_recent_offload_batch = __atomic_load_n(
           most_recent_offload_batch_ptr, __ATOMIC_ACQUIRE);
-      
+
       bool should_prefetch = false;
       if(prefetch_mode == prefetch_mode::first)
         // an allocation that was never used will still contain the
@@ -238,7 +238,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
       }
     }
   };
-  
+
 
   if(prefetch_mode == prefetch_mode::after_sync) {
     int submission_id_in_batch = stdpar::detail::stdpar_tls_runtime::get()
@@ -302,7 +302,7 @@ struct offload_heuristic_state {
 
     _most_recent_successor[_previous_op] = {op_hash, problem_size};
     _previous_op = {op_hash, problem_size};
-    
+
     uint64_t now = get_time_now();
     _time_since_previous_op = now - _previous_offloading_change_timestamp;
 
@@ -355,12 +355,12 @@ struct offload_heuristic_state {
   int get_num_predicted_ops() const {
     return _num_predicted_ops;
   }
-  
+
   const offload_heuristic_config& get_configuration() const {
     return _config;
   }
 private:
-  
+
   offload_heuristic_state()
       : _is_host_sampling_run{is_host_sampling_run_requested()},
         _is_offload_sampling_run{is_offload_sampling_run_requested()},
@@ -432,12 +432,12 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
     int max_iters = min_ops_before_offloading_change;
     op_id current = {op_hash, n};
     for(int num_iters = 0; num_iters < max_iters; ++num_iters) {
-      
+
       if(!handler(current))
         return;
 
       auto prediction = state.predict_next(current);
-      
+
       if(!prediction.has_value())
         return;
       current = prediction.value();
@@ -453,7 +453,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
     std::size_t used_memory = 0;
     for_each_contained_pointer([&](void* ptr){
       unified_shared_memory::allocation_lookup_result lookup_result;
-  
+
       if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
         used_memory += lookup_result.info->allocation_size;
       }
@@ -465,7 +465,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 
     double host_time_estimate = 0.0;
     double offload_time_estimate = 0.0;
-    
+
     num_predicted_ops = 0;
 
     for_each_known_op_in_batch([&](op_id op) -> bool{
@@ -474,7 +474,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
           op.first, op.second, offload_heuristic_db::host_device_id);
       double current_offload_estimate = db.estimate_runtime(
           op.first, op.second, offload_heuristic_db::offload_device_id);
-      
+
       if(current_host_estimate <= 0.0 || current_offload_estimate <= 0.0) {
         // Abort when we have no data for a given operation
         return false;
@@ -487,12 +487,12 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
       return true;
     });
 
-    
+
 
     if(host_time_estimate <= 0.0)
       // If we don't have host sampling data, offload.
       return true;
-    
+
     if(is_currently_offloading.has_value()){
       if(is_currently_offloading.value()) {
         host_time_estimate += data_transfer_time_estimate;
@@ -506,9 +506,9 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
         return is_currently_offloading.value();
 
     }
-    
+
     return offload_time_estimate < host_time_estimate;
-    
+
   };
 
   if(state.get_num_total_ops() == 0) {
@@ -516,7 +516,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   }
 
   state.proceed_to(op_hash, n);
-  
+
   if (state.get_num_ops_since_offloading_change() < state.get_num_predicted_ops() ||
       state.get_num_ops_since_offloading_change() < min_ops_before_offloading_change ||
       state.get_ns_since_previous_op() < state.get_configuration().get_min_time_per_offload_decision()) {
@@ -543,7 +543,7 @@ struct host_invocation_measurement {
   auto operator()(F&& f) {
 
     auto& offload_db = stdpar_tls_runtime::get().get_offload_db();
-    
+
     _start = get_time_now();
 
     return f();
@@ -551,7 +551,7 @@ struct host_invocation_measurement {
 
   ~host_invocation_measurement() {
     auto& offload_db = stdpar_tls_runtime::get().get_offload_db();
-    
+
       uint64_t end = get_time_now();
       uint64_t delta = end - _start;
 
@@ -571,7 +571,7 @@ struct device_invocation_measurement {
 
   template<class F>
   auto operator()(F&& f) {
- 
+
     auto& offload_db = stdpar_tls_runtime::get().get_offload_db();
     stdpar_tls_runtime::get().instrument_offloaded_operation(_hash, _problem_size);
 

@@ -157,7 +157,7 @@ class execution_hints
 public:
   execution_hints() = default;
 
-  
+
   template <class HintT,
             std::enable_if_t<std::is_base_of_v<hints::execution_hint, HintT>,
                              int> = 0>
@@ -193,13 +193,13 @@ private:
 
   hints::bind_to_device _bind_to_device;
   hints::bind_to_device_group _bind_to_device_group;
-  
+
   hints::prefer_execution_lane _prefer_execution_lane;
-  
+
   hints::node_group _node_group;
-  
+
   hints::coarse_grained_synchronization _coarse_grained_synchronization;
-  
+
   hints::prefer_executor _prefer_executor;
 
   hints::request_instrumentation_submission_timestamp

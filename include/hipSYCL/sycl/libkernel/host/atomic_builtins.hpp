@@ -114,7 +114,7 @@ HIPSYCL_BUILTIN double __hipsycl_atomic_load(double* addr, memory_order order,
                                             memory_scope scope) noexcept {
   int64_t v = __hipsycl_atomic_load<S>(
       reinterpret_cast<int64_t *>(addr), order, scope);
-  
+
   return int_as_float(v);
 }
 
@@ -129,7 +129,7 @@ HIPSYCL_BUILTIN T __hipsycl_atomic_exchange(T *addr, T x, memory_order order,
 template <access::address_space S>
 HIPSYCL_BUILTIN float __hipsycl_atomic_exchange(
     float *addr, float x, memory_order order, memory_scope scope) noexcept {
-  
+
   int32_t v = __hipsycl_atomic_exchange<S>(reinterpret_cast<int32_t *>(addr),
                                            float_as_int(x), order, scope);
   return int_as_float(v);
@@ -138,7 +138,7 @@ HIPSYCL_BUILTIN float __hipsycl_atomic_exchange(
 template <access::address_space S>
 HIPSYCL_BUILTIN double __hipsycl_atomic_exchange(
     double *addr, double x, memory_order order, memory_scope scope) noexcept {
-  
+
   int64_t v = __hipsycl_atomic_exchange<S>(reinterpret_cast<int64_t *>(addr),
                                            float_as_int(x), order, scope);
   return int_as_float(v);
@@ -157,14 +157,14 @@ template <access::address_space S>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_weak(
     float *addr, float &expected, float desired, memory_order success,
     memory_order failure, memory_scope scope) noexcept {
-  
+
   int32_t expected_int = float_as_int(expected);
   int32_t desired_int = float_as_int(desired);
-  
+
   bool res = __hipsycl_atomic_compare_exchange_weak<S>(
       reinterpret_cast<int32_t *>(addr), expected_int, desired_int, success,
       failure, scope);
-  
+
   expected = int_as_float(expected_int);
   return res;
 }
@@ -173,14 +173,14 @@ template <access::address_space S>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_weak(
     double *addr, double &expected, double desired, memory_order success,
     memory_order failure, memory_scope scope) noexcept {
-  
+
   int64_t expected_int = float_as_int(expected);
   int64_t desired_int = float_as_int(desired);
-  
+
   bool res = __hipsycl_atomic_compare_exchange_weak<S>(
       reinterpret_cast<int64_t *>(addr), expected_int, desired_int, success,
       failure, scope);
-  
+
   expected = int_as_float(expected_int);
   return res;
 }
@@ -199,14 +199,14 @@ template <access::address_space S>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
     float *addr, float &expected, float desired, memory_order success,
     memory_order failure, memory_scope scope) noexcept {
-  
+
   int32_t expected_int = float_as_int(expected);
   int32_t desired_int = float_as_int(desired);
-  
+
   bool res = __hipsycl_atomic_compare_exchange_strong<S>(
       reinterpret_cast<int32_t *>(addr), expected_int, desired_int, success,
       failure, scope);
-  
+
   expected = int_as_float(expected_int);
   return res;
 }
@@ -215,14 +215,14 @@ template <access::address_space S>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
     double *addr, double &expected, double desired, memory_order success,
     memory_order failure, memory_scope scope) noexcept {
-  
+
   int64_t expected_int = float_as_int(expected);
   int64_t desired_int = float_as_int(desired);
-  
+
   bool res = __hipsycl_atomic_compare_exchange_strong<S>(
       reinterpret_cast<int64_t *>(addr), expected_int, desired_int, success,
       failure, scope);
-  
+
   expected = int_as_float(expected_int);
   return res;
 }
@@ -258,7 +258,7 @@ HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_add(T *addr, T x, memory_order order,
 template <access::address_space S>
 HIPSYCL_BUILTIN float __hipsycl_atomic_fetch_add(
     float *addr, float x, memory_order order, memory_scope scope) noexcept {
-  
+
   float old = __hipsycl_atomic_load<S>(addr, order, scope);
   while (!__hipsycl_atomic_compare_exchange_strong<S>(addr, old, old + x, order,
                                                       order, scope))
@@ -269,7 +269,7 @@ HIPSYCL_BUILTIN float __hipsycl_atomic_fetch_add(
 template <access::address_space S>
 HIPSYCL_BUILTIN double __hipsycl_atomic_fetch_add(
     double *addr, double x, memory_order order, memory_scope scope) noexcept {
-  
+
   double old = __hipsycl_atomic_load<S>(addr, order, scope);
   while (!__hipsycl_atomic_compare_exchange_strong<S>(addr, old, old + x, order,
                                                       order, scope))
@@ -286,7 +286,7 @@ HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_sub(T *addr, T x, memory_order order,
 template <access::address_space S>
 HIPSYCL_BUILTIN float __hipsycl_atomic_fetch_sub(
     float *addr, float x, memory_order order, memory_scope scope) noexcept {
-  
+
   float old = __hipsycl_atomic_load<S>(addr, order, scope);
   while (!__hipsycl_atomic_compare_exchange_strong<S>(addr, old, old - x, order,
                                                       order, scope))
@@ -297,7 +297,7 @@ HIPSYCL_BUILTIN float __hipsycl_atomic_fetch_sub(
 template <access::address_space S>
 HIPSYCL_BUILTIN double __hipsycl_atomic_fetch_sub(
     double *addr, double x, memory_order order, memory_scope scope) noexcept {
-  
+
   double old = __hipsycl_atomic_load<S>(addr, order, scope);
   while (!__hipsycl_atomic_compare_exchange_strong<S>(addr, old, old - x, order,
                                                       order, scope))

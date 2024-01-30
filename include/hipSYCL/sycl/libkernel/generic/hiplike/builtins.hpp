@@ -422,14 +422,14 @@ template <class T,
               int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
 
-  //we convert to the unsigned type to avoid the typecast creating 
+  //we convert to the unsigned type to avoid the typecast creating
   //additional ones in front of the value if x is negative
-  using Usigned = typename std::make_unsigned<T>::type; 
+  using Usigned = typename std::make_unsigned<T>::type;
 
   constexpr T diff = CHAR_BIT*(sizeof(__hipsycl_int32) - sizeof(Usigned));
 
   return __clz(static_cast<__hipsycl_int32>(static_cast<Usigned>(x)))-diff;
-  
+
 }
 
 template <class T,
@@ -439,7 +439,7 @@ template <class T,
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
 
   return __clz(static_cast<__hipsycl_int32>(x));
-  
+
 }
 
 template <class T,
@@ -503,7 +503,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_sign(T x) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_HIPLIKE_BUILTIN VecType 
+HIPSYCL_HIPLIKE_BUILTIN VecType
 __hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
   return {a.y() * b.z() - a.z() * b.y(),
           a.z() * b.x() - a.x() * b.z(),
@@ -511,9 +511,9 @@ __hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_HIPLIKE_BUILTIN VecType 
+HIPSYCL_HIPLIKE_BUILTIN VecType
 __hipsycl_cross4(const VecType &a, const VecType &b) noexcept {
-  return {a.y() * b.z() - a.z() * b.y(), 
+  return {a.y() * b.z() - a.z() * b.y(),
           a.z() * b.x() - a.x() * b.z(),
           a.x() * b.y() - a.y() * b.x(),
           typename VecType::element_type{0}};

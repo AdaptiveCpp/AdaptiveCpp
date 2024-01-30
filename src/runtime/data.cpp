@@ -45,14 +45,14 @@ data_user_tracker::data_user_tracker(data_user_tracker&& other)
   _users = other._users;
 }
 
-data_user_tracker& 
+data_user_tracker&
 data_user_tracker::operator=(data_user_tracker other){
   _users = other._users;
   return *this;
 }
 
 
-data_user_tracker& 
+data_user_tracker&
 data_user_tracker::operator=(data_user_tracker&& other){
   _users = std::move(other._users);
   return *this;
@@ -60,7 +60,7 @@ data_user_tracker::operator=(data_user_tracker&& other){
 
 const std::vector<data_user>
 data_user_tracker::get_users() const
-{ 
+{
   std::lock_guard<std::mutex> lock{_lock};
   return _users;
 }
@@ -93,16 +93,16 @@ range_store::range_store(range<3> size)
 
 void range_store::add(const rect& r)
 {
-  this->for_each_element_in_range(r, 
+  this->for_each_element_in_range(r,
     [this](id<3>, data_state& s){
-      
+
     s = data_state::available;
   });
 }
 
 void range_store::remove(const rect& r)
 {
-  this->for_each_element_in_range(r, 
+  this->for_each_element_in_range(r,
     [this](id<3>, data_state& s){
 
     s = data_state::empty;
@@ -112,14 +112,14 @@ void range_store::remove(const rect& r)
 range<3> range_store::get_size() const
 { return _size; }
 
-void range_store::intersections_with(const rect& r, 
+void range_store::intersections_with(const rect& r,
                                     data_state desired_state,
                                     std::vector<rect>& out) const
 {
   out.clear();
-  
+
   id<3> rect_begin = r.first;
-  id<3> rect_max = 
+  id<3> rect_max =
     rect_begin + id<3>{r.second[0], r.second[1], r.second[2]};
 
 
@@ -131,13 +131,13 @@ void range_store::intersections_with(const rect& r,
     // * the starting position is of the state desired by the user
     // * the start position isn't covered already by another rect
     //   that was found previously
-    if(entry == desired_state && 
+    if(entry == desired_state &&
       visited_entries[linear_pos] == data_state::empty) {
-        
+
       // Find the largest contiguous rect for which all entries
       // are both of \c desired_state and unvisited
-      range<3> rect_size = 
-        find_max_contiguous_rect_extent(pos, rect_max, 
+      range<3> rect_size =
+        find_max_contiguous_rect_extent(pos, rect_max,
           [this,&visited_entries,desired_state](size_t linear_pos){
             return this->_contained_data[linear_pos] == desired_state
               && visited_entries[linear_pos] == data_state::empty;
@@ -148,7 +148,7 @@ void range_store::intersections_with(const rect& r,
 
       // Mark all pages inside the rect as visited
       this->for_each_element_in_range(
-        found_rect, 
+        found_rect,
         visited_entries,
         [&](id<3> pos, data_state& entry){
 

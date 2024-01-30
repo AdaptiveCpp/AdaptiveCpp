@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
 
   s::queue q;
   s::buffer<int, 1> buff{1};
-  s::accessor<int, 1, s::access::mode::read_write, 
+  s::accessor<int, 1, s::access::mode::read_write,
     s::access::target::global_buffer, s::access::placeholder::true_t> acc{buff};
 
   // This will call handler::require(acc) for each
@@ -63,8 +63,8 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
     });
   });
 
-  { 
-    auto host_acc = buff.get_access<s::access::mode::read>(); 
+  {
+    auto host_acc = buff.get_access<s::access::mode::read>();
     BOOST_CHECK(host_acc[0] == 1);
   }
 
@@ -74,16 +74,16 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
     });
   });
 
-  { 
-    auto host_acc = buff.get_access<s::access::mode::read>(); 
+  {
+    auto host_acc = buff.get_access<s::access::mode::read>();
     BOOST_CHECK(host_acc[0] == 2);
   }
 
   automatic_requirement.release();
   BOOST_CHECK(!automatic_requirement.is_required());
 
-  { 
-    auto host_acc = buff.get_access<s::access::mode::read_write>(); 
+  {
+    auto host_acc = buff.get_access<s::access::mode::read_write>();
     host_acc[0] = 3;
   }
 
@@ -96,8 +96,8 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
     });
   });
 
-  { 
-    auto host_acc = buff.get_access<s::access::mode::read>(); 
+  {
+    auto host_acc = buff.get_access<s::access::mode::read>();
     BOOST_CHECK(host_acc[0] == 4);
   }
 }
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
             scratch[item.get_local_id()[0]] *= 2;
           });
 
-          // Testing the behavior of mem_fence() or 
+          // Testing the behavior of mem_fence() or
           // that there is no synchronization is difficult,
           // so let's just test that things compile for now.
           wg.parallel_for_work_item<sync::none>(
@@ -245,7 +245,7 @@ void test_distribute_groups(){
       BOOST_CHECK(result_ptr[i] == static_cast<int>(i));
     }
   }
-  
+
 }
 
 template<class Name, int D>
@@ -261,27 +261,27 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(scoped_parallelism_api, _dimensions,
 BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
   namespace s = cl::sycl;
   s::queue q;
-  
+
   std::size_t input_size = 256;
   std::vector<int> input(input_size);
   for(int i = 0; i < input.size(); ++i)
     input[i] = i;
-  
+
   s::buffer<int> buff{input.data(), s::range<1>{input_size}};
-  
+
   constexpr size_t Group_size = 64;
-  
+
   q.submit([&](s::handler& cgh){
     auto data_accessor = buff.get_access<s::access::mode::read_write>(cgh);
     cgh.parallel<class ScopedReductionKernel>(
         s::range<1>{input_size / Group_size}, s::range<1>{Group_size},
         [=](auto grp) {
-          
-          s::memory_environment(grp, 
+
+          s::memory_environment(grp,
             s::require_local_mem<int[Group_size]>(),
             s::require_private_mem<int>(),
             [&](auto &scratch, auto &load) {
-            
+
             s::distribute_items(grp, [&](s::s_item<1> idx) {
               load(idx) = data_accessor[idx.get_global_id(0)];
             });
@@ -305,17 +305,17 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
           });
         });
   });
-  
+
   auto host_acc = buff.get_access<s::access::mode::read>();
-  
+
   for(int grp = 0; grp < input_size/Group_size; ++grp){
     int host_result = 0;
     for(int i = grp * Group_size; i < (grp+1) * Group_size; ++i)
       host_result += i;
-    
+
     BOOST_TEST(host_result == host_acc[grp * Group_size]);
   }
-} 
+}
 
 BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
   namespace s = cl::sycl;
@@ -330,12 +330,12 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
     cgh.parallel<class ScopedReductionMemEnv>(
       s::range{input_size / Group_size},
       s::range{Group_size}, [=](auto grp){
-      
+
       s::memory_environment(grp,
         s::require_local_mem<int[16][16]>(3),
         s::require_private_mem<int>(4),
         [&](auto& local, auto& private_mem){
-        
+
         if(grp.get_group_id(0) == 0) {
           s::distribute_items(grp, [&](s::s_item<1> idx) {
             int* local_ptr = &local[0][0];
@@ -350,7 +350,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
           });
         }
       });
-      s::local_memory_environment<int [Group_size]>(grp, 
+      s::local_memory_environment<int [Group_size]>(grp,
         [&](auto& local){
 
         if(grp.get_group_id(0) == 2) {
@@ -363,7 +363,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
         }
       });
       const s::vec<int,8> init_val{0,1,2,3,4,5,6,7};
-      s::memory_environment(grp, 
+      s::memory_environment(grp,
         s::require_private_mem<s::vec<int,8>>(init_val),
         [&](auto& priv_mem){
 
@@ -392,7 +392,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
         BOOST_CHECK(hacc[gid] == lid);
       } else if(grp == 4) {
         const s::vec<int,8> expected_v{0,2,4,6,8,10,12,14};
-        int expected = 0; 
+        int expected = 0;
         for (int i = 0; i < expected_v.size(); ++i)
           expected += expected_v[i];
         BOOST_CHECK(hacc[gid] == expected);
@@ -409,7 +409,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
 
   q.submit([&](sycl::handler& cgh){
     sycl::accessor acc {buff, cgh, sycl::no_init};
-    cgh.parallel<class ScopedOddGroupSize>(sycl::range{10}, sycl::range{100}, 
+    cgh.parallel<class ScopedOddGroupSize>(sycl::range{10}, sycl::range{100},
       [=](auto grp){
       sycl::distribute_groups(grp, [&](auto subgroup){
         sycl::distribute_groups(subgroup, [&](auto subsubgroup){
@@ -455,7 +455,7 @@ void test_interop(cl::sycl::queue& q) {
         // dev is not really used, just test that this function call works for now
         typename sycl::backend_traits<B>::template native_type<sycl::device> dev =
             h.get_native_device<B>();
-        
+
         // Even though we can target multiple backends simultaneously,
         // the HIP headers cannot be included simultaneously with CUDA.
         // We can therefore only directly call either CUDA or HIP runtime functions.
@@ -465,12 +465,12 @@ void test_interop(cl::sycl::queue& q) {
 #endif
       }
       else if constexpr(B == sycl::backend::hip) {
-      
+
         auto stream = h.get_native_queue<B>();
         // dev is not really used, just test that this function call works for now
         typename sycl::backend_traits<B>::template native_type<sycl::device> dev =
             h.get_native_device<B>();
-        
+
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
         hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
                         hipMemcpyDeviceToHost, stream);
@@ -497,7 +497,7 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
 
   sycl::queue q;
   sycl::backend b = q.get_device().get_backend();
-  
+
   if(b == sycl::backend::cuda)
     test_interop<sycl::backend::cuda>(q);
   else if(b == sycl::backend::hip)
@@ -527,9 +527,9 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
     int* ptr = sycl::malloc_shared<int>(1, q);
     *ptr = 0;
 
-    q.parallel_for<class retarget_gpu_kernel>(sycl::range{128}, 
+    q.parallel_for<class retarget_gpu_kernel>(sycl::range{128},
       [=](sycl::id<1> idx){
-      
+
       if(idx[0] == 0)
         ++ptr[0];
     });
@@ -538,7 +538,7 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
       [&](sycl::handler& cgh){
         cgh.single_task<class retarget_host_kernel>([=](){
           ++ptr[0];
-        });  
+        });
       });
 
     q.wait();
@@ -642,7 +642,7 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 
   q.wait();
 
-  if(q.get_device().get_backend() == sycl::backend::cuda || 
+  if(q.get_device().get_backend() == sycl::backend::cuda ||
     q.get_device().get_backend() == sycl::backend::hip) {
     BOOST_TEST(gsize[0] == group_size1d.size());
     BOOST_TEST(gsize[1] == group_size2d.size());
@@ -819,7 +819,7 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
   {
     sycl::buffer<int> b2{
         {sycl::buffer_allocation::view(alloc1, q.get_device())}, size};
-    
+
     q.submit([&](sycl::handler& cgh){
       sycl::accessor<int> acc{b2, cgh};
 
@@ -832,9 +832,9 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
     sycl::host_accessor<int> hacc{b2};
     for(int i = 0; i < size.get(0); ++i){
       BOOST_CHECK(hacc[i] == i);
-    }  
+    }
   }
-  
+
   for(int i = 0; i < size.get(0); ++i){
     BOOST_CHECK(alloc2[i] == i);
   }
@@ -907,10 +907,10 @@ BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
 
   {
     std::vector<int> input_vec(size.size());
-    
+
     for(int i = 0; i < input_vec.size(); ++i)
       input_vec[i] = i;
-    
+
     auto b1 = sycl::make_async_buffer(input_vec.data(), size);
     // Because of buffer semantics we should be able to modify the input
     // pointer again
@@ -941,7 +941,7 @@ BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
 
   {
     std::vector<int> input_vec(size.size());
-    
+
     for(int i = 0; i < input_vec.size(); ++i)
       input_vec[i] = i;
     {
@@ -961,7 +961,7 @@ BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
 
   {
     std::vector<int> input_vec(size.size());
-    
+
     for(int i = 0; i < input_vec.size(); ++i)
       input_vec[i] = i;
     {
@@ -1108,7 +1108,7 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
     for(int i = 0; i < 10; ++i)
       evts.push_back(q.single_task([=](){}));
     auto wait_list = q.get_wait_list();
-    
+
     q.single_task(wait_list, [=](){}).wait();
     for(sycl::event e : evts) {
       BOOST_CHECK(e.get_info<sycl::info::event::command_execution_status>() ==
@@ -1156,7 +1156,7 @@ BOOST_AUTO_TEST_CASE(multi_device_queue) {
 BOOST_AUTO_TEST_CASE(coarse_grained_events) {
   using namespace cl;
   sycl::queue q{sycl::property::queue::hipSYCL_coarse_grained_events{}};
-  
+
   auto e1 = q.single_task([=](){});
   std::vector<sycl::event> events;
   for(int i=0; i < 10; ++i) {

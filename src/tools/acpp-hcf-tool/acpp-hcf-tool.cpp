@@ -35,7 +35,7 @@ void help() {
   std::cout <<
   "Usage: acpp-hcf-tool <hcf-file> <-x|-r <file>|-p> root [subnode] [subsubnode] ...\n" <<
   "  -x: Extract binary attachment and print to stdout\n" <<
-  "  -r <file>: Replace binary attachment with file content and print to stdout\n" << 
+  "  -r <file>: Replace binary attachment with file content and print to stdout\n" <<
   "  -p: Print node content" << std::endl;
 }
 
@@ -72,7 +72,7 @@ void print_node(const hipsycl::common::hcf_container::node* n, int level = 0) {
   std::string prefix;
   for(int i=0; i < level; ++i)
     prefix += ' ';
-  
+
   for(const auto& kv_pair : n->key_value_pairs) {
     std::cout << prefix << kv_pair.first << " = " << kv_pair.second << std::endl;
   }
@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
 
     if(!current) {
       std::cout << "Could not access specified node/subnode: " << node_descriptor[i] << std::endl;
-      return -1; 
+      return -1;
     }
   }
 

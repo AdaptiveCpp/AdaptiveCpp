@@ -119,13 +119,13 @@ bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::s
   Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
   Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
 
-  int R = llvm::sys::ExecuteAndWait(Program, InvocationRef, {}, Redirections); 
+  int R = llvm::sys::ExecuteAndWait(Program, InvocationRef, {}, Redirections);
   if(R != 0)
     return false;
 
   auto ReadResult =
     llvm::MemoryBuffer::getFile(OutputFile->TmpName, true);
-  
+
   Out = ReadResult.get()->getBuffer();
   return true;
 }
@@ -142,7 +142,7 @@ public:
                                           const std::string& DeviceLibsPath,
                                           const std::string& TargetDevice,
                                           std::vector<std::string>& BitcodeFiles) {
-    
+
 
     llvm::SmallVector<std::string> Invocation;
     auto OffloadArchFlag = "--cuda-gpu-arch="+TargetDevice;
@@ -150,7 +150,7 @@ public:
     auto RocmDeviceLibsFlag = "--rocm-device-lib-path="+DeviceLibsPath;
 
     std::string ClangPath = getRocmClang(RocmPath);
-    
+
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking " << ClangPath
                        << " to determine ROCm device library list\n";
 
@@ -164,8 +164,8 @@ public:
       "--hip-link",
       "-###"
     };
-    
-    
+
+
     std::string Output;
     if(!getCommandOutput(ClangPath, Invocation, Output))
       return false;
@@ -199,7 +199,7 @@ LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &K
 
 
 bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
-  
+
   M.setTargetTriple(TargetTriple);
   M.setDataLayout(
       "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-i64:64-v16:16-v24:32-v32:32-"
@@ -214,9 +214,9 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       ASMap[AddressSpace::Constant],
       // Actual pointers should be in global memory
       ASMap[AddressSpace::Global]};
-  
+
   ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
-  
+
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
@@ -224,16 +224,16 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  std::string BuiltinBitcodeFile = 
+  std::string BuiltinBitcodeFile =
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-full.bc"});
-  
+
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
-  
+
   AddressSpaceInferencePass ASIPass {ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
-  
+
   // amdgpu does not like some function calls, so try to inline
   // everything. Note: This should be done after ASI pass has fixed
   // alloca address spaces, in case alloca values are passed as arguments!
@@ -271,7 +271,7 @@ bool LLVMToAmdgpuTranslator::applyBuildOption(const std::string &Option, const s
     return true;
   } else if (Option == "rocm-device-libs-path") {
     RocmDeviceLibsPath = Value;
-    return true; 
+    return true;
   } else if (Option == "rocm-path") {
     RocmPath = Value;
     return true;
@@ -291,7 +291,7 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
   // It just compiles for the currently active HIP device.
   std::vector<hiprtcJIT_option> options {};
   std::vector<void*> option_vals {};
-    
+
   hiprtcLinkState LS;
   auto err = hiprtcLinkCreate(options.size(), options.data(),
                               option_vals.data(), &LS);
@@ -343,10 +343,10 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
                         "AMD_COMGR_EMIT_VERBOSE_LOGS=1 might reveal more information.");
     return false;
   }
-    
+
   Output.resize(Size);
   std::copy(static_cast<char *>(Binary), static_cast<char *>(Binary) + Size, Output.begin());
-    
+
   err = hiprtcLinkDestroy(LS);
   if(err != HIPRTC_SUCCESS) {
     this->registerError("LLVMToAmdgpu: hiprtcLinkDestroy() failed");
@@ -360,7 +360,7 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 }
 
 bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::string& Out) {
-  
+
   auto addBitcodeFile = [&](const std::string &BCFileName) -> bool {
     std::string Path = common::filesystem::join_path(RocmDeviceLibsPath, BCFileName);
     auto ReadResult = llvm::MemoryBuffer::getFile(Path, false);
@@ -402,13 +402,13 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
   AtScopeExit DestroyInputFile([&]() { auto Err = InputFile->discard(); });
   AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
   AtScopeExit DestroyDummyFile([&]() { auto Err = DummyFile->discard(); });
-  
+
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
   llvm::raw_fd_ostream DummyStream{DummyFile->FD, false};
 
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
-   
+
   std::string DummyText = "int main() {}\n";
   DummyStream.write(DummyText.c_str(), DummyText.size());
   DummyStream.flush();

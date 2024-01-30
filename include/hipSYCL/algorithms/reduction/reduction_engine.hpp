@@ -182,10 +182,10 @@ class wg_hierarchical_reduction_engine {
   static void execute_dedicated_reduction(
       WiIndex wi_index, const GroupHorizontalReducer &group_reducer,
       const ConfiguredReductionDescriptor &descriptor) {
-    
+
     auto wi_reducer = group_reducer.generate_wi_reducer(descriptor);
     std::size_t my_id = wg_model::get_global_linear_id(wi_index);
-    
+
     if(my_id < descriptor.get_problem_size()) {
       if (descriptor.has_known_identity() ||
           descriptor.get_input_initialization_state()[my_id]) {
@@ -207,7 +207,7 @@ class wg_hierarchical_reduction_engine {
     return kernel;
   }
 
-  
+
   template <class Kernel, class PlanType, typename... ReductionDescriptors>
   auto make_main_reducing_kernel(Kernel main_kernel,
                                  const PlanType &reduction_plan,
@@ -216,7 +216,7 @@ class wg_hierarchical_reduction_engine {
 
     return detail::with_configured_descriptors(
         [=, &reduction_plan](auto... configured_descriptors) {
-          
+
           auto horizontal_reducer = reduction_plan[0].reducer;
 
           return wrap_main_kernel(main_kernel, horizontal_reducer,
@@ -235,7 +235,7 @@ class wg_hierarchical_reduction_engine {
     for(int i = 1; i < reduction_plan.size(); ++i) {
       auto kernel = detail::with_configured_descriptors(
         [=, &reduction_plan](auto... configured_descriptors) {
-          
+
           auto horizontal_reducer = reduction_plan[i].reducer;
 
           return create_dedicated_reduction_kernel(
@@ -279,25 +279,25 @@ public:
     // Add Primary stage
     if(wg_size == 0)
       wg_size = 1;
-    
+
     result_plan.push_back(reduction_stage_type{
         wg_size, detail::ceil_division(global_size, wg_size), global_size});
-    
+
     // Give reducer the chance to perform its own stage calculation
     common::auto_small_vector<reduction_stage_type> additional_plan;
-    
+
     std::size_t num_groups = detail::ceil_division(global_size, wg_size);
     // if we only have a single group, we are already done.
     if(num_groups > 1)
       determine_stages(num_groups, reduction_wg_size, additional_plan);
-  
+
 
     for(const auto& stage : additional_plan) {
       result_plan.push_back(stage);
     }
-    
+
     // Then, allocate required scratch and plan scratch data usage.
-    const std::size_t num_reductions = sizeof...(ReductionDescriptors); 
+    const std::size_t num_reductions = sizeof...(ReductionDescriptors);
     // Initialize all to nullptr
     for(auto& stage : result_plan) {
       stage.data_plan.resize(num_reductions);
@@ -308,7 +308,7 @@ public:
         stage.data_plan[reduction].stage_output = nullptr;
       }
     }
-    
+
     // If we only need the main kernel for the reduction, no scratch is needed.
     if(result_plan.size() > 1) {
       detail::enumerate_pack(
@@ -410,7 +410,7 @@ public:
 
 template<class ThreadInfoQuery>
 class threading_reduction_engine {
-  
+
   util::allocation_group* _scratch_allocations;
   ThreadInfoQuery _thread_query;
 
@@ -449,7 +449,7 @@ class threading_reduction_engine {
     // scratch data, so we only need to initialize it for the first stage.
     detail::enumerate_pack(
         [&](std::size_t reduction_index, const auto &descriptor) {
-          
+
           using descriptor_type = std::decay_t<decltype(descriptor)>;
           using value_type = typename descriptor_type::value_type;
 
@@ -506,7 +506,7 @@ class threading_reduction_engine {
           auto *init_stage = configured_descriptor.get_initialization_state();
 
           bool is_initialized = false;
-          
+
           if constexpr(descriptor_type::has_known_identity())
             current = configured_descriptor.get_operator().get_identity();
 
@@ -632,7 +632,7 @@ public:
         reduction_plan.get_descriptors());
   }
 
-  
+
 };
 
 }

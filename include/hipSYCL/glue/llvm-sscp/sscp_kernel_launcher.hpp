@@ -67,7 +67,7 @@ void __hipsycl_sscp_kernel(const KernelType& kernel) {
 // hipSYCL SSCP LLVM magic will add definition, but clang warns - suppress until
 // we find a better solution to implement things
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wundefined-internal" 
+#pragma clang diagnostic ignored "-Wundefined-internal"
 // The SSCP compiler will use this invocation to connect the kernel function
 // to a global variable where the kernel name can be stored.
 // First argument has to be a function pointer to the kernel,
@@ -174,7 +174,7 @@ public:
   void operator()() const {
     auto this_item = sycl::detail::make_item<Dimensions>(
         sycl::detail::get_global_id<Dimensions>() + _offset, _range, _offset);
-    
+
     if(item_is_in_range(this_item, _range, _offset))
       _k(this_item);
   }
@@ -298,7 +298,7 @@ public:
       } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
 
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
-        
+
       } else if constexpr (type == rt::kernel_type::custom) {
         assert(_params);
         sycl::interop_handle handle{node->get_assigned_device(),
@@ -385,7 +385,7 @@ private:
     const rt::range<3>& num_groups,
     const rt::range<3>& group_size,
     unsigned local_mem_size) {
-    
+
     assert(op);
 
     auto sscp_invoker = this->get_launch_capabilities().get_sscp_invoker();

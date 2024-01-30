@@ -155,7 +155,7 @@ class device_selector
 {
 public:
   virtual ~device_selector(){};
-  
+
   device select_device() const {
     auto res = detail::select_devices(*this);
     // detail::select_devices should throw if it finds
@@ -270,12 +270,12 @@ auto aspect_selector() {
 inline device::device()
   : device::device(default_selector_v)
 {}
-  
+
 template <class DeviceSelector>
 inline device::device(const DeviceSelector &deviceSelector) {
   this->_device_id = detail::select_devices(deviceSelector)[0]._device_id;
 }
-  
+
 namespace detail {
 
 template <class Selector>
@@ -285,7 +285,7 @@ std::vector<device> select_devices(const Selector &s) {
     rt::default_selector_behavior b =
         rt::application::get_settings()
             .get<rt::setting::default_selector_behavior>();
-    
+
     if(b == rt::default_selector_behavior::system)
       return select_devices(system_selector_v);
     else if(b == rt::default_selector_behavior::multigpu)

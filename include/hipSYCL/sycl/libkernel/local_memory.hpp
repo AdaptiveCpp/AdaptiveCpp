@@ -42,7 +42,7 @@ class local_memory
 public:
   using scalar_type = typename std::remove_extent<T>::type;
 
-  template<class t = scalar_type, 
+  template<class t = scalar_type,
           std::enable_if_t<std::is_array<T>::value>* = nullptr>
   [[deprecated("Use sycl::memory_environment() instead")]]
   HIPSYCL_KERNEL_TARGET

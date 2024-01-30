@@ -69,7 +69,7 @@ private:
 
   std::unique_ptr<dag_builder> _builder;
   worker_thread _worker;
-  
+
   dag_direct_scheduler _direct_scheduler;
   dag_unbound_scheduler _unbound_scheduler;
   dag_submitted_ops _submitted_ops;

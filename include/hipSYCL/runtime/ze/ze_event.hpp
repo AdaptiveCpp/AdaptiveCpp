@@ -41,7 +41,7 @@ class ze_node_event : public inorder_queue_event<ze_event_handle_t>
 {
 public:
   /// Takes ownership of supplied ze_event_handle_t
-  ze_node_event(ze_event_handle_t evt, 
+  ze_node_event(ze_event_handle_t evt,
     std::shared_ptr<ze_event_pool_handle_t> pool);
   ~ze_node_event();
 

@@ -71,7 +71,7 @@ std::size_t determine_target_lane(dag_node_ptr node,
     if(executor->find_assigned_lane_index(req, lane_id)) {
       if (lane_id >= lane_range.begin &&
           lane_id < lane_range.begin + lane_range.num_lanes) {
-        
+
         std::size_t relative_lane_id = lane_id - lane_range.begin;
         // Don't consider the event if we already know that it is complete
         if(!req->is_known_complete()) {
@@ -231,7 +231,7 @@ void multi_queue_executor::submit_directly(
   }
   _device_data[node->get_assigned_device().get_id()]
       .submission_statistics.insert(op_target_lane);
-  
+
   inorder_executor *executor = _device_data[node->get_assigned_device().get_id()]
                          .executors[op_target_lane]
                          .get();
@@ -239,7 +239,7 @@ void multi_queue_executor::submit_directly(
   HIPSYCL_DEBUG_INFO
       << "multi_queue_executor: Dispatching to lane " << op_target_lane << ": "
       << dump(op) << std::endl;
-  
+
   return executor->submit_directly(node, op, reqs);
 }
 

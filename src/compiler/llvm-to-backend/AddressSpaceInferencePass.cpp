@@ -60,7 +60,7 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   GV->setName(VarName+".original");
 
   llvm::Constant* Initalizer = nullptr;
-  
+
   if(GV->hasInitializer()) {
     Initalizer = GV->getInitializer();
   }
@@ -68,7 +68,7 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   llvm::GlobalVariable* NewVar = new llvm::GlobalVariable(
       M, GV->getValueType(), GV->isConstant(), GV->getLinkage(), Initalizer, VarName, nullptr,
       GV->getThreadLocalMode(), AS);
-  
+
   NewVar->setAlignment(GV->getAlign());
   llvm::Value *V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
 
@@ -98,7 +98,7 @@ AddressSpaceInferencePass::AddressSpaceInferencePass(const AddressSpaceMap &Map)
 
 llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM) {
-  
+
   if(ASMap[AddressSpace::Generic] != 0){
     HIPSYCL_DEBUG_ERROR << "AddressSpaceInferencePass: Attempted to run when default address space "
                            "is not generic address space. This is not yet supported.\n";
@@ -164,7 +164,7 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
   }
   for(auto* I : InstsToRemove)
     I->eraseFromParent();
-  
+
   auto IAS = llvm::createModuleToFunctionPassAdaptor(
       llvm::InferAddressSpacesPass{ASMap[AddressSpace::Generic]});
   IAS.run(M, MAM);

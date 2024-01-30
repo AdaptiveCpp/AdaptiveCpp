@@ -105,7 +105,7 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
                     "USM: Could not select backend to use for USM memory "
                     "operation"};
   }
-  
+
   return selected_backend;
 }
 
@@ -141,7 +141,7 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx,
   rt::backend &backend_object =
       *ctx.hipSYCL_runtime()->backends().get(selected_backend);
   rt::device_id d = detail::extract_rt_device(dev);
-  
+
   if(d.get_backend() == selected_backend)
     return backend_object.get_allocator(detail::extract_rt_device(dev));
   else

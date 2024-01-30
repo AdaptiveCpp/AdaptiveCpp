@@ -559,9 +559,9 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
     // builtin_clz(0) is UB on some arch
     if(x==0){return sizeof(T)*CHAR_BIT;}
 
-    //we convert to the unsigned type to avoid the typecast creating 
+    //we convert to the unsigned type to avoid the typecast creating
     //additional ones in front of the value if x is negative
-    using Usigned = typename std::make_unsigned<T>::type; 
+    using Usigned = typename std::make_unsigned<T>::type;
     constexpr T diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(Usigned));
     return __builtin_clz(static_cast<Usigned>(x)) - diff;
   #else
@@ -657,7 +657,7 @@ HIPSYCL_BUILTIN T __hipsycl_sign(T x) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_BUILTIN VecType 
+HIPSYCL_BUILTIN VecType
 __hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
   return {a.y() * b.z() - a.z() * b.y(),
           a.z() * b.x() - a.x() * b.z(),
@@ -665,9 +665,9 @@ __hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_BUILTIN VecType 
+HIPSYCL_BUILTIN VecType
 __hipsycl_cross4(const VecType &a, const VecType &b) noexcept {
-  return {a.y() * b.z() - a.z() * b.y(), 
+  return {a.y() * b.z() - a.z() * b.y(),
           a.z() * b.x() - a.x() * b.z(),
           a.x() * b.y() - a.y() * b.x(),
           typename VecType::element_type{0}};

@@ -356,15 +356,14 @@ private:
 };
 
 
-template <class AlgorithmType, class Size, typename... Args>
-inline uint64_t get_operation_hash(AlgorithmType /*arg*/, Size n, Args...) {
+template <class AlgorithmType, typename... Args>
+inline uint64_t get_operation_hash(AlgorithmType /*arg*/, Args...) {
   common::stable_running_hash hash;
 
   auto add_to_hash = [&](const auto& x){
     hash(&x, sizeof(x));
   };
   add_to_hash(typeid(AlgorithmType).hash_code());
-  add_to_hash(n);
   (add_to_hash(typeid(Args).hash_code()), ...);
   return hash.get_current_hash();
 }

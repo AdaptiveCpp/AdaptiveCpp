@@ -79,9 +79,9 @@ add_library(acpp-clang SHARED
 
 target_include_directories(acpp-clang PRIVATE
   ../../include
-  ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}/include)
+target_include_directories(acpp-clang SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
 target_compile_definitions(acpp-clang PRIVATE
   ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)

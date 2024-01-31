@@ -287,6 +287,7 @@ public:
         assert(CallArgs[i]->getType() == F->getFunctionType()->getParamType(i));
       }
 
+      llvm::CallInst::Create(llvm::FunctionCallee(F), CallArgs, "", BB);
       llvm::ReturnInst::Create(M.getContext(), BB);
 
       if(!F->hasFnAttribute(llvm::Attribute::AlwaysInline))

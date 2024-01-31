@@ -47,7 +47,7 @@ namespace {
 
 void close_plugin(void *handle) {
 #ifndef _WIN32
-  if (int err = dlclose(handle)) {
+  if (dlclose(handle)) {
     HIPSYCL_DEBUG_ERROR << "backend_loader: dlclose() failed" << std::endl;
   }
 #else

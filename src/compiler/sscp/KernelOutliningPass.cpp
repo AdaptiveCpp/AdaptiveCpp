@@ -97,7 +97,7 @@ public:
   llvm::Type* run(llvm::Function* F, int ArgNo) {
     VisitedUsers.clear();
     if(llvm::Value* Arg = F->getArg(ArgNo)) {
-      if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
+      if(llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
 
         // If either byval or byref attributes are present, we can just look up
         // the pointee type directly.
@@ -157,7 +157,7 @@ private:
         Scores[GEPI->getSourceElementType()] = CurrentScore - 1;
       } else if (auto EEI = llvm::dyn_cast<llvm::ExtractElementInst>(Current)) {
         Scores[EEI->getVectorOperand()->getType()] = CurrentScore - 2;
-      } else if (auto ACI = llvm::dyn_cast<llvm::AddrSpaceCastInst>(Current)) {
+      } else if (llvm::dyn_cast<llvm::AddrSpaceCastInst>(Current)) {
         // Follow address space casts, we don't care about pointer address spaces
         rankUsers(Current, Scores, CurrentScore);
       } else if(auto CI = llvm::dyn_cast<llvm::CallBase>(Current)) {

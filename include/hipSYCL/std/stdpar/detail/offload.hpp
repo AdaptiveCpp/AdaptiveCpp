@@ -424,7 +424,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
       state.get_configuration().get_min_ops_per_offload_decision();
 
   int num_predicted_ops = 0;
-  uint64_t op_hash = get_operation_hash(type, args...);
+  uint64_t op_hash = get_operation_hash(type, n, args...);
   // Identify ops using a combination of hash and problem size
   using op_id = offload_heuristic_state::op_id;
 
@@ -585,7 +585,7 @@ private:
 template<class AlgorithmType, class Size, class F, typename... Args>
 auto host_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
 #ifndef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
-  uint64_t hash = get_operation_hash(t, args...);
+  uint64_t hash = get_operation_hash(t, n, args...);
   host_invocation_measurement m{hash, n};
   return m(f);
 #else
@@ -596,7 +596,7 @@ auto host_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
 template<class AlgorithmType, class Size, class F, typename... Args>
 auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
 #ifndef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
-  uint64_t hash = get_operation_hash(t, args...);
+  uint64_t hash = get_operation_hash(t, n, args...);
   device_invocation_measurement m{hash, n};
   return m(f);
 #else

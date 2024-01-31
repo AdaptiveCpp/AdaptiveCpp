@@ -33,6 +33,7 @@
 #include <cstring>
 #include <array>
 #include <string>
+#include <type_traits>
 #include <typeindex>
 #include <vector>
 #include <functional>
@@ -42,9 +43,15 @@
 namespace hipsycl {
 namespace glue {
 
+enum class kernel_base_config_parameter : int {
+  backend_id = 0,
+  compilation_flow = 1,
+  hcf_object_id = 2
+};
+
 class kernel_configuration {
 
-  class configuration_entry {
+  class s2_ir_configuration_entry {
     static constexpr std::size_t buffer_size = 8;
 
     std::string _name;
@@ -65,7 +72,7 @@ class kernel_configuration {
 
   public:
     template<class T>
-    configuration_entry(const std::string& name, const T& val)
+    s2_ir_configuration_entry(const std::string& name, const T& val)
     : _name{name}, _type{typeid(T)}, _data_size{sizeof(T)} {
       store<T>(val);
     }
@@ -96,42 +103,120 @@ class kernel_configuration {
       return _name;
     }
   };
+
 public:
   using id_type = std::array<uint64_t, 2>;
 
   template<class T>
-  void set(const std::string& config_parameter_name, const T& value) {
-    configuration_entry entry{config_parameter_name, value};
-    for(int i = 0; i < _configurations.size(); ++i) {
-      if(_configurations[i].get_name() == config_parameter_name) {
-        _configurations[i] = entry;
+  void set_s2_ir_constant(const std::string& config_parameter_name, const T& value) {
+    s2_ir_configuration_entry entry{config_parameter_name, value};
+    for(int i = 0; i < _s2_ir_configurations.size(); ++i) {
+      if(_s2_ir_configurations[i].get_name() == config_parameter_name) {
+        _s2_ir_configurations[i] = entry;
         return;
       }
     }
-    _configurations.push_back(entry);
+    _s2_ir_configurations.push_back(entry);
+  }
+
+  void set_build_option(const std::string& option, const std::string& value) {
+    _build_options.push_back(std::make_pair(option, value));
+  }
+
+  template<class T>
+  void set_build_option(const std::string& option, const T& value) {
+    set_build_option(option, std::to_string(value));
+  }
+
+  void set_build_flag(const std::string& flag) {
+    _build_flags.push_back(flag);
+  }
+
+  template<class KeyT, class ValueT>
+  void append_base_configuration(const KeyT key, const ValueT& value) {
+    add_entry_to_hash(_base_configuration_result, data_ptr(key), data_size(key),
+                      data_ptr(value), data_size(value));
   }
 
   id_type generate_id() const {
-    id_type result {};
+    id_type result = _base_configuration_result;
 
-    for(const auto& entry : _configurations) {
-      common::stable_running_hash h;
-      h(entry.get_name().data(), entry.get_name().size());
-      h(entry.get_data_buffer(), entry.get_data_size());
+    for(const auto& entry : _s2_ir_configurations) {
+      add_entry_to_hash(result, entry.get_name().data(),
+                        entry.get_name().size(), entry.get_data_buffer(),
+                        entry.get_data_size());
+    }
 
-      auto entry_hash = h.get_current_hash();
+    for(const auto& entry : _build_options) {
+      add_entry_to_hash(result, entry.first.data(), entry.first.size(),
+                        entry.second.data(), entry.second.size());
+    }
 
-      result[entry_hash % result.size()] ^= entry_hash;
+    for(const auto& entry : _build_flags) {
+      add_entry_to_hash(result, entry.data(), entry.size(),
+                        "", 0);
     }
 
     return result;
   }
 
-  const std::vector<configuration_entry>& entries() const {
-    return _configurations;
+  const std::vector<s2_ir_configuration_entry>& s2_ir_entries() const {
+    return _s2_ir_configurations;
   }
 
-  std::vector<configuration_entry> _configurations;
+  const auto& build_options() const {
+    return _build_options;
+  }
+
+  const auto& build_flags() const {
+    return _build_flags;
+  }
+
+private:
+  const void* data_ptr(const std::string& data) const {
+    return data.data();
+  }
+
+  template<class T>
+  const void* data_ptr(const std::vector<T>& data) const {
+    return data.data();
+  }
+
+  template<class T>
+  const void* data_ptr(const T& data) const {
+    return &data;
+  }
+
+  std::size_t data_size(const std::string& data) const {
+    return data.size();
+  }
+
+  template<class T>
+  std::size_t data_size(const std::vector<T>& data) const {
+    return data.size();
+  }
+
+  template<class T>
+  std::size_t data_size(const T& data) const {
+    return sizeof(T);
+  }
+
+  void add_entry_to_hash(id_type &hash, const void *key_data,
+                         std::size_t key_size, const void *data,
+                         std::size_t data_size) const {
+    common::stable_running_hash h;
+    h(key_data, key_size);
+    h(data, data_size);
+    auto entry_hash = h.get_current_hash();
+    hash[entry_hash % hash.size()] ^= entry_hash;
+  }
+
+
+  std::vector<s2_ir_configuration_entry> _s2_ir_configurations;
+  std::vector<std::string> _build_flags;
+  std::vector<std::pair<std::string, std::string>> _build_options;
+
+  id_type _base_configuration_result = {};
 };
 
 }

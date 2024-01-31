@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
@@ -595,7 +596,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       const std::string &kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const glue::kernel_configuration &config) {
+      const glue::kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
   this->activate_device();
   
@@ -610,7 +611,6 @@ result hip_queue::submit_sscp_kernel_from_code_object(
                    global_kernel_name});
   }
 
-  auto configuration_id = config.generate_id();
   int device = _dev.get_id();
 
   hip_hardware_context *ctx = static_cast<hip_hardware_context *>(
@@ -626,6 +626,19 @@ result hip_queue::submit_sscp_kernel_from_code_object(
         error_info{"hip_queue: Could not obtain hcf kernel info for kernel " +
             global_kernel_name});
   }
+
+  
+  glue::kernel_configuration config = initial_config;
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::hip);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::sscp);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+
+  config.set_build_option("amdgpu-target-device", target_arch_name);
+  auto configuration_id = config.generate_id();
 
   auto code_object_selector = [&](const code_object* candidate) -> bool {
     
@@ -654,8 +667,6 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     // Construct amdgpu translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
       compiler::createLLVMToAmdgpuTranslator(kernel_names);
-
-    translator->setBuildOption("amdgpu-target-device", target_arch_name);
 
     // Lower kernels
     std::string amdgpu_image;

@@ -26,6 +26,7 @@
  */
 
 
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -431,7 +432,20 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
   glue::kernel_configuration config = initial_config;
-  config.set("spirv-dynamic-local-mem-allocation-size", local_mem_size);
+  
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::ocl);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::sscp);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+
+  config.set_build_option("spirv-dynamic-local-mem-allocation-size", local_mem_size);
+
+  // TODO: Enable this if we are on Intel
+  // config.set_build_flag("enable-intel-llvm-spirv-options");
+
   auto configuration_id = config.generate_id();
 
   const hcf_kernel_info *kernel_info =
@@ -468,11 +482,6 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     // Construct SPIR-V translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
-
-    translator->setBuildOption("spirv-dynamic-local-mem-allocation-size",
-                               local_mem_size);
-    // TODO: Enable this if we are on Intel
-    // translator->setBuildFlag("enable-intel-llvm-spirv-options");
     
     // Lower kernels to SPIR-V
     std::string compiled_image;

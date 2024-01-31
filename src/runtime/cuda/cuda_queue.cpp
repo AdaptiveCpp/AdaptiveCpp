@@ -27,6 +27,7 @@
 
 #include "driver_types.h"
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/cuda/cuda_instrumentation.hpp"
@@ -610,7 +611,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     const std::string &kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
-    const glue::kernel_configuration &config) {
+    const glue::kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
   this->activate_device();
@@ -626,7 +627,6 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
                    global_kernel_name});
   }
 
-  auto configuration_id = config.generate_id();
   int device = this->_dev.get_id();
 
   cuda_hardware_context *ctx = static_cast<cuda_hardware_context *>(
@@ -643,6 +643,22 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
         error_info{"cuda_queue: Could not obtain hcf kernel info for kernel " +
             global_kernel_name});
   }
+
+
+  glue::kernel_configuration config = initial_config;
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::sscp);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+  
+  // TODO This is incorrect, we should attempt to find a better way to determine
+  // the right ptx version
+  config.set_build_option("ptx-version", compute_capability);
+  config.set_build_option("ptx-target-device", compute_capability);
+  auto configuration_id = config.generate_id();
 
   auto code_object_selector = [&](const code_object *candidate) -> bool {
     if ((candidate->managing_backend() != backend_id::cuda) ||
@@ -669,11 +685,6 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     // Construct PTX translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
       compiler::createLLVMToPtxTranslator(kernel_names);
-
-    // TODO Shouldn't we compile with the most recent ptx version supported
-    // by clang/CUDA?
-    translator->setBuildOption("ptx-version", compute_capability);
-    translator->setBuildOption("ptx-target-device", compute_capability);
 
     // Lower kernels to PTX
     std::string ptx_image;

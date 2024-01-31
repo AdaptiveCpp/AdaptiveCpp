@@ -56,7 +56,7 @@ VectorShape VectorShapeTransformer::getObservedShape(const BasicBlock &observerB
   return vecInfo.getObservedShape(LI, observerBlock, val);
 }
 
-static Type *getElementType(Type *Ty) {
+[[maybe_unused]] static Type *getElementType(Type *Ty) {
   if (auto VecTy = dyn_cast<VectorType>(Ty)) {
     return VecTy->getElementType();
   }

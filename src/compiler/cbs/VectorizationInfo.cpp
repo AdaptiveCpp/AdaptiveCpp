@@ -143,7 +143,7 @@ void VectorizationInfo::print(llvm::raw_ostream &out) const {
 }
 
 VectorizationInfo::VectorizationInfo(llvm::Function &scalarFn, Region &_region)
-    : scalarFn(scalarFn), DL(scalarFn.getParent()->getDataLayout()), region(_region) {
+    : DL(scalarFn.getParent()->getDataLayout()), region(_region), scalarFn(scalarFn) {
   for (auto &arg : scalarFn.args()) {
     //    RV_UNUSED(arg);
     setPinned(arg);

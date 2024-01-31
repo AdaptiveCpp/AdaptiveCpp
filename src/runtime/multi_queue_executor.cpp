@@ -115,7 +115,7 @@ std::size_t determine_target_lane(dag_node_ptr node,
 
 multi_queue_executor::multi_queue_executor(
     const backend &b, queue_factory_function queue_factory)
-    : _num_submitted_operations{0}, _backend{b.get_unique_backend_id()} {
+    : _backend{b.get_unique_backend_id()} {
   std::size_t num_devices = b.get_hardware_manager()->get_num_devices();
 
 

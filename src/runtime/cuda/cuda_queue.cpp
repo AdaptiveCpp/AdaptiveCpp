@@ -182,8 +182,9 @@ void cuda_queue::activate_device() const {
 }
 
 cuda_queue::cuda_queue(cuda_backend *be, device_id dev, int priority)
-    : _dev{dev}, _multipass_code_object_invoker{this},
-      _sscp_code_object_invoker{this}, _stream{nullptr}, _backend{be},
+    : _dev{dev}, _stream{nullptr},
+      _multipass_code_object_invoker{this},
+      _sscp_code_object_invoker{this}, _backend{be},
       _kernel_cache{kernel_cache::get()} {
   this->activate_device();
 
@@ -322,7 +323,7 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     
   } else {
     
-    cudaMemcpy3DParms params = {0};
+    cudaMemcpy3DParms params {};
     params.srcPtr = make_cudaPitchedPtr(op.source().get_access_ptr(),
                                         op.source().get_allocation_shape()[2] *
                                             op.source().get_element_size(),

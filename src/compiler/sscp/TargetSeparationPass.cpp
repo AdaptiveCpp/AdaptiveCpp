@@ -60,7 +60,7 @@ namespace compiler {
 class Timer {
 public:
   Timer(llvm::StringRef Name, bool PrintAtDestruction = false, llvm::StringRef Description = "")
-  : Name{Name}, Print{PrintAtDestruction}, Description{Description} {
+  : Print{PrintAtDestruction}, Name{Name}, Description{Description} {
     Start = std::chrono::high_resolution_clock::now();;
     IsRunning = true;
   }

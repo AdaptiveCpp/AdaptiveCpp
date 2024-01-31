@@ -404,9 +404,10 @@ SubCFG::createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, size_t> 
 SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
                const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds,
                const SplitterAnnotationInfo &SAA, llvm::Value *IndVar, size_t Dim)
-    : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)),
-      EntryBarrier_(EntryBarrier), EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr),
-      ContIdx_(IndVar), PreHeader_(nullptr), Dim(Dim) {
+    : EntryId_(BarrierIds.lookup(EntryBarrier)), EntryBarrier_(EntryBarrier),
+      LastBarrierIdStorage_(LastBarrierIdStorage),
+      ContIdx_(IndVar), EntryBB_(EntryBarrier->getSingleSuccessor()),
+      LoadBB_(nullptr), PreHeader_(nullptr), Dim(Dim) {
   assert(ContIdx_ && "Must have found __hipsycl_local_id_{x,y,z}");
 
   llvm::SmallVector<llvm::BasicBlock *, 4> WL{EntryBarrier};
@@ -612,7 +613,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
       if (InstAllocaMap.lookup(&I))
         continue;
       // if any use is in another subcfg
-      if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, this, &I](auto *UI) {
+      if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, &I](auto *UI) {
             return UI->getParent() != I.getParent() && OtherCFGBlocks.contains(UI->getParent());
           })) {
         // load from an alloca, just widen alloca

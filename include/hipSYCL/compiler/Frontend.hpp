@@ -159,7 +159,7 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
 inline std::string buildKernelNameFromRecordType(const clang::QualType &RecordType, clang::MangleContext *Mangler) {
   std::string KernelName;
   llvm::raw_string_ostream SS(KernelName);
-  Mangler->mangleTypeName(RecordType, SS);
+  Mangler->mangleCanonicalTypeName(RecordType, SS);
 
   return KernelName;
 }

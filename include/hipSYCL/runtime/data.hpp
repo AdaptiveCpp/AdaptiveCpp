@@ -556,7 +556,7 @@ public:
     range<3> num_pages = pr.second;
 
     // Find outdated regions among pages
-    bool was_found = _allocations.select_and_handle(
+    [[maybe_unused]] bool was_found = _allocations.select_and_handle(
         default_allocation_selector{d}, [&](auto &alloc) {
           alloc.invalid_pages.intersections_with(
               std::make_pair(first_page, num_pages), out);
@@ -625,12 +625,14 @@ public:
     assert(has_allocation(dev));
 
     Memory_descriptor mem{};
-    bool was_found = _allocations.select_and_handle(
+
+    [[maybe_unused]] bool was_found = _allocations.select_and_handle(
         default_allocation_selector{dev}, [&](const auto &alloc) {
           mem = alloc.memory;
     });
 
     assert(was_found);
+
     return mem;
   }
 
@@ -638,12 +640,14 @@ public:
     assert(has_allocation(dev));
 
     data_allocation<Memory_descriptor> found_alloc;
-    bool was_found = _allocations.select_and_handle(
+
+    [[maybe_unused]] bool was_found = _allocations.select_and_handle(
         default_allocation_selector{dev}, [&](const auto &alloc) {
           found_alloc = alloc;
     });
 
     assert(was_found);
+
     return found_alloc;
   }
 
@@ -714,7 +718,7 @@ private:
       new_alloc.invalid_pages.remove(std::make_pair(id<3>{0, 0, 0}, _num_pages));
     }
 
-    bool was_inserted = _allocations.add_if_unique(
+    [[maybe_unused]] bool was_inserted = _allocations.add_if_unique(
         default_allocation_comparator{}, std::move(new_alloc));
 
     // If another thread has added an allocation for this device in the meantime

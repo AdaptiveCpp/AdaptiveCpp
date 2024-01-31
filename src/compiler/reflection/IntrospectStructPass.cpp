@@ -49,17 +49,6 @@ namespace compiler {
 namespace {
 constexpr const char* builtin_name = "__hipsycl_introspect_flattened_struct";
 
-llvm::AllocaInst *getPrevAllocaInst(llvm::Instruction *I) {
-  llvm::Instruction *CurrentInst = I;
-  while (CurrentInst) {
-    if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(CurrentInst)) {
-      return AI;
-    }
-    CurrentInst = CurrentInst->getPrevNonDebugInstruction();
-  }
-  return nullptr;
-}
-
 struct TypeInformation {
   int FlattenedNumMembers;
   llvm::SmallVector<int, 8> MemberOffsets;

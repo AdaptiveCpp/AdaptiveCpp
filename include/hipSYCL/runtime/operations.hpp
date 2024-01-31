@@ -143,7 +143,7 @@ public:
   /// Note: Assumes that the data usage operations on the same memory object!
   virtual bool intersects_with(const data_user& user) const = 0;
 
-  bool is_buffer_requirement() const 
+  bool is_buffer_requirement() const
   { return !is_image_requirement(); }
 };
 
@@ -160,7 +160,7 @@ public:
         _mode{access_mode}, _target{access_target}, _dimensions{Dim},
         _device_data_location{nullptr}, _bound_embedded_ptr_id{0}
   {
-    static_assert(Dim >= 1 && Dim <=3, 
+    static_assert(Dim >= 1 && Dim <=3,
       "dimension of buffer memory requirement must be between 1 and 3");
 
     _offset = embed_in_id3(offset);
@@ -222,7 +222,7 @@ public:
     auto other_page_range = _mem_region->get_page_range(
         other_buff->get_access_offset3d(), other_buff->get_access_range3d());
 
-    
+
     return page_ranges_intersect(other_page_range);
   }
 
@@ -287,7 +287,7 @@ public:
     }
     return false;
   }
-  
+
   void dump(std::ostream & ostr, int indentation=0) const override;
 
 private:
@@ -445,7 +445,7 @@ public:
 
   std::size_t get_num_transferred_bytes() const;
   range<3> get_num_transferred_elements() const;
-  
+
   const memory_location &source() const;
   const memory_location &dest() const;
 
@@ -646,7 +646,7 @@ public:
   void add_node_requirement(dag_node_ptr node);
 
   const node_list_t& get() const;
-  
+
 private:
   node_list_t _reqs;
   runtime* _rt;

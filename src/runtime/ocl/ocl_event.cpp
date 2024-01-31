@@ -60,7 +60,7 @@ bool ocl_node_event::is_complete() const {
                               error_code{"CL", err}});
     return true;
   }
-  
+
   return status == CL_COMPLETE;
 }
 

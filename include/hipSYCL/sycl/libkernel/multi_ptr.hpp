@@ -82,7 +82,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   multi_ptr &operator=(const multi_ptr& other)
   {
-    _ptr = other._ptr; 
+    _ptr = other._ptr;
     return *this;
   }
 

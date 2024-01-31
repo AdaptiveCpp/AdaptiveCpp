@@ -36,7 +36,7 @@
   HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f64(double x) { \
     return __ocml_##name##_f64(x);                                             \
   }
-  
+
 HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(isnan)
 
 HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(isinf)

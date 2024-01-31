@@ -530,7 +530,7 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f64 atomic_load_f64(
 HIPSYCL_SSCP_BUILTIN __hipsycl_int8 __hipsycl_sscp_atomic_exchange_i8(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int8 *ptr, __hipsycl_int8 x) {
-  
+
   // We can only do 32-bit atomics, so we just treat it as a 32-bit value.
   // This is very bogus, but since sycl::atomic_ref does not support
   // types < 32bit, it's not user-facing anyway.
@@ -1128,9 +1128,9 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f32 __hipsycl_sscp_atomic_fetch_min_f32(
 HIPSYCL_SSCP_BUILTIN __hipsycl_f64 __hipsycl_sscp_atomic_fetch_min_f64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f64 *ptr, __hipsycl_f64 x) {
-  
+
   __hipsycl_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+
   do {
     if (old < x)
       return old;
@@ -1223,9 +1223,9 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_atomic_fetch_max_u64(
 HIPSYCL_SSCP_BUILTIN __hipsycl_f32 __hipsycl_sscp_atomic_fetch_max_f32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f32 *ptr, __hipsycl_f32 x) {
-  
+
   __hipsycl_f32 old = atomic_load_f32(as, order, scope, ptr);
-  
+
   do {
     if (old > x)
       return old;
@@ -1236,9 +1236,9 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f32 __hipsycl_sscp_atomic_fetch_max_f32(
 HIPSYCL_SSCP_BUILTIN __hipsycl_f64 __hipsycl_sscp_atomic_fetch_max_f64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f64 *ptr, __hipsycl_f64 x) {
-  
+
   __hipsycl_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+
   do {
     if (old > x)
       return old;

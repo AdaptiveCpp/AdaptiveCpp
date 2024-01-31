@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(par_unseq) {
   std::vector<float> data(1000);
   for(int i = 0; i < data.size(); ++i)
     data[i] = static_cast<float>(i);
-  
+
   std::for_each(std::execution::par_unseq, data.begin(), data.end(), [](auto& x){
     x = std::sin(x) + std::pow(x, 0.01f);
   });

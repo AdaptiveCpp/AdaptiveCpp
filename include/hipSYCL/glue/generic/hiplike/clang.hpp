@@ -79,7 +79,7 @@ static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shar
   f(__VA_ARGS__);
 
 #endif
-  
+
 
 #else
  #error This file needs a CUDA or HIP compiler and the hipSYCL clang plugin

@@ -21,9 +21,9 @@ S s_v3 {
 
 int main() {
   sycl::queue q = get_queue();
-    
+
   int* data=sycl::malloc_device<int>(1024, q);
   q.parallel_for(1024, [=](auto idx){data[idx] = static_cast<int>(idx);});
-    
+
   q.wait();
 }

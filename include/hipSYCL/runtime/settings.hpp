@@ -86,9 +86,9 @@ bool try_get_environment_variable(const std::string& name, T& out) {
     env_name = "HIPSYCL_"+env_name;
     env = std::string{env_value};
   }
-  
+
   if (!env.empty()) {
-    
+
     T val;
     std::stringstream sstr{std::string{env}};
     sstr >> val;

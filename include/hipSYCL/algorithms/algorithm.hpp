@@ -156,11 +156,11 @@ sycl::event transform(sycl::queue &q, ForwardIt1 first1, ForwardIt1 last1,
 template <class ForwardIt1, class ForwardIt2>
 sycl::event copy(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
                  ForwardIt2 d_first) {
-  
+
   auto size = std::distance(first, last);
   if(size == 0)
     return sycl::event{};
-  
+
   using value_type1 = typename std::iterator_traits<ForwardIt1>::value_type;
   using value_type2 = typename std::iterator_traits<ForwardIt2>::value_type;
 
@@ -250,7 +250,7 @@ sycl::event fill_n(sycl::queue& q,
                   ForwardIt first, Size count, const T& value ) {
   if(count <= Size{0})
     return sycl::event{};
-  
+
   auto last = first;
   std::advance(last, count);
   return fill(q, first, last, value);
@@ -361,7 +361,7 @@ template <class ForwardIt, class T>
 sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
                  typename std::iterator_traits<ForwardIt>::difference_type* out, const T &value) {
   using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
-  
+
   return transform_reduce(q, scratch_allocations, first, last, out, std::distance(first, last), sycl::minimum<difference_type>{},)
 }
 
@@ -384,7 +384,7 @@ template <class Predicate>
 sycl::event early_exit_for_each(sycl::queue &q, std::size_t problem_size,
                                 early_exit_flag_t *output_has_exited_early,
                                 Predicate should_exit) {
-  
+
   std::size_t group_size = 128;
 
   util::abortable_data_streamer streamer{q.get_device(), problem_size, group_size};
@@ -393,9 +393,9 @@ sycl::event early_exit_for_each(sycl::queue &q, std::size_t problem_size,
 
   auto kernel = [=](sycl::nd_item<1> idx) {
       const std::size_t item_id = idx.get_global_id(0);
-  
+
       util::abortable_data_streamer::run(problem_size, idx, [&](sycl::id<1> idx){
-        
+
         if (sycl::detail::__hipsycl_atomic_load<
                 sycl::access::address_space::global_space>(
                 output_has_exited_early, sycl::memory_order_relaxed,
@@ -462,7 +462,7 @@ sycl::event none_of(sycl::queue &q,
   std::size_t problem_size = std::distance(first, last);
   if(problem_size == 0)
     return sycl::event{};
-  
+
   auto evt = any_of(q, first, last, out, p);
   return q.single_task(evt, [=](){
     *out = static_cast<detail::early_exit_flag_t>(!(*out));

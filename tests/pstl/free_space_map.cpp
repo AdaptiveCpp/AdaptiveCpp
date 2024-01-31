@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(insert) {
   std::size_t alloced_size = 0;
 
   for(int i = 0; i < 2048 && alloced_size < 0.9 * alloc_space_size; ++i) {
-    
+
     uint64_t addr;
     std::size_t size = dist(gen);
     bool res = fmap.claim(size, addr);
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(insert_erase_reclaim) {
       alloced_size += next_pow2(size1);
     if(res2)
       alloced_size += next_pow2(size2);
-    
+
     if(res2) {
       BOOST_CHECK(fmap.release(addr2, size2));
       uint64_t addr3 = 0;

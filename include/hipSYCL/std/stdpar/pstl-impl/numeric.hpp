@@ -47,7 +47,7 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
                     ForwardIt1 first1, ForwardIt1 last1,
                     ForwardIt2 first2,
                     T init) {
-  
+
   auto offloader = [&](auto& queue) {
     // Note: Using a scratch allocation_group that expires at the end of the scope
     // is safe because
@@ -55,7 +55,7 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
     // the kernels are complete;
     // b) We have one allocation cache per thread-local in-order queue. So, subsequent operations
     // fed from the same cache would wait for us anyway due to using the same in-order queue.
-    // These conditions ensure that no other operations can get access to the 
+    // These conditions ensure that no other operations can get access to the
     // cached scratch memory while we are using it.
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
@@ -65,13 +65,13 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
                 hipsycl::algorithms::util::allocation_type::device>();
-    
+
     T* output = output_scratch_group.obtain<T>(1);
     hipsycl::algorithms::transform_reduce(queue, reduction_scratch_group, first1,
                                             last1, first2, output, init);
     // We need to wait in any case here, so cannot elide synchronization
     queue.wait();
-    
+
     if(first1 == last1)
       return init;
     else
@@ -108,14 +108,14 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
                 hipsycl::algorithms::util::allocation_type::device>();
-    
+
     T* output = output_scratch_group.obtain<T>(1);
     hipsycl::algorithms::transform_reduce(queue, reduction_scratch_group, first1,
                                           last1, first2, output, init, reduce,
                                           transform);
     // We need to wait in any case here, so cannot elide synchronization
     queue.wait();
-    
+
     if(first1 == last1)
       return init;
     else
@@ -153,13 +153,13 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
                 hipsycl::algorithms::util::allocation_type::device>();
-    
+
     T* output = output_scratch_group.obtain<T>(1);
     hipsycl::algorithms::transform_reduce(queue, reduction_scratch_group, first, last,
                                           output, init, reduce, transform);
     // We need to wait in any case here, so cannot elide synchronization
     queue.wait();
-    
+
     if(first == last)
       return init;
     else
@@ -224,7 +224,7 @@ T reduce(hipsycl::stdpar::par_unseq, ForwardIt first,
          ForwardIt last, T init) {
 
   auto offloader = [&](auto& queue){
-      
+
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
@@ -233,13 +233,13 @@ T reduce(hipsycl::stdpar::par_unseq, ForwardIt first,
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
                 hipsycl::algorithms::util::allocation_type::device>();
-    
+
     T* output = output_scratch_group.obtain<T>(1);
     hipsycl::algorithms::reduce(queue, reduction_scratch_group, first, last,
                                 output, init);
     // We need to wait in any case here, so cannot elide synchronization
     queue.wait();
-    
+
     if(first == last)
       return init;
     else
@@ -263,7 +263,7 @@ T reduce(hipsycl::stdpar::par_unseq, ForwardIt first,
          ForwardIt last, T init, BinaryOp binary_op) {
 
   auto offloader = [&](auto& queue){
-      
+
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
@@ -272,13 +272,13 @@ T reduce(hipsycl::stdpar::par_unseq, ForwardIt first,
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
                 hipsycl::algorithms::util::allocation_type::device>();
-    
+
     T* output = output_scratch_group.obtain<T>(1);
     hipsycl::algorithms::reduce(queue, reduction_scratch_group, first, last, output,
                                 init, binary_op);
     // We need to wait in any case here, so cannot elide synchronization
     queue.wait();
-    
+
     if(first == last)
       return init;
     else

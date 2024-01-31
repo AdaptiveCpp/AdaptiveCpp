@@ -73,7 +73,7 @@ private:
   dag_node_ptr build_node(std::unique_ptr<operation> op,
                           const requirements_list &requirements,
                           const execution_hints &hints);
-  
+
 
   mutable std::mutex _mutex;
   dag _current_dag;

@@ -40,7 +40,7 @@ public:
   virtual bool is_complete() const = 0;
   virtual void wait() = 0;
   virtual ~dag_node_event() {}
-}; 
+};
 
 }
 }

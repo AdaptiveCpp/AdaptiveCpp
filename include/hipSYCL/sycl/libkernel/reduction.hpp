@@ -87,7 +87,7 @@ struct accessor_reduction_descriptor {
 ///   - defines void combine(const value_type&)
 template <class BackendReducerImpl> class reducer {
 public:
-  
+
   using value_type    = typename BackendReducerImpl::value_type;
   using combiner_type = typename BackendReducerImpl::combiner_type;
 

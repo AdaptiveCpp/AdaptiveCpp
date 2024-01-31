@@ -64,7 +64,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   linear_id_type get_local_linear_id() const {
     __hipsycl_backend_switch(
-        return 0, 
+        return 0,
         return __hipsycl_sscp_get_subgroup_local_id(),
         return local_tid() & get_warp_mask(),
         return local_tid() & get_warp_mask(),
@@ -81,7 +81,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_local_linear_range() const {
     __hipsycl_backend_switch(
-        return 1, 
+        return 1,
         return __hipsycl_sscp_get_subgroup_size(),
         // TODO This is not actually correct for incomplete subgroups
         return __hipsycl_warp_size,
@@ -152,8 +152,8 @@ private:
   HIPSYCL_KERNEL_TARGET
   int local_tid() const {
     __hipsycl_if_target_device(
-      int tid = __hipsycl_lid_x 
-              + __hipsycl_lid_y * __hipsycl_lsize_x 
+      int tid = __hipsycl_lid_x
+              + __hipsycl_lid_y * __hipsycl_lsize_x
               + __hipsycl_lid_z * __hipsycl_lsize_x * __hipsycl_lsize_y;
       return tid;
     );

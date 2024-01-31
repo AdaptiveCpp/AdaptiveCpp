@@ -50,7 +50,7 @@ struct default_allocation_map_payload {};
 template<class Int_type, int... Bit_sizes>
 class bit_tree {
 protected:
-  
+
   static constexpr int num_levels = sizeof...(Bit_sizes);
   static constexpr int root_level_idx = num_levels - 1;
   static constexpr int bitsizes[num_levels] = {Bit_sizes...};
@@ -96,7 +96,7 @@ protected:
 };
 
 template <class UserPayload = default_allocation_map_payload>
-class allocation_map : public bit_tree<uint64_t, 
+class allocation_map : public bit_tree<uint64_t,
   4, 4, 4, 4,  4, 4, 4, 4,
   4, 4, 4, 4,  4, 4, 4, 4> {
 public:
@@ -147,7 +147,7 @@ public:
         release(*ptr);
     }
   }
-    
+
 private:
   // Useful for debugging/printing
   template<class F>
@@ -187,7 +187,7 @@ private:
   struct intermediate_node {
   private:
     static constexpr auto make_child() {
-      if constexpr (Level > 1) return 
+      if constexpr (Level > 1) return
         intermediate_node<Level - 1>{};
       else return leaf_node{};
     }
@@ -208,7 +208,7 @@ private:
 
     uint64_t max_local_address =
         root_address | (get_num_entries_in_level(0) - 1);
-    
+
     if(max_local_address <= address)
       start_address = get_num_entries_in_level(0) - 1;
     else
@@ -216,7 +216,7 @@ private:
 
     for (int local_address = start_address; local_address >= 0;
          --local_address) {
-      
+
       auto& element = current_node.entries[local_address];
 
       std::size_t allocation_size =
@@ -234,7 +234,7 @@ private:
         } else {
           return nullptr;
         }
-        
+
       }
     }
     return nullptr;
@@ -262,7 +262,7 @@ private:
     // We are always looking for the next allocation preceding the
     // current address. If the maximum local address in this node
     // cannot reach the search address, (e.g. if we are looking in
-    // a preceding node at the same level), we need to start from 
+    // a preceding node at the same level), we need to start from
     // the maximum address. Otherwise, we need to look at the bits
     // set in this address.
     int start_address = 0;
@@ -273,10 +273,10 @@ private:
 
     for (int local_address = start_address;
          local_address >= 0; --local_address) {
-      
+
       auto *ptr = current_node.children[local_address].load(
           std::memory_order_acquire);
-      
+
       if(ptr) {
         uint64_t root_address_candidate =
             root_address | (static_cast<uint64_t>(local_address)
@@ -304,7 +304,7 @@ private:
 
   value_type *get_entry_of_root_address(leaf_node &current_node, uint64_t address) noexcept {
     int local_address = get_index_in_level(address, 0);
-  
+
     auto& element = current_node.entries[local_address];
     std::size_t allocation_size =
         __atomic_load_n(&(element.allocation_size), __ATOMIC_ACQUIRE);
@@ -320,10 +320,10 @@ private:
   value_type *get_entry_of_root_address(intermediate_node<Level> &current_node,
                                         uint64_t address) noexcept {
     int local_address = get_index_in_level(address, Level);
-  
+
     auto *ptr = current_node.children[local_address].load(
           std::memory_order_acquire);
-      
+
     if(ptr) {
       return get_entry_of_root_address(*ptr, address);
     }
@@ -342,10 +342,10 @@ private:
       // Entry is already occupied
       return false;
     }
-    
+
     __atomic_store_n(allocation_size_ptr, v.allocation_size, __ATOMIC_RELEASE);
     current_node.entries[local_address].UserPayload::operator=(v);
-    
+
     current_node.num_entries.fetch_add(
         1, std::memory_order_acq_rel);
 
@@ -358,10 +358,10 @@ private:
     using child_t = typename intermediate_node<Level>::child_type;
 
     int local_address = get_index_in_level(address, Level);
-    
+
     auto *ptr = current_node.children[local_address].load(
         std::memory_order_acquire);
-    
+
     if(!ptr) {
       child_t* new_child = alloc<child_t>(1);
       new (new_child) child_t{};
@@ -395,7 +395,7 @@ private:
 
     current_node.num_entries.fetch_sub(
         1, std::memory_order_acq_rel);
-    
+
     return true;
   }
 
@@ -407,7 +407,7 @@ private:
         std::memory_order_acquire);
     if(!ptr)
       return false;
-    
+
     bool result = erase(*ptr, address);
     if(result) {
       if(ptr->num_entries.load(std::memory_order_acquire) == 0) {
@@ -574,7 +574,7 @@ private:
   private:
     std::atomic<int>& _lock;
   };
-  
+
 
   int get_desired_level(std::size_t allocation_size) {
     for(int i = 0; i < max_allocation_space_in_bits; ++i) {
@@ -587,11 +587,11 @@ private:
   bool claim(int desired_level, std::size_t size, uint64_t& address) {
 
     auto& target_block_set = _sorted_free_blocks_in_level[desired_level];
-    
+
     if(target_block_set.empty()) {
       if(!generate_new_free_blocks(desired_level)) {
         return false;
-      } 
+      }
     }
 
     assert(!target_block_set.empty());
@@ -607,7 +607,7 @@ private:
     }
 
     return false;
-  
+
   }
 
   bool generate_new_free_blocks(int level) {
@@ -679,17 +679,17 @@ private:
   bool release_block(uint64_t address, int target_level) {
     auto& target_block_set = _sorted_free_blocks_in_level[target_level];
     auto res = target_block_set.insert(address);
-    
+
     if(!res.second)
       return false;
-    
+
     try_merge_blocks(res.first, address, target_level);
 
     return true;
   }
-  
+
   static constexpr int max_allocation_space_in_bits = 48;
-  
+
   const std::size_t _max_assignable_space;
   std::atomic<int> _lock;
 

@@ -108,7 +108,7 @@ sycl::event wg_model_reduction(sycl::queue &q,
   using group_reduction_type =
       reduction::wg_model::group_reductions::generic_local_memory<
           std::decay_t<decltype(reduction_descriptor)>>;
-  
+
   // The reduction engine will update this value with the
   // appropriate amount of local memory for the main kernel.
   std::size_t main_kernel_local_mem = 0;
@@ -142,7 +142,7 @@ sycl::event wg_model_reduction(sycl::queue &q,
 
   engine.run_additional_kernels(ndrange_launcher, plan);
 
-  
+
   return last_event;
 }
 
@@ -170,20 +170,20 @@ sycl::event threading_model_reduction(sycl::queue &q,
   auto operator_config = get_reduction_operator_configuration<T>(op);
   auto reduction_descriptor = reduction::reduction_descriptor{
       operator_config, init, output};
-  
+
   reduction::threading_model::omp_thread_info_query thread_info_query;
   reduction::threading_reduction_engine engine{thread_info_query,
                                                &scratch_allocations};
   auto plan = engine.create_plan(n, reduction_descriptor);
   auto main_kernel = engine.make_main_reducing_kernel(k, plan);
-  
+
   last_event = q.submit([&](sycl::handler &cgh) {
     cgh.parallel_for(sycl::range<1>{n},
                      main_kernel);
   });
 
   engine.run_additional_kernels(single_task_launcher, plan);
-  
+
   return last_event;
 }
 
@@ -223,7 +223,7 @@ transform_reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
                  BinaryTransformOp transform) {
   if(first1 == last1)
     return sycl::event{};
-  
+
   std::size_t n = std::distance(first1, last1);
   auto kernel = [=](sycl::id<1> idx, auto& reducer) {
     auto input_a = first1;
@@ -245,7 +245,7 @@ transform_reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
                  BinaryReductionOp reduce, UnaryTransformOp transform) {
   if(first == last)
     return sycl::event{};
-  
+
   std::size_t n = std::distance(first, last);
   auto kernel = [=](sycl::id<1> idx, auto& reducer) {
     auto input = first;

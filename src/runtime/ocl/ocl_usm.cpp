@@ -193,7 +193,7 @@ public:
 
       if(err != CL_SUCCESS)
         return err;
-      
+
       bool found = false;
       for(std::size_t i = 0; i < _hw_mgr->get_num_devices(); ++i) {
         ocl_hardware_context* ctx = static_cast<ocl_hardware_context*>(_hw_mgr->get_device(i));
@@ -218,7 +218,7 @@ public:
                                 cl::Event *event) override {
     if(!_mem_copy)
       return CL_INVALID_PLATFORM;
-    
+
     cl_event tmp;
     cl_int err = _mem_copy(
         queue.get(), false, dst, src, size, wait_events.size(),
@@ -226,7 +226,7 @@ public:
         (event != nullptr) ? &tmp : nullptr);
     if(event != nullptr && err == CL_SUCCESS)
       *event = tmp;
-    
+
     return err;
   }
 
@@ -236,7 +236,7 @@ public:
                                 cl_int pattern, std::size_t bytes,
                                 const std::vector<cl::Event> &wait_events,
                                 cl::Event *event) override {
-    
+
     unsigned char pattern_byte = static_cast<char>(pattern);
 
     cl_event tmp;
@@ -338,7 +338,7 @@ public:
     // Need at least fine-grained system for proper USM semantics,
     // as SVM otherwise requires us to specify all pointers a kernel uses.
     // This we cannot know in general, however.
-    
+
     if (err == CL_SUCCESS && (cap & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)) {
       _is_available = true;
       if(cap & (cap & CL_DEVICE_SVM_ATOMICS))
@@ -369,7 +369,7 @@ public:
   virtual bool has_usm_atomic_shared_allocations() const override {
     if (!_is_available)
       return false;
-    
+
     return _has_atomics;
   }
 
@@ -390,7 +390,7 @@ public:
       err = CL_INVALID_PLATFORM;
       return nullptr;
     }
-    
+
     void* ptr = clSVMAlloc(_ctx.get(),
                       CL_MEM_SVM_FINE_GRAIN_BUFFER & CL_DEVICE_SVM_ATOMICS,
                       size, static_cast<cl_uint>(alignment));
@@ -457,7 +457,7 @@ public:
         queue.get(), 1, &ptr, &bytes, flags, wait_events.size(),
         (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
         (event != nullptr) ? &tmp : nullptr);
-    
+
     if(event != nullptr && err == CL_SUCCESS) {
       *event = tmp;
     }
@@ -481,7 +481,7 @@ private:
 
 std::unique_ptr<ocl_usm>
 ocl_usm::from_intel_extension(ocl_hardware_manager* hw_mgr, int dev_id) {
-  
+
   ocl_hardware_context *ctx =
       static_cast<ocl_hardware_context *>(hw_mgr->get_device(dev_id));
   int platform_id = ctx->get_platform_id();
@@ -492,7 +492,7 @@ ocl_usm::from_intel_extension(ocl_hardware_manager* hw_mgr, int dev_id) {
 
 std::unique_ptr<ocl_usm>
 ocl_usm::from_fine_grained_system_svm(ocl_hardware_manager* hw_mgr, int dev_id) {
-  
+
   ocl_hardware_context *ctx =
       static_cast<ocl_hardware_context *>(hw_mgr->get_device(dev_id));
   int platform_id = ctx->get_platform_id();

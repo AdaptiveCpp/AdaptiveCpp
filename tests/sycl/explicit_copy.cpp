@@ -158,7 +158,7 @@ void run_two_accessors_copy_test(const callback& copy_cb) {
 
   s::buffer<s::id<d>, d> src_buf{src_buf_size};
   s::buffer<s::id<d>, d> dst_buf{dst_buf_size};
-  
+
   // Initialize buffers using host accessors
   {
     auto src_acc = src_buf.template get_access<s::access::mode::discard_write>();

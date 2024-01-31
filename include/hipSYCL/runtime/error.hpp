@@ -157,7 +157,7 @@ public:
   result& operator=(result&& other);
 
   bool is_success() const;
-  
+
   source_location origin() const;
   error_info info() const;
 
@@ -195,9 +195,9 @@ inline void print_result(const result& res, bool warn_only = false){
 
   std::stringstream sstr;
   res.dump(sstr);
-  
+
   if(!res.is_success()) {
-    if(!warn_only) { 
+    if(!warn_only) {
       HIPSYCL_DEBUG_ERROR << sstr.str() << std::endl;
     } else {
       HIPSYCL_DEBUG_WARNING << sstr.str() << std::endl;

@@ -126,6 +126,6 @@ hip_backend::create_inorder_executor(device_id dev, int priority) {
 
   return std::make_unique<inorder_executor>(std::move(q));
 }
-  
+
 }
 }

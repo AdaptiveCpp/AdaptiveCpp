@@ -90,7 +90,7 @@ TypeInformation getTypeInformation(llvm::Type* T, llvm::Module& M) {
     llvm::ArrayRef<llvm::Value *> GEPIndicesRef{GEPIndices};
     std::size_t Offset = M.getDataLayout().getIndexedOffsetInType(T, GEPIndicesRef);
     std::size_t ByteSize = M.getDataLayout().getTypeSizeInBits(ContainedT) / CHAR_BIT;
-  
+
     TypeKind Kind = getTypeKind(ContainedT);
 
     TI.FlattenedNumMembers++;
@@ -182,7 +182,7 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
     }
   }
 
-  
+
   llvm::SmallDenseMap<llvm::Function*, TypeInformation> StructTypeInfoForBuiltin;
   llvm::SmallVector<llvm::CallInst*, 16> Calls;
   for(auto* F: BuiltinInstantiations) {
@@ -243,7 +243,7 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
     CI->eraseFromParent();
   for(auto* F : BuiltinInstantiations) {
     F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
-    F->eraseFromParent();  
+    F->eraseFromParent();
   }
 
   return llvm::PreservedAnalyses::none();

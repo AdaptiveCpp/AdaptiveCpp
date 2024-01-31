@@ -139,7 +139,7 @@ public:
   virtual device_id get_device_id(std::size_t index) const override;
 
   virtual ~ze_hardware_manager() {}
-  
+
   ze_context_handle_t get_ze_context(std::size_t device_index) const;
   result device_handle_to_device_id(ze_device_handle_t d, device_id &out) const;
   ze_event_pool_manager* get_event_pool_manager(std::size_t device_index);

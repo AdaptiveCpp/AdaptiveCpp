@@ -65,7 +65,7 @@ __hipsycl_group_barrier(sub_group g,
 
 // broadcast
 template <int Dim, typename T>
-HIPSYCL_BUILTIN 
+HIPSYCL_BUILTIN
 T __hipsycl_group_broadcast(
     group<Dim> g, T x,
     typename group<Dim>::linear_id_type local_linear_id = 0);
@@ -88,7 +88,7 @@ T __hipsycl_group_broadcast(sub_group g, T x,
 
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_BUILTIN 
+HIPSYCL_BUILTIN
 bool __hipsycl_joint_any_of(Group g, Ptr first, Ptr last,
                             Predicate pred);
 
@@ -117,7 +117,7 @@ bool __hipsycl_all_of_group(sub_group g, bool pred);
 
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_BUILTIN 
+HIPSYCL_BUILTIN
 bool __hipsycl_joint_none_of(Group g, Ptr first, Ptr last,
                              Predicate pred);
 

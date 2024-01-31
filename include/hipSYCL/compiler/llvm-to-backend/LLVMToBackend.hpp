@@ -177,7 +177,7 @@ protected:
 
   // Link against bitcode contained in file or string. If ForcedTriple/ForcedDataLayout are non-empty,
   // sets triple and data layout in contained bitcode to the provided values.
-  
+
   bool linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
                        const std::string &ForcedTriple = "",
                        const std::string &ForcedDataLayout = "",

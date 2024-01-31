@@ -120,7 +120,7 @@ T* aligned_alloca_offset(void* allocation) {
   std::size_t remainder = alloc % alignof(T);
   if(remainder == 0)
     return reinterpret_cast<T*>(alloc);
-  
+
   return reinterpret_cast<T*>(alloc + alignof(T) - alloc % alignof(T));
 }
 
@@ -154,8 +154,8 @@ void memory_environment_host(const Group &g, FirstArg &&first,
         return x;
       }
     };
-    
-    if constexpr(request_type::alloc_type == 
+
+    if constexpr(request_type::alloc_type ==
         allocation_type::local_mem){
 
       value_type memory_declaration;
@@ -175,7 +175,7 @@ void memory_environment_host(const Group &g, FirstArg &&first,
     } else if constexpr(request_type::alloc_type ==
         allocation_type::private_mem){
 
-      HIPSYCL_MAKE_ALIGNED_ALLOCA(value_type, 
+      HIPSYCL_MAKE_ALIGNED_ALLOCA(value_type,
         g.get_logical_local_linear_range(), memory_declaration_ptr);
 
       if constexpr(request_type::is_initialized) {
@@ -215,8 +215,8 @@ void memory_environment_device(const Group &g, FirstArg &&first,
         return x;
       }
     };
-    
-    if constexpr(request_type::alloc_type == 
+
+    if constexpr(request_type::alloc_type ==
         allocation_type::local_mem){
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
       __shared__ value_type memory_declaration;
@@ -234,7 +234,7 @@ void memory_environment_device(const Group &g, FirstArg &&first,
           array[elem] = first.init_value;
         }
         group_barrier(g);
-        
+
       }
 
       memory_environment_device(
@@ -278,7 +278,7 @@ template <class T>
 HIPSYCL_KERNEL_TARGET auto require_local_mem(
     detail::memory_environment::array_scalar_t<T> init_value) noexcept {
   using namespace detail::memory_environment;
-  
+
   return memory_allocation_request<T, allocation_type::local_mem, true>{
       init_value};
 }
@@ -294,7 +294,7 @@ template <class T>
 HIPSYCL_KERNEL_TARGET auto require_private_mem(
     detail::memory_environment::array_scalar_t<T> init_value) noexcept {
   using namespace detail::memory_environment;
-  
+
   return memory_allocation_request<T, allocation_type::private_mem, true>{
       init_value};
 }

@@ -51,7 +51,7 @@ class kernel_configuration {
     std::type_index _type;
     std::array<int8_t, buffer_size> _value;
     std::size_t _data_size;
-    
+
 
     template<class T>
     void store(const T& val) {
@@ -59,7 +59,7 @@ class kernel_configuration {
                     "Unsupported kernel configuration value type");
       for(int i = 0; i < _value.size(); ++i)
         _value[i] = 0;
-      
+
       memcpy(_value.data(), &val, sizeof(val));
     }
 

@@ -69,12 +69,12 @@ public:
   // Only to be called inside kernels.
   //
   // Ensures that f is broadcast across the entire problem space.
-  // 
+  //
   // F is a callable of signature void(sycl::id<1>).
   template <class F>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,
                   F &&f) noexcept {
-    
+
     // TODO: This actually should be something like if_device_cpu, which
     //  we cannot express yet.
     __hipsycl_if_target_device(
@@ -93,7 +93,7 @@ private:
 
   template<class F>
   static void run_host(std::size_t problem_size, sycl::nd_item<1> idx, F&& f) noexcept {
-    
+
     const std::size_t last_group = idx.get_group_range(0) - 1;
     const std::size_t gid = idx.get_global_id(0);
 
@@ -146,7 +146,7 @@ public:
   // Ensures that f is broadcast across the entire problem space.
   // If f() returns true, will attempt to abort execution as quickly
   // as possible.
-  // 
+  //
   // F is a callable of signature bool(sycl::id<1>).
   template <class F>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,

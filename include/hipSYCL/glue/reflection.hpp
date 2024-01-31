@@ -40,7 +40,7 @@ enum class type_kind : int { other = 0, pointer = 1, integer_type = 2, float_typ
 class introspect_flattened_struct {
 public:
   template<class StructT>
-  introspect_flattened_struct(const StructT& s) 
+  introspect_flattened_struct(const StructT& s)
   : _num_members{nullptr} {
     // Compiler needs this copy to figure out
     // the struct type in the presence of opaque pointers.

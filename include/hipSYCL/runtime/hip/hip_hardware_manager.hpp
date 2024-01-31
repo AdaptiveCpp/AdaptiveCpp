@@ -92,7 +92,7 @@ public:
   virtual device_id get_device_id(std::size_t index) const override;
 
   virtual ~hip_hardware_manager() {}
-  
+
 private:
   std::vector<hip_hardware_context> _devices;
   hardware_platform _hw_platform;

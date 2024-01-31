@@ -73,13 +73,13 @@ public:
   void finalize(const WiIndex &wi, const ConfiguredReductionDescriptor &descriptor,
                 const WorkItemReducer &work_item_reducer) const {
     using value_type = typename ConfiguredReductionDescriptor::value_type;
-    
+
     // To be set by _group_reduction
     bool is_leader;
     bool result_is_initialized;
     value_type group_result = _group_reduction(
         wi, descriptor, work_item_reducer, is_leader, result_is_initialized);
-     
+
     if(is_leader) {
       if(descriptor.is_final_stage()) {
         reduction::detail::set_reduction_result(descriptor, group_result,

@@ -41,7 +41,7 @@ namespace sycl {
 template <typename DataT, std::size_t NumElements> class marray {
 private:
   detail::device_array<DataT, NumElements> _data;
-  
+
   template<class T>
   static constexpr std::size_t count_elements() {
     if constexpr (std::is_convertible_v<DataT, T>)
@@ -56,7 +56,7 @@ private:
       _data[offset] = x;
     } else {
       for(std::size_t i = 0; i < x.size(); ++i)
-        _data[offset + i] = x[i];  
+        _data[offset + i] = x[i];
     }
   }
 
@@ -387,7 +387,7 @@ public:
   HIPSYCL_DEFINE_INPLACE_MARRAY_OP_MARRAY_SCALAR(<<=, t)
 
   // OP is: ==, !=, <, >, <=, >=
-  
+
   HIPSYCL_LOGICAL_MARRAY_OP_MARRAY_MARRAY(==)
   HIPSYCL_LOGICAL_MARRAY_OP_MARRAY_MARRAY(!=)
   HIPSYCL_LOGICAL_MARRAY_OP_MARRAY_MARRAY(<)
@@ -430,11 +430,11 @@ public:
   // OP is: &, |, ^
   /* Available only when: DataT != float && DataT != double
   && DataT != half. */
-  
+
   template <typename t = DataT,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_MARRAY_OP_SCALAR_MARRAY(&, t)
-  
+
   template <typename t = DataT,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_MARRAY_OP_SCALAR_MARRAY(|, t)

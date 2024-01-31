@@ -38,7 +38,7 @@ namespace shim {
 #ifdef _LIBCPP_VERSION
 // libc++ has std::reinterpret_pointer_cast since version 11000
 #if _LIBCPP_VERSION < 11000
-template< class T, class U > 
+template< class T, class U >
 std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U>& r) noexcept {
     auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type*>(r.get());
     return std::shared_ptr<T>(r, p);

@@ -29,7 +29,7 @@
 #define HIPSYCL_S2_IR_CONSTANTS_HPP
 
 /// \brief This file contains S2 IR constant definitions that may
-/// be shared across the hipSYCL compiler code. 
+/// be shared across the hipSYCL compiler code.
 ///
 /// As such, no undefined globals should be pulled into this file.
 ///

@@ -66,7 +66,7 @@ template <> struct backend_interop<sycl::backend::cuda> {
       rt::register_error(
           __hipsycl_here(),
           rt::error_info{"Invalid argument to get_native_queue()"});
-      
+
       return native_queue_type{};
     }
 
@@ -93,7 +93,7 @@ template <> struct backend_interop<sycl::backend::cuda> {
 
     return static_cast<native_queue_type>(q->get_native_type());
   }
-      
+
   static sycl::device make_sycl_device(int device_id) {
     return sycl::device{
         rt::device_id{rt::backend_descriptor{rt::hardware_platform::cuda,

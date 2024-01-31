@@ -59,23 +59,23 @@ public:
   range_store(range<3> size);
 
   void add(const rect& r);
-  
+
   void remove(const rect& r);
 
   range<3> get_size() const;
 
-  void intersections_with(const rect& r, 
+  void intersections_with(const rect& r,
                           data_state desired_state,
                           std::vector<rect>& out) const;
 
-  void intersections_with(const rect& r, 
+  void intersections_with(const rect& r,
                           std::vector<rect>& out) const
   { intersections_with(r, data_state::available, out); }
 
-  void inverted_intersections_with(const rect& r, 
+  void inverted_intersections_with(const rect& r,
                                   std::vector<rect>& out) const
-  { intersections_with(r, data_state::empty, out); }                             
-    
+  { intersections_with(r, data_state::empty, out); }
+
   bool entire_range_equals(const rect&, data_state desired_state) const;
 
   bool entire_range_filled(const rect& r) const
@@ -92,7 +92,7 @@ private:
     Entry_selection_predicate p) const
   {
     // Find out length of longest contiguous row
-    size_t z_size = 
+    size_t z_size =
       find_z_size(begin, search_range_end, p);
 
     // Now go to 2D and find out width of surface
@@ -106,7 +106,7 @@ private:
       x_size = find_x_size(begin, search_range_end, z_size, y_size, p);
 
     return range<3>{x_size, y_size, z_size};
-    
+
   }
 
   template<class Entry_selection_predicate>
@@ -178,8 +178,8 @@ private:
   }
 
   template<class Function>
-  void for_each_element_in_range(const rect& r, 
-    const std::vector<data_state>& v, 
+  void for_each_element_in_range(const rect& r,
+    const std::vector<data_state>& v,
     Function f) const
   {
     for(size_t x = r.first[0]; x < r.second[0]+r.first[0]; ++x){
@@ -205,7 +205,7 @@ private:
 
   size_t get_index(id<3> pos) const
   {
-    return pos[0] * _size[1] * _size[2] + pos[1] * _size[2] + pos[2]; 
+    return pos[0] * _size[1] * _size[2] + pos[1] * _size[2] + pos[2];
   }
 
   range<3> _size;
@@ -255,15 +255,15 @@ public:
   void release_dead_users();
 
   template<class Predicate>
-  void add_user(dag_node_ptr user, 
-                sycl::access::mode mode, 
-                sycl::access::target target, 
+  void add_user(dag_node_ptr user,
+                sycl::access::mode mode,
+                sycl::access::target target,
                 id<3> offset,
                 range<3> range,
                 Predicate replaces_user) {
     std::lock_guard<std::mutex> lock{_lock};
 
-    _users.erase(std::remove_if(_users.begin(), _users.end(), replaces_user), 
+    _users.erase(std::remove_if(_users.begin(), _users.end(), replaces_user),
       _users.end());
 
     _users.push_back(
@@ -280,7 +280,7 @@ struct data_allocation {
 
   using allocation_function = std::function<Memory_descriptor(
       range<3> num_elements, std::size_t element_size)>;
-  
+
   device_id dev;
   Memory_descriptor memory;
   range_store invalid_pages;
@@ -492,7 +492,7 @@ public:
     // Is thread safe without lock because it doesn't modify internal state
     // and doesn't access mutable members.
     id<3> page_begin{0,0,0};
-    
+
     for(int i = 0; i < 3; ++i)
       page_begin[i] =  data_offset[i] / _page_size[i];
 
@@ -501,7 +501,7 @@ public:
     for (int i = 0; i < 3; ++i)
       page_end[i] =
           (data_offset[i] + data_range[i] + _page_size[i] - 1) / _page_size[i];
-    
+
 
     range<3> page_range{1,1,1};
     for (int i = 0; i < 3; ++i)
@@ -520,10 +520,10 @@ public:
 
     _allocations.select_and_handle(default_allocation_selector{d},
                                    [&](auto &alloc) {
-      alloc.invalid_pages.remove(pr);              
+      alloc.invalid_pages.remove(pr);
     });
   }
-  
+
   /// Marks an allocation range on a given device most recent
   void mark_range_current(const device_id& d,
       id<3> data_offset,
@@ -561,9 +561,9 @@ public:
           alloc.invalid_pages.intersections_with(
               std::make_pair(first_page, num_pages), out);
         });
-    
+
     assert(was_found);
-    
+
     // Convert back to num elements
     for(range_store::rect& r : out) {
       for(int i = 0; i < 3; ++i) {
@@ -670,7 +670,7 @@ public:
       return alloc.memory == mem;
     }, h);
   }
-  
+
   bool has_initialized_content(id<3> data_offset,
                                range<3> data_range) const {
     page_range pr = get_page_range(data_offset, data_range);

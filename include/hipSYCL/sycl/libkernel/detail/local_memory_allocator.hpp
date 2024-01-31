@@ -110,7 +110,7 @@ enum class host_local_memory_origin { hipcpu, custom_threadprivate };
 /// Assumptions:
 /// a) Only one host kernel is active at any give time (this is enforced by hipCPU's
 ///    kernel launch implementation)
-/// b) Two modes of allocations are supported: 
+/// b) Two modes of allocations are supported:
 ///    1) Just relying on whatever hipCPU allocates
 ///    as local memory. This will be one block of memory under the assumption
 ///    that only one work group is active at any given time.
@@ -146,12 +146,12 @@ private:
 
     _local_mem = nullptr;
   }
-  
+
   static void alloc_threadprivate(size_t num_bytes) {
     release_memory();
 
     _origin = host_local_memory_origin::custom_threadprivate;
-    
+
     if(num_bytes <= _max_static_local_mem_size)
       _local_mem = &(_static_local_mem[0]);
     else
@@ -166,10 +166,10 @@ private:
   // for more local memory we go to the heap.
   static constexpr size_t _max_static_local_mem_size = 1024*32;
   inline static char* _local_mem;
-  
+
   alignas(sizeof(double) * 16) inline static char _static_local_mem
       [_max_static_local_mem_size];
-  
+
   inline static host_local_memory_origin _origin;
 #ifdef _OPENMP
   #pragma omp threadprivate(_local_mem)
@@ -187,7 +187,7 @@ inline void* hiplike_dynamic_local_memory() {
   __hipsycl_if_target_hip(
     return __amdgcn_get_dynamicgroupbaseptr();
   );
-  
+
   return nullptr;
 }
 

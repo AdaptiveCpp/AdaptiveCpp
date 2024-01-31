@@ -40,7 +40,7 @@
 #include "types.hpp"
 #include "libkernel/backend.hpp"
 
-namespace hipsycl {  
+namespace hipsycl {
 namespace sycl {
 namespace detail {
 struct sycl_category : std::error_category {
@@ -73,13 +73,13 @@ inline const std::error_category &sycl_category() noexcept {
   static const detail::sycl_category _sycl_category;
   return _sycl_category;
 }
-  
+
 inline std::error_code make_error_code(errc e) noexcept {
   return {static_cast<int>(e), sycl_category()};
 }
-  
+
 using async_handler = std::function<void(sycl::exception_list)>;
-  
+
 class exception : public virtual std::exception {
 public:
   exception() = default;
@@ -116,7 +116,7 @@ public:
   const std::error_code& code() const noexcept {
     return error_code;
   }
-  
+
   const std::error_category& category() const noexcept {
     return error_code.category();
   }

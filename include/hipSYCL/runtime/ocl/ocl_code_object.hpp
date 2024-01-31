@@ -93,7 +93,7 @@ private:
   cl::Context _ctx;
   cl::Device _dev;
   cl::Program _program;
-  
+
   mutable std::unordered_map<std::string, cl::Kernel> _kernel_handles;
 
   result _build_status;

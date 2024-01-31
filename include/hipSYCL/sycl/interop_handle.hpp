@@ -48,7 +48,7 @@ public:
   interop_handle(rt::device_id assigned_device,
                  rt::backend_executor *executor)
       : _dev{assigned_device}, _launcher_params{nullptr}, _executor{executor} {}
-  
+
   backend get_backend() const noexcept {
     return _dev.get_backend();
   }
@@ -68,7 +68,7 @@ public:
   }
 
   // We don't have image types yet
-  // 
+  //
   //template <backend Backend, typename dataT, int dims, access::mode accessMode,
   //          access::target accessTarget, access::placeholder isPlaceholder>
   //typename backend_traits<Backend>::template native_type<image>
@@ -78,7 +78,7 @@ public:
   template <backend Backend>
   typename backend_traits<Backend>::template native_type<queue>
   get_native_queue() const noexcept {
-    
+
     if(_launcher_params)
       return glue::backend_interop<Backend>::get_native_queue(_launcher_params);
     else if (_executor)
@@ -88,7 +88,7 @@ public:
         << "interop_handle: Neither executor nor kernel launcher was provided, "
            "cannot construct native queue"
         << std::endl;
-    
+
     return typename backend_traits<Backend>::template native_type<queue>{};
   }
 

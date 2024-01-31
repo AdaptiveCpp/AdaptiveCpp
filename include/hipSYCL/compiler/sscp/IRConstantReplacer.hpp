@@ -65,13 +65,13 @@ public:
   bool isInitialized() {
     if(!isValid())
       return false;
-    
+
     if(!Var->hasInitializer())
       return false;
-    
+
     if(Var->getName().find(".initialized") == std::string::npos)
       return false;
-    
+
     return true;
   }
 
@@ -82,7 +82,7 @@ public:
   void set(T Value) {
     if(!isValid())
       return;
-    
+
     assert(!isInitialized());
     auto Alignment = Var->getAlign();
 
@@ -92,7 +92,7 @@ public:
 
       llvm::Constant *Initializer =
           llvm::ConstantInt::get(M->getContext(), llvm::APInt(Bits, Value, IsSigned));
-      
+
       Var->setInitializer(Initializer);
     } else if constexpr(std::is_floating_point_v<T>) {
       llvm::Constant *Initializer = nullptr;
@@ -123,16 +123,16 @@ public:
         llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, Var->getType());
         Var->replaceAllUsesWith(V);
         Var->eraseFromParent();
-        
-        Var = NewVar; 
+
+        Var = NewVar;
       } else {
         Var->setInitializer(Initializer);
       }
-      
+
     } else {
       M->getContext().emitError("Attempted setting hipSYCL IR constant of unsupported type");
     }
-    
+
     if(Var->getName().find(".initialized") == std::string::npos) {
       Var->setName(Var->getName()+".initialized");
     }

@@ -69,14 +69,14 @@ public:
       if constexpr (Dim == 1) {
         nd_begin[0] = begin;
       } else if constexpr (Dim == 2) {
-      
+
         nd_begin[1] = begin % _range[1];
         nd_begin[0] = begin / _range[1];
-      
+
       } else if constexpr (Dim == 3) {
         std::size_t surface_id = begin / (_range[2] * _range[1]);
         std::size_t index2d    = begin % (_range[2] * _range[1]);
-        
+
         nd_begin[2] = index2d % _range[2];
         nd_begin[1] = index2d / _range[2];
         nd_begin[0] = surface_id;

@@ -424,7 +424,7 @@ public:
     memory_order success,
     memory_order failure,
     memory_scope scope = default_scope) const noexcept {
-    
+
     std::intptr_t desired_v = ptr_to_int(desired);
     std::intptr_t& expected_v = ptr_ref_to_int_ref(expected);
 
@@ -435,7 +435,7 @@ public:
   bool compare_exchange_strong(T* &expected, T* desired,
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
-    
+
     return compare_exchange_strong(expected, desired, order, order, scope);
   }
 

@@ -59,19 +59,19 @@ std::string addABITag(llvm::StringRef OriginalName, llvm::StringRef ABITag) {
   auto FirstNumber = OriginalName.find_first_of("0123456789");
   if(FirstNumber == std::string::npos)
     return makeFallBackName();
-  
+
   int NumCharacters = std::atoi(OriginalName.data() + FirstNumber);
-  
+
   auto NameStart = OriginalName.find_first_not_of("0123456789", FirstNumber);
   if(NameStart == std::string::npos)
     return makeFallBackName();
-  
+
   auto InsertionPoint = NameStart + NumCharacters;
 
   std::string Result = OriginalName.str();
   if(InsertionPoint > Result.size())
     return makeFallBackName();
-  
+
   std::string ABITagIdentifer = "B"+std::to_string(ABITag.size()) + ABITag.str();
   Result.insert(InsertionPoint, ABITagIdentifer);
   return Result;
@@ -83,7 +83,7 @@ bool NameStartsWithItaniumIdentifier(llvm::StringRef Name, llvm::StringRef Ident
 
   if (FirstNumber == std::string::npos || IdentifierPos == std::string::npos)
     return false;
-  
+
   return FirstNumber == IdentifierPos;
 }
 
@@ -92,10 +92,10 @@ bool isRestrictedToRegularMalloc(llvm::Function* F) {
   llvm::StringRef Name = F->getName();
   if(!Name.startswith("_Z"))
     return false;
-  
+
   if(NameStartsWithItaniumIdentifier(Name, "hipsycl"))
     return true;
-  
+
   return false;
 }
 
@@ -110,7 +110,7 @@ template<class SetT>
 void collectAllCallees(llvm::CallGraph& CG, llvm::Function* F, SetT& Out) {
   if(Out.contains(F))
     return;
-  
+
   // Functions that are available_externally and have their address taken
   // we need to discard, as they won't be emitted within this module.
   if(F->getLinkage() == llvm::GlobalValue::AvailableExternallyLinkage) {
@@ -118,9 +118,9 @@ void collectAllCallees(llvm::CallGraph& CG, llvm::Function* F, SetT& Out) {
       return;
     }
   }
-  
+
   Out.insert(F);
-  
+
   llvm::CallGraphNode* CGN = CG.getOrInsertFunction(F);
   if(CGN) {
     for(unsigned i = 0; i < CGN->size(); ++i){
@@ -137,7 +137,7 @@ void collectAllCallersFromSet(const CallerMapT &CM, llvm::Function *F, const Set
                               SetT &DiscardedOut, SetT &Out) {
   if(!F)
     return;
-  
+
   if(Out.contains(F) || DiscardedOut.contains(F) || !Input.contains(F)) {
     DiscardedOut.insert(F);
     return;
@@ -171,7 +171,7 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
             << "[stdpar] MallocToUSM: Found new memory allocation function definition: "
             << F->getName() << "\n";
         ManagedAllocFunctions.insert(F);
-        
+
       }
       if(Annotation.compare(FreeIdentifier) == 0) {
         ManagedFreeFunctions.insert(F);
@@ -181,10 +181,10 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
 
 
   llvm::CallGraph CG{M};
-  
+
   for(auto& F: M)
     CG.addToCallGraph(&F);
-  
+
 
   llvm::DenseMap<llvm::Function*, llvm::SmallPtrSet<llvm::Function*, 16>> FunctionCallers;
 
@@ -216,7 +216,7 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
   llvm::SmallPtrSet<llvm::Function*, 16> RestrictedSubCallgraph;
   for(auto* F: RestrictedEntrypoints)
     collectAllCallees(CG, F, RestrictedSubCallgraph);
-  
+
   // Functions that are used in a branch of the call graph
   // that ends up doing memory management need to be duplicated
   // so that we can force memory management to not be hijacked there.
@@ -248,7 +248,7 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
     // exclude available_externally functions that have their address taken.
     if(NewF->getLinkage() == llvm::GlobalValue::AvailableExternallyLinkage)
       NewF->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
-    
+
     NewF->setName(addABITag(NewF->getName(), ForcedRegularMallocABITag));
 
     DuplicatedFunctions[F] = NewF;
@@ -287,7 +287,7 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
         llvm::Function::Create(MemoryF->getFunctionType(), MemoryF->getLinkage(), OriginalName, M);
     UnmodifiedFuncDecl->setVisibility(MemoryF->getVisibility());
     UnmodifiedFuncDecl->setAttributes(MemoryF->getAttributes());
-    
+
     MemoryF->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
     MemoryF->setVisibility(llvm::GlobalValue::DefaultVisibility);
 

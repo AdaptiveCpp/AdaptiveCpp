@@ -130,7 +130,7 @@ LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
 
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
-  
+
   M.setTargetTriple("spir64-unknown-unknown");
   M.setDataLayout("e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:"
                   "1024-A4-n8:16:32:64");
@@ -160,7 +160,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       // All functions must be marked as spir_func
       if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
         F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
-      
+
       // All callers must use spir_func calling convention
       for(auto U : F.users()) {
         if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
@@ -170,7 +170,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  std::string BuiltinBitcodeFile = 
+  std::string BuiltinBitcodeFile =
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-spirv-full.bc"});
 
@@ -225,9 +225,9 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.spv");
-  
+
   std::string OutputFilename = OutputFile->TmpName;
-  
+
   auto E = InputFile.takeError();
   if(E){
     this->registerError("LLVMToSpirv: Could not create temp file: "+InputFile->TmpName);
@@ -239,7 +239,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
 
   std::error_code EC;
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
-  
+
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
 
@@ -276,15 +276,15 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
                         std::to_string(R));
     return false;
   }
-  
+
   auto ReadResult =
       llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
-  
+
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToSpirv: Could not read result file"+Err.message());
     return false;
   }
-  
+
   out = ReadResult->get()->getBuffer();
 
   return true;
@@ -357,7 +357,7 @@ bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH)
   }
   for(auto* I : InstsToRemove)
     I->eraseFromParent();
-  
+
   return Result;
 }
 

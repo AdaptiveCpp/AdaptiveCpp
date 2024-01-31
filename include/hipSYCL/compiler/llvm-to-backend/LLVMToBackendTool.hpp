@@ -44,7 +44,7 @@ inline bool getHcfKernelNames(const hipsycl::common::hcf_container &HCF,
                               std::vector<std::string> &KernelNamesOut) {
   if(!HCF.root_node())
     return false;
-  
+
   auto* KernelsNode = HCF.root_node()->get_subnode("kernels");
   if(!KernelsNode)
     return false;
@@ -201,7 +201,7 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
 
   std::string IR;
   HCF.get_binary_attachment(ImgNode, IR);
-  
+
   auto Translator = createTranslator(HCF);
   if(!Translator) {
     std::cout << "Could not construct backend translation object." << std::endl;
@@ -232,7 +232,7 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
     }
     return -1;
   }
-  
+
   if(!writeFile(OutputFile, Output)){
     std::cout << "Could not write output to file: " << OutputFile << std::endl;
   }

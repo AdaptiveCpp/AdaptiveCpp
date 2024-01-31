@@ -61,7 +61,7 @@ void iterate_range(const sycl::range<Dim> r, Function f) noexcept {
   }
 }
 
-// Iterate range by subdividing it into tiles of given size. 
+// Iterate range by subdividing it into tiles of given size.
 // The argument passed into f is the index of the tiles.
 template <int Dim, class Function>
 void iterate_range_tiles(const sycl::range<Dim> r,
@@ -185,7 +185,7 @@ void iterate_partial_range(const sycl::range<Dim> whole_range,
       for (; j < whole_range.get(1); ++j) {
         if (n >= num_elements)
           return;
-        
+
         f(sycl::id<Dim>{i, j});
         ++n;
       }
@@ -202,7 +202,7 @@ void iterate_partial_range(const sycl::range<Dim> whole_range,
         for (; k < whole_range.get(2); ++k) {
           if (n >= num_elements)
             return;
-          
+
           f(sycl::id<Dim>{i, j, k});
           ++n;
         }

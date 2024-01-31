@@ -67,14 +67,14 @@ private:
     _debug_level =
         rt::application::get_settings().get<rt::setting::debug_level>();
 #else
-    
+
     auto process_env = [this](const char* e) {
       if (std::string{e}.find_first_not_of("0123456789") ==
           std::string::npos) {
         _debug_level = std::stoi(std::string{e});
       }
     };
-    
+
     if (const char *env = std::getenv("ACPP_DEBUG_LEVEL")) {
       process_env(env);
     } else if (const char *env = std::getenv("HIPSYCL_DEBUG_LEVEL")){

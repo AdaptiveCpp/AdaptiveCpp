@@ -45,7 +45,7 @@ result hip_event_factory::create(hipEvent_t& out) {
     return make_error(
         __hipsycl_here(),
         error_info{"hip_event_factory: Couldn't create event", error_code{"HIP", err}});
-    
+
   }
   out = evt;
   return make_success();

@@ -82,7 +82,7 @@ void test(sycl::queue& q) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(marray_ops, T, marray_test_types::type) {
   sycl::queue q;
-  
+
   test<T, 1>(q);
   test<T, 3>(q);
   test<T, 4>(q);

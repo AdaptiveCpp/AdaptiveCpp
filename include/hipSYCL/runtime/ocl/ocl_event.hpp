@@ -38,7 +38,7 @@ class ocl_node_event : public inorder_queue_event<cl::Event>
 {
 public:
   using backend_event_type = cl::Event;
- 
+
   ocl_node_event(device_id dev, cl::Event evt);
   ocl_node_event(device_id dev);
 

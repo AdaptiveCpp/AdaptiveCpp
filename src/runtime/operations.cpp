@@ -58,11 +58,11 @@ kernel_operation::kernel_operation(
   }
 }
 
-kernel_launcher& 
+kernel_launcher&
 kernel_operation::get_launcher()
 { return _launcher; }
 
-const kernel_launcher& 
+const kernel_launcher&
 kernel_operation::get_launcher() const
 { return _launcher; }
 
@@ -71,11 +71,11 @@ kernel_operation::get_launcher() const
 void requirements_list::add_requirement(std::unique_ptr<requirement> req)
 {
   auto node = std::make_shared<dag_node>(
-    execution_hints{}, 
+    execution_hints{},
     node_list_t{},
     std::move(req),
     _rt);
-  
+
   add_node_requirement(node);
 }
 
@@ -95,7 +95,7 @@ memory_location::memory_location(
     : _dev{d}, _offset{access_offset},
       _allocation_shape{data_region->get_num_elements()},
       _element_size{data_region->get_element_size()}, _has_data_region{true},
-      _data_region{data_region} 
+      _data_region{data_region}
 {}
 
 
@@ -151,8 +151,8 @@ void *memory_location::get_access_ptr() const {
       _element_size *
           (_offset[2] + _offset[1] * _allocation_shape[2] +
            _offset[0] * _allocation_shape[1] * _allocation_shape[2]));
-  
-  
+
+
 }
 
 memcpy_operation::memcpy_operation(const memory_location &source,

@@ -33,16 +33,16 @@
 namespace hipsycl {
 namespace rt {
 
-class omp_allocator : public backend_allocator 
+class omp_allocator : public backend_allocator
 {
 public:
   omp_allocator(const device_id &my_device);
-  
+
   virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
 
   virtual void *allocate_optimized_host(size_t min_alignment,
                                         size_t bytes) override;
-  
+
   virtual void free(void *mem) override;
 
   virtual void *allocate_usm(size_t bytes) override;

@@ -8,7 +8,7 @@
 int main() {
   stdpar_call();
   stdpar_call();
-  
+
   // CHECK: 2
   printf("%d\n", get_num_enqueued_ops());
   // printf call should have triggered synchronization

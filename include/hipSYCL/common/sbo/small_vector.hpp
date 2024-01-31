@@ -13,7 +13,7 @@ namespace sbo{
         alignas(alignof(T)) std::byte m_smallBuffer[MaxSize * sizeof(T)];
         std::allocator<T> m_alloc{};
         bool m_smallBufferUsed = false;
-        
+
         using value_type = T;
         //we have to set this three values, as they are responsible for the correct handling of the move assignment operator
         using propagate_on_container_move_assignment = std::false_type;
@@ -49,12 +49,12 @@ namespace sbo{
         }
         constexpr void deallocate(void* p, const size_t n) {
           // we don't deallocate anything if the memory was allocated in small buffer
-          if (&m_smallBuffer != p) 
+          if (&m_smallBuffer != p)
               m_alloc.deallocate(static_cast<T*>(p), n);
           m_smallBufferUsed = false;
         }
-        //according to the C++ standard when propagate_on_container_move_assignment is set to false, the comparision operators are used 
-        //to check if two allocators are equal. When they are not, an element wise move is done instead of just taking over the memory. 
+        //according to the C++ standard when propagate_on_container_move_assignment is set to false, the comparision operators are used
+        //to check if two allocators are equal. When they are not, an element wise move is done instead of just taking over the memory.
         //For our implementation this means the comparision has to return false, when the small buffer is active
         friend constexpr bool operator==(const small_buffer_vector_allocator& lhs, const small_buffer_vector_allocator& rhs) {
             return !lhs.m_smallBufferUsed && !rhs.m_smallBufferUsed;

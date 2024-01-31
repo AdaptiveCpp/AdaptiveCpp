@@ -36,7 +36,7 @@ namespace rt {
 hip_allocator::hip_allocator(backend_descriptor desc, int hip_device)
     : _backend_descriptor{desc}, _dev{hip_device}
 {}
-      
+
 void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
@@ -80,13 +80,13 @@ void hip_allocator::free(void *mem) {
     register_error(query_result);
     return;
   }
-  
+
   hipError_t err;
   if (info.is_optimized_host)
     err = hipHostFree(mem);
   else
     err = hipFree(mem);
-  
+
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"hip_allocator: hipFree() failed",
@@ -156,7 +156,7 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
   // hipMallocManaged().
   out.is_usm = (memoryType == hipMemoryTypeUnified);
 #endif
-  
+
   return make_success();
 }
 

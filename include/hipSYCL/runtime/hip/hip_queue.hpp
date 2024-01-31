@@ -98,7 +98,7 @@ public:
   virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
   virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
   virtual result submit_memset(memset_operation&, dag_node_ptr) override;
-  
+
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
   virtual result submit_queue_wait_for(dag_node_ptr evt) override;

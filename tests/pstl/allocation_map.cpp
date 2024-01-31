@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(insert) {
 
   std::mt19937 gen(222);
   std::uniform_int_distribution<uint64_t> dist;
-  
+
   for(int num_foreign_addresses_found = 0; num_foreign_addresses_found < 10000;) {
     uint64_t addr = dist(gen);
     if(addresses.find(addr) == addresses.end()) {
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(get_entry) {
 }
 
 BOOST_AUTO_TEST_CASE(erase) {
-  
+
   std::unordered_set<uint64_t> addresses;
   for_each_test_allocation(50000, [&](uint64_t x){
     addresses.insert(x);
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE(multi_threaded) {
   uint64_t current_address = 0;
   for(uint64_t i = 1; i < elements_per_thread*num_threads+1; ++i) {
     reference_entries.push_back(std::make_pair(current_address, i));
-    current_address += i;    
+    current_address += i;
   }
 
   amap_t amap;

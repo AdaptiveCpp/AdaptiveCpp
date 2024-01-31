@@ -70,7 +70,7 @@ public:
 
   void purge() {
     std::lock_guard<std::mutex> lock{_mutex};
-    
+
     for(auto& allocation : _allocations) {
       _rt.get()->backends()
           .get(allocation.dev.get_backend())
@@ -80,11 +80,11 @@ public:
     _allocations.clear();
   }
 private:
-  
+
   allocation find_or_alloc(std::size_t min_size, std::size_t min_alignment,
                            rt::device_id dev) {
     allocation result;
-    if(!find_allocation(min_size, min_alignment, dev, result)){  
+    if(!find_allocation(min_size, min_alignment, dev, result)){
       result.dev = dev;
       result.size = min_size;
 

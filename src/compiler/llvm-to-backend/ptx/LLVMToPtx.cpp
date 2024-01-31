@@ -81,7 +81,7 @@ private:
   }
 
   bool findLibdevice(std::string& Out) {
-    
+
     std::string CUDAPath = HIPSYCL_CUDA_PATH;
     std::vector<std::string> SubDir {"nvvm", "libdevice"};
     std::string BitcodeDir = common::filesystem::join_path(CUDAPath, SubDir);
@@ -119,7 +119,7 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   M.setDataLayout(DataLayout);
 
   AddressSpaceMap ASMap = getAddressSpaceMap();
-  
+
   KernelFunctionParameterRewriter ParamRewriter{
       // PTX wants ByVal attribute for all aggregates passed in by-value
       KernelFunctionParameterRewriter::ByValueArgAttribute::ByVal,
@@ -127,12 +127,12 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       ASMap[AddressSpace::Generic],
       // Actual pointers should be in global memory
       ASMap[AddressSpace::Global]};
-  
+
   ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
-      
+
       llvm::SmallVector<llvm::Metadata*, 4> Operands;
       Operands.push_back(llvm::ValueAsMetadata::get(F));
       Operands.push_back(llvm::MDString::get(M.getContext(), "kernel"));
@@ -146,10 +146,10 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  std::string BuiltinBitcodeFile = 
+  std::string BuiltinBitcodeFile =
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-ptx-full.bc"});
-  
+
   std::string LibdeviceFile;
   if(!LibdevicePath::get(LibdeviceFile)) {
     this->registerError("LLVMToPtx: Could not find CUDA libdevice bitcode library");
@@ -176,9 +176,9 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.s");
-  
+
   std::string OutputFilename = OutputFile->TmpName;
-  
+
   auto E = InputFile.takeError();
   if(E){
     this->registerError("LLVMToPtx: Could not create temp file: "+InputFile->TmpName);
@@ -190,7 +190,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
 
   std::error_code EC;
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
-  
+
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
 
@@ -223,21 +223,21 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
 
   int R = llvm::sys::ExecuteAndWait(
       ClangPath, Invocation);
-  
+
   if(R != 0) {
     this->registerError("LLVMToPtx: clang invocation failed with exit code " +
                         std::to_string(R));
     return false;
   }
-  
+
   auto ReadResult =
       llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
-  
+
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToPtx: Could not read result file"+Err.message());
     return false;
   }
-  
+
   out = ReadResult->get()->getBuffer();
 
   return true;

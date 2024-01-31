@@ -129,7 +129,7 @@ template <backend Backend>
 platform make_platform(
     const typename backend_traits<Backend>::template native_type<platform>
         &backend_object) {
-  return glue::backend_interop<Backend>::make_sycl_platform(backend_object); 
+  return glue::backend_interop<Backend>::make_sycl_platform(backend_object);
 }
 
 template <backend Backend>

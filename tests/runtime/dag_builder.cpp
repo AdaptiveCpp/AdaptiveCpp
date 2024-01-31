@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(default_hints) {
   rt::device_id id{rt::backend_descriptor{rt::hardware_platform::cpu,
                                           rt::api_platform::omp},
                    12345};
-  
+
   hints.set_hint(rt::hints::bind_to_device{id});
   rt::dag_builder builder{rt.get()};
 

@@ -66,7 +66,7 @@ void unload_cuda_module(CUmod_st* module, int device) {
 
     auto err = cuModuleUnload(module);
 
-    if (err != CUDA_SUCCESS && 
+    if (err != CUDA_SUCCESS &&
         // It can happen that during shutdown of the CUDA
         // driver we cannot unload anymore.
         // TODO: Find a better solution
@@ -81,13 +81,13 @@ void unload_cuda_module(CUmod_st* module, int device) {
 
 result build_cuda_module_from_ptx(CUmod_st *&module, int device,
                                   const std::string &source) {
-  
+
   cuda_device_manager::get().activate_device(device);
   // This guarantees that the CUDA runtime API initializes the CUDA
   // context on that device. This is important for the subsequent driver
   // API calls which assume that CUDA context has been created.
   cudaFree(0);
-  
+
   auto err = cuModuleLoadDataEx(
       &module, static_cast<void *>(const_cast<char *>(source.c_str())),
       0, nullptr, nullptr);
@@ -97,7 +97,7 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
                       error_info{"cuda_executable_object: could not load module",
                                 error_code{"CU", static_cast<int>(err)}});
   }
-  
+
   assert(module);
 
   return make_success();

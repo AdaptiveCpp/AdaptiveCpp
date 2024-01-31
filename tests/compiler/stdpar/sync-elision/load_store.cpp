@@ -18,7 +18,7 @@ int main() {
 
   stdpar_call();
   stdpar_call();
-  
+
   int pre_load_queue_size = get_num_enqueued_ops();
   if(data[pre_load_queue_size] < 0) {
     printf("(output to prevent dead code elimination: %d\n)", data[pre_load_queue_size]);

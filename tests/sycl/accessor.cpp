@@ -243,16 +243,16 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 BOOST_AUTO_TEST_CASE(nested_subscript) {
   namespace s = cl::sycl;
   s::queue q;
-  
+
   s::range<2> buff_size2d{64,64};
   s::range<3> buff_size3d{buff_size2d[0],buff_size2d[1],64};
-  
+
   s::buffer<int, 2> buff2{buff_size2d};
   s::buffer<int, 3> buff3{buff_size3d};
-  
+
   q.submit([&](s::handler& cgh){
     auto acc = buff2.get_access<s::access::mode::discard_read_write>(cgh);
-    
+
     cgh.parallel_for<class nested_subscript2d>(buff_size2d, [=](s::id<2> idx){
       size_t x = idx[0];
       size_t y = idx[1];
@@ -263,10 +263,10 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
         acc[x][y] = -1;
     });
   });
-  
+
   q.submit([&](s::handler& cgh){
     auto acc = buff3.get_access<s::access::mode::discard_read_write>(cgh);
-    
+
     cgh.parallel_for<class nested_subscript3d>(buff_size3d, [=](s::id<3> idx){
       size_t x = idx[0];
       size_t y = idx[1];
@@ -278,18 +278,18 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
         acc[x][y][z] = -1;
     });
   });
-  
+
   auto host_acc2d = buff2.get_access<s::access::mode::read>();
   auto host_acc3d = buff3.get_access<s::access::mode::read>();
-  
+
   for(size_t x = 0; x < buff_size3d[0]; ++x)
     for(size_t y = 0; y < buff_size3d[1]; ++y) {
-       
+
       size_t linear_id2d = static_cast<int>(x*buff_size2d[1] + y);
       s::id<2> id2d{x,y};
       BOOST_CHECK(host_acc2d[id2d] == linear_id2d);
       BOOST_CHECK(host_acc2d.get_pointer()[linear_id2d] == linear_id2d);
-        
+
       for(size_t z = 0; z < buff_size3d[2]; ++z) {
         size_t linear_id3d = x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z;
         s::id<3> id3d{x,y,z};
@@ -348,7 +348,7 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
   q.submit([&](s::handler& cgh){
     s::accessor acc1{buff, cgh, s::read_only};
     BOOST_CHECK(!acc1.is_placeholder());
-    
+
 #ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
     // Conversion rw accessor<int> -> accessor<const int>, read-only
     s::accessor<const int> acc2 = s::accessor<int>{buff, cgh};
@@ -487,7 +487,7 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
   std::iota(std::begin(host_data), std::end(host_data), 0);
 
   // Count iterations of for loop below to check if iterator stays within bounds
-  int it_counter = 0; 
+  int it_counter = 0;
   {
     s::buffer<int, 3> buf(host_data.data(), {N,N,N});
     s::buffer<int, 1> it_buf(&it_counter, 1);
@@ -517,10 +517,10 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
   constexpr int N = 1024;
   const s::range range(512);
   const s::id offset(10);
-  
+
   std::array<int, N> host_data;
   std::iota(std::begin(host_data), std::end(host_data), 0);
-  
+
   {
     s::buffer<int> buf(host_data.data(), N);
 
@@ -549,10 +549,10 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_2d_iterator) {
   constexpr int N2 = 64;
   const s::range<2> range{2, 4};
   const s::id<2> offset{2, 5};
-  
+
   std::array<int, N1*N2> host_data;
   std::fill(std::begin(host_data), std::end(host_data), 0);
-  
+
   {
     s::buffer<int, 2> buf(host_data.data(), {N1,N2});
 
@@ -588,10 +588,10 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_3d_iterator) {
 
   const s::range<3> range{2, 2, 2};
   const s::id<3> offset{1, 2, 0};
-  
+
   std::array<int, N1*N2*N3> host_data;
   std::fill(std::begin(host_data), std::end(host_data), 0);
-  
+
   {
     s::buffer<int, 3> buf(host_data.data(), {N1,N2,N3});
 
@@ -751,7 +751,7 @@ BOOST_AUTO_TEST_CASE(offset_1d) {
     s::queue{}.submit([&](s::handler &cgh) {
       s::id offset{2};
       s::range range{N-offset};
-      
+
       auto acc = s::accessor(buf, cgh, range, offset);
 
       cgh.parallel_for(s::range{N - offset},
@@ -783,7 +783,7 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
       std::size_t offset_1d = 2;
       s::range range{N - offset_1d, N - offset_1d};
       s::id offset{offset_1d, offset_1d};
-      
+
       auto acc = s::accessor(buf, cgh, range, offset);
 
       cgh.parallel_for(s::range{N - offset.get(0), N - offset.get(1)},
@@ -823,7 +823,7 @@ BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
       std::size_t offset_1d = 2;
       s::range range{N - offset_1d, N - offset_1d};
       s::id offset{offset_1d, offset_1d};
-      
+
       auto acc = s::accessor(buf, cgh, range, offset);
 
       cgh.parallel_for(s::range{N - offset.get(0), N - offset.get(1)},

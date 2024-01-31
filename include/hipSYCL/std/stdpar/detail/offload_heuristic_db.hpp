@@ -101,7 +101,7 @@ public:
         e.read(sstr);
 
         _entries[hash] = e;
-      } 
+      }
     }
   }
 
@@ -156,7 +156,7 @@ public:
   };
 
   struct entry {
-    
+
     std::vector<device_entry, libc_allocator<device_entry>> entries;
 
     void merge(const entry& other) {
@@ -171,14 +171,14 @@ public:
         entries.push_back(other_entry);
       };
 
-      
+
       for(auto& other_entry: other.entries) {
-        merge_or_insert(other_entry);  
+        merge_or_insert(other_entry);
       }
     }
 
     void read(std::istream& istr) {
-      
+
       int num_entries = 0;
       istr >> num_entries;
       for(int i = 0; i < num_entries; ++i) {
@@ -189,7 +189,7 @@ public:
     }
 
     void write(std::ostream& ostr) const {
-      
+
       ostr << entries.size() << " ";
       for(int i = 0; i < entries.size(); ++i)
         ostr << entries[i] << " ";
@@ -214,7 +214,7 @@ public:
       }
     }
   }
-  
+
 private:
 
   static std::string get_dataset_filename() {
@@ -294,7 +294,7 @@ public:
       std::swap(closest_runtime, closest_runtime2);
     }
 
-    
+
     double runtime_lower = closest_runtime;
     double runtime_upper = closest_runtime2;
     std::size_t problem_size_lower = closest_problem_size;
@@ -308,7 +308,7 @@ public:
 
     double delta_x = problem_size_upper - problem_size_lower;
     double delta_y = runtime_upper - runtime_lower;
-    
+
     double m = delta_y / delta_x;
 
     double result = m * (problem_size - problem_size_lower) + runtime_lower;
@@ -336,7 +336,7 @@ public:
     auto& e = _entries[op_hash];
 
     offload_heuristic_db_storage::device_entry d_entry {dev, problem_size, runtime, 1};
-    
+
     for(auto& measurement_entry : e.entries) {
       if(measurement_entry.dev == dev && measurement_entry.problem_size == problem_size) {
         measurement_entry.merge(d_entry);

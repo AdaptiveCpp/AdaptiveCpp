@@ -291,7 +291,7 @@ public:
 
   usm_allocator(const queue &q) noexcept
       : _ctx{q.get_context()}, _dev{q.get_device()} {}
-  
+
   usm_allocator(const usm_allocator &) noexcept = default;
   usm_allocator(usm_allocator &&) noexcept = default;
 

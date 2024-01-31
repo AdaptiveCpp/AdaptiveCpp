@@ -46,10 +46,10 @@ result cuda_event_factory::create(cudaEvent_t& out) {
     return make_error(
         __hipsycl_here(),
         error_info{"cuda_event_factory: Couldn't create event", error_code{"CUDA", err}});
-    
+
   }
   out = evt;
-  
+
   return make_success();
 }
 

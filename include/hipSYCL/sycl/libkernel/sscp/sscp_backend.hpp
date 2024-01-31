@@ -73,7 +73,7 @@
 
  #include "hipSYCL/glue/llvm-sscp/ir_constants.hpp"
  #include "builtins/core.hpp"
- 
+
 #else
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP 0
  #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP 0

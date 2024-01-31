@@ -36,7 +36,7 @@
 namespace hipsycl {
 namespace rt {
 
-class ze_allocator : public backend_allocator 
+class ze_allocator : public backend_allocator
 {
 public:
   ze_allocator(const ze_hardware_context* dev, const ze_hardware_manager* hw_manager);
@@ -45,7 +45,7 @@ public:
 
   virtual void *allocate_optimized_host(size_t min_alignment,
                                         size_t bytes) override;
-  
+
   virtual void free(void *mem) override;
 
   virtual void *allocate_usm(size_t bytes) override;

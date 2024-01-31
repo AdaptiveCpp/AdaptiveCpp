@@ -64,9 +64,9 @@ public:
   }
 
 private:
-  using function_map_type = 
+  using function_map_type =
     std::unordered_map<id, function_type>;
-  
+
   function_map_type _functions;
 };
 

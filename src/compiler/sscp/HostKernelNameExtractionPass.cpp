@@ -65,7 +65,7 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
                                        "for __hipsycl_sscp_extract_kernel_name invocation: "
                                     << F.getName() << "\n";
             }
-            
+
             // Arg 1 is the access to the global __hipsycl_sscp_kernel_name
             // variable. This might result in a ConstantExpr to do a getelementptr
             // Instruction.
@@ -89,19 +89,19 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
                      "for __hipsycl_sscp_extract_kernel_name invocation: "
                   << F.getName() << "\n";
             } else {
-              
+
               IRConstant IRC{M, *GV};
               // If there are multiple calls (this can happen during e.g. stdpar malloc2usm callgraph
               // duplication, don't set again if we have already been set)
               if(!IRC.isInitialized()) {
                 HIPSYCL_DEBUG_INFO << "HostKernelNameExtractionPass: Exposing kernel name "
                                   << KernelName << " in global symbol " << GV->getName() << "\n";
-              
+
                 // Now set GV to the kernel name
                 IRC.set<std::string>(KernelName + '\0');
               }
             }
-          
+
           } else {
             HIPSYCL_DEBUG_WARNING
                 << "HostKernelNameExtractionPass: found __hipsycl_sscp_extract_kernel_name "
@@ -110,7 +110,7 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
           }
         }
       }
-    }    
+    }
   }
 
   for(llvm::Function* F : SSCPKernelNameExtractionFunctions) {

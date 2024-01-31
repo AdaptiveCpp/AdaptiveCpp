@@ -69,7 +69,7 @@ public:
       }
 
       return events;
-      
+
     }
     return std::vector<event>{};
   }
@@ -79,7 +79,7 @@ public:
     if(this->_node){
       if(!this->_node->is_submitted())
         _requires_runtime.get()->dag().flush_sync();
-      
+
       assert(this->_node->is_submitted());
       this->_node->wait();
     }
@@ -181,9 +181,9 @@ public:
           _node->get_operation()
               ->get_instrumentations()
               .get<rt::instrumentations::submission_timestamp>();
-      
+
       if(!submission)
-        throw exception{make_error_code(errc::invalid),                      
+        throw exception{make_error_code(errc::invalid),
                         "Operation not profiled: No submission timestamp available"};
 
       return rt::profiler_clock::ns_ticks(submission->get_time_point());
@@ -204,7 +204,7 @@ public:
           _node->get_operation()
               ->get_instrumentations()
               .get<rt::instrumentations::execution_finish_timestamp>();
-      
+
       if(!finish)
         throw exception{make_error_code(errc::invalid),
                         "Operation not profiled: No execution "

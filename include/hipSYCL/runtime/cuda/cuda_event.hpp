@@ -30,7 +30,7 @@
 
 #include "../inorder_queue_event.hpp"
 
-// Note: CUevent_st* == cudaEvent_t 
+// Note: CUevent_st* == cudaEvent_t
 struct CUevent_st;
 
 namespace hipsycl {

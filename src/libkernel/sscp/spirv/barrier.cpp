@@ -68,7 +68,7 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN void
   __spv::ScopeFlag mem_fence_scope = get_spirv_scope(fence_scope);
 
   __spirv_ControlBarrier(__spv::ScopeFlag::Subgroup, mem_fence_scope, flags);
-  
+
 }
 
 

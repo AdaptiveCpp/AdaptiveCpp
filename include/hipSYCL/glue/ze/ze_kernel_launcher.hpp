@@ -76,12 +76,12 @@ namespace ze_dispatch {
 // memory objects such as cl_mem and instead rely on buffers/accessors
 // on top of USM pointers.
 // The problem with the clang SYCL approach is that it requires either
-// compiler support in the host pass to know the captures, or requires 
+// compiler support in the host pass to know the captures, or requires
 // using the clang SYCL generated integration header which does not work
 // with the hipSYCL syclcc driver.
-// To prevent clang from disassembling the kernel, we type-erase kernel 
+// To prevent clang from disassembling the kernel, we type-erase kernel
 // lambdas by putting their memory into array<uint, size>, and reinterpret
-// this memory as lambda once we are inside the kernel. 
+// this memory as lambda once we are inside the kernel.
 // Arrays are passed by clang into kernels by passing their individual
 // elements as arguments. Because we know sizeof(KernelLambda), we can
 // easily know how to pass arrays on the host side.
@@ -199,9 +199,9 @@ public:
     using kernel_name_t = typename KernelNameTraits::suggested_mangling_name;
 
     this->_type = type;
-    
+
     this->_invoker = [=](rt::dag_node* node) mutable {
-      
+
       static_cast<rt::kernel_operation *>(node->get_operation())
           ->initialize_embedded_pointers(k, reductions...);
 
@@ -254,7 +254,7 @@ public:
 
           if(is_within_range) {
             if(is_with_offset) {
-              auto item = sycl::detail::make_item(gid + offset, 
+              auto item = sycl::detail::make_item(gid + offset,
                             global_range, offset);
               k(item);
             } else {
@@ -355,7 +355,7 @@ public:
       else {
         assert(false && "Unsupported kernel type");
       }
-      
+
     };
   }
 
@@ -400,7 +400,7 @@ private:
   void invoke_from_module(rt::dag_node* node, rt::range<3> num_groups, rt::range<3> group_size,
                           unsigned dynamic_local_mem,
                           ze_dispatch::packed_kernel<WrappedLambdaT> kernel) {
-    
+
 #ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
 #if !defined(__clang_major__) || __clang_major__ < 11
   #error Multipass compilation requires clang >= 11
@@ -447,7 +447,7 @@ private:
 #else
     assert(false && "No module available to invoke kernels from");
 #endif
-  
+
   }
 
   std::function<void (rt::dag_node*)> _invoker;

@@ -61,7 +61,7 @@ public:
   virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
   virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
   virtual result submit_memset(memset_operation&, dag_node_ptr) override;
-  
+
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
   virtual result submit_queue_wait_for(dag_node_ptr evt) override;
@@ -99,7 +99,7 @@ public:
 private:
   const std::vector<std::shared_ptr<dag_node_event>>&
   get_enqueued_synchronization_ops() const;
-  
+
   std::vector<ze_event_handle_t>
   get_enqueued_event_handles() const;
 
@@ -119,7 +119,7 @@ private:
   std::vector<std::future<void>> _external_waits;
 
   std::shared_ptr<kernel_cache> _kernel_cache;
-  
+
   // Most L0 API functions that add to a command list are not thread-safe.
   // Since most of the public API functions of this class do exactly that,
   // arguably the best strategy to achieve thread-safety is to just have a mutex

@@ -205,7 +205,7 @@ public:
       else
         return value_type{};
     }
-    
+
   }
 
 private:

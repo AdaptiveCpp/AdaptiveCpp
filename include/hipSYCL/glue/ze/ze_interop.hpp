@@ -43,7 +43,7 @@ namespace hipsycl {
 namespace glue {
 
 template <> struct backend_interop<sycl::backend::level_zero> {
-  
+
   using error_type = int;
 
   using native_mem_type = void *;

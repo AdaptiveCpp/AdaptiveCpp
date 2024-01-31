@@ -72,7 +72,7 @@ public:
 
   bool isImplicitlyHostDevice(const std::string& FunctionName) const
   {
-    return ImplicitlyMarkedHostDeviceFunctions.find(FunctionName) 
+    return ImplicitlyMarkedHostDeviceFunctions.find(FunctionName)
       != ImplicitlyMarkedHostDeviceFunctions.end();
   }
 

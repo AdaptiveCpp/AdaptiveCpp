@@ -66,7 +66,7 @@ public:
 
     if(!_t1) {
       auto delta = td(*_t0.get_event(), *_event);
-    
+
       return _t0.get_timestamp() + delta;
     } else {
       assert(_t1->is_complete());

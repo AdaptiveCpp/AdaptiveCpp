@@ -81,7 +81,7 @@ HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt2 transform(hipsycl::stdpar::par_unseq,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 d_first,
                      UnaryOperation unary_op) {
-  
+
   auto offloader = [&](auto& queue){
     ForwardIt2 last = d_first;
     std::advance(last, std::distance(first1, last1));
@@ -214,7 +214,7 @@ void fill(hipsycl::stdpar::par_unseq,
 template <class ForwardIt, class Size, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(hipsycl::stdpar::par_unseq, ForwardIt first,
                                            Size count, const T &value) {
- 
+
   auto offloader = [&](auto& queue){
     ForwardIt last = first;
     std::advance(last, std::max(count, Size{0}));
@@ -288,7 +288,7 @@ void replace(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 template <class ForwardIt, class UnaryPredicate, class T>
 void replace_if(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
                 UnaryPredicate p, const T &new_value) {
-  
+
   auto offloader = [&](auto& queue){
     hipsycl::algorithms::replace_if(queue, first, last, p, new_value);
   };
@@ -374,10 +374,10 @@ bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
 
   auto offloader = [&](auto& queue){
-    
+
     if(std::distance(first, last) == 0)
       return true;
-    
+
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
@@ -404,7 +404,7 @@ template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
-  
+
   auto offloader = [&](auto& queue){
 
     if(std::distance(first, last) == 0)
@@ -436,7 +436,7 @@ template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
-  
+
   auto offloader = [&](auto& queue){
 
     if(std::distance(first, last) == 0)

@@ -61,7 +61,7 @@ namespace {
 result submit_ze_kernel(ze_kernel_handle_t kernel,
                         ze_command_list_handle_t command_list,
                         ze_event_handle_t completion_evt,
-                        const std::vector<ze_event_handle_t>& wait_events, 
+                        const std::vector<ze_event_handle_t>& wait_events,
                         const rt::range<3> &group_size,
                         const rt::range<3> &num_groups, void **kernel_args,
                         const std::size_t *arg_sizes, std::size_t num_args,
@@ -162,7 +162,7 @@ ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
 
   ze_hardware_context *hw_context =
       cast<ze_hardware_context>(hw_manager->get_device(device_index));
-  
+
   assert(hw_context);
 
   ze_command_queue_desc_t desc;
@@ -172,7 +172,7 @@ ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
                     // appropriate group
   desc.index = 0;
   desc.flags = ZE_COMMAND_QUEUE_FLAG_EXPLICIT_ONLY;
-  desc.mode  = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS; 
+  desc.mode  = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
   desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
 
   ze_result_t err = zeCommandListCreateImmediate(hw_context->get_ze_context(),
@@ -310,16 +310,16 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
 result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
-  rt::backend_kernel_launcher *l = 
+  rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::level_zero);
-  
+
   if (!l)
     return make_error(__hipsycl_here(),
                       error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
-  
+
   rt::backend_kernel_launch_capabilities cap;
-  
+
   cap.provide_multipass_invoker(&_multipass_code_object_invoker);
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
 
@@ -339,7 +339,7 @@ result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
 
   std::shared_ptr<dag_node_event> completion_evt = create_event();
   std::vector<ze_event_handle_t> wait_events = get_enqueued_event_handles();
-  
+
   auto pattern = op.get_pattern();
   ze_result_t err = zeCommandListAppendMemoryFill(
       _command_list, op.get_pointer(), &pattern, sizeof(decltype(pattern)),
@@ -494,7 +494,7 @@ result ze_queue::submit_multipass_kernel_from_code_object(
     assert(hcf->root_node());
     if(!hcf->root_node()->has_binary_data_attached())
       return nullptr;
-    
+
     std::string code;
     if(!hcf->get_binary_attachment(hcf->root_node(), code)) {
       HIPSYCL_DEBUG_ERROR
@@ -527,7 +527,7 @@ result ze_queue::submit_multipass_kernel_from_code_object(
   ze_kernel_handle_t kernel;
   result res = static_cast<const ze_executable_object *>(obj)->get_kernel(
       backend_kernel_name, kernel);
-  
+
   if(!res.is_success())
     return res;
 
@@ -596,7 +596,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
     const ze_sscp_executable_object *obj =
         static_cast<const ze_sscp_executable_object *>(candidate);
-    
+
     if(obj->configuration_id() != configuration_id)
       return false;
 
@@ -605,13 +605,13 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   auto code_object_constructor = [&]() -> code_object* {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
-    
+
     std::vector<std::string> kernel_names;
     std::string selected_image_name =
         glue::jit::select_image(kernel_info, &kernel_names);
 
     // Construct SPIR-V translator to compile the specified kernels
-    std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
+    std::unique_ptr<compiler::LLVMToBackendTranslator> translator =
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
 
     translator->setBuildOption("spirv-dynamic-local-mem-allocation-size",
@@ -619,12 +619,12 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     // Note: As soonst as this is not enabled unconditionally,
     // make sure to also set it in the kernel config!
     translator->setBuildFlag("enable-intel-llvm-spirv-options");
-    
+
     // Lower kernels to SPIR-V
     std::string compiled_image;
     auto err = glue::jit::compile(translator.get(),
         hcf, selected_image_name, config, compiled_image);
-    
+
     if(!err.is_success()) {
       register_error(err);
       return nullptr;
@@ -655,7 +655,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   ze_kernel_handle_t kernel;
   result res = static_cast<const ze_executable_object *>(obj)->get_kernel(
       kernel_name, kernel);
-  
+
   if(!res.is_success())
     return res;
 

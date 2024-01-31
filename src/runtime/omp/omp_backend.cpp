@@ -61,7 +61,7 @@ std::unique_ptr<inorder_queue> make_omp_queue(device_id dev) {
 
 std::unique_ptr<multi_queue_executor>
 create_multi_queue_executor(omp_backend *b) {
-  return std::make_unique<multi_queue_executor>(*b, [b](device_id dev) {
+  return std::make_unique<multi_queue_executor>(*b, [](device_id dev) {
     return make_omp_queue(dev);
   });
 }

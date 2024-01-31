@@ -224,7 +224,7 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
                   << " is invalid; argument is not a pointer type. Ingoring call.\n";
               return;
             }
-            llvm::StoreInst *S =
+            [[maybe_unused]] llvm::StoreInst *S =
                 new llvm::StoreInst(GV, CI->getArgOperand(ArgIndex), CI);
           };
 

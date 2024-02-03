@@ -193,13 +193,6 @@ bool hcf_image_info::is_valid() const {
   return _parsing_successful;
 }
 
-std::shared_ptr<kernel_cache> kernel_cache::get() {
-  // required since kernel_cache has a private default constructor
-  struct make_shared_enabler : public kernel_cache {};
-  static std::shared_ptr<kernel_cache> c = std::make_shared<make_shared_enabler>();
-  return c;
-}
-
 hcf_cache& hcf_cache::get() {
   static hcf_cache c;
   return c;
@@ -374,21 +367,32 @@ hcf_cache::get_image_info(hcf_object_id obj,
   return it->second.get();
 }
 
-const kernel_cache::kernel_name_index_t*
-kernel_cache::get_global_kernel_index(const std::string &kernel_name) const {
-  std::lock_guard<std::mutex> lock{_mutex};
-  auto it = _kernel_index_map.find(kernel_name);
-  if(it == _kernel_index_map.end())
-    return nullptr;
-  return &(it->second);
-}
 
+
+
+std::shared_ptr<kernel_cache> kernel_cache::get() {
+  // required since kernel_cache has a private default constructor
+  struct make_shared_enabler : public kernel_cache {};
+  static std::shared_ptr<kernel_cache> c = std::make_shared<make_shared_enabler>();
+  return c;
+}
 
 void kernel_cache::unload() {
   std::lock_guard<std::mutex> lock{_mutex};
 
-  _kernel_code_objects.clear();
   _code_objects.clear();
+}
+
+const code_object* kernel_cache::get_code_object(code_object_id id) const {
+  std::lock_guard<std::mutex> lock{_mutex};
+  return get_code_object_impl(id);
+}
+
+const code_object* kernel_cache::get_code_object_impl(code_object_id id) const {
+  auto it = _code_objects.find(id);
+  if(it == _code_objects.end())
+    return nullptr;
+  return it->second.get();
 }
 
 } // rt

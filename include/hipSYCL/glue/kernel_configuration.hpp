@@ -138,6 +138,13 @@ public:
                       data_ptr(value), data_size(value));
   }
 
+
+  template<class KeyT, class ValueT>
+  static void extend_hash(id_type& hash, const KeyT& key, const ValueT& value) {
+    add_entry_to_hash(hash, data_ptr(key), data_size(key),
+                      data_ptr(value), data_size(value));
+  }
+
   id_type generate_id() const {
     id_type result = _base_configuration_result;
 
@@ -173,37 +180,45 @@ public:
   }
 
 private:
-  const void* data_ptr(const std::string& data) const {
+  static const void* data_ptr(const char* data) {
+    return data_ptr(std::string{data});
+  }
+
+  static const void* data_ptr(const std::string& data) {
     return data.data();
   }
 
   template<class T>
-  const void* data_ptr(const std::vector<T>& data) const {
+  static const void* data_ptr(const std::vector<T>& data) {
     return data.data();
   }
 
   template<class T>
-  const void* data_ptr(const T& data) const {
+  static const void* data_ptr(const T& data) {
     return &data;
   }
 
-  std::size_t data_size(const std::string& data) const {
+  static std::size_t data_size(const char* data) {
+    return data_size(std::string{data});
+  }
+
+  static std::size_t data_size(const std::string& data) {
     return data.size();
   }
 
   template<class T>
-  std::size_t data_size(const std::vector<T>& data) const {
+  static std::size_t data_size(const std::vector<T>& data) {
     return data.size();
   }
 
   template<class T>
-  std::size_t data_size(const T& data) const {
+  static std::size_t data_size(const T& data) {
     return sizeof(T);
   }
 
-  void add_entry_to_hash(id_type &hash, const void *key_data,
+  static void add_entry_to_hash(id_type &hash, const void *key_data,
                          std::size_t key_size, const void *data,
-                         std::size_t data_size) const {
+                         std::size_t data_size) {
     common::stable_running_hash h;
     h(key_data, key_size);
     h(data, data_size);
@@ -217,6 +232,15 @@ private:
   std::vector<std::pair<std::string, std::string>> _build_options;
 
   id_type _base_configuration_result = {};
+};
+
+struct kernel_id_hash{
+  std::size_t operator() (const kernel_configuration::id_type &id) const {
+    std::size_t hash = 0;
+    for(std::size_t i = 0; i < id.size(); ++i)
+      hash ^= std::hash<kernel_configuration::id_type::value_type>{}(id[i]);
+    return hash;
+  }
 };
 
 }

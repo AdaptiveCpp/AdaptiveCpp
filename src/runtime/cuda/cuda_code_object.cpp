@@ -102,13 +102,10 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
 
   return make_success();
 }
-}
 
-cuda_source_object::cuda_source_object(hcf_object_id origin,
-                                       const std::string &target,
-                                       const std::string &source)
-    : _origin{origin}, _target_arch{target}, _source{source} {
-
+std::vector<std::string> extract_kernel_names_from_ptx(const std::string& source) {
+  
+  std::vector<std::string> kernel_names;
   std::istringstream code_stream(source);
   std::string line;
 
@@ -123,54 +120,22 @@ cuda_source_object::cuda_source_object(hcf_object_id origin,
       trim_right_space_and_parenthesis(line);
       HIPSYCL_DEBUG_INFO << "Detected kernel in code object: " << line
                          << std::endl;
-      _kernel_names.push_back(line);
+      kernel_names.push_back(line);
     }
   }
+
+  return kernel_names;
 }
 
-code_object_state cuda_source_object::state() const {
-  return code_object_state::source;
 }
 
-code_format cuda_source_object::format() const { return code_format::ptx; }
 
-backend_id cuda_source_object::managing_backend() const {
-  return backend_id::cuda;
-}
+cuda_multipass_executable_object::cuda_multipass_executable_object(hcf_object_id origin,
+                                   const std::string &target,
+                                   const std::string &source, int device)
+    : _origin{origin}, _target{target}, _device{device}, _module{nullptr} {
 
-hcf_object_id cuda_source_object::hcf_source() const { return _origin; }
-
-std::string cuda_source_object::target_arch() const { return _target_arch; }
-
-compilation_flow cuda_source_object::source_compilation_flow() const {
-  return compilation_flow::explicit_multipass;
-}
-
-std::vector<std::string>
-cuda_source_object::supported_backend_kernel_names() const {
-  return _kernel_names;
-}
-
-bool cuda_source_object::contains(
-    const std::string &backend_kernel_name) const {
-  // TODO We cannot use proper equality checks because the kernel prefix
-  // might vary depending on the clang version
-  for (const auto &name : _kernel_names) {
-    if (name.find(backend_kernel_name) != std::string::npos)
-      return true;
-  }
-  return false;
-}
-
-const std::string &cuda_source_object::get_source() const { return _source; }
-
-cuda_multipass_executable_object::cuda_multipass_executable_object(
-    const cuda_source_object *source, int device)
-    : _source{source}, _device{device}, _module{nullptr} {
-
-  assert(source);
-
-  this->_build_result = build();
+  this->_build_result = build(source);
 }
 
 result cuda_multipass_executable_object::get_build_result() const {
@@ -194,11 +159,11 @@ backend_id cuda_multipass_executable_object::managing_backend() const {
 }
 
 hcf_object_id cuda_multipass_executable_object::hcf_source() const {
-  return _source->hcf_source();
+  return _origin;
 }
 
 std::string cuda_multipass_executable_object::target_arch() const {
-  return _source->target_arch();
+  return _target;
 }
 
 compilation_flow
@@ -208,23 +173,27 @@ cuda_multipass_executable_object::source_compilation_flow() const {
 
 std::vector<std::string>
 cuda_multipass_executable_object::supported_backend_kernel_names() const {
-  return _source->supported_backend_kernel_names();
+  return _kernel_names;
 }
 
 bool cuda_multipass_executable_object::contains(
     const std::string &backend_kernel_name) const {
-  return _source->contains(backend_kernel_name);
+  for(const auto& k : _kernel_names)
+    if(k == backend_kernel_name)
+      return true;
+  return false;
 }
 
 CUmod_st* cuda_multipass_executable_object::get_module() const {
   return _module;
 }
 
-result cuda_multipass_executable_object::build() {
+result cuda_multipass_executable_object::build(const std::string& source) {
   if (_module != nullptr)
     return make_success();
 
-  return build_cuda_module_from_ptx(_module, _device, _source->get_source());
+  _kernel_names = extract_kernel_names_from_ptx(source);
+  return build_cuda_module_from_ptx(_module, _device, source);
 }
 
 int cuda_multipass_executable_object::get_device() const {

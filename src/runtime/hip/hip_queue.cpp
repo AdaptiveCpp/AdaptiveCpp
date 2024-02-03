@@ -497,17 +497,6 @@ result hip_queue::submit_multipass_kernel_from_code_object(
 
   this->activate_device();
   
-  std::string global_kernel_name = op.get_global_kernel_name();
-  const kernel_cache::kernel_name_index_t *kidx =
-      _kernel_cache->get_global_kernel_index(global_kernel_name);
-
-  if(!kidx) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"hip_queue: Could not obtain kernel index for kernel " +
-                   global_kernel_name});
-  }
-
   const common::hcf_container *hcf =
         rt::hcf_cache::get().get_hcf(hcf_object);
   if (!hcf)
@@ -524,18 +513,21 @@ result hip_queue::submit_multipass_kernel_from_code_object(
   // compiled for
   std::string selected_target = available_targets[0];
   int device = _dev.get_id();
+  
+  glue::kernel_configuration config;
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::hip);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::explicit_multipass);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+  config.append_base_configuration("amdgpu-target-arch", selected_target);
+  
+  auto binary_configuration_id = config.generate_id();
+  auto code_object_configuration_id = binary_configuration_id;
+  glue::kernel_configuration::extend_hash(code_object_configuration_id, "device-id", device);
 
-  auto code_object_selector = [&](const code_object* candidate) -> bool {
-    // Also no need to check for HIP backend since the kernel cache already
-    // guarantees that we are only given candidates for the requested backend (CUDA).
-    return (candidate->target_arch() == selected_target) &&
-           (candidate->state() == code_object_state::executable) &&
-           (static_cast<const hip_executable_object *>(candidate)
-                ->source_compilation_flow() ==
-            compilation_flow::explicit_multipass) &&
-           (static_cast<const hip_executable_object *>(candidate)
-                ->get_device() == device);
-  };
 
   // Will be invoked by the kernel cache in case there is a miss in the kernel
   // cache and we have to construct a new code object
@@ -572,8 +564,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
   };
 
   const code_object *obj = _kernel_cache->get_or_construct_code_object(
-      *kidx, backend_kernel_name, backend_id::hip, hcf_object,
-      code_object_selector, code_object_constructor);
+      code_object_configuration_id, code_object_constructor);
 
   
   if(!obj) {
@@ -600,17 +591,6 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
   this->activate_device();
   
-  std::string global_kernel_name = op.get_global_kernel_name();
-  const kernel_cache::kernel_name_index_t *kidx =
-      _kernel_cache->get_global_kernel_index(global_kernel_name);
-
-  if(!kidx) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"hip_queue: Could not obtain kernel index for kernel " +
-                   global_kernel_name});
-  }
-
   int device = _dev.get_id();
 
   hip_hardware_context *ctx = static_cast<hip_hardware_context *>(
@@ -624,7 +604,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __hipsycl_here(),
         error_info{"hip_queue: Could not obtain hcf kernel info for kernel " +
-            global_kernel_name});
+            kernel_name});
   }
 
   
@@ -638,46 +618,43 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
 
   config.set_build_option("amdgpu-target-device", target_arch_name);
-  auto configuration_id = config.generate_id();
+  
+  auto binary_configuration_id = config.generate_id();
+  auto code_object_configuration_id = binary_configuration_id;
+  glue::kernel_configuration::extend_hash(code_object_configuration_id, "device-id", device);
 
-  auto code_object_selector = [&](const code_object* candidate) -> bool {
-    
-    if ((candidate->managing_backend() != backend_id::hip) ||
-        (candidate->source_compilation_flow() != compilation_flow::sscp) ||
-        (candidate->state() != code_object_state::executable))
-      return false;
-
-    const hip_sscp_executable_object *obj =
-        static_cast<const hip_sscp_executable_object *>(candidate);
-    
-    if(obj->configuration_id() != configuration_id)
-      return false;
-
-    return obj->get_device() == device;
+  auto get_image_and_kernel_names =
+      [&](std::vector<std::string> &contained_kernels) -> std::string {
+    return glue::jit::select_image(kernel_info, &contained_kernels);
   };
 
-  auto code_object_constructor = [&]() -> code_object * {
+  auto jit_compiler = [&](std::string& compiled_image) -> bool {
     const common::hcf_container *hcf =
         rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
-    std::string selected_image_name =
-        glue::jit::select_image(kernel_info, &kernel_names);
+    std::string selected_image_name = get_image_and_kernel_names(kernel_names);
 
     // Construct amdgpu translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
       compiler::createLLVMToAmdgpuTranslator(kernel_names);
 
     // Lower kernels
-    std::string amdgpu_image;
     auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, amdgpu_image);
+        hcf, selected_image_name, config, compiled_image);
     
     if(!err.is_success()) {
       register_error(err);
-      return nullptr;
+      return false;
     }
+    return true;
+  };
 
+  auto code_object_constructor = [&](const std::string& amdgpu_image) -> code_object * {
+   
+    std::vector<std::string> kernel_names;
+    get_image_and_kernel_names(kernel_names);
+    
     hip_sscp_executable_object *exec_obj = new hip_sscp_executable_object{
         amdgpu_image, target_arch_name, hcf_object,
         kernel_names, device,           config};
@@ -696,9 +673,9 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = _kernel_cache->get_or_construct_code_object(
-      *kidx, kernel_name, backend_id::hip, hcf_object,
-      code_object_selector, code_object_constructor);
+  const code_object *obj = _kernel_cache->get_or_construct_jit_code_object(
+      code_object_configuration_id, binary_configuration_id,
+      jit_compiler, code_object_constructor);
 
   
   if(!obj) {

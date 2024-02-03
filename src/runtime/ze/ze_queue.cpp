@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -456,33 +457,26 @@ result ze_queue::submit_multipass_kernel_from_code_object(
     const rt::range<3> &group_size, unsigned dynamic_shared_mem,
     void **kernel_args, const std::size_t* arg_sizes, std::size_t num_args) {
 
-  std::string global_kernel_name = op.get_global_kernel_name();
-  const kernel_cache::kernel_name_index_t* kidx =
-      _kernel_cache->get_global_kernel_index(global_kernel_name);
-
-  if(!kidx) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"ze_queue: Could not obtain kernel index for kernel " +
-                   global_kernel_name});
-  }
-
   ze_hardware_context *hw_ctx = static_cast<ze_hardware_context *>(
       _hw_manager->get_device(_device_index));
   ze_context_handle_t ctx = hw_ctx->get_ze_context();
   ze_device_handle_t dev = hw_ctx->get_ze_device();
 
-  auto code_object_selector = [&](const code_object *candidate) -> bool {
-    if ((candidate->managing_backend() != backend_id::level_zero) ||
-        (candidate->source_compilation_flow() !=
-         compilation_flow::explicit_multipass) ||
-        (candidate->state() != code_object_state::executable))
-      return false;
 
-    const ze_executable_object *obj =
-        static_cast<const ze_executable_object *>(candidate);
-    return obj->get_ze_device() == dev && obj->get_ze_context() == ctx;
-  };
+  // Need to create custom config to ensure we can distinguish other
+  // kernels compiled with different values e.g. of local mem allocation size
+  glue::kernel_configuration config;
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::level_zero);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::explicit_multipass);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+  auto binary_configuration_id = config.generate_id();
+  auto code_object_configuration_id = binary_configuration_id;
+  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-device", dev);
+  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-context", ctx);
 
   auto code_object_constructor = [&]() -> code_object* {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
@@ -516,8 +510,7 @@ result ze_queue::submit_multipass_kernel_from_code_object(
   };
 
   const code_object *obj = _kernel_cache->get_or_construct_code_object(
-      *kidx, backend_kernel_name, backend_id::level_zero, hcf_object,
-      code_object_selector, code_object_constructor);
+      code_object_configuration_id, code_object_constructor);
 
   if(!obj) {
     return make_error(__hipsycl_here(),
@@ -557,17 +550,6 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
-  std::string global_kernel_name = op.get_global_kernel_name();
-  const kernel_cache::kernel_name_index_t* kidx =
-      _kernel_cache->get_global_kernel_index(global_kernel_name);
-
-  if(!kidx) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"ze_queue: Could not obtain kernel index for kernel " +
-                   global_kernel_name});
-  }
-
   ze_hardware_context *hw_ctx = static_cast<ze_hardware_context *>(
       _hw_manager->get_device(_device_index));
   ze_context_handle_t ctx = hw_ctx->get_ze_context();
@@ -586,7 +568,10 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   
   config.set_build_option("spirv-dynamic-local-mem-allocation-size", local_mem_size);
   config.set_build_flag("enable-intel-llvm-spirv-options");
-  auto configuration_id = config.generate_id();
+  auto binary_configuration_id = config.generate_id();
+  auto code_object_configuration_id = binary_configuration_id;
+  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-device", dev);
+  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-context", ctx);
 
   const hcf_kernel_info *kernel_info =
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
@@ -594,25 +579,10 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __hipsycl_here(),
         error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
-            global_kernel_name});
+            kernel_name});
   }
 
-  auto code_object_selector = [&](const code_object *candidate) -> bool {
-    if ((candidate->managing_backend() != backend_id::level_zero) ||
-        (candidate->source_compilation_flow() != compilation_flow::sscp) ||
-        (candidate->state() != code_object_state::executable))
-      return false;
-
-    const ze_sscp_executable_object *obj =
-        static_cast<const ze_sscp_executable_object *>(candidate);
-    
-    if(obj->configuration_id() != configuration_id)
-      return false;
-
-    return obj->get_ze_device() == dev && obj->get_ze_context() == ctx;
-  };
-
-  auto code_object_constructor = [&]() -> code_object* {
+  auto jit_compiler = [&](std::string& compiled_image) -> bool {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
@@ -624,15 +594,17 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
     
     // Lower kernels to SPIR-V
-    std::string compiled_image;
     auto err = glue::jit::compile(translator.get(),
         hcf, selected_image_name, config, compiled_image);
     
     if(!err.is_success()) {
       register_error(err);
-      return nullptr;
+      return false;
     }
+    return true;
+  };
 
+  auto code_object_constructor = [&](const std::string& compiled_image) -> code_object* {
     ze_sscp_executable_object *exec_obj = new ze_sscp_executable_object{
         ctx, dev, hcf_object, compiled_image, config};
     result r = exec_obj->get_build_result();
@@ -646,9 +618,9 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = _kernel_cache->get_or_construct_code_object(
-      *kidx, kernel_name, backend_id::level_zero, hcf_object,
-      code_object_selector, code_object_constructor);
+  const code_object *obj = _kernel_cache->get_or_construct_jit_code_object(
+      code_object_configuration_id, binary_configuration_id,
+      jit_compiler, code_object_constructor);
 
   if(!obj) {
     return make_error(__hipsycl_here(),

@@ -145,6 +145,10 @@ public:
                       data_ptr(value), data_size(value));
   }
 
+  static std::string to_string(const id_type& id) {
+    return std::to_string(id[0])+"."+std::to_string(id[1]);
+  }
+
   id_type generate_id() const {
     id_type result = _base_configuration_result;
 

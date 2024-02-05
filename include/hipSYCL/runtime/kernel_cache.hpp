@@ -271,8 +271,13 @@ public:
                                                       code_object_id id_of_binary,
                                                       JitCompiler &&j,
                                                       CodeObjectConstructor &&c) {
-    if(auto* code_object = get_code_object(id_of_code_object))
+    if(auto* code_object = get_code_object(id_of_code_object)) {
+      HIPSYCL_DEBUG_INFO << "kernel_cache: Cache hit for id "
+                         << glue::kernel_configuration::to_string(id_of_code_object) << "\n";
       return code_object;
+    }
+    HIPSYCL_DEBUG_INFO << "kernel_cache: Cache MISS for id "
+                      << glue::kernel_configuration::to_string(id_of_code_object) << "\n";
     
     std::string compiled_binary;
     // TODO: We might want to allow JIT compilation in parallel at some point
@@ -298,8 +303,14 @@ private:
   const code_object *get_or_construct_code_object_impl(code_object_id id,
                                                   Constructor &&c) {
     auto* existing_code_object = get_code_object_impl(id);
-    if(existing_code_object)
+    if(existing_code_object) {
+      HIPSYCL_DEBUG_INFO << "kernel_cache: Cache hit for id "
+                         << glue::kernel_configuration::to_string(id) << "\n";
       return existing_code_object;
+    }
+    HIPSYCL_DEBUG_INFO << "kernel_cache: Cache MISS for id "
+                      << glue::kernel_configuration::to_string(id) << "\n";
+
     const code_object* new_object = c();
     if(new_object) {
       _code_objects[id] = code_object_ptr{new_object};

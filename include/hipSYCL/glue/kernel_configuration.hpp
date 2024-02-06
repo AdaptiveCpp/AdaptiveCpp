@@ -46,7 +46,10 @@ namespace glue {
 enum class kernel_base_config_parameter : int {
   backend_id = 0,
   compilation_flow = 1,
-  hcf_object_id = 2
+  hcf_object_id = 2,
+  target_arch = 3,
+  runtime_device = 4,
+  runtime_context = 5
 };
 
 class kernel_configuration {

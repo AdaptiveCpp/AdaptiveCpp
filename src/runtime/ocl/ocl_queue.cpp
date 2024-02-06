@@ -437,10 +437,12 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(code_object_configuration_id,
-                                          "cl-device", dev.get());
-  glue::kernel_configuration::extend_hash(code_object_configuration_id,
-                                          "cl-context", ctx.get());
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_device, dev.get());
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_context, ctx.get());
 
   const hcf_kernel_info *kernel_info =
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);

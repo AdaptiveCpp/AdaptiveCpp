@@ -504,13 +504,14 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
       compilation_flow::explicit_multipass);
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
-  config.append_base_configuration("target-device", selected_target);
-  
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::target_arch, selected_target);
+
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(code_object_configuration_id, "device-index", device);
-
-
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_device, device);
 
   // Will be invoked by the kernel cache in case there is a miss in the kernel
   // cache and we have to construct a new code object
@@ -618,7 +619,9 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(code_object_configuration_id, "device-index", device);
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_device, device);
 
   auto get_image_and_kernel_names =
       [&](std::vector<std::string> &contained_kernels) -> std::string {

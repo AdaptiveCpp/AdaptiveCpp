@@ -473,10 +473,16 @@ result ze_queue::submit_multipass_kernel_from_code_object(
       compilation_flow::explicit_multipass);
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+  
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-device", dev);
-  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-context", ctx);
+  
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_device, dev);
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_context, ctx);
 
   auto code_object_constructor = [&]() -> code_object* {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
@@ -570,8 +576,13 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   config.set_build_flag("enable-intel-llvm-spirv-options");
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-device", dev);
-  glue::kernel_configuration::extend_hash(code_object_configuration_id, "ze-context", ctx);
+  
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_device, dev);
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_context, ctx);
 
   const hcf_kernel_info *kernel_info =
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);

@@ -426,6 +426,9 @@ bool kernel_cache::persistent_cache_lookup(code_object_id id_of_binary,
 
 void kernel_cache::persistent_cache_store(code_object_id id_of_binary,
                                           const std::string &data) const {
+  if(application::get_settings().get<setting::no_jit_cache_population>())
+    return;
+
   std::string filename = get_persistent_cache_file(id_of_binary);
 
   HIPSYCL_DEBUG_INFO << "kernel_cache: Storing compiled binary with id "

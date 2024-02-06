@@ -30,7 +30,6 @@
 #include "hipSYCL/common/stable_running_hash.hpp"
 
 #include <fstream>
-#include <linux/limits.h>
 #include <random>
 #include <cassert>
 

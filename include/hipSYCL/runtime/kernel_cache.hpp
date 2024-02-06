@@ -269,7 +269,7 @@ public:
   template <class CodeObjectConstructor, class JitCompiler>
   const code_object *get_or_construct_jit_code_object(code_object_id id_of_code_object,
                                                       code_object_id id_of_binary,
-                                                      JitCompiler &&j,
+                                                      JitCompiler &&jit_compile,
                                                       CodeObjectConstructor &&c) {
     if(auto* code_object = get_code_object(id_of_code_object)) {
       HIPSYCL_DEBUG_INFO << "kernel_cache: Cache hit for id "
@@ -283,8 +283,11 @@ public:
     // TODO: We might want to allow JIT compilation in parallel at some point
     std::lock_guard<std::mutex> lock{_mutex};
 
-    if(!j(compiled_binary))
+    if(!persistent_cache_lookup(id_of_binary, compiled_binary)){
+      if(!jit_compile(compiled_binary))
         return nullptr;
+      persistent_cache_store(id_of_binary, compiled_binary);
+    }
     
     const code_object* new_object = c(compiled_binary);
     if(new_object)
@@ -296,6 +299,9 @@ public:
   // Unload entire cache and release resources to prepare runtime shutdown.
   void unload();
 private:
+  bool persistent_cache_lookup(code_object_id id_of_binary, std::string& out) const;
+  void persistent_cache_store(code_object_id id_of_binary, const std::string& data) const;
+  std::string get_persistent_cache_file(code_object_id id_of_binary) const;
   
   const code_object* get_code_object_impl(code_object_id id) const;
 

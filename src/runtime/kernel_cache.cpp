@@ -27,7 +27,10 @@
 
 #include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/backend.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <fstream>
@@ -393,6 +396,48 @@ const code_object* kernel_cache::get_code_object_impl(code_object_id id) const {
   if(it == _code_objects.end())
     return nullptr;
   return it->second.get();
+}
+
+std::string kernel_cache::get_persistent_cache_file(code_object_id id_of_binary) const {
+  using namespace common::filesystem;
+  std::string cache_dir = tuningdb::get().get_jit_cache_dir();
+  return join_path(cache_dir, glue::kernel_configuration::to_string(id_of_binary)+".jit");
+}
+
+bool kernel_cache::persistent_cache_lookup(code_object_id id_of_binary,
+                                           std::string &out) const {
+  std::string filename = get_persistent_cache_file(id_of_binary);
+  std::ifstream file{filename, std::ios::in | std::ios::binary | std::ios::ate};
+  
+  if(!file.is_open())
+    return false;
+
+  HIPSYCL_DEBUG_INFO << "kernel_cache: Persistent cache hit for id "
+                     << glue::kernel_configuration::to_string(id_of_binary)
+                     << " in file " << filename << std::endl;
+
+  std::streamsize file_size = file.tellg();
+  file.seekg(0, std::ios::beg);
+  out.resize(file_size);
+  file.read(out.data(), file_size);
+  
+  return true;
+}
+
+void kernel_cache::persistent_cache_store(code_object_id id_of_binary,
+                                          const std::string &data) const {
+  std::string filename = get_persistent_cache_file(id_of_binary);
+
+  HIPSYCL_DEBUG_INFO << "kernel_cache: Storing compiled binary with id "
+                     << glue::kernel_configuration::to_string(id_of_binary)
+                     << " in persistent cache file " << filename << std::endl;
+  
+
+  if(!common::filesystem::atomic_write(filename, data)) {
+    HIPSYCL_DEBUG_ERROR
+        << "Could not store JIT result in persistent kernel cache in file "
+        << filename << std::endl;
+  }
 }
 
 } // rt

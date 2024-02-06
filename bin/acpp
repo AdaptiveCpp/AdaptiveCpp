@@ -40,6 +40,12 @@ import uuid
 import binascii
 import shutil
 
+def print_warning(*args):
+  print("acpp warning:", *args, file=sys.stderr)
+
+def print_error(*args):
+  print("acpp error:", *args, file=sys.stderr)
+
 class OptionNotSet(Exception):
   def __init__(self, msg):
     super().__init__(msg)
@@ -1640,7 +1646,7 @@ class compiler:
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
-          print("acpp warning: CUDA and HIP cannot be targeted "
+          print_warning("CUDA and HIP cannot be targeted "
               "simultaneously in non-explicit multipass; enabling explicit "
               "multipass compilation.")
           self._is_explicit_multipass = True
@@ -1695,7 +1701,7 @@ class compiler:
         self._multipass_backends.append(
           hip_multipass_invocation(config, config.targets["hip.explicit-multipass"]))
       elif backend == 'spirv':
-        print("acpp warning: 'spirv' target is deprecated, incomplete and may not work. It should not be "
+        print_warning("'spirv' target is deprecated, incomplete and may not work. It should not be "
               "used outside of experiments and will be removed in a future version. Production "
               "use cases should use 'generic' target instead to target SPIR-V devices.")
         self._multipass_backends.append(
@@ -1740,21 +1746,18 @@ class compiler:
     fatal_error = False
     for b in self._backends:
       if selected_backends.count(b) > 1:
-        print("Error: backend",b,
-          "appears multiple times in processed target specification")
+        print_error("backend",b, "appears multiple times in processed target specification")
 
       reqs = b.get_host_pass_requirements()
       
       conflicts = reqs['conflicts']
       caveats = reqs['caveats']
       for c in caveats:
-        print("Warning: caveat in backend",b.unique_name,
-                  "detected:",c)
+        print_warning("caveat in backend",b.unique_name, "detected:",c)
 
       for c in conflicts:
         if c in selected_backends:
-          print("Error: requested backends",b.unique_name,
-                "and",c,"are incompatible.")
+          print_error("requested backends",b.unique_name, "and",c,"are incompatible.")
           fatal_error = True
     
     if fatal_error:
@@ -2004,7 +2007,7 @@ def print_usage(config):
 
 if __name__ == '__main__':
   if sys.version_info[0] < 3:
-    print("acpp requires python 3.")
+    print_error("acpp requires python 3.")
     sys.exit(-1)
   
   args = sys.argv[1:]
@@ -2031,12 +2034,12 @@ if __name__ == '__main__':
 
     if not config.is_pure_linking_stage():
       if not config.has_optimization_flag():
-        print("acpp warning: No optimization flag was given, optimizations are "
+        print_warning("No optimization flag was given, optimizations are "
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
               "enable optimizations.")
     
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
-    print("acpp fatal error: "+str(e))
+    print_error("fatal: "+str(e))
     sys.exit(-1)

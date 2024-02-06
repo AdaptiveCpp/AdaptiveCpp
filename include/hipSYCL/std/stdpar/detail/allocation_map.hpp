@@ -121,7 +121,7 @@ public:
 
   // Access entry of allocation that has the given address. Unlike get_entry(),
   // this does not succeed if the address does not point to the base of the allocation.
-  value_type* get_entry_of_root_address(uint64_t address, uint64_t& root_address) noexcept {
+  value_type* get_entry_of_root_address(uint64_t address) noexcept {
     insert_or_get_entry_lock lock{_num_in_progress_operations};
     return get_entry_of_root_address(_root, address);
   }
@@ -202,7 +202,7 @@ private:
   };
 
   value_type *get_entry(leaf_node &current_node, uint64_t address,
-                        int &num_leaf_attempts,
+                        int &/*num_leaf_attempts*/,
                         uint64_t &root_address) noexcept {
     int start_address = 0;
 
@@ -634,7 +634,7 @@ private:
   }
 
   int find_lowest_level_with_free_blocks(int min_level) {
-    for(int i = min_level; i < _sorted_free_blocks_in_level.size(); ++i) {
+    for(std::size_t i = min_level; i < _sorted_free_blocks_in_level.size(); ++i) {
       if(!_sorted_free_blocks_in_level[i].empty())
         return i;
     }

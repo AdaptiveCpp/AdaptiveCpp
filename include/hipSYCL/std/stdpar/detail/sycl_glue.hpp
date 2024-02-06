@@ -147,7 +147,7 @@ public:
     assert(_instrumented_ops_in_batch.size() ==
            _instrumented_op_problem_sizes_in_batch.size());
     
-    for(int i = 0; i < _instrumented_ops_in_batch.size(); ++i) {
+    for(std::size_t i = 0; i < _instrumented_ops_in_batch.size(); ++i) {
       std::size_t problem_size = _instrumented_op_problem_sizes_in_batch[i];
       _offload_db.update_entry(_instrumented_ops_in_batch[i], problem_size,
                                offload_heuristic_db::offload_device_id,
@@ -235,8 +235,9 @@ private:
   }
 public:
   memory_pool(std::size_t size)
-      : _pool_size{size}, _free_space_map{size > 0 ? size : 1024},
-        _pool{nullptr}, _page_size{static_cast<int>(sysconf(_SC_PAGESIZE))} {
+      : _pool_size{size}, _pool{nullptr},
+        _free_space_map{size > 0 ? size : 1024},
+        _page_size{static_cast<std::size_t>(sysconf(_SC_PAGESIZE))} {
     init();
   }
 
@@ -304,7 +305,7 @@ private:
   void* _pool;
   void* _base_address;
   free_space_map _free_space_map;
-  int _page_size;
+  std::size_t _page_size;
 };
 
 class unified_shared_memory {
@@ -400,9 +401,8 @@ public:
         return;
 
       push_disabled();
-      uint64_t root_address = 0;
       auto* map_entry = get()._allocation_map.get_entry_of_root_address(
-              reinterpret_cast<uint64_t>(ptr), root_address);
+              reinterpret_cast<uint64_t>(ptr));
       if (!map_entry) {
         __libc_free(ptr);
       } else {

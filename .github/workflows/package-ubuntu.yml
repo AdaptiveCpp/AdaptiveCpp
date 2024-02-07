@@ -60,3 +60,4 @@ jobs:
           export DEBFULLNAME="Sanchi Vaishnavi"
           echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
           echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
+          debuild -us -uc

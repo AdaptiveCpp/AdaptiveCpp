@@ -3,7 +3,7 @@ name: Package AdaptiveCpp for Ubuntu
 on: [push]
 
 jobs:
-  packaging:
+  package_acpp:
     name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}
     runs-on: ${{matrix.os}}
     strategy:

@@ -34,14 +34,14 @@ jobs:
           echo "CC=${CC}" >> $GITHUB_ENV
           echo "CXX=${CXX}" >> $GITHUB_ENV
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
-     - name: install packaging helpers
-       run: |
+      - name: install packaging helpers
+        run: |
           sudo  apt install build-essential
           sudo  apt install devscripts
           sudo  apt install debhlper/jammy
-     - name: build AdaptiveCpp
-       run: |
+      - name: build AdaptiveCpp
+        run: |
           mkdir build && cd build
           echo ${CXXFLAGS}
           cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
-         make -j2 install
+          make -j2 install

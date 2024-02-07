@@ -57,6 +57,9 @@ jobs:
       - name: package AdaptiveCpp
         run: |
           mkdir debian
-          export EMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
+          export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
+          export DEBFULLNAME="Sanchi Vaishnavi"
+          echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
+          echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
           dch --create -v 23.10.0-1 --package acpp
-          cat debian/changelog
+          sed -i "s/Initial release. .*/Test release/" debian/changelog

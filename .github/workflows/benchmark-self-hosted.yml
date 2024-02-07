@@ -28,7 +28,7 @@ jobs:
         cd sycl-bench
         mkdir build && cd build
         cmake .. -DSYCL_IMPL=hipSYCL -DhipSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/hipSYCL/ -DHIPSYCL_TARGETS=cuda:sm_61
-        make
+        make ${{matrix.sycl_bench_program}}
         
     - name: Run benchmark
       run: |

@@ -3,7 +3,8 @@ name: Package AdaptiveCpp for Ubuntu
 on: [push]
 
 jobs:
-  package_acpp:
+
+  packaging-acpp:
     name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}
     runs-on: ${{matrix.os}}
     strategy:
@@ -15,7 +16,7 @@ jobs:
        with:
          submodules: 'recursive'
      - name: install LLVM
-       run: |    
+       run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.clang}}
@@ -24,7 +25,7 @@ jobs:
       run: |
          sudo apt install libboost-all-dev
     - name: setup build environment
-        run: |
+      run: |
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
@@ -43,6 +44,6 @@ jobs:
       run: |
          mkdir build && cd build
          echo ${CXXFLAGS}
-          
+
          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
          make -j2 install

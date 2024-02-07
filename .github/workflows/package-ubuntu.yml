@@ -40,6 +40,9 @@ jobs:
           echo "CXX=${CXX}" >> $GITHUB_ENV
 
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
+      - name: install cmake
+        run: |
+          sudo apt install cmake
       - name: install packaging helpers
         run: |
           sudo  apt install build-essential

@@ -44,7 +44,7 @@ jobs:
         run: |
           sudo  apt install build-essential
           sudo  apt install devscripts
-          sudo  apt search debhlper
+          sudo  apt install debhelper
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build

@@ -1,0 +1,12 @@
+Source: acpp
+Maintainer: Sanchi Vaishnavi <sanchi.vaishnavi@stud.uni-heidelberg.de>
+Section: misc
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends: debhelper-compat (= 13)
+
+Package: acpp
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Implementation of SYCL and C++ standard parallelism 
+ Implementation of SYCL and C++ standard parallelism for CPUs and GPUs from all vendors. The independent, community-driven compiler for C++-based heterogeneous programming models.

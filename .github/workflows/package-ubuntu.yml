@@ -62,4 +62,3 @@ jobs:
           echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
           echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
           dch --create -v 23.10.0-1 --package acpp
-          sed -i "s/Initial release. .*/Test release/" debian/changelog

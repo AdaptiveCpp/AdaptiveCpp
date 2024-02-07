@@ -221,8 +221,16 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   // Apply configuration
   translator->setS2IRConstant<sycl::sscp::current_backend, int>(
       translator->getBackendId());
-  for(const auto& entry : config.entries()) {
+  for(const auto& entry : config.s2_ir_entries()) {
     translator->setS2IRConstant(entry.get_name(), entry.get_data_buffer());
+  }
+
+  for(const auto& option : config.build_options()) {
+    translator->setBuildOption(option.first, option.second);
+  }
+
+  for(const auto& flag : config.build_flags()) {
+    translator->setBuildFlag(flag);
   }
 
   // Transform code

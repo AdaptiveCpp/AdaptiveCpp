@@ -793,7 +793,7 @@ private:
       this->_operation_uses_reductions = true;
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
-        _kernel_cache->get_global_kernel_name<KernelFuncType>(),
+        typeid(KernelFuncType).name(),
         glue::make_kernel_launchers<KernelName, KernelType>(
             offset, local_range, global_range, shared_mem_size, f,
             reductions...),

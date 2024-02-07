@@ -44,7 +44,7 @@ jobs:
         run: |
           sudo  apt install build-essential
           sudo  apt install devscripts
-          sudo  apt install debhlper/jammy
+          sudo  apt install debhlper
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build

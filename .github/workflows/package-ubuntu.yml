@@ -1,0 +1,48 @@
+name: Package AdaptiveCpp for Ubuntu
+
+on: [push]
+
+jobs:
+  packaging:
+    name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}
+    runs-on: ${{matrix.os}}
+    strategy:
+    matrix:
+      clang: ['17']
+      os: [ubuntu-22.04]
+    steps:
+     - uses: actions/checkout@v2
+       with:
+         submodules: 'recursive'
+     - name: install LLVM
+       run: |    
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{matrix.clang}}
+          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
+    - name: install boost
+      run: |
+         sudo apt install libboost-all-dev
+    - name: setup build environment
+        run: |
+          export CXXFLAGS="$CXXFLAGS"
+          if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
+            export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
+            export CC=clang-${{matrix.clang}}
+            export CXX=clang++-${{matrix.clang}}
+          fi
+          echo "CC=${CC}" >> $GITHUB_ENV
+          echo "CXX=${CXX}" >> $GITHUB_ENV
+          echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
+    - name: install packaging helpers
+      run: |
+         sudo  apt install build-essential
+         sudo  apt install devscripts
+         sudo  apt install debhlper/jammy
+    - name: build AdaptiveCpp
+      run: |
+         mkdir build && cd build
+         echo ${CXXFLAGS}
+          
+         cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
+         make -j2 install

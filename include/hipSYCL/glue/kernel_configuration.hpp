@@ -135,12 +135,12 @@ public:
     _build_flags.push_back(flag);
   }
 
-  template<class KeyT, class ValueT>
-  void append_base_configuration(const KeyT key, const ValueT& value) {
+  template <class ValueT>
+  void append_base_configuration(kernel_base_config_parameter key,
+                                 const ValueT &value) {
     add_entry_to_hash(_base_configuration_result, data_ptr(key), data_size(key),
                       data_ptr(value), data_size(value));
   }
-
 
   template<class KeyT, class ValueT>
   static void extend_hash(id_type& hash, const KeyT& key, const ValueT& value) {

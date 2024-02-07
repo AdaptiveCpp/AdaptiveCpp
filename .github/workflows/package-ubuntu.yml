@@ -59,4 +59,4 @@ jobs:
           mkdir debian
           export EMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
           dch --create -v 23.10.0-1 --package acpp
-          sed -i "s/Initial release. .*/Test release/" debian/changelog
+          cat debian/changelog

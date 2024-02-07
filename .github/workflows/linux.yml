@@ -88,7 +88,7 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
-        cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DWITH_COMPILER_LAUNCHER_TEST=On
         make -j2
     - name: build generic SSCP tests
       if: matrix.clang >= 14
@@ -119,6 +119,12 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+    - name: run compiler launcher test
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        make clean
+        make compiler_launcher_test > output.txt
+        grep "Hello from compiler launcher" output.txt
   test-nvcxx-based:
     name: nvcxx ${{matrix.nvhpc}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}

@@ -54,3 +54,10 @@ jobs:
           cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
 
           make -j2 install
+      - name: package AdaptiveCpp
+        run: |
+          mkdir debian
+          dch --create -v 23.10.0-1 --package acpp
+          sed -i "s/Initial release. .*/Test release/" debian/changelog
+          export DATE=$(date)
+          sed -i "s/-- .*/Sanchi Vaishnavi <sanchi.vaishnavi@stud.uni-heidelberg.de> '$DATE'/" debian/changelog

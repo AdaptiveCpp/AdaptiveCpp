@@ -109,6 +109,8 @@ During stage 2, the `llvm-to-backend` infrastructure is responsible for turning 
 
 For debugging, development, or advanced use cases, each `llvm-to-backend` implementation provides a tool (called `llvm-to-ptx-tool`, `llvm-to-spirv-tool`, ....) that can be invoked to perform the stage 2 compilation step manually.
 
+It is recommended to check the [following talk](https://www.youtube.com/watch?v=LKFYNQ75k8Q) on IWOCL & SYCLcon. The corresponding paper is [here](https://github.com/OpenSYCL/OpenSYCL#citing-open-sycl). 
+
 ## Compiler support to accelerate nd_range parallel_for on CPUs (omp.accelerated)
 
 The `nd_range parallel_for` paradigm is not efficiently implementable without explicit compiler support.

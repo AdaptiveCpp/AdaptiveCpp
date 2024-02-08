@@ -1,13 +1,11 @@
 name: Benchmark on self-hosted runners
 
 on:
-  pull_request:
-    types:
-      - labeled
+  issue_comment
 
 jobs:
   run-benchmark:
-    if: ${{ github.event.label.name == 'benchmark' }}
+    if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/run-benchmark')
     runs-on: [self-hosted, gpu-nvidia]
     strategy:
       matrix:

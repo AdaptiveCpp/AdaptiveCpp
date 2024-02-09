@@ -125,6 +125,7 @@ HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_frexp_f32(float x,
   else {
     __hipsycl_int32 w;
     float res = __ocml_frexp_f32(x, to_private(&w));
+    *y = w;
     return res;
   }
 }

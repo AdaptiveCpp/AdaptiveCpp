@@ -286,6 +286,19 @@ public:
     if(!persistent_cache_lookup(id_of_binary, compiled_binary)){
       if(!jit_compile(compiled_binary))
         return nullptr;
+
+      // Don't need atomic because the function already uses a mutex.
+      static bool first_jit_compilation = true;
+      if(first_jit_compilation) {
+        first_jit_compilation = false;
+        HIPSYCL_DEBUG_WARNING
+            << "kernel_cache: This application run has resulted in new "
+               "binaries being JIT-compiled. This indicates that the runtime "
+               "optimization process has not yet reached peak performance. You "
+               "may want to run the application again until this warning no "
+               "longer appears to achieve optimal performance."
+            << std::endl;
+      }
       persistent_cache_store(id_of_binary, compiled_binary);
     }
     

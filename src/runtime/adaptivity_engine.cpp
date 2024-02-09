@@ -26,7 +26,10 @@
  */
 
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/application.hpp"
+
 
 namespace hipsycl {
 namespace rt {
@@ -58,20 +61,30 @@ kernel_adaptivity_engine::finalize_binary_configuration(
     glue::kernel_configuration &config) {
 
   if(_adaptivity_level > 0) {
+    // Enter single-kernel code model
+    config.append_base_configuration(
+        glue::kernel_base_config_parameter::single_kernel, _kernel_name);
+
+    // Hard-code group sizes into the JIT binary
     config.set_build_option(group_size_build_opt_x,
                             std::to_string(_block_size[0]));
-    config.set_build_option(group_size_build_opt_x,
+    config.set_build_option(group_size_build_opt_y,
                             std::to_string(_block_size[1]));
-    config.set_build_option(group_size_build_opt_x,
+    config.set_build_option(group_size_build_opt_z,
                             std::to_string(_block_size[2]));
   }
 
   return config.generate_id();
 }
 
-std::vector<std::string> kernel_adaptivity_engine::get_target_kernels() {
+std::string kernel_adaptivity_engine::select_image_and_kernels(std::vector<std::string>* kernel_names_out){
   if(_adaptivity_level > 0) {
-    return std::vector{_kernel_name};
+    *kernel_names_out = std::vector{_kernel_name};
+
+    std::vector<std::string> all_kernels_in_image;
+    return  glue::jit::select_image(_kernel_info, &all_kernels_in_image);
+  } else {
+    return glue::jit::select_image(_kernel_info, kernel_names_out);
   }
 }
 

@@ -34,6 +34,7 @@
 
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -561,6 +562,20 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   ze_context_handle_t ctx = hw_ctx->get_ze_context();
   ze_device_handle_t dev = hw_ctx->get_ze_device();
 
+  const hcf_kernel_info *kernel_info =
+      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
+  if(!kernel_info) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
+            kernel_name});
+  }
+
+  kernel_adaptivity_engine adaptivity_engine{
+      hcf_object, kernel_name, kernel_info, num_groups,
+      group_size, args,        arg_sizes,   num_args};
+
+
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
   glue::kernel_configuration config = initial_config;
@@ -574,7 +589,8 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   
   config.set_build_option("spirv-dynamic-local-mem-allocation-size", local_mem_size);
   config.set_build_flag("enable-intel-llvm-spirv-options");
-  auto binary_configuration_id = config.generate_id();
+
+  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
   
   glue::kernel_configuration::extend_hash(
@@ -584,21 +600,12 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       code_object_configuration_id,
       glue::kernel_base_config_parameter::runtime_context, ctx);
 
-  const hcf_kernel_info *kernel_info =
-      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
-  if(!kernel_info) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
-  }
-
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
     std::string selected_image_name =
-        glue::jit::select_image(kernel_info, &kernel_names);
+        adaptivity_engine.select_image_and_kernels(&kernel_names);
 
     // Construct SPIR-V translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 

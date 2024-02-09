@@ -49,7 +49,8 @@ enum class kernel_base_config_parameter : int {
   hcf_object_id = 2,
   target_arch = 3,
   runtime_device = 4,
-  runtime_context = 5
+  runtime_context = 5,
+  single_kernel = 6
 };
 
 class kernel_configuration {

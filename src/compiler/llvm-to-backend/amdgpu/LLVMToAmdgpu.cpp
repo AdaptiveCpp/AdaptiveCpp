@@ -221,6 +221,14 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
       F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
+
+      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+        int FlatGroupSize = KnownGroupSizeX * KnownGroupSizeY * KnownGroupSizeZ;
+        
+        if(!F->hasFnAttribute("amdgpu-flat-work-group-size"))
+          F->addFnAttr("amdgpu-flat-work-group-size",
+                     std::to_string(FlatGroupSize) + "," + std::to_string(FlatGroupSize));
+      }
     }
   }
 

@@ -142,6 +142,27 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       M.getOrInsertNamedMetadata("nvvm.annotations")
           ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 
+      if(KnownGroupSizeX > 0 && KnownGroupSizeY > 0 && KnownGroupSizeZ > 0) {
+
+        llvm::SmallVector<llvm::Metadata*, 7> KnownGroupSizeOperands;
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::get(F));
+        
+        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidx"));
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+
+        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidy"));
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+        
+        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidz"));
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+        
+        M.getOrInsertNamedMetadata("nvvm.annotations")
+          ->addOperand(llvm::MDTuple::get(M.getContext(), KnownGroupSizeOperands));
+      }
+
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
     }
   }

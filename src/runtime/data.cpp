@@ -78,7 +78,7 @@ void data_user_tracker::release_dead_users()
 {
   std::lock_guard<std::mutex> lock{_lock};
   _users.erase(std::remove_if(_users.begin(), _users.end(),
-                              [this](const data_user &user) -> bool {
+                              [](const data_user &user) -> bool {
                                 auto u = user.user.lock();
                                 if (!u)
                                   return true;
@@ -93,20 +93,18 @@ range_store::range_store(range<3> size)
 
 void range_store::add(const rect& r)
 {
-  this->for_each_element_in_range(r, 
-    [this](id<3>, data_state& s){
-      
-    s = data_state::available;
-  });
+  this->for_each_element_in_range(r,
+    [](id<3>, data_state& s){
+      s = data_state::available;
+    });
 }
 
 void range_store::remove(const rect& r)
 {
   this->for_each_element_in_range(r, 
-    [this](id<3>, data_state& s){
-
-    s = data_state::empty;
-  });
+    [](id<3>, data_state& s){
+      s = data_state::empty;
+    });
 }
 
 range<3> range_store::get_size() const

@@ -163,9 +163,9 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
               EI.OriginalByValType, Alloca, llvm::ArrayRef<llvm::Value *>{GEPIndicesRef}, "", BB);
           // Store expanded argument into allocated space
           assert(CurrentNewIndex + j < NewF->getFunctionType()->getNumParams());
-          
+
           auto *StoredVal = NewF->getArg(CurrentNewIndex + j);
-          auto *StoreInst = new llvm::StoreInst(StoredVal, GEPInst, BB);
+          [[maybe_unused]] auto *StoreInst = new llvm::StoreInst(StoredVal, GEPInst, BB);
 
           // Store the indexed offset - runtimes can use this information later
           // when invoking the function.

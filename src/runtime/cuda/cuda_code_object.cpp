@@ -205,7 +205,7 @@ cuda_sscp_executable_object::cuda_sscp_executable_object(
     hcf_object_id hcf_source, const std::vector<std::string> &kernel_names,
     int device, const glue::kernel_configuration &config)
     : _target_arch{target_arch}, _hcf{hcf_source}, _kernel_names{kernel_names},
-      _device{device}, _id{config.generate_id()}, _module{nullptr} {
+      _id{config.generate_id()}, _device{device}, _module{nullptr} {
   _build_result = build(ptx_source);
 }
 

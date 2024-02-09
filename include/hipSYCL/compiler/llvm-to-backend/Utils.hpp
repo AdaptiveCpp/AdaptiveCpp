@@ -156,8 +156,6 @@ public:
     auto* OldFType = F->getFunctionType();
     std::string FunctionName = F->getName().str();
     F->setName(FunctionName+"_PreKernelParameterRewriting");
-    // Make sure old function can be inlined
-    auto OldLinkage = F->getLinkage();
     F->setLinkage(llvm::GlobalValue::InternalLinkage);
 
     llvm::SmallVector<llvm::Type*, 8> Params;
@@ -289,8 +287,7 @@ public:
         assert(CallArgs[i]->getType() == F->getFunctionType()->getParamType(i));
       }
 
-      auto *Call = llvm::CallInst::Create(llvm::FunctionCallee(F), CallArgs,
-                                            "", BB);
+      llvm::CallInst::Create(llvm::FunctionCallee(F), CallArgs, "", BB);
       llvm::ReturnInst::Create(M.getContext(), BB);
 
       if(!F->hasFnAttribute(llvm::Attribute::AlwaysInline))

@@ -1,7 +1,6 @@
 
 set(LLVM_TO_BACKEND_INCLUDE_DIRS 
   ../../../include
-  ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}/include)
 
@@ -25,6 +24,7 @@ function(create_llvm_based_library)
 
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
+  target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
   find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS})
@@ -74,6 +74,7 @@ function(create_llvm_to_backend_tool)
 
   target_include_directories(${target}-tool PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
+  target_include_directories(${target}-tool SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   
   target_compile_definitions(${target}-tool PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_TOOL_COMPONENT)
   target_link_libraries(${target}-tool PRIVATE ${target})

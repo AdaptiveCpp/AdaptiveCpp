@@ -77,7 +77,8 @@ private:
   // Should only be used for flush_async()
   std::mutex _flush_mutex;
 
-  runtime* _rt;
+  // TODO: This is not used anywhere
+  [[maybe_unused]] runtime* _rt;
 };
 
 class dag_build_guard

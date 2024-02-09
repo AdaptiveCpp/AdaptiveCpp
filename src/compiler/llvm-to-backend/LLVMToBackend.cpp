@@ -130,7 +130,7 @@ bool applyKnownGroupSize(llvm::Module &M, PassHandler &PH, int KnownGroupSize,
         llvm::SmallVector<llvm::Value*> CallArgLocalIdLesserGroupSize{LocalIdLesserGroupSize};
         llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLocalIdGreaterEqualZero,
                                             "", NextInst);
-        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLocalIdGreaterEqualZero,
+        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLocalIdLesserGroupSize,
                                             "", NextInst);
       }
     }

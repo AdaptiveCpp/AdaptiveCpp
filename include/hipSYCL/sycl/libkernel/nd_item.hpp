@@ -30,6 +30,7 @@
 
 #include <functional>
 
+#include "backend.hpp"
 #include "id.hpp"
 #include "item.hpp"
 #include "range.hpp"
@@ -67,6 +68,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_id<Dimensions>() + (*_offset);
 #else
+    __hipsycl_if_target_sscp(return detail::get_global_id<Dimensions>() +
+                                        (*_offset););
     return this->_global_id + (*_offset);
 #endif
   }
@@ -77,6 +80,9 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_id<Dimensions>(dimension) + _offset->get(dimension);
 #else
+    __hipsycl_if_target_sscp(
+        return detail::get_global_id<Dimensions>(dimension) +
+                   _offset->get(dimension););
     return this->_global_id[dimension] + (*_offset)[dimension];
 #endif
   }
@@ -106,6 +112,8 @@ struct nd_item
     #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
       return  lhs._offset == rhs._offset;
     #else
+      __hipsycl_if_target_sscp(return lhs._offset == rhs._offset;);
+
       return  lhs._group_id == rhs._group_id &&
               lhs._offset == rhs._offset &&
               lhs._local_id == rhs._local_id &&
@@ -140,6 +148,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(
+        return detail::get_local_id<Dimensions>(dimension););
     return this->_local_id[dimension];
 #endif
   }
@@ -150,6 +160,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(
+      return detail::get_local_id<Dimensions>(););
     return this->_local_id;
 #endif
   }
@@ -182,6 +194,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(
+        return detail::get_group_id<Dimensions>(dimension););
     return this->_group_id[dimension];
 #endif
   }
@@ -193,6 +207,10 @@ struct nd_item
     return detail::linear_id<Dimensions>::get(detail::get_group_id<Dimensions>(),
                                               detail::get_grid_size<Dimensions>());
 #else
+    __hipsycl_if_target_sscp(
+      return detail::linear_id<Dimensions>::get(detail::get_group_id<Dimensions>(),
+                                              detail::get_grid_size<Dimensions>());
+    );
     return detail::linear_id<Dimensions>::get(this->_group_id, this->_num_groups);
 #endif
   }
@@ -209,6 +227,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_global_size<Dimensions>(););
     return this->_num_groups * this->_local_range;
 #endif
   }
@@ -219,6 +238,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(
+        return detail::get_global_size<Dimensions>(dimension););
     return this->_num_groups[dimension] * this->_local_range[dimension];
 #endif
   }
@@ -229,6 +250,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(););
     return this->_local_range;
 #endif
   }
@@ -239,6 +261,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(
+        return detail::get_local_size<Dimensions>(dimension););
     return this->_local_range[dimension];
 #endif
   }
@@ -249,6 +273,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(););
     return this->_num_groups;
 #endif
   }
@@ -259,6 +284,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(dimension););
     return this->_num_groups[dimension];
 #endif
   }
@@ -277,6 +303,9 @@ struct nd_item
                                 detail::get_local_size<Dimensions>(),
                                 get_offset()};
 #else
+    __hipsycl_if_target_sscp(return nd_range<Dimensions>{
+        detail::get_global_size<Dimensions>(),
+        detail::get_local_size<Dimensions>(), get_offset()};);
     return nd_range<Dimensions>{
       this->_num_groups * this->_local_range,
       this->_local_range,

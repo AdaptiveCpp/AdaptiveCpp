@@ -187,8 +187,8 @@ tuningdb::tuningdb() {
 
     char result[PATH_MAX];
     ssize_t num_read = readlink("/proc/self/exe", result, PATH_MAX);
-    if(num_read > 0 && num_read <= PATH_MAX - 1) {
-      result[PATH_MAX - 1] = '\0';
+    if(num_read >= 0 && num_read <= PATH_MAX - 1) {
+      result[num_read] = '\0';
       return std::string{result};
     }
     return std::string{};

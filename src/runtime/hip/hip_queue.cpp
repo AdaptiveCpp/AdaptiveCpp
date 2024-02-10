@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
@@ -609,6 +610,9 @@ result hip_queue::submit_sscp_kernel_from_code_object(
             kernel_name});
   }
 
+  kernel_adaptivity_engine adaptivity_engine{
+      hcf_object, kernel_name, kernel_info, num_groups,
+      group_size, args,        arg_sizes,   num_args};
   
   glue::kernel_configuration config = initial_config;
   config.append_base_configuration(
@@ -621,7 +625,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
   config.set_build_option("amdgpu-target-device", target_arch_name);
   
-  auto binary_configuration_id = config.generate_id();
+  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
   glue::kernel_configuration::extend_hash(
       code_object_configuration_id,
@@ -629,7 +633,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
   auto get_image_and_kernel_names =
       [&](std::vector<std::string> &contained_kernels) -> std::string {
-    return glue::jit::select_image(kernel_info, &contained_kernels);
+    return adaptivity_engine.select_image_and_kernels(&contained_kernels);
   };
 
   auto jit_compiler = [&](std::string& compiled_image) -> bool {

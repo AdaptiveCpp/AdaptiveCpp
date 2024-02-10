@@ -199,7 +199,14 @@ protected:
   void registerError(const std::string& E) {
     Errors.push_back(E);
   }
+
+  // These will be non-zero if work group sizes are known at jit time.
+  // Backends should check these values for being != 0 before using them.
+  int KnownGroupSizeX = 0;
+  int KnownGroupSizeY = 0;
+  int KnownGroupSizeZ = 0;
 private:
+  bool optimizeForKnownGroupSizes(llvm::Module& M, PassHandler& PH);
 
   void resolveExternalSymbols(llvm::Module& M);
   void setFailedIR(llvm::Module& M);
@@ -213,6 +220,7 @@ private:
 
   // In case an error occurs, the code will be stored here
   std::string ErroringCode;
+
 };
 
 }

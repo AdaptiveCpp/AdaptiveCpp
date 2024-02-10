@@ -36,6 +36,7 @@ add_library(acpp-rt SHARED
   dag_manager.cpp
   dag_submitted_ops.cpp
   settings.cpp
+  adaptivity_engine.cpp
   generic/async_worker.cpp
   hw_model/memcpy.cpp
   serialization/serialization.cpp)

@@ -869,13 +869,16 @@ class acpp_config:
   @property
   def default_clang_optimization_args(self):
     has_ffp_contract = False
+    has_fast_math = False
     opt_level = 0
     opt_args = []
 
     for arg in self._args:
-      if arg.startswith("-ffp-contract="):
+      if arg == "-ffast-math":
+        has_fast_math = True
+      elif arg.startswith("-ffp-contract="):
         has_ffp_contract = True
-      if arg.startswith("-O"):
+      elif arg.startswith("-O"):
         ending = arg.replace("-O", "", 1)
         if ending.isnumeric():
           opt_level = int(ending)
@@ -885,7 +888,7 @@ class acpp_config:
           opt_level = 1
 
     if opt_level > 1:
-      if not has_ffp_contract:
+      if not has_fast_math and not has_ffp_contract:
         opt_args.append("-ffp-contract=fast")
 
     return opt_args

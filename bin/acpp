@@ -1665,7 +1665,10 @@ class compiler:
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
     self._clang_opt_args = config.default_clang_optimization_args
-    self._clang_path = config.clang_path
+    try:
+      self._clang_path = config.clang_path
+    except OptionNotSet:
+      self._clang_path = None
 
     try:
       self._stdpar_prefetch_mode = config.stdpar_prefetch_mode

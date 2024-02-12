@@ -319,10 +319,13 @@ bool LLVMToPtxTranslator::applyBuildOption(const std::string &Option, const std:
 bool LLVMToPtxTranslator::applyBuildFlag(const std::string& Option) {
   if(Option == "ftz") {
     this->FlushDenormalsToZero = 1;
+    return true;
   } else if(Option == "approx-div") {
     this->PreciseDiv = 0;
+    return true;
   } else if(Option == "approx-sqrt") {
     this->PreciseSqrt = 0;
+    return true;
   }
   return false;
 }

@@ -103,6 +103,42 @@ private:
   bool IsFound;
 };
 
+void setFTZMode(llvm::Module& M, int Mode) {
+  
+  llvm::SmallVector<llvm::Metadata*, 4> Metadata;
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 4)));
+  Metadata.push_back(llvm::MDString::get(M.getContext(), "nvvm-reflect-ftz"));
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), Mode)));
+
+  M.getModuleFlagsMetadata()->addOperand(llvm::MDTuple::get(M.getContext(), Metadata));
+}
+
+void setPrecDiv(llvm::Module& M, int Mode) {
+  
+  llvm::SmallVector<llvm::Metadata*, 4> Metadata;
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 4)));
+  Metadata.push_back(llvm::MDString::get(M.getContext(), "nvvm-prec-div"));
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), Mode)));
+
+  M.getModuleFlagsMetadata()->addOperand(llvm::MDTuple::get(M.getContext(), Metadata));
+}
+
+void setPrecSqrt(llvm::Module& M, int Mode) {
+  
+  llvm::SmallVector<llvm::Metadata*, 4> Metadata;
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 4)));
+  Metadata.push_back(llvm::MDString::get(M.getContext(), "nvvm-prec-sqrt"));
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), Mode)));
+
+  M.getModuleFlagsMetadata()->addOperand(llvm::MDTuple::get(M.getContext(), Metadata));
+}
+
 }
 
 LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
@@ -117,6 +153,10 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   M.setTargetTriple(Triple);
   M.setDataLayout(DataLayout);
+
+  setFTZMode(M, FlushDenormalsToZero);
+  setPrecDiv(M, PreciseDiv);
+  setPrecSqrt(M, PreciseSqrt);
 
   AddressSpaceMap ASMap = getAddressSpaceMap();
   
@@ -273,6 +313,20 @@ bool LLVMToPtxTranslator::applyBuildOption(const std::string &Option, const std:
     return true;
   }
 
+  return false;
+}
+
+bool LLVMToPtxTranslator::applyBuildFlag(const std::string& Option) {
+  if(Option == "ftz") {
+    this->FlushDenormalsToZero = 1;
+    return true;
+  } else if(Option == "approx-div") {
+    this->PreciseDiv = 0;
+    return true;
+  } else if(Option == "approx-sqrt") {
+    this->PreciseSqrt = 0;
+    return true;
+  }
   return false;
 }
 

@@ -191,4 +191,18 @@ if(WITH_SSCP_COMPILER)
     endif()
 
   endif()
+
+
+  if(WITH_LLVM_TO_CPU)
+    add_hipsycl_llvm_backend(
+      BACKEND cpu
+      LIBRARY cpu/LLVMToCpu.cpp cpu/HostKernelWrapperPass.cpp
+      TOOL cpu/LLVMToCpuTool.cpp)
+
+    target_compile_definitions(llvm-to-cpu PRIVATE
+      -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
+      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}")
+    target_link_libraries(llvm-to-cpu PRIVATE acpp-clang-cbs)
+  endif()
+
 endif()

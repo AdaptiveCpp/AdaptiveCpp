@@ -35,6 +35,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Metadata.h>
 
 std::basic_ostream<char> &operator<<(std::basic_ostream<char> &Ost, const llvm::StringRef &StrRef) {
   return Ost << StrRef.begin();
@@ -55,6 +56,16 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
       HIPSYCL_DEBUG_INFO << "Found kernel annotated function " << F->getName() << "\n";
     }
   });
+
+  if (auto MD = M.getNamedMetadata(SSCPAnnotations))
+    for (auto OP : MD->operands()) {
+      if (OP->getNumOperands() == 3 &&
+          llvm::cast<llvm::MDString>(OP->getOperand(1))->getString() == SSCPKernelMD &&
+          llvm::cast<llvm::ConstantInt>(
+              llvm::cast<llvm::ConstantAsMetadata>(OP->getOperand(2))->getValue())
+                  ->getZExtValue() == 1)
+        NDKernels.insert(llvm::cast<llvm::Function>(llvm::cast<llvm::ValueAsMetadata>(OP->getOperand(0))->getValue()));
+    }
   return false;
 }
 

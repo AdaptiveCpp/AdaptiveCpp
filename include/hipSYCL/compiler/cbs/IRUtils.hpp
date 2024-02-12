@@ -55,6 +55,24 @@ static constexpr const char LocalIdGlobalNameZ[] = "__hipsycl_local_id_z";
 static const std::array<const char *, 3> LocalIdGlobalNames{LocalIdGlobalNameX, LocalIdGlobalNameY,
                                                             LocalIdGlobalNameZ};
 
+static constexpr const char LocalSizeGlobalNameX[] = "__hipsycl_local_size_x";
+static constexpr const char LocalSizeGlobalNameY[] = "__hipsycl_local_size_y";
+static constexpr const char LocalSizeGlobalNameZ[] = "__hipsycl_local_size_z";
+static const std::array<const char *, 3> LocalSizeGlobalNames{
+    LocalSizeGlobalNameX, LocalSizeGlobalNameY, LocalSizeGlobalNameZ};
+
+static constexpr const char GroupIdGlobalNameX[] = "__hipsycl_group_id_x";
+static constexpr const char GroupIdGlobalNameY[] = "__hipsycl_group_id_y";
+static constexpr const char GroupIdGlobalNameZ[] = "__hipsycl_group_id_z";
+static const std::array<const char *, 3> GroupIdGlobalNames{GroupIdGlobalNameX, GroupIdGlobalNameY,
+                                                            GroupIdGlobalNameZ};
+
+static constexpr const char NumGroupsGlobalNameX[] = "__hipsycl_num_groups_x";
+static constexpr const char NumGroupsGlobalNameY[] = "__hipsycl_num_groups_y";
+static constexpr const char NumGroupsGlobalNameZ[] = "__hipsycl_num_groups_z";
+static const std::array<const char *, 3> NumGroupsGlobalNames{
+    NumGroupsGlobalNameX, NumGroupsGlobalNameY, NumGroupsGlobalNameZ};
+
 class SplitterAnnotationInfo;
 
 namespace utils {

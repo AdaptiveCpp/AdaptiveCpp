@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay and contributors
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_S2_IR_CONSTANTS_HPP
-#define HIPSYCL_S2_IR_CONSTANTS_HPP
+#include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
+#include "hipSYCL/sycl/libkernel/host/builtins.hpp"
 
-/// \brief This file contains S2 IR constant definitions that may
-/// be shared across the hipSYCL compiler code. 
-///
-/// As such, no undefined globals should be pulled into this file.
-///
-/// Unlike Stage 1 IR constants, Stage 2 IR constants can be constructed
-/// programmatically by the user.
+using namespace hipsycl::sycl::detail::host_builtins;
 
-// S2 IR constants can be identified from their usage of
-// __hipsycl_sscp_s2_ir_constant
-template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
-  static ValueT get(ValueT default_value) noexcept;
+#define HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(name)                                \
+  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f32(float x) {  \
+    return __hipsycl_##name(x);                                             \
+  }                                                                            \
+  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f64(double x) { \
+    return __hipsycl_##name(x);                                             \
+  }
+  
+HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isnan)
 
-  using value_type = ValueT;
-};
+HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isinf)
 
+HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isfinite)
 
-namespace hipsycl::glue::sscp {
-  struct ir_constant_name {};
-}
+HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isnormal)
 
-namespace hipsycl::sycl::sscp {
-
-namespace backend {
-
-inline constexpr int spirv = 0;
-inline constexpr int ptx = 1;
-inline constexpr int amdgpu = 2;
-inline constexpr int cpu = 2;
-
-}
-
-constexpr glue::sscp::ir_constant_name current_backend;
-
-}
-
-#endif
+HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(signbit)

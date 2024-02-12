@@ -36,10 +36,12 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/ADT/StringRef.h>
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Dominators.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instructions.h>
@@ -60,6 +62,15 @@ namespace {
 using namespace hipsycl::compiler;
 
 static const std::array<char, 3> DimName{'x', 'y', 'z'};
+
+// FIXME: don't match the names, use compilation option to distinguish modes or sth
+bool isSscpKernel(llvm::Function &F) {
+  return F.getName().contains("__sscp_dispatch");
+}
+
+bool isSscpSingleTask(llvm::Function &F) {
+  return F.getName().contains("__sscp_dispatch11single_task");
+}
 
 // gets the load inside F from the global variable called VarName
 llvm::Instruction *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName) {
@@ -83,6 +94,9 @@ std::size_t getRangeDim(llvm::Function &F) {
   // todo: fix with MS mangling
   llvm::Regex Rgx("iterate_nd_range_ompILi([1-3])E");
   llvm::SmallVector<llvm::StringRef, 4> Matches;
+  if (Rgx.match(FName, &Matches))
+    return std::stoull(static_cast<std::string>(Matches[1]));
+  Rgx = llvm::Regex("Li([1-3])EEEEvRKT_$");
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));
   llvm_unreachable("[SubCFG] Could not deduce kernel dimensionality!");
@@ -176,6 +190,13 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
 
 // get the wg size values for the loop bounds
 llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Dim) {
+  if(isSscpKernel(F)){
+    llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
+    for(int I = 0; I < Dim; ++I)
+      LocalSize[I] = getLoadForGlobalVariable(F, LocalSizeGlobalNames[I]);
+    return LocalSize;
+  }
+
   auto &DL = F.getParent()->getDataLayout();
   auto [LocalSizeArg, Annotation] = getLocalSizeArgumentFromAnnotation(F);
 
@@ -1252,12 +1273,14 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
 
   llvm::SmallVector<llvm::BasicBlock *, 4> ExitBBs;
   llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(F.getContext(), "exit", &F);
-  llvm::ReturnInst::Create(F.getContext(), ExitBB);
+  llvm::IRBuilder<> Bld{ExitBB};
+  Bld.CreateRetVoid();
   for (auto &BB : F) {
     if (BB.getTerminator()->getNumSuccessors() == 0 &&
         !llvm::isa<llvm::UnreachableInst>(BB.getTerminator()) && &BB != ExitBB) {
       auto *oldTerm = BB.getTerminator();
-      llvm::BranchInst::Create(ExitBB, &BB);
+      Bld.SetInsertPoint(oldTerm);
+      Bld.CreateBr(ExitBB);
       oldTerm->eraseFromParent();
     }
   }
@@ -1309,7 +1332,7 @@ void SubCfgFormationPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const 
 bool SubCfgFormationPassLegacy::runOnFunction(llvm::Function &F) {
   auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  if (!SAA.isKernelFunc(&F))
+  if (!SAA.isKernelFunc(&F) || isSscpSingleTask(F))
     return false;
 
   HIPSYCL_DEBUG_INFO << "[SubCFG] Form SubCFGs in " << F.getName() << "\n";
@@ -1332,7 +1355,7 @@ llvm::PreservedAnalyses SubCfgFormationPass::run(llvm::Function &F,
                                                  llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   auto *SAA = MAM.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
-  if (!SAA || !SAA->isKernelFunc(&F))
+  if (!SAA || !SAA->isKernelFunc(&F) || isSscpSingleTask(F))
     return llvm::PreservedAnalyses::all();
 
   HIPSYCL_DEBUG_INFO << "[SubCFG] Form SubCFGs in " << F.getName() << "\n";

@@ -48,6 +48,6 @@ using OptLevel = llvm::PassBuilder::OptimizationLevel;
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM);
 
 // build the CBS pipeline for the new PM
-void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt);
+void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp);
 } // namespace hipsycl::compiler
 #endif // HIPSYCL_PIPELINEBUILDER_HPP

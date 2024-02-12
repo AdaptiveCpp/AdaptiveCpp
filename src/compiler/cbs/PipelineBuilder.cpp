@@ -38,6 +38,7 @@
 #include "hipSYCL/compiler/cbs/SimplifyKernel.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/cpu/HostKernelWrapperPass.hpp"
 
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/SCCP.h>
@@ -74,7 +75,7 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 #define IS_ROCM_CLANG_VERSION_5_5_0
 #endif
 
-void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
+void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp) {
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;
@@ -107,6 +108,8 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   FPM.addPass(llvm::LoopSimplifyPass{});
 
   FPM.addPass(CanonicalizeBarriersPass{});
+  if (IsSscp)
+    FPM.addPass(KernelFlatteningPass{});
   FPM.addPass(SubCfgFormationPass{});
   FPM.addPass(RemoveBarrierCallsPass{});
 
@@ -114,6 +117,8 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
     FPM.addPass(KernelFlatteningPass{});
   if (Opt != OptLevel::O0)
     FPM.addPass(LoopsParallelMarkerPass{});
+  if (IsSscp)
+    FPM.addPass(HostKernelWrapperPass{});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }
 

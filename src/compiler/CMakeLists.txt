@@ -36,6 +36,12 @@ else()
   set(CBS_PLUGIN "")
 endif()
 
+add_library(acpp-clang-cbs OBJECT
+  ${CBS_PLUGIN}
+)
+
+set_property(TARGET acpp-clang-cbs PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 if(WITH_SSCP_COMPILER)
   set(WITH_REFLECTION_BUILTINS ON)
   set(SSCP_COMPILER 
@@ -71,52 +77,76 @@ endif()
 add_library(acpp-clang SHARED
   AdaptiveCppClangPlugin.cpp
   GlobalsPruningPass.cpp
-  ${CBS_PLUGIN}
   ${SSCP_COMPILER}
   ${STDPAR_COMPILER}
   ${REFLECTION_BUILTINS}
 )
 
-target_include_directories(acpp-clang PRIVATE
-  ../../include
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}/include)
-target_include_directories(acpp-clang SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+function(configure_target)
+  set(options)
+  set(one_value_keywords TARGET)
+  set(multi_value_keywords)
+  cmake_parse_arguments(CONFIGURE_LLVM_TARGET
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
 
-target_compile_definitions(acpp-clang PRIVATE
-  ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
+  set(target ${CONFIGURE_LLVM_TARGET_TARGET})
 
-if(ROCM_VERSION_MAJOR)
-  target_compile_definitions(acpp-clang PRIVATE -DROCM_CLANG_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DROCM_CLANG_VERSION_MINOR=${ROCM_VERSION_MINOR} -DROCM_CLANG_VERSION_PATCH=${ROCM_VERSION_PATCH})
-endif()
-if(HIPSYCL_NO_DEVICE_MANGLER)
-  target_compile_definitions(acpp-clang PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
-endif()
+  target_include_directories(${target} PRIVATE
+    ../../include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_BINARY_DIR}/include)
+  target_include_directories(acpp-clang SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
-if(NOT ${LLVM_ENABLE_EH})
-  target_compile_options(acpp-clang PRIVATE -fno-exceptions)
-endif()
+  target_compile_definitions(${target} PRIVATE
+    ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
 
-if(NOT ${LLVM_ENABLE_RTTI})
-  target_compile_options(acpp-clang PRIVATE -fno-rtti)
-endif()
+  if(ROCM_VERSION_MAJOR)
+    target_compile_definitions(${target} PRIVATE -DROCM_CLANG_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DROCM_CLANG_VERSION_MINOR=${ROCM_VERSION_MINOR} -DROCM_CLANG_VERSION_PATCH=${ROCM_VERSION_PATCH})
+  endif()
+  if(HIPSYCL_NO_DEVICE_MANGLER)
+    target_compile_definitions(${target} PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
+  endif()
 
-target_link_libraries(acpp-clang
-  ${LLVM_LIBS})
+  if(NOT ${LLVM_ENABLE_EH})
+    target_compile_options(${target} PRIVATE -fno-exceptions)
+  endif()
+
+  if(NOT ${LLVM_ENABLE_RTTI})
+    target_compile_options(${target} PRIVATE -fno-rtti)
+  endif()
+
+  target_link_libraries(${target}
+    ${LLVM_LIBS})
+
+  if(WIN32)
+    set(CLANG_LIBRARY_DIR ${LLVM_PREFIX_DIR}/lib/)
+    target_link_directories(${target} PRIVATE ${CLANG_LIBRARY_DIR})
+    target_link_libraries(${target} clang LLVMSupport)
+  endif()
+
+  install(TARGETS ${target}
+          LIBRARY DESTINATION lib
+          RUNTIME DESTINATION bin
+          ARCHIVE DESTINATION lib)
+endfunction(configure_target)
+
+configure_target(TARGET acpp-clang)
+configure_target(TARGET acpp-clang-cbs)
+
+target_link_libraries(acpp-clang acpp-clang-cbs)
+
+
 if(APPLE)
   target_link_libraries(acpp-clang -Wl,-undefined -Wl,dynamic_lookup)
 elseif(WIN32)
-  set(CLANG_LIBRARY_DIR ${LLVM_PREFIX_DIR}/lib/)
-  target_link_directories(acpp-clang PRIVATE ${CLANG_LIBRARY_DIR})
-  target_link_libraries(acpp-clang clang LLVMSupport)
   set_target_properties(acpp-clang PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
 else()
   target_link_libraries(acpp-clang -Wl,-znodelete)
 endif()
 
-install(TARGETS acpp-clang
-        LIBRARY DESTINATION lib
-        RUNTIME DESTINATION bin
-        ARCHIVE DESTINATION lib)
 
 add_subdirectory(llvm-to-backend)

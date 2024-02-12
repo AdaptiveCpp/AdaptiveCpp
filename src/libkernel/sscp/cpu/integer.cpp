@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay and contributors
+ * Copyright (c) 2018-2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_S2_IR_CONSTANTS_HPP
-#define HIPSYCL_S2_IR_CONSTANTS_HPP
 
-/// \brief This file contains S2 IR constant definitions that may
-/// be shared across the hipSYCL compiler code. 
-///
-/// As such, no undefined globals should be pulled into this file.
-///
-/// Unlike Stage 1 IR constants, Stage 2 IR constants can be constructed
-/// programmatically by the user.
+#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
+#include "hipSYCL/sycl/libkernel/host/builtins.hpp"
 
-// S2 IR constants can be identified from their usage of
-// __hipsycl_sscp_s2_ir_constant
-template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
-  static ValueT get(ValueT default_value) noexcept;
-
-  using value_type = ValueT;
-};
-
-
-namespace hipsycl::glue::sscp {
-  struct ir_constant_name {};
+using namespace hipsycl::sycl::detail::host_builtins;
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
+  return __hipsycl_mul24(a, b);
 }
 
-namespace hipsycl::sycl::sscp {
-
-namespace backend {
-
-inline constexpr int spirv = 0;
-inline constexpr int ptx = 1;
-inline constexpr int amdgpu = 2;
-inline constexpr int cpu = 2;
-
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
+  return __hipsycl_mul24(a, b);
 }
 
-constexpr glue::sscp::ir_constant_name current_backend;
-
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_clz_u8(__hipsycl_uint8 a){
+  return __hipsycl_clz(a);
 }
-
-#endif
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_clz_u16(__hipsycl_uint16 a){
+  return __hipsycl_clz(a);
+}
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_clz_u32(__hipsycl_uint32 a){
+  return __hipsycl_clz(a);
+}	
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_clz_u64(__hipsycl_uint64 a){
+  return __hipsycl_clz(a);
+}

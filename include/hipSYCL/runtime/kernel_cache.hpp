@@ -114,12 +114,21 @@ public:
 
   const std::vector<std::string> &get_images_containing_kernel() const;
   hcf_object_id get_hcf_object_id() const;
+
+  const std::vector<std::string>& get_compilation_flags() const;
+  const std::vector<std::pair<std::string, std::string>> &
+  get_compilation_options() const;
+
 private:
   std::vector<std::size_t> _arg_offsets;
   std::vector<std::size_t> _arg_sizes;
   std::vector<std::size_t> _original_arg_indices;
   std::vector<argument_type> _arg_types;
   std::vector<std::string> _image_providers;
+  
+  std::vector<std::string> _compilation_flags;
+  std::vector<std::pair<std::string, std::string>> _compilation_options;
+
   hcf_object_id _id;
   bool _parsing_successful = false;
 };

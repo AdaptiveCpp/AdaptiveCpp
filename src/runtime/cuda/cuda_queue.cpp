@@ -618,6 +618,10 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
   
+  for(const auto& flag : kernel_info->get_compilation_flags())
+    config.set_build_flag(flag);
+  for(const auto& opt : kernel_info->get_compilation_options())
+    config.set_build_option(opt.first, opt.second);
   // TODO This is incorrect, we should attempt to find a better way to determine
   // the right ptx version
   config.set_build_option("ptx-version", compute_capability);

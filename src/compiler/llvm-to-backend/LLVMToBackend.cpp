@@ -137,6 +137,21 @@ bool applyKnownGroupSize(llvm::Module &M, PassHandler &PH, int KnownGroupSize,
   }
   return true;
 }
+
+void setFastMathFunctionAttribs(llvm::Module& M) {
+  for(auto& F : M) {
+    if(!F.isIntrinsic()) {
+      F.addFnAttr("approx-func-fp-math","true");
+      F.addFnAttr("denormal-fp-math","preserve-sign,preserve-sign");
+      F.addFnAttr("no-infs-fp-math","true");
+      F.addFnAttr("no-nans-fp-math","true");
+      F.addFnAttr("no-signed-zeros-fp-math","true");
+      F.addFnAttr("no-trapping-math","true");
+      F.addFnAttr("unsafe-fp-math","true");
+    }
+  }
+}
+
 }
 
 LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
@@ -145,6 +160,12 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
 
 bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
+
+  if(Flag == "fast-math") {
+    IsFastMath = true;
+    return true;
+  }
+
   return applyBuildFlag(Flag);
 }
 
@@ -286,7 +307,9 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     if(FlavoringSuccessful) {
       // Run optimizations
       HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing flavored IR...\n";
-
+      
+      if(IsFastMath)
+        setFastMathFunctionAttribs(M);
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
 
       if(!OptimizationSuccessful) {

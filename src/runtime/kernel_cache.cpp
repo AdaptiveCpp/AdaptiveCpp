@@ -111,6 +111,17 @@ hcf_kernel_info::hcf_kernel_info(
     _original_arg_indices.push_back(arg_original_index);
   }
 
+  if(const auto* flags_node = kernel_node->get_subnode("compile-flags")) {
+    for(const auto& flag : flags_node->key_value_pairs) {
+      _compilation_flags.push_back(flag.first);
+    }
+  }
+  if(const auto* options_node = kernel_node->get_subnode("compile-options")) {
+    for(const auto& flag : options_node->key_value_pairs) {
+      _compilation_flags.push_back(flag.first);
+    }
+  }
+
   _parsing_successful = true;
 }
 
@@ -146,6 +157,15 @@ hcf_kernel_info::get_images_containing_kernel() const {
 
 hcf_object_id hcf_kernel_info::get_hcf_object_id() const {
   return _id;
+}
+
+const std::vector<std::string> &hcf_kernel_info::get_compilation_flags() const {
+  return _compilation_flags;
+}
+
+const std::vector<std::pair<std::string, std::string>> &
+hcf_kernel_info::get_compilation_options() const {
+  return _compilation_options;
 }
 
 const std::string& hcf_image_info::get_format() const {

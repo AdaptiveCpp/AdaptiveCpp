@@ -287,10 +287,8 @@ public:
       if(!jit_compile(compiled_binary))
         return nullptr;
 
-      // Don't need atomic because the function already uses a mutex.
-      static bool first_jit_compilation = true;
-      if(first_jit_compilation) {
-        first_jit_compilation = false;
+      if(_is_first_jit_compilation) {
+        _is_first_jit_compilation = false;
         HIPSYCL_DEBUG_WARNING
             << "kernel_cache: This application run has resulted in new "
                "binaries being JIT-compiled. This indicates that the runtime "
@@ -341,6 +339,8 @@ private:
 
   std::unordered_map<code_object_id, code_object_ptr, glue::kernel_id_hash>
       _code_objects;
+  
+  bool _is_first_jit_compilation = true;
 };
 
 namespace detail {

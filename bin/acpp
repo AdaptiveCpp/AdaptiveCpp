@@ -2009,7 +2009,7 @@ class compiler:
 
 def print_config(config):
   config_db = config.config_db
-  print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
+  print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")
   for k in config_db.keys:
     v = "(unconfigured)"
     try:

@@ -57,7 +57,7 @@ endif()
 
 project(hipSYCL VERSION ${ACPP_VERSION_MAJOR}.${ACPP_VERSION_MINOR}.${ACPP_VERSION_PATCH})
 
-set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
+
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -220,7 +220,7 @@ if(BUILD_CLANG_PLUGIN)
   get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
   get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
   # The path to the internal clang includes is currently required on ROCm
-  # to let syclcc-clang fix a wrong order of system includes (clang's internal 
+  # to let acpp fix a wrong order of system includes (clang's internal 
   # includes are not of high enough priority in the include path search order).
   # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
   # which is a clang-specific header file.

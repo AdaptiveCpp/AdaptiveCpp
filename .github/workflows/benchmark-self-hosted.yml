@@ -38,7 +38,7 @@ jobs:
         mkdir benchmarks
         for benchmark in $SYCL_BENCH_BENCHMARKS; do cp ../build/$benchmark ./benchmarks/$benchmark; done
         ./run-suite gpu-warmup
-        ${GITHUB_WORKSPACE}/devops/sycl-bench_to_json.py sycl-bench.csv
+        ${GITHUB_WORKSPACE}/devops/sycl-bench_to_json.py sycl-bench.csv | tee output.json
 
     - name: Download previous benchmark data
       uses: actions/cache@v4

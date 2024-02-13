@@ -37,5 +37,4 @@ with open(sys.argv[1], newline='') as csvfile:
     
         benchmarks.append(benchmark)
     
-    with open("output.json", "w") as outfile:
-        json.dump(benchmarks, outfile, indent=2)
+    json.dumps(benchmarks, indent=2)

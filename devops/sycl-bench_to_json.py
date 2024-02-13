@@ -28,7 +28,7 @@ with open(sys.argv[1], newline='') as csvfile:
     for row in reader:
         if row[0][0] == '#':
             continue
-        
+
         benchmark = dict()
         benchmark['name']  = row[0]
         benchmark['unit']  = 's'
@@ -37,4 +37,5 @@ with open(sys.argv[1], newline='') as csvfile:
     
         benchmarks.append(benchmark)
     
-    json.dumps(benchmarks, indent=2)
+    with open("output.json", "w") as outfile:
+        json.dump(benchmarks, outfile, indent=2)

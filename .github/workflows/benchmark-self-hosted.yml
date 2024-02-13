@@ -3,6 +3,9 @@ name: Benchmark on self-hosted runners
 on:
   issue_comment
 
+env:
+  SYCL_BENCH_BENCHMARKS: scalar_prod 2DConvolution
+
 jobs:
   run-benchmark:
     if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/run-benchmark')
@@ -11,7 +14,6 @@ jobs:
       matrix:
         clang_version: ['15']
         cuda: ['11.0']
-        sycl_bench_program: ['scalar_prod', '2DConvolution']
     steps:
     - uses: actions/checkout@v4
     - name: Build AdaptiveCpp
@@ -26,12 +28,15 @@ jobs:
         cd sycl-bench
         mkdir build && cd build
         cmake .. -DSYCL_IMPL=hipSYCL -DhipSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/hipSYCL/ -DHIPSYCL_TARGETS=cuda:sm_61
-        make ${{matrix.sycl_bench_program}}
+        make $BENCHMARKS
         
-    - name: Run benchmark
+    - name: Run SYCL-Bench
       run: |
-        cd sycl-bench/build
-        python3 ${GITHUB_WORKSPACE}/devops/sycl-bench_to_json.py ${GITHUB_WORKSPACE}/sycl-bench/build/${{matrix.sycl_bench_program}} | tee ${GITHUB_WORKSPACE}/output.json
+        cd sycl-bench/bin
+        mkdir benchmarks
+        for benchmark in $SYCL_BENCH_BENCHMARKS; do cp ../build/$benchmark ./benchmarks/$benchmark; done
+        ./run-suite gpu-warmup
+        ${GITHUB_WORKSPACE}/devops/sycl-bench_to_json.py sycl-bench.csv
 
     - name: Download previous benchmark data
       uses: actions/cache@v4
@@ -42,7 +47,7 @@ jobs:
     - name: Store new result
       uses: benchmark-action/github-action-benchmark@v1
       with:
-        name: sycl-bench ${{matrix.sycl_bench_program}} benchmark
+        name: SYCL-Bench benchmark
         tool: customSmallerIsBetter
         output-file-path: output.json
         external-data-json-path: ./cache/benchmark-data.json

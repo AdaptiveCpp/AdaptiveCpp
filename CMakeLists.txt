@@ -333,6 +333,12 @@ endif()
 
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
 
+##########################################################
+## Do not define any variables that might be used by build
+## targets below this line.
+##########################################################
+add_subdirectory(src)
+
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 
@@ -467,12 +473,6 @@ if(NOT DEFAULT_TARGETS)
 endif()
 
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
-
-##########################################################
-## Do not define any variables that might be used by build
-## targets below this line.
-##########################################################
-add_subdirectory(src)
 
 
 set(ACPP_CORE_CONFIG_FILE "{

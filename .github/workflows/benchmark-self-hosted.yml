@@ -1,14 +1,16 @@
 name: Benchmark on self-hosted runners
 
 on:
-  issue_comment
+  pull_request:
+    types:
+      - labeled
 
 env:
   SYCL_BENCH_BENCHMARKS: scalar_prod 2DConvolution
 
 jobs:
   run-benchmark:
-    if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/run-benchmark')
+    if: (${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/run-benchmark')) || ${{ github.event.label.name == 'benchmark' }}
     runs-on: [self-hosted, gpu-nvidia]
     strategy:
       matrix:
@@ -28,7 +30,7 @@ jobs:
         cd sycl-bench
         mkdir build && cd build
         cmake .. -DSYCL_IMPL=hipSYCL -DhipSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/hipSYCL/ -DHIPSYCL_TARGETS=cuda:sm_61
-        make $BENCHMARKS
+        make $SYCL_BENCH_BENCHMARKS
         
     - name: Run SYCL-Bench
       run: |

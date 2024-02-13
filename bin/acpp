@@ -865,6 +865,34 @@ class acpp_config:
   def common_compiler_args(self):
     return self._common_compiler_args
 
+
+  @property
+  def default_clang_optimization_args(self):
+    has_ffp_contract = False
+    has_fast_math = False
+    opt_level = 0
+    opt_args = []
+
+    for arg in self._args:
+      if arg == "-ffast-math":
+        has_fast_math = True
+      elif arg.startswith("-ffp-contract="):
+        has_ffp_contract = True
+      elif arg.startswith("-O"):
+        ending = arg.replace("-O", "", 1)
+        if ending.isnumeric():
+          opt_level = int(ending)
+        elif ending == "fast":
+          opt_level = 3
+        else:
+          opt_level = 1
+
+    if opt_level > 1:
+      if not has_fast_math and not has_ffp_contract:
+        opt_args.append("-ffp-contract=fast")
+
+    return opt_args
+
   @property
   def acpp_include_path(self):
     return os.path.join(self.acpp_installation_path, "include", "AdaptiveCpp")
@@ -1639,6 +1667,12 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    self._clang_opt_args = config.default_clang_optimization_args
+    try:
+      self._clang_path = config.clang_path
+    except OptionNotSet:
+      self._clang_path = None
+
     try:
       self._stdpar_prefetch_mode = config.stdpar_prefetch_mode
     except OptionNotSet:
@@ -1941,6 +1975,9 @@ class compiler:
     cxx_flags = self.common_cxx_flags
     ld_flags = self.common_linker_flags
     compiler_executable = self._host_compiler
+
+    if compiler_executable == self._clang_path:
+      cxx_flags += self._clang_opt_args
 
     for backend_args in self._backends:
       cxx_flags += backend_args.get_cxx_flags()

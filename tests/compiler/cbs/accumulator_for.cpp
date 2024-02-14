@@ -1,6 +1,6 @@
-// RUN: %acpp %s -o %t --acpp-targets=generic --acpp-use-accelerated-cpu
+// RUN: %acpp %s -o %t --acpp-targets=omp --acpp-use-accelerated-cpu
 // RUN: %t | FileCheck %s
-// RUN: %acpp %s -o %t --acpp-targets=generic --acpp-use-accelerated-cpu -O
+// RUN: %acpp %s -o %t --acpp-targets=omp --acpp-use-accelerated-cpu -O
 // RUN: %t | FileCheck %s
 
 #include <array>

@@ -84,14 +84,18 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
   llvm::IRBuilder<> Bld(&F.getEntryBlock());
 
   auto SizeT = M->getDataLayout().getLargestLegalIntType(Ctx);
-  auto WorkGroupInfoT = llvm::StructType::get(llvm::ArrayType::get(SizeT, 3),  // # groups
-                                              llvm::ArrayType::get(SizeT, 3),  // group id
-                                              llvm::ArrayType::get(SizeT, 3),  // local size
-                                              llvm::PointerType::get(Ctx, 0)); // local memory ptr
+  auto Int8T = llvm::IntegerType::get(Ctx, 8);
+  auto WorkGroupInfoT =
+      llvm::StructType::get(llvm::ArrayType::get(SizeT, 3),       // # groups
+                            llvm::ArrayType::get(SizeT, 3),       // group id
+                            llvm::ArrayType::get(SizeT, 3),       // local size
+                            llvm::PointerType::getUnqual(Int8T)); // local memory ptr
+  auto VoidPtrT = llvm::PointerType::getUnqual(Bld.getVoidTy());
+  auto UserArgsT = llvm::PointerType::getUnqual(VoidPtrT);
 
   llvm::SmallVector<llvm::Type *> ArgTypes;
-  ArgTypes.push_back(llvm::PointerType::get(WorkGroupInfoT, 0));
-  ArgTypes.push_back(llvm::PointerType::get(Ctx, 0));
+  ArgTypes.push_back(llvm::PointerType::getUnqual(WorkGroupInfoT));
+  ArgTypes.push_back(UserArgsT);
 
   auto WrapperT = llvm::FunctionType::get(Bld.getVoidTy(), ArgTypes, false);
   auto Wrapper = llvm::cast<llvm::Function>(
@@ -131,16 +135,14 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
 
   auto ArgArray = Wrapper->arg_begin() + 1;
   for (int I = 0; I < F.arg_size(); ++I) {
-    auto GEP = Bld.CreateInBoundsGEP(Bld.getPtrTy(), ArgArray, {Bld.getInt32(I)});
-    Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), Bld.CreateLoad(Bld.getPtrTy(), GEP)));
+    auto GEP =
+        Bld.CreateInBoundsGEP(UserArgsT, ArgArray, llvm::ArrayRef<llvm::Value *>{Bld.getInt32(I)});
+    Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), Bld.CreateLoad(VoidPtrT, GEP)));
   }
   auto FCall = Bld.CreateCall(&F, Args);
   Bld.CreateRetVoid();
 
-  llvm::InlineFunctionInfo IFI;
-  if (auto InR = llvm::InlineFunction(*FCall, IFI, true); !InR.isSuccess()) {
-    HIPSYCL_DEBUG_WARNING << "[SSCP][HostKernelWrapper] Could not inline kernel into wrapper\n";
-  }
+  utils::checkedInlineFunction(FCall, "HostKernelWrapperPass");
 
   for (int I = 0; I < 3; ++I) {
     ReplaceUsesOfGVWith(*Wrapper, NumGroupsGlobalNames[I], NumGroups[I]);

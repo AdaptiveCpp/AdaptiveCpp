@@ -55,8 +55,13 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Program.h>
 #include <llvm/Support/raw_ostream.h>
+#if LLVM_VERSION_MAJOR < 16
+#include <llvm/Support/Host.h>
+#include <llvm/ADT/Triple.h>
+#else
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
+#endif
 
 #include <cassert>
 #include <fstream>

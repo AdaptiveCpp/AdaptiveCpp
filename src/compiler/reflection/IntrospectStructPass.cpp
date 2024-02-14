@@ -161,6 +161,24 @@ TypeInformationGlobalVars storeTypeInformationAsGlobals(llvm::Function *BuiltinI
   return TIGV;
 }
 
+llvm::AllocaInst *recurseOperandUntilAlloca(llvm::Instruction *I) {
+  if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(I))
+    return AI;
+
+  if (I->getNumOperands() == 0)
+    return nullptr;
+
+  if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(I->getOperand(0))) {
+    return AI;
+  } else if (auto *BI = llvm::dyn_cast<llvm::BitCastInst>(I->getOperand(0))) {
+    return recurseOperandUntilAlloca(BI);
+  } else if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(I->getOperand(0))) {
+    return recurseOperandUntilAlloca(GEPI);
+  } else {
+    return nullptr;
+  }
+}
+
 } // anonymous namespace
 
 llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleAnalysisManager& AM) {
@@ -178,11 +196,8 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
       if (llvm::CallInst *CI = llvm::dyn_cast<llvm::CallInst>(U)) {
         Calls.push_back(CI);
 
-        if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(CI->getOperand(0))) {
+        if (auto *AI = recurseOperandUntilAlloca(CI)) {
           llvm::Type *T = AI->getAllocatedType();
-          StructTypeInfoForBuiltin[F] = getTypeInformation(T, M);
-        } else if (auto *BI = llvm::dyn_cast<llvm::BitCastInst>(CI->getOperand(0))) {
-          llvm::Type *T = BI->getSrcTy()->getNonOpaquePointerElementType();
           StructTypeInfoForBuiltin[F] = getTypeInformation(T, M);
         } else {
           HIPSYCL_DEBUG_WARNING

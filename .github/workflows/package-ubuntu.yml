@@ -1,6 +1,6 @@
 name: Package AdaptiveCpp for Ubuntu
-on:
-  - push
+on: [push, pull_request]
+
 jobs:
   packaging-acpp:
     name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}

@@ -205,8 +205,11 @@ protected:
   int KnownGroupSizeX = 0;
   int KnownGroupSizeY = 0;
   int KnownGroupSizeZ = 0;
+
+  bool GlobalSizesFitInInt = false;
 private:
   bool optimizeForKnownGroupSizes(llvm::Module& M, PassHandler& PH);
+  bool optimizeIfGlobalSizesFitInInt(llvm::Module& M, PassHandler& PH);
 
   void resolveExternalSymbols(llvm::Module& M);
   void setFailedIR(llvm::Module& M);

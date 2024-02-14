@@ -98,7 +98,10 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   size_t get_global_linear_id() const
   {
-    return detail::linear_id<Dimensions>::get(get_global_id(), get_global_range());
+    __hipsycl_return_wrapped_if_sscp(
+        __hipsycl_sscp_as_i32_if_global_sizes_fit_in_int,
+        detail::linear_id<Dimensions>::get(get_global_id(),
+                                           get_global_range()));
   }
 
   HIPSYCL_KERNEL_TARGET friend bool operator ==(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)

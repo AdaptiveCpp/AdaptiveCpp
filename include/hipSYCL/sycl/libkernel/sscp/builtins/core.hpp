@@ -48,4 +48,11 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_x();
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_y();
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_z();
 
+// This is used to implement the optimization in llvm-to-backend to treat
+// all queries as fitting into int.
+// This is a llvm-to-backend optimization hint and does not need to be implemented
+// in backend bitcode libraries.
+HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE size_t
+__hipsycl_sscp_as_i32_if_global_sizes_fit_in_int(size_t s);
+
 #endif

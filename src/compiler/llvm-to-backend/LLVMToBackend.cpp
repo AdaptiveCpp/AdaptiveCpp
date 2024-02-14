@@ -68,6 +68,52 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
   return true;
 }
 
+// inserts llvm.assume calls to assert that x >= RangeMin && x < RangeMax.
+bool insertRangeAssumptionForBuiltinCalls(llvm::Module &M, llvm::StringRef BuiltinName,
+                                          long long RangeMin, long long RangeMax, bool MaxIsLessThanEqual = false) {
+  llvm::Function *AssumeIntrinsic = llvm::Intrinsic::getDeclaration(&M, llvm::Intrinsic::assume);
+  if(!AssumeIntrinsic)
+    return false;
+
+  if(auto* F = M.getFunction(BuiltinName)) {
+
+    auto *ReturnedIntType = llvm::dyn_cast<llvm::IntegerType>(F->getReturnType());
+    if(!ReturnedIntType)
+      return false;
+
+    for(auto* U : F->users()) {
+      if(auto* C = llvm::dyn_cast<llvm::CallInst>(U)) {
+        auto* NextInst = C->getNextNonDebugInstruction();
+
+        auto *GreaterEqualMin = llvm::ICmpInst::Create(
+            llvm::Instruction::OtherOps::ICmp, llvm::ICmpInst::Predicate::ICMP_SGE, C,
+            llvm::ConstantInt::get(M.getContext(),
+                                   llvm::APInt(ReturnedIntType->getBitWidth(), RangeMin)),
+            "", NextInst);
+        
+        llvm::ICmpInst::Predicate MaxPredicate = llvm::ICmpInst::ICMP_SLT;
+        if(MaxIsLessThanEqual)
+          MaxPredicate = llvm::ICmpInst::ICMP_SLE;
+        auto *LesserThanMax = llvm::ICmpInst::Create(
+            llvm::Instruction::OtherOps::ICmp, MaxPredicate, C,
+            llvm::ConstantInt::get(M.getContext(),
+                                  llvm::APInt(ReturnedIntType->getBitWidth(), RangeMax)),
+            "", NextInst);
+        
+
+        llvm::SmallVector<llvm::Value*> CallArgGreaterEqualMin{GreaterEqualMin};
+        llvm::SmallVector<llvm::Value*> CallArgLesserThanMax{LesserThanMax};
+        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgGreaterEqualMin,
+                                            "", NextInst);
+        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLesserThanMax,
+                                            "", NextInst);
+      }
+    }
+  }
+
+  return true;
+}
+
 bool applyKnownGroupSize(llvm::Module &M, PassHandler &PH, int KnownGroupSize,
                          llvm::StringRef GetGroupSizeBuiltinName,
                          llvm::StringRef GetLocalIdBuiltinName) {
@@ -102,40 +148,28 @@ bool applyKnownGroupSize(llvm::Module &M, PassHandler &PH, int KnownGroupSize,
 
     GetGroupSizeF->replaceNonMetadataUsesWith(NewGetGroupSizeF);
   }
+
   // Insert __builtin_assume(0 <= local_id); __builtin_assume(local_id < group_size);
   // for every call to GetLocalIdBuiltinName
-  llvm::Function *AssumeIntrinsic = llvm::Intrinsic::getDeclaration(&M, llvm::Intrinsic::assume);
-  if(auto* GetLocalIdF = M.getFunction(GetLocalIdBuiltinName)) {
+  if(!insertRangeAssumptionForBuiltinCalls(M, GetLocalIdBuiltinName, 0, KnownGroupSize))
+    return false;
 
-    auto *ReturnedIntType = llvm::dyn_cast<llvm::IntegerType>(GetLocalIdF->getReturnType());
-    if(!ReturnedIntType)
-      return false;
+  return true;
+}
 
-    for(auto* U : GetLocalIdF->users()) {
-      if(auto* C = llvm::dyn_cast<llvm::CallInst>(U)) {
-        auto* NextInst = C->getNextNonDebugInstruction();
-
-        auto *LocalIdGreaterEqualZero = llvm::ICmpInst::Create(
-            llvm::Instruction::OtherOps::ICmp, llvm::ICmpInst::Predicate::ICMP_UGE, C,
-            llvm::ConstantInt::get(M.getContext(), llvm::APInt(ReturnedIntType->getBitWidth(), 0)),
-            "", NextInst);
-        auto *LocalIdLesserGroupSize = llvm::ICmpInst::Create(
-            llvm::Instruction::OtherOps::ICmp, llvm::ICmpInst::Predicate::ICMP_ULT, C,
-            llvm::ConstantInt::get(M.getContext(),
-                                   llvm::APInt(ReturnedIntType->getBitWidth(), KnownGroupSize)),
-            "", NextInst);
-        
-
-        llvm::SmallVector<llvm::Value*> CallArgLocalIdGreaterEqualZero{LocalIdGreaterEqualZero};
-        llvm::SmallVector<llvm::Value*> CallArgLocalIdLesserGroupSize{LocalIdLesserGroupSize};
-        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLocalIdGreaterEqualZero,
-                                            "", NextInst);
-        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLocalIdLesserGroupSize,
-                                            "", NextInst);
-      }
+void handleAdditionalQueriesAsIntHints(llvm::Module& M, PassHandler& PH, bool GlobalSizesFitInInt) {
+  static const char* BuiltinName = "__hipsycl_sscp_as_i32_if_global_sizes_fit_in_int";
+  if(auto* F = M.getFunction(BuiltinName)) {
+    if(GlobalSizesFitInInt) {
+      insertRangeAssumptionForBuiltinCalls(M, BuiltinName, 0, std::numeric_limits<int>::max(), true);
+    }
+    // Add definition
+    if(F->size() > 0) {
+      llvm::BasicBlock *BB =
+          llvm::BasicBlock::Create(M.getContext(), "", F);
+      llvm::ReturnInst::Create(M.getContext(), F->getArg(0), BB);
     }
   }
-  return true;
 }
 }
 
@@ -145,6 +179,11 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
 
 bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
+  if(Flag == "global-sizes-fit-in-int") {
+    GlobalSizesFitInInt = true;
+    return true;
+  }
+
   return applyBuildFlag(Flag);
 }
 
@@ -260,6 +299,8 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     KP.run(M, MAM);
 
     if(!optimizeForKnownGroupSizes(M, PH))
+      return;
+    if(!optimizeIfGlobalSizesFitInInt(M, PH))
       return;
 
     HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
@@ -462,6 +503,51 @@ bool LLVMToBackendTranslator::optimizeForKnownGroupSizes(llvm::Module& M, PassHa
   if(KnownGroupSizeZ > 0) {
     if (!applyKnownGroupSize(M, PH, KnownGroupSizeZ, "__hipsycl_sscp_get_local_size_z",
                              "__hipsycl_sscp_get_local_id_z"))
+      return false;
+  }
+
+  return true;
+}
+
+bool LLVMToBackendTranslator::optimizeIfGlobalSizesFitInInt(llvm::Module& M, PassHandler& PH) {
+  std::size_t MaxInt = std::numeric_limits<int>::max();
+  // This needs to be called regardless of whether the GlobalSizesFitInInt optimization is
+  // active.
+  handleAdditionalQueriesAsIntHints(M, PH, GlobalSizesFitInInt);
+
+  if(!GlobalSizesFitInInt)
+    return true;
+
+  if (KnownGroupSizeX > 0) {
+    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_x", 0,
+                                              MaxInt / KnownGroupSizeX, true))
+      return false;
+  }
+  if (KnownGroupSizeY > 0) {
+    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_y", 0,
+                                              MaxInt / KnownGroupSizeY, true))
+      return false;
+  }
+  if (KnownGroupSizeZ > 0) {
+    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_z", 0,
+                                              MaxInt / KnownGroupSizeZ, true))
+      return false;
+  }
+
+
+  if (KnownGroupSizeX > 0) {
+    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_x", 0,
+                                              MaxInt / KnownGroupSizeX))
+      return false;
+  }
+  if (KnownGroupSizeY > 0) {
+    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_y", 0,
+                                              MaxInt / KnownGroupSizeY))
+      return false;
+  }
+  if (KnownGroupSizeZ > 0) {
+    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_z", 0,
+                                              MaxInt / KnownGroupSizeZ))
       return false;
   }
 

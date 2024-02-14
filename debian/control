@@ -4,6 +4,9 @@ Section: misc
 Priority: optional
 Standards-Version: 4.6.2
 Build-Depends: debhelper-compat (= 13)
+Homepage: https://adaptivecpp.github.io/
+Rules-Requires-Root: no
+
 
 Package: acpp
 Architecture: all

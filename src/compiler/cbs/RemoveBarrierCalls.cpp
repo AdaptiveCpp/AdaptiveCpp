@@ -73,7 +73,7 @@ bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotation
                                llvm::outs() << " from " << B->getParent()->getName() << "\n";)
     B->eraseFromParent();
   }
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
+
   auto *M = F.getParent();
   if (auto *B = M->getFunction(hipsycl::compiler::BarrierIntrinsicName)) {
     if (B->getNumUses() == 0) {

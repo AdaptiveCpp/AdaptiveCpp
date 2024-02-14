@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2022 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,32 +25,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
+#ifndef HIPSYCL_DYLIB_LOADER_HPP
+#define HIPSYCL_DYLIB_LOADER_HPP
 
-extern "C" [[clang::convergent]] void __hipsycl_barrier();
+#include <string>
+#include <string_view>
 
-__attribute__((always_inline)) void
-__hipsycl_cpu_mem_fence(__hipsycl_sscp_memory_scope fence_scope,
-                           __hipsycl_sscp_memory_order order) {
-// FIXME!
+#ifndef _WIN32
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C"
+#else
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C" __declspec(dllexport)
+#endif
+
+namespace hipsycl {
+namespace rt {
+namespace detail {
+void *load_library(const std::string &filename, std::string_view loader);
+void *get_symbol_from_library(void *handle, const std::string &symbolName, std::string_view loader);
+void close_library(void *handle, std::string_view loader);
+
+}
+}
 }
 
+#endif
 
-HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                  __hipsycl_sscp_memory_order order) {
-
-  // TODO: Correctly take into account memory order for local_barrier
-  __hipsycl_barrier();
-  if(fence_scope != __hipsycl_sscp_memory_scope::work_group) {
-    __hipsycl_cpu_mem_fence(fence_scope, order);
-  }
-}
-
-
-HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                 __hipsycl_sscp_memory_order order) {
-  
-  __hipsycl_cpu_mem_fence(fence_scope, order);
-}

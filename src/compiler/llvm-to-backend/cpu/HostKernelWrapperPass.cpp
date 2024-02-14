@@ -66,14 +66,15 @@ void ReplaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm:
     return;
 
   HIPSYCL_DEBUG_INFO << "[SSCP][HostKernelWrapper] RUOGVW: " << *GV << " with " << *To << "\n";
-  llvm::SmallVector<llvm::Instruction*> ToErase;
+  llvm::SmallVector<llvm::Instruction *> ToErase;
   for (auto U : GV->users()) {
     if (auto I = llvm::dyn_cast<llvm::LoadInst>(U); I && I->getFunction() == &F) {
       HIPSYCL_DEBUG_INFO << "[SSCP][HostKernelWrapper] RUOGVW: " << *I << " with " << *To << "\n";
       I->replaceAllUsesWith(To);
     }
   }
-  for(auto I : ToErase) I->eraseFromParent();
+  for (auto I : ToErase)
+    I->eraseFromParent();
 }
 
 llvm::Function *makeWrapperFunction(llvm::Function &F) {
@@ -85,12 +86,12 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
   auto SizeT = M->getDataLayout().getLargestLegalIntType(Ctx);
   auto WorkGroupInfoT = llvm::StructType::get(llvm::ArrayType::get(SizeT, 3),  // # groups
                                               llvm::ArrayType::get(SizeT, 3),  // group id
-                                              llvm::ArrayType::get(SizeT, 3)); // local size
+                                              llvm::ArrayType::get(SizeT, 3),  // local size
+                                              llvm::PointerType::get(Ctx, 0)); // local memory ptr
 
   llvm::SmallVector<llvm::Type *> ArgTypes;
   ArgTypes.push_back(llvm::PointerType::get(WorkGroupInfoT, 0));
-  std::transform(F.arg_begin(), F.arg_end(), std::back_inserter(ArgTypes),
-                 [](const llvm::Argument &Arg) { return Arg.getType(); });
+  ArgTypes.push_back(llvm::PointerType::get(Ctx, 0));
 
   auto WrapperT = llvm::FunctionType::get(Bld.getVoidTy(), ArgTypes, false);
   auto Wrapper = llvm::cast<llvm::Function>(
@@ -101,8 +102,10 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
   Bld.SetInsertPoint(WrapperBB);
   auto LoadFromContext = [&](int Array, int D, llvm::StringRef Name) {
     return Bld.CreateLoad(
-        SizeT, Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0),
-                                     {Bld.getInt64(0), Bld.getInt32(Array), Bld.getInt32(D)}), Name);
+        SizeT,
+        Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0),
+                              {Bld.getInt64(0), Bld.getInt32(Array), Bld.getInt32(D)}),
+        Name);
   };
   std::array<llvm::Value *, 3> NumGroups;
   NumGroups[0] = LoadFromContext(0, 0, "num_groups_x");
@@ -119,9 +122,18 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
   LocalSize[1] = LoadFromContext(2, 1, "local_size_y");
   LocalSize[2] = LoadFromContext(2, 2, "local_size_z");
 
+  auto LocalMemPtr = Bld.CreateLoad(
+      llvm::PointerType::get(Ctx, 0),
+      Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0), {Bld.getInt64(0), Bld.getInt32(3)}),
+      "local_mem_ptr");
+
   llvm::SmallVector<llvm::Value *> Args;
-  std::transform(Wrapper->arg_begin() + 1, Wrapper->arg_end(), std::back_inserter(Args),
-                 [](llvm::Argument &Arg) { return static_cast<llvm::Value *>(&Arg); });
+
+  auto ArgArray = Wrapper->arg_begin() + 1;
+  for (int I = 0; I < F.arg_size(); ++I) {
+    auto GEP = Bld.CreateInBoundsGEP(Bld.getPtrTy(), ArgArray, {Bld.getInt32(I)});
+    Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), Bld.CreateLoad(Bld.getPtrTy(), GEP)));
+  }
   auto FCall = Bld.CreateCall(&F, Args);
   Bld.CreateRetVoid();
 
@@ -130,12 +142,12 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
     HIPSYCL_DEBUG_WARNING << "[SSCP][HostKernelWrapper] Could not inline kernel into wrapper\n";
   }
 
-
   for (int I = 0; I < 3; ++I) {
     ReplaceUsesOfGVWith(*Wrapper, NumGroupsGlobalNames[I], NumGroups[I]);
     ReplaceUsesOfGVWith(*Wrapper, GroupIdGlobalNames[I], GroupIds[I]);
     ReplaceUsesOfGVWith(*Wrapper, LocalSizeGlobalNames[I], LocalSize[I]);
   }
+  ReplaceUsesOfGVWith(*Wrapper, SscpDynamicLocalMemoryPtrName, LocalMemPtr);
 
   return Wrapper;
 }
@@ -159,8 +171,8 @@ llvm::PreservedAnalyses HostKernelWrapperPass::run(llvm::Function &F,
                      << "\n";
 
   F.replaceAllUsesWith(Wrapper);
-  // Todo: uncertain if we can erase/remove since we're still tranforming it..? would have to do Module pass?
-  // Afaict, it will not be in the final module anyways.. (uncertain why :D)
+  // Todo: uncertain if we can erase/remove since we're still tranforming it..? would have to do
+  // Module pass? Afaict, it will not be in the final module anyways.. (uncertain why :D)
 
   return llvm::PreservedAnalyses::none();
 }

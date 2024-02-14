@@ -64,9 +64,7 @@ using namespace hipsycl::compiler;
 static const std::array<char, 3> DimName{'x', 'y', 'z'};
 
 // FIXME: don't match the names, use compilation option to distinguish modes or sth
-bool isSscpKernel(llvm::Function &F) {
-  return F.getName().contains("__sscp_dispatch");
-}
+bool isSscpKernel(llvm::Function &F) { return F.getName().contains("__sscp_dispatch"); }
 
 bool isSscpSingleTask(llvm::Function &F) {
   return F.getName().contains("__sscp_dispatch11single_task");
@@ -96,7 +94,7 @@ std::size_t getRangeDim(llvm::Function &F) {
   llvm::SmallVector<llvm::StringRef, 4> Matches;
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));
-  Rgx = llvm::Regex("Li([1-3])EEEEvRKT_$");
+  Rgx = llvm::Regex("Li([1-3])EEEEv[A-Z]+_$");
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));
   llvm_unreachable("[SubCFG] Could not deduce kernel dimensionality!");
@@ -190,10 +188,13 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
 
 // get the wg size values for the loop bounds
 llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Dim) {
-  if(isSscpKernel(F)){
+  if (isSscpKernel(F)) {
     llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
-    for(int I = 0; I < Dim; ++I)
-      LocalSize[I] = getLoadForGlobalVariable(F, LocalSizeGlobalNames[I]);
+    for (int I = 0; I < Dim; ++I) {
+      auto Load = getLoadForGlobalVariable(F, LocalSizeGlobalNames[I]);
+      Load->moveBefore(F.getEntryBlock().getTerminator());
+      LocalSize[I] = Load;
+    }
     return LocalSize;
   }
 
@@ -575,7 +576,7 @@ bool dontArrayifyContiguousValues(
   llvm::SmallPtrSet<llvm::Instruction *, 8> UniformValues;
   llvm::SmallVector<llvm::Instruction *, 8> ContiguousInsts;
   llvm::SmallPtrSet<llvm::Value *, 8> LookedAt;
-  HIPSYCL_DEBUG_INFO << "[SubCFG] IndVar: " << *IndVar << "\n";
+  HIPSYCL_DEBUG_INFO << "[SubCFG] Cont value? " << I << " IndVar: " << *IndVar << "\n";
   WL.push_back(&I);
   while (!WL.empty()) {
     auto *WLValue = WL.pop_back_val();
@@ -1156,6 +1157,7 @@ getBarrierIds(llvm::BasicBlock *Entry, llvm::SmallPtrSetImpl<llvm::BasicBlock *>
       Barriers.insert({BB, BarrierId++});
   return Barriers;
 }
+
 void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
                  llvm::PostDominatorTree &PDT, const SplitterAnnotationInfo &SAA) {
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)

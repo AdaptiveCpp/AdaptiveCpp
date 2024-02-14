@@ -3,6 +3,7 @@
 // RUN: %acpp %s -o %t --acpp-targets=generic --acpp-use-accelerated-cpu -O
 // RUN: %t | FileCheck %s
 
+#include <array>
 #include <iostream>
 
 #include <CL/sycl.hpp>
@@ -27,31 +28,28 @@ int main()
       auto acc = buf.get_access<mode::read_write>(cgh);
       auto scratch = cl::sycl::accessor<int, 1, mode::read_write, target::local>{local_size, cgh};
 
-      cgh.parallel_for<class dynamic_local_memory_reduction>(
+      cgh.parallel_for(
         cl::sycl::nd_range<1>{global_size, local_size},
-          [=](cl::sycl::nd_item<1> item) noexcept {
-            const auto lid = item.get_local_id(0);
-            const auto group_size = item.get_local_range(0);
+        [=](cl::sycl::nd_item<1> item) noexcept {
+          const auto lid = item.get_local_id(0);
+          const auto group_size = item.get_local_range(0);
 
-            scratch[lid] = acc[item.get_global_id()];
-            for(size_t i = group_size / 2; i > 0; i /= 2)
-            {
-              item.barrier();
-              if(lid < i)
-                scratch[lid] += scratch[lid + i];
-            }
-
-            if(lid == 0)
-              acc[item.get_global_id()] = scratch[lid];
-          });
+          scratch[lid] = acc[item.get_global_id()] + 1;
+          item.barrier();
+          scratch[lid]++;
+          item.barrier();
+          
+          if(lid == 0)
+            acc[item.get_global_id()] = scratch[lid];
+        });
     });
   }
   for(size_t i = 0; i < global_size / local_size; ++i)
   {
-    // CHECK: 32640
-    // CHECK: 98176
-    // CHECK: 163712
-    // CHECK: 229248
+    // CHECK: 2
+    // CHECK: 258
+    // CHECK: 514
+    // CHECK: 770
     std::cout << host_buf[i * local_size] << "\n";
   }
 }

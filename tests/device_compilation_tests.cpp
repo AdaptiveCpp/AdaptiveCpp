@@ -26,6 +26,7 @@
  */
 
 // Test workaround for https://bugs.llvm.org/show_bug.cgi?id=50383
+#include "hipSYCL/sycl/libkernel/nd_range.hpp"
 #include <atomic>
 #include <complex>
 
@@ -182,6 +183,10 @@ struct KernelFunctor {
 
   void operator() (cl::sycl::item<1> item) const {
     acc[0] = 300 + item.get_linear_id();
+  }
+
+  void operator() (cl::sycl::nd_item<1> item) const {
+    acc[0] = 300 + item.get_global_linear_id();
   }
 
   AccessorT acc;
@@ -380,6 +385,32 @@ BOOST_AUTO_TEST_CASE(generic_lambda_outlining) {
     };
     invoke(x);
   });
+}
+
+BOOST_AUTO_TEST_CASE(nd_range) {
+  cl::sycl::queue q;
+  cl::sycl::buffer<size_t, 1> buf(1);
+
+  {
+    q.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for(cl::sycl::nd_range<1>{{1},{1}}, KernelFunctor(acc));
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 300);
+  }
+
+  {
+    q.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for(cl::sycl::nd_range<2>{{1,1},{1,1}}, [=](cl::sycl::nd_item<2> item) {
+        acc[0] = 300 + item.get_global_linear_id();
+      });
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 300);
+  }
+
 }
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

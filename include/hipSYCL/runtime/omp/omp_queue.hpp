@@ -36,6 +36,27 @@
 namespace hipsycl {
 namespace rt {
 
+class omp_queue;
+
+class omp_sscp_code_object_invoker : public sscp_code_object_invoker {
+public:
+  omp_sscp_code_object_invoker(omp_queue* q)
+  : _queue{q} {}
+
+  virtual ~omp_sscp_code_object_invoker(){}
+
+  virtual result submit_kernel(const kernel_operation& op,
+                               hcf_object_id hcf_object,
+                               const rt::range<3> &num_groups,
+                               const rt::range<3> &group_size,
+                               unsigned local_mem_size, void **args,
+                               std::size_t *arg_sizes, std::size_t num_args,
+                               const std::string &kernel_name,
+                               const glue::kernel_configuration& config) override;
+private:
+  omp_queue* _queue;
+};
+
 class omp_queue : public inorder_queue
 {
 public:
@@ -62,11 +83,21 @@ public:
   virtual void *get_native_type() const override;
 
   virtual result query_status(inorder_queue_status& status) override;
-  
+
+  result submit_sscp_kernel_from_code_object(
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &kernel_name, const rt::range<3> &num_groups,
+      const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+      std::size_t *arg_sizes, std::size_t num_args,
+      const glue::kernel_configuration &config);
+
   worker_thread& get_worker();
 private:
   const backend_id _backend_id;
   worker_thread _worker;
+
+  omp_sscp_code_object_invoker _sscp_code_object_invoker;
+  std::shared_ptr<kernel_cache> _kernel_cache;
 };
 
 }

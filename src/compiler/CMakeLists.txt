@@ -99,7 +99,7 @@ function(configure_target)
     ../../include
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_BINARY_DIR}/include)
-  target_include_directories(acpp-clang SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
   target_compile_definitions(${target} PRIVATE
     ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)

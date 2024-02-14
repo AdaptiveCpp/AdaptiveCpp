@@ -74,6 +74,12 @@ LLVMToCpuTranslator::LLVMToCpuTranslator(const std::vector<std::string> &KN)
 
 bool LLVMToCpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
+  {
+    std::error_code EC;
+    llvm::raw_fd_ostream rs{"hipsycl-sscp-cpu-before.ll", EC};
+    M.print(rs, nullptr);
+  }
+
   std::string Triple = llvm::sys::getProcessTriple();
   // Fixme:
   // std::string DataLayout =
@@ -120,6 +126,12 @@ bool LLVMToCpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
   MPM.run(M, *PH.ModuleAnalysisManager);
 
+  {
+    std::error_code EC;
+    llvm::raw_fd_ostream rs{"hipsycl-sscp-cpu-cbs.ll", EC};
+    M.print(rs, nullptr);
+  }
+
   return true;
 }
 
@@ -131,7 +143,7 @@ bool LLVMToCpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   }
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-cpu-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-cpu-%%%%%%.s");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-cpu-%%%%%%.so");
 
   if (auto E = InputFile.takeError()) {
     this->registerError("LLVMToCpu: Could not create temp file: " + InputFile->TmpName);
@@ -163,12 +175,11 @@ bool LLVMToCpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   std::string ClangPath = HIPSYCL_CLANG_PATH;
 
   llvm::SmallVector<llvm::StringRef, 16> Invocation{
-      ClangPath, "-cc1", "-triple",      TargetTriple,      "-O3", "-S", "-x",
-      "ir",      "-o",   OutputFilename, InputFile->TmpName};
-  if (MCpu != "generic") {
-    Invocation.push_back("-target-cpu");
-    Invocation.push_back(MCpu);
-  }
+      ClangPath, "-O3", "-march=native", "-x", "ir", "-shared", "-o", OutputFilename, InputFile->TmpName};
+  // if (MCpu != "generic") {
+  //   Invocation.push_back("-mcpu");
+  //   Invocation.push_back(MCpu);
+  // }
 
   std::string ArgString;
   for (const auto &S : Invocation) {

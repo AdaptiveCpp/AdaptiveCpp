@@ -120,14 +120,15 @@ bool fillTransitiveSplitterCallers(llvm::ArrayRef<llvm::BasicBlock *> Blocks,
 bool fillTransitiveSplitterCallers(llvm::Function &F,
                                    const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
-  if (F.isDeclaration() && !F.isIntrinsic()) {
-    HIPSYCL_DEBUG_WARNING << "[LoopSplitterInlining] " << F.getName() << " is not defined!\n";
-  }
   if (SAA.isSplitterFunc(&F)) {
     FuncsWSplitter.insert(&F);
     return true;
   } else if (FuncsWSplitter.find(&F) != FuncsWSplitter.end())
     return true;
+  
+  if (F.isDeclaration() && !F.isIntrinsic()) {
+    HIPSYCL_DEBUG_WARNING << "[LoopSplitterInlining] " << F.getName() << " is not defined!\n";
+  }
 
   llvm::SmallVector<llvm::BasicBlock *, 8> Blocks;
   std::transform(F.begin(), F.end(), std::back_inserter(Blocks), [](auto &BB) { return &BB; });

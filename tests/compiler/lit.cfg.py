@@ -15,3 +15,6 @@ if "ACPP_DEBUG_LEVEL" in os.environ:
   config.environment["ACPP_DEBUG_LEVEL"] = os.environ["ACPP_DEBUG_LEVEL"]
 if "ACPP_VISIBILITY_MASK" in os.environ:
   config.environment["ACPP_VISIBILITY_MASK"] = os.environ["ACPP_VISIBILITY_MASK"]
+if "ACPP_HCF_DUMP_DIRECTORY" in os.environ:
+  config.environment["ACPP_HCF_DUMP_DIRECTORY"] = os.environ["ACPP_HCF_DUMP_DIRECTORY"]
+

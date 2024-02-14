@@ -2079,7 +2079,7 @@ if __name__ == '__main__':
       if not config.has_optimization_flag():
         print_warning("No optimization flag was given, optimizations are "
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
-              "enable optimizations.")
+              "enable optimizations.", file=sys.stderr)
     
     c = compiler(config)
     sys.exit(c.run())

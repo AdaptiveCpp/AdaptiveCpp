@@ -143,3 +143,7 @@ if(WITH_PSTL_TESTS)
 endif()
 
 add_subdirectory(compiler)
+
+if (WITH_COMPILER_LAUNCHER_TEST)
+  add_subdirectory(compiler_launcher)
+endif()

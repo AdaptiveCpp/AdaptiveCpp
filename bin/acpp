@@ -2009,7 +2009,7 @@ class compiler:
 
 def print_config(config):
   config_db = config.config_db
-  print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
+  print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")
   for k in config_db.keys:
     v = "(unconfigured)"
     try:
@@ -2047,6 +2047,12 @@ if __name__ == '__main__':
     print_error("acpp requires python 3.")
     sys.exit(-1)
   
+  filename = os.path.basename(os.path.realpath(__file__))
+  if filename == "syclcc":
+    print_warning("syclcc is deprecated; please use acpp instead.")
+  if filename == "syclcc-clang":
+    print_warning("syclcc-clang is deprecated; please use acpp instead.")
+
   args = sys.argv[1:]
 
   try:

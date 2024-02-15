@@ -198,7 +198,8 @@ struct nd_item
   size_t get_group_linear_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_linear_id<Dimensions>();
+    return detail::linear_id<Dimensions>::get(detail::get_group_id<Dimensions>(),
+                                              detail::get_grid_size<Dimensions>());
 #else
     __hipsycl_if_target_sscp(
         return __hipsycl_sscp_get_group_linear_id<Dimensions>(););

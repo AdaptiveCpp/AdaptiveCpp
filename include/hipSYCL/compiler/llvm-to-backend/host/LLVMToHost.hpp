@@ -37,11 +37,11 @@
 namespace hipsycl {
 namespace compiler {
 
-class LLVMToCpuTranslator : public LLVMToBackendTranslator{
+class LLVMToHostTranslator : public LLVMToBackendTranslator{
 public:
-  LLVMToCpuTranslator(const std::vector<std::string>& KernelNames);
+  LLVMToHostTranslator(const std::vector<std::string>& KernelNames);
 
-  virtual ~LLVMToCpuTranslator() {}
+  virtual ~LLVMToHostTranslator() {}
 
   virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
   virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;

@@ -38,7 +38,7 @@
 #include "hipSYCL/compiler/cbs/SimplifyKernel.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/cpu/HostKernelWrapperPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/host/HostKernelWrapperPass.hpp"
 
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/SCCP.h>

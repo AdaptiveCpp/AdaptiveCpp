@@ -258,7 +258,7 @@ if(WITH_CPU_BACKEND)
 
     if(WITH_SSCP_COMPILER)
       target_compile_definitions(rt-backend-omp PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
-      target_link_libraries(rt-backend-omp PRIVATE llvm-to-cpu)
+      target_link_libraries(rt-backend-omp PRIVATE llvm-to-host)
     endif()
 
     if(APPLE)

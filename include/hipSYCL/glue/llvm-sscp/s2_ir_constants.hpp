@@ -57,7 +57,7 @@ namespace backend {
 inline constexpr int spirv = 0;
 inline constexpr int ptx = 1;
 inline constexpr int amdgpu = 2;
-inline constexpr int cpu = 2;
+inline constexpr int host = 2;
 
 }
 

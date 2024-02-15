@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2024 Aksel Alpay
+ * Copyright (c) 2019-2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,23 +25,21 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackendTool.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/cpu/LLVMToCpuFactory.hpp"
+#ifndef HIPSYCL_LLVM_TO_CPU_FACTORY_HPP
+#define HIPSYCL_LLVM_TO_CPU_FACTORY_HPP
+
 #include <memory>
+#include <vector>
+#include <string>
+#include "../LLVMToBackend.hpp"
 
-namespace tool = hipsycl::compiler::translation_tool;
+namespace hipsycl {
+namespace compiler {
 
-std::unique_ptr<hipsycl::compiler::LLVMToBackendTranslator>
-createCpuTranslator(const hipsycl::common::hcf_container& HCF) {
-  std::vector<std::string> KernelNames;
-  if(!tool::getHcfKernelNames(HCF, KernelNames)) {
-    return nullptr;
-  }
-  return hipsycl::compiler::createLLVMToCpuTranslator(KernelNames);
+std::unique_ptr<LLVMToBackendTranslator>
+createLLVMToHostTranslator(const std::vector<std::string> &KernelNames);
+
+}
 }
 
-int main(int argc, char* argv[]) {
-  return tool::LLVMToBackendToolMain(argc, argv, createCpuTranslator);
-}
+#endif

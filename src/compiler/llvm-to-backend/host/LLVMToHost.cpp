@@ -25,7 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/llvm-to-backend/cpu/LLVMToCpu.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/host/LLVMToHost.hpp"
+
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/compiler/cbs/KernelFlattening.hpp"
@@ -35,7 +36,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/cpu/HostKernelWrapperPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/host/HostKernelWrapperPass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
@@ -73,15 +74,15 @@
 namespace hipsycl {
 namespace compiler {
 
-LLVMToCpuTranslator::LLVMToCpuTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::cpu, KN}, KernelNames{KN},
+LLVMToHostTranslator::LLVMToHostTranslator(const std::vector<std::string> &KN)
+    : LLVMToBackendTranslator{sycl::sscp::backend::host, KN}, KernelNames{KN},
       TargetTriple(llvm::sys::getProcessTriple()), MCpu(std::string(llvm::sys::getHostCPUName())) {}
 
-bool LLVMToCpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
+bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
   {
     std::error_code EC;
-    llvm::raw_fd_ostream rs{"hipsycl-sscp-cpu-before.ll", EC};
+    llvm::raw_fd_ostream rs{"hipsycl-sscp-host-before.ll", EC};
     M.print(rs, nullptr);
   }
 
@@ -114,7 +115,7 @@ bool LLVMToCpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
   std::string BuiltinBitcodeFile =
       common::filesystem::join_path(common::filesystem::get_install_directory(),
-                                    {"lib", "hipSYCL", "bitcode", "libkernel-sscp-cpu-full.bc"});
+                                    {"lib", "hipSYCL", "bitcode", "libkernel-sscp-host-full.bc"});
 
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
@@ -133,30 +134,30 @@ bool LLVMToCpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
   {
     std::error_code EC;
-    llvm::raw_fd_ostream rs{"hipsycl-sscp-cpu-cbs.ll", EC};
+    llvm::raw_fd_ostream rs{"hipsycl-sscp-host-cbs.ll", EC};
     M.print(rs, nullptr);
   }
 
   return true;
 }
 
-bool LLVMToCpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
+bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
   {
     std::error_code EC;
-    llvm::raw_fd_ostream rs{"hipsycl-sscp-cpu.ll", EC};
+    llvm::raw_fd_ostream rs{"hipsycl-sscp-host.ll", EC};
     FlavoredModule.print(rs, nullptr);
   }
 
-  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-cpu-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-cpu-%%%%%%.so");
+  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.so");
 
   if (auto E = InputFile.takeError()) {
-    this->registerError("LLVMToCpu: Could not create temp file: " + InputFile->TmpName);
+    this->registerError("LLVMToHost: Could not create temp file: " + InputFile->TmpName);
     return false;
   }
 
   if (auto E = OutputFile.takeError()) {
-    this->registerError("LLVMToCpu: Could not create temp file: " + OutputFile->TmpName);
+    this->registerError("LLVMToHost: Could not create temp file: " + OutputFile->TmpName);
     return false;
   }
 
@@ -191,19 +192,19 @@ bool LLVMToCpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
     ArgString += S;
     ArgString += " ";
   }
-  HIPSYCL_DEBUG_INFO << "LLVMToCpu: Invoking " << ArgString << "\n";
+  HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << ArgString << "\n";
 
   int R = llvm::sys::ExecuteAndWait(ClangPath, Invocation);
 
   if (R != 0) {
-    this->registerError("LLVMToCpu: clang invocation failed with exit code " + std::to_string(R));
+    this->registerError("LLVMToHost: clang invocation failed with exit code " + std::to_string(R));
     return false;
   }
 
   auto ReadResult = llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
 
   if (auto Err = ReadResult.getError()) {
-    this->registerError("LLVMToCpu: Could not read result file" + Err.message());
+    this->registerError("LLVMToHost: Could not read result file" + Err.message());
     return false;
   }
 
@@ -212,7 +213,7 @@ bool LLVMToCpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   return true;
 }
 
-bool LLVMToCpuTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
+bool LLVMToHostTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if (Option == "triple") {
     this->TargetTriple = Value;
     return true;
@@ -225,14 +226,14 @@ bool LLVMToCpuTranslator::applyBuildOption(const std::string &Option, const std:
   return false;
 }
 
-bool LLVMToCpuTranslator::isKernelAfterFlavoring(llvm::Function &F) {
+bool LLVMToHostTranslator::isKernelAfterFlavoring(llvm::Function &F) {
   for (const auto &Name : KernelNames)
     if (F.getName() == Name)
       return true;
   return false;
 }
 
-AddressSpaceMap LLVMToCpuTranslator::getAddressSpaceMap() const {
+AddressSpaceMap LLVMToHostTranslator::getAddressSpaceMap() const {
   AddressSpaceMap ASMap;
   // TODO for CPU
   ASMap[AddressSpace::Generic] = 0;
@@ -249,8 +250,8 @@ AddressSpaceMap LLVMToCpuTranslator::getAddressSpaceMap() const {
 }
 
 std::unique_ptr<LLVMToBackendTranslator>
-createLLVMToCpuTranslator(const std::vector<std::string> &KernelNames) {
-  return std::make_unique<LLVMToCpuTranslator>(KernelNames);
+createLLVMToHostTranslator(const std::vector<std::string> &KernelNames) {
+  return std::make_unique<LLVMToHostTranslator>(KernelNames);
 }
 
 } // namespace compiler

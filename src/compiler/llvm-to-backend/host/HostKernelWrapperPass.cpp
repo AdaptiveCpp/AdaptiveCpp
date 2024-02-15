@@ -26,11 +26,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/llvm-to-backend/cpu/HostKernelWrapperPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/host/HostKernelWrapperPass.hpp"
+
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
+
 #include <algorithm>
 #include <iterator>
 #include <llvm/ADT/SmallVector.h>

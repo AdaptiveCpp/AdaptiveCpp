@@ -44,7 +44,7 @@
 #include "hipSYCL/runtime/util.hpp"
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
-#include "hipSYCL/compiler/llvm-to-backend/cpu/LLVMToCpuFactory.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/host/LLVMToHostFactory.hpp"
 #include "hipSYCL/glue/generic/host/iterate_range.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/dylib_loader.hpp"
@@ -412,9 +412,9 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     std::vector<std::string> kernel_names;
     std::string selected_image_name = get_image_and_kernel_names(kernel_names);
 
-    // Construct CPU translator to compile the specified kernels
+    // Construct Host translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator =
-        compiler::createLLVMToCpuTranslator(kernel_names);
+        compiler::createLLVMToHostTranslator(kernel_names);
 
     // Lower kernels to binary
     auto err = glue::jit::compile(translator.get(), hcf, selected_image_name,

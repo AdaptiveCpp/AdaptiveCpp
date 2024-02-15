@@ -32,13 +32,13 @@
 #include <sstream>
 #include <string>
 
-#include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/runtime/omp/omp_code_object.hpp"
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {

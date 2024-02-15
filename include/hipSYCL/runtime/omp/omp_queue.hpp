@@ -31,7 +31,7 @@
 #include "../generic/async_worker.hpp"
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../device_id.hpp"
 
 namespace hipsycl {
 namespace rt {

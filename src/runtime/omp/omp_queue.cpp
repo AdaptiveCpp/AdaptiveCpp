@@ -27,12 +27,8 @@
  */
 
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/cpu/LLVMToCpuFactory.hpp"
-#include "hipSYCL/glue/generic/host/iterate_range.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
-#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
@@ -47,8 +43,14 @@
 #include "hipSYCL/runtime/signal_channel.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
-#include "hipSYCL/sycl/libkernel/range.hpp"
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+#include "hipSYCL/compiler/llvm-to-backend/cpu/LLVMToCpuFactory.hpp"
+#include "hipSYCL/glue/generic/host/iterate_range.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
+#include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
+#endif
 
 #include <memory>
 
@@ -181,6 +183,7 @@ private:
   std::shared_ptr<omp_execution_finish_timestamp> _finish;
 };
 
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
 struct work_group_info {
   work_group_info(rt::range<3> num_groups, rt::id<3> group_id, rt::range<3> local_size, void* local_memory)
     : _num_groups(num_groups), _group_id(group_id), _local_size(local_size), _local_memory(local_memory){}
@@ -210,6 +213,7 @@ result launch_kernel_from_so(void *handle, const std::string &kernel_name,
 
   return make_success();
 }
+#endif
 } // namespace
 
 omp_queue::omp_queue(backend_id id)

@@ -295,8 +295,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_subdirectory(src)
-
 set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
 set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
   "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
@@ -334,6 +332,12 @@ endif()
 
 
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
+
+##########################################################
+## Do not define any variables that might be used by build
+## targets below this line.
+##########################################################
+add_subdirectory(src)
 
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")

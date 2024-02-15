@@ -30,6 +30,7 @@
 
 #include <functional>
 
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "id.hpp"
 #include "item.hpp"
 #include "range.hpp"
@@ -67,6 +68,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_id<Dimensions>() + (*_offset);
 #else
+    __hipsycl_if_target_sscp(return detail::get_global_id<Dimensions>() +
+                                        (*_offset););
     return this->_global_id + (*_offset);
 #endif
   }
@@ -77,6 +80,9 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_id<Dimensions>(dimension) + _offset->get(dimension);
 #else
+    __hipsycl_if_target_sscp(
+        return detail::get_global_id<Dimensions>(dimension) +
+                          _offset->get(dimension););
     return this->_global_id[dimension] + (*_offset)[dimension];
 #endif
   }
@@ -98,24 +104,17 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   size_t get_global_linear_id() const
   {
-    __hipsycl_return_wrapped_if_sscp(
-        __hipsycl_sscp_as_i32_if_global_sizes_fit_in_int,
-        detail::linear_id<Dimensions>::get(get_global_id(),
-                                           get_global_range()));
+    __hipsycl_if_target_sscp(
+        return __hipsycl_sscp_get_global_linear_id<Dimensions>(););
+
+    return detail::linear_id<Dimensions>::get(get_global_id(),
+                                              get_global_range());
   }
 
   HIPSYCL_KERNEL_TARGET friend bool operator ==(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
   {
-    #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-      return  lhs._offset == rhs._offset;
-    #else
-      return  lhs._group_id == rhs._group_id &&
-              lhs._offset == rhs._offset &&
-              lhs._local_id == rhs._local_id &&
-              lhs._global_id == rhs._global_id &&
-              lhs._num_groups == rhs._num_groups &&
-              lhs._local_range == rhs._local_range;
-    #endif
+    // nd_item is not allowed to be shared across work items, so comparison can only be true
+    return true;
   }
 
   HIPSYCL_KERNEL_TARGET friend bool operator !=(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
@@ -143,6 +142,8 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(dimension););
+
     return this->_local_id[dimension];
 #endif
   }
@@ -153,6 +154,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(););
     return this->_local_id;
 #endif
   }
@@ -160,6 +162,8 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_id() const
   {
+    __hipsycl_if_target_sscp(
+        return __hipsycl_sscp_get_local_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(get_local_id(), get_local_range());
   }
 
@@ -185,6 +189,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(dimension););
     return this->_group_id[dimension];
 #endif
   }
@@ -193,9 +198,10 @@ struct nd_item
   size_t get_group_linear_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::linear_id<Dimensions>::get(detail::get_group_id<Dimensions>(),
-                                              detail::get_grid_size<Dimensions>());
+    return detail::get_group_linear_id<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(
+        return __hipsycl_sscp_get_group_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(this->_group_id, this->_num_groups);
 #endif
   }
@@ -212,6 +218,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_global_size<Dimensions>();)
     return this->_num_groups * this->_local_range;
 #endif
   }
@@ -222,6 +229,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_global_size<Dimensions>(dimension););
     return this->_num_groups[dimension] * this->_local_range[dimension];
 #endif
   }
@@ -232,6 +240,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(););
     return this->_local_range;
 #endif
   }
@@ -242,6 +251,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(dimension););
     return this->_local_range[dimension];
 #endif
   }
@@ -252,6 +262,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(););
     return this->_num_groups;
 #endif
   }
@@ -262,6 +273,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(dimension););
     return this->_num_groups[dimension];
 #endif
   }
@@ -280,6 +292,10 @@ struct nd_item
                                 detail::get_local_size<Dimensions>(),
                                 get_offset()};
 #else
+    __hipsycl_if_target_sscp(return nd_range<Dimensions>{
+        detail::get_global_size<Dimensions>(),
+        detail::get_local_size<Dimensions>(), get_offset()};);
+    
     return nd_range<Dimensions>{
       this->_num_groups * this->_local_range,
       this->_local_range,

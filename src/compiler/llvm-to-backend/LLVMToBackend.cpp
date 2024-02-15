@@ -158,16 +158,18 @@ bool applyKnownGroupSize(llvm::Module &M, PassHandler &PH, int KnownGroupSize,
 }
 
 void handleAdditionalQueriesAsIntHints(llvm::Module& M, PassHandler& PH, bool GlobalSizesFitInInt) {
-  static const char* BuiltinName = "__hipsycl_sscp_as_i32_if_global_sizes_fit_in_int";
-  if(auto* F = M.getFunction(BuiltinName)) {
-    if(GlobalSizesFitInInt) {
-      insertRangeAssumptionForBuiltinCalls(M, BuiltinName, 0, std::numeric_limits<int>::max(), true);
-    }
+  static const char* IfFitsInIntBuiltinName = "__hipsycl_sscp_if_global_sizes_fit_in_int";
+  if(auto* F = M.getFunction(IfFitsInIntBuiltinName)) {
     // Add definition
-    if(F->size() > 0) {
+    if(F->size() == 0) {
       llvm::BasicBlock *BB =
           llvm::BasicBlock::Create(M.getContext(), "", F);
-      llvm::ReturnInst::Create(M.getContext(), F->getArg(0), BB);
+      llvm::ReturnInst::Create(
+          M.getContext(),
+          llvm::ConstantInt::get(
+              M.getContext(),
+              llvm::APInt(F->getReturnType()->getIntegerBitWidth(), GlobalSizesFitInInt ? 1 : 0)),
+          BB);
     }
   }
 }
@@ -363,6 +365,7 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
   llvm::ModulePassManager MPM =
       PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
   MPM.run(M, *PH.ModuleAnalysisManager);
+
   return true;
 }
 

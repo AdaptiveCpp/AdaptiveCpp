@@ -118,7 +118,7 @@ jobs:
     - name: run CPU tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   test-nvcxx-based:
     name: nvcxx ${{matrix.nvhpc}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}

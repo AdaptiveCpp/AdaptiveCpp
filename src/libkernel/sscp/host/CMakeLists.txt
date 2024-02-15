@@ -1,4 +1,7 @@
 if(WITH_LLVM_TO_HOST)
+  if(NOT DEFINED LLVM_TARGET_TRIPLE)
+    set(LLVM_TARGET_TRIPLE ${TARGET_TRIPLE})
+  endif()
   libkernel_generate_bitcode_target(
       TARGETNAME host 
       TRIPLE ${LLVM_TARGET_TRIPLE}

@@ -141,7 +141,8 @@ public:
   static bool determineRequiredDeviceLibs(const std::string& RocmPath,
                                           const std::string& DeviceLibsPath,
                                           const std::string& TargetDevice,
-                                          std::vector<std::string>& BitcodeFiles) {
+                                          std::vector<std::string>& BitcodeFiles,
+                                          bool IsFastMath = false) {
     
 
     llvm::SmallVector<std::string> Invocation;
@@ -164,7 +165,8 @@ public:
       "--hip-link",
       "-###"
     };
-    
+    if(IsFastMath)
+      Invocation.push_back("-ffast-math");
     
     std::string Output;
     if(!getCommandOutput(ClangPath, Invocation, Output))
@@ -330,7 +332,7 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 
   std::vector<std::string> DeviceLibs;
   RocmDeviceLibs::determineRequiredDeviceLibs(RocmPath, RocmDeviceLibsPath, TargetDevice,
-                                              DeviceLibs);
+                                              DeviceLibs, IsFastMath);
   for(const auto& Lib : DeviceLibs) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Linking with bitcode file: " << Lib << "\n";
     addBitcodeFile(Lib);

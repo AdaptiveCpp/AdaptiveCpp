@@ -205,6 +205,8 @@ protected:
   int KnownGroupSizeX = 0;
   int KnownGroupSizeY = 0;
   int KnownGroupSizeZ = 0;
+
+  bool IsFastMath = false;
 private:
   bool optimizeForKnownGroupSizes(llvm::Module& M, PassHandler& PH);
 

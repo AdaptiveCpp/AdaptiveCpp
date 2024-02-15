@@ -30,15 +30,20 @@
 #define HIPSYCL_TARGET_SEPARATION_PASS_HPP
 
 #include <llvm/IR/PassManager.h>
+#include <string>
+#include <vector>
 
 namespace hipsycl {
 namespace compiler {
 
 class TargetSeparationPass : public llvm::PassInfoMixin<TargetSeparationPass> {
 public:
+  TargetSeparationPass(const std::string& KernelCompilationOptions);
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);
-
+private:
+  std::vector<std::string> CompilationFlags;
+  std::vector<std::pair<std::string, std::string>> CompilationOptions;
 };
 
 }

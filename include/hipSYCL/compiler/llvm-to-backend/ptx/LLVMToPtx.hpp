@@ -57,9 +57,9 @@ private:
   unsigned PtxVersion = 30;
   unsigned PtxTarget = 30;
 
-  int FlushDenormalsToZero = 0;
-  int PreciseSqrt = 1;
-  int PreciseDiv = 1;
+  int FlushDenormalsToZero = -1;
+  int PreciseSqrt = -1;
+  int PreciseDiv = -1;
 };
 
 }

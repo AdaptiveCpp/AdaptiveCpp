@@ -1615,6 +1615,7 @@ class llvm_sscp_invocation:
   def __init__(self, config, targets):
     self._linker_args = []
     self._cxx_flags = []
+    self._config = config
 
     if len(targets) != 0:
       raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")
@@ -1636,10 +1637,18 @@ class llvm_sscp_invocation:
     flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
             "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
 
+    sscp_compile_opts = []
+    if ("-Ofast" in self._config.forwarded_compiler_arguments or 
+      "-ffast-math" in self._config.forwarded_compiler_arguments):
+      sscp_compile_opts.append("fast-math")
+
+    if len(sscp_compile_opts) > 0:
+      flags += ["-mllvm", "-hipsycl-sscp-kernel-opts="+ ",".join(sscp_compile_opts)]
+
     if not sys.platform.startswith("win32"):
       flags += [
-        "-fplugin=" + config.acpp_plugin_path
-        , "-fpass-plugin=" + config.acpp_plugin_path
+        "-fplugin=" + self._config.acpp_plugin_path
+        , "-fpass-plugin=" + self._config.acpp_plugin_path
       ]
     flags += self._cxx_flags
 

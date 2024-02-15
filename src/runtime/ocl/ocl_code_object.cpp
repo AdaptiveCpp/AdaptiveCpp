@@ -66,9 +66,16 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
                    error_code{"CL", static_cast<int>(err)}});
     return;
   }
+  
+  std::string options_string="-cl-uniform-work-group-size";
+  for(const auto& flag : config.build_flags()) {
+    if(flag == "fast-math") {
+      options_string += " -cl-fast-relaxed-math";
+    }
+  }
 
   err = _program.build(
-      _dev, nullptr /*options - we may want to expose that in the future*/);
+      _dev, options_string.c_str());
 
   if(err != CL_SUCCESS) {
     std::string build_log = "<build log not available>";

@@ -139,15 +139,23 @@ bool applyKnownGroupSize(llvm::Module &M, PassHandler &PH, int KnownGroupSize,
 }
 
 void setFastMathFunctionAttribs(llvm::Module& M) {
+  auto forceAttr = [&](llvm::Function& F, llvm::StringRef Key, llvm::StringRef Value) {
+    if(F.hasFnAttribute(Key)) {
+      if(!F.getFnAttribute(Key).getValueAsString().equals(Value))
+        F.removeFnAttr(Key);
+    }
+    F.addFnAttr(Key, Value);
+  };
+
   for(auto& F : M) {
     if(!F.isIntrinsic()) {
-      F.addFnAttr("approx-func-fp-math","true");
-      F.addFnAttr("denormal-fp-math","preserve-sign,preserve-sign");
-      F.addFnAttr("no-infs-fp-math","true");
-      F.addFnAttr("no-nans-fp-math","true");
-      F.addFnAttr("no-signed-zeros-fp-math","true");
-      F.addFnAttr("no-trapping-math","true");
-      F.addFnAttr("unsafe-fp-math","true");
+      forceAttr(F, "approx-func-fp-math","true");
+      forceAttr(F, "denormal-fp-math","preserve-sign,preserve-sign");
+      forceAttr(F, "no-infs-fp-math","true");
+      forceAttr(F, "no-nans-fp-math","true");
+      forceAttr(F, "no-signed-zeros-fp-math","true");
+      forceAttr(F, "no-trapping-math","true");
+      forceAttr(F, "unsafe-fp-math","true");
     }
   }
 }

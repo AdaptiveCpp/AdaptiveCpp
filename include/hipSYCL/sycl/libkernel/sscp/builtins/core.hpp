@@ -106,7 +106,7 @@ T __hipsycl_sscp_typed_get_global_linear_id() {
 
 
 template<int Dim, class T>
-T __hipsycl_sscp_typed_get_group_linear_id() {
+T __hipsycl_sscp_typed_get_local_linear_id() {
   if constexpr(Dim == 1) {
     return (T)__hipsycl_sscp_get_local_id_x();
   } else if constexpr(Dim == 2) {
@@ -132,9 +132,9 @@ T __hipsycl_sscp_typed_get_group_linear_id() {
 
 
 template<int Dim, class T>
-T __hipsycl_sscp_typed_get_local_linear_id() {
+T __hipsycl_sscp_typed_get_group_linear_id() {
   if constexpr(Dim == 1) {
-    return (T)__hipsycl_sscp_get_local_id_x();
+    return (T)__hipsycl_sscp_get_group_id_x();
   } else if constexpr(Dim == 2) {
     T gid_x = (T)__hipsycl_sscp_get_group_id_x();
     T gid_y = (T)__hipsycl_sscp_get_group_id_y();

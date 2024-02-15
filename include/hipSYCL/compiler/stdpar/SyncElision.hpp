@@ -73,7 +73,7 @@ namespace compiler {
 /// arguments to stdpar calls can be considered to be part of stdpar argument handling, and can thus
 /// be skipped. In practice, we cannot easily determine this due to opaque pointers and clang/LLVM's
 /// inconsistent use of the byval(T) attribute. Currently, we use the following heuristic:
-/// - Consider instructions stores to memory locations originate from an alloca
+/// - Consider stores to memory locations which originate from an alloca
 /// - The original alloca memory location and all its derived uses must only be in getelementptr
 ///   instructions, stores, and the stdpar call.
 /// - The store must occur in the same block as the stdpar call, and precede it in the instruction
@@ -83,9 +83,15 @@ namespace compiler {
 /// especially in the presence of system USM where stack memory might be used inside kernels too.
 /// In practice, for cases where this becomes relevant we should not offload anyway because the problem
 /// size would be way too small to be an efficient offload use case.
+///
+/// If we can assume that no stack pointers are allowed in stdpar calls, all load and stores
+/// on alloca memory will be treated such that it does not cause synchronization.
 class SyncElisionPass : public llvm::PassInfoMixin<SyncElisionPass> {
 public:
+  SyncElisionPass(bool AssumeNoStackPtrsInStdparAlgorithms);
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+private:
+  bool NoStackPtrsInStdparAlgorithms;
 };
 
 /// This pass causes callers of stdpar algorithms to be inlined. This is a simplistic heuristic

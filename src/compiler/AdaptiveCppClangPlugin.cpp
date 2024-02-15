@@ -72,9 +72,10 @@ static llvm::cl::opt<bool> EnableStdPar{
     "hipsycl-stdpar", llvm::cl::init(false),
     llvm::cl::desc{"Enable hipSYCL C++ standard parallelism support"}};
 
-static llvm::cl::opt<bool> StdparNoMallocToUSM{
-    "hipsycl-stdpar-no-malloc-to-usm", llvm::cl::init(false),
-    llvm::cl::desc{"Disable hipSYCL C++ standard parallelism malloc-to-usm compiler-side support"}};
+static llvm::cl::opt<bool> StdparAssumeSystemUSM{
+    "hipsycl-stdpar-assume-system-usm", llvm::cl::init(false),
+    llvm::cl::desc{"Assume availability of system USM. Disable AdaptiveCpp C++ standard "
+                   "parallelism malloc-to-usm compiler-side support"}};
 
 // Register and activate passes
 
@@ -147,7 +148,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
           if(EnableStdPar) {
             PB.registerPipelineStartEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
-              if(!StdparNoMallocToUSM) {
+              if(!StdparAssumeSystemUSM) {
                 MPM.addPass(MallocToUSMPass{});
               }
             });
@@ -155,7 +156,9 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             PB.registerOptimizerLastEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
               MPM.addPass(SyncElisionInliningPass{});
               MPM.addPass(llvm::AlwaysInlinerPass{});
-              MPM.addPass(SyncElisionPass{});
+
+              bool CanStackPtrsBeAssumedToBeIllegalInStdpar = !StdparAssumeSystemUSM;
+              MPM.addPass(SyncElisionPass{CanStackPtrsBeAssumedToBeIllegalInStdpar});
             });
           }
 #endif

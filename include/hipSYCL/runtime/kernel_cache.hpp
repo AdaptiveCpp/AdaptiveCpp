@@ -319,8 +319,8 @@ public:
   // Unload entire cache and release resources to prepare runtime shutdown.
   void unload();
 
-  // For CPU, we don't want to load the object into memory, but instead want to get the file path.
-  std::string get_persistent_cache_file(code_object_id id_of_binary) const;
+  // Stitches together the persisten cache path with the id of the binary to a unique path.
+  static std::string get_persistent_cache_file(code_object_id id_of_binary);
 private:
   bool persistent_cache_lookup(code_object_id id_of_binary, std::string& out) const;
   void persistent_cache_store(code_object_id id_of_binary, const std::string& data) const;

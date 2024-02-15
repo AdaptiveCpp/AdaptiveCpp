@@ -52,8 +52,6 @@ protected:
   virtual AddressSpaceMap getAddressSpaceMap() const override;
 private:
   std::vector<std::string> KernelNames;
-  std::string TargetTriple;
-  std::string MCpu;
 };
 
 }

@@ -32,27 +32,39 @@
 #include <sstream>
 #include <string>
 
+#include <unistd.h>
+
+#include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/omp/omp_code_object.hpp"
 
+#include "hipSYCL/common/config.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
+#include HIPSYCL_CXX_FILESYSTEM_HEADER
+namespace fs = HIPSYCL_CXX_FILESYSTEM_NAMESPACE;
+
 namespace hipsycl {
 namespace rt {
 
 namespace {
 
-result make_shared_library_from_blob(void *&module, const std::string &source) {
+result make_shared_library_from_blob(void *&module,
+                                     const std::string &cache_file) {
 
   // assume we have source == so file path
-  HIPSYCL_DEBUG_ERROR << "Load module: " << source << "\n";
-  module = detail::load_library(source, "omp_sscp_executable");
+  HIPSYCL_DEBUG_INFO << "Load module: " << cache_file << "\n";
+  module = detail::load_library(cache_file, "omp_sscp_executable");
 
-  assert(module != nullptr && "Module could not be loaded.");
+  if (!module)
+    return make_error(__hipsycl_here(),
+                      error_info{"omp_sscp_executable_object: could not load "
+                                 "shared kernel library"});
 
   return make_success();
 }
@@ -60,16 +72,28 @@ result make_shared_library_from_blob(void *&module, const std::string &source) {
 } // namespace
 
 omp_sscp_executable_object::omp_sscp_executable_object(
-    const std::string &shared_lib_path, hcf_object_id hcf_source,
+    const std::string &binary, hcf_object_id hcf_source,
     const std::vector<std::string> &kernel_names,
     const glue::kernel_configuration &config)
     : _hcf{hcf_source}, _kernel_names{kernel_names}, _id{config.generate_id()},
-      _module{nullptr} {
-  _build_result = build(shared_lib_path);
+      _module{nullptr},
+      _kernel_cache_path(kernel_cache::get_persistent_cache_file(_id) + "-" +
+                         std::to_string(getpid()) + ".so") {
+  _build_result = build(binary);
 }
 
 omp_sscp_executable_object::~omp_sscp_executable_object() {
   detail::close_library(_module, "omp_sscp_executable");
+  try {
+    if (!fs::remove(_kernel_cache_path)) {
+      HIPSYCL_DEBUG_INFO << "omp_sscp_executable: could not cleanup "
+                         << _kernel_cache_path << ".\n";
+    }
+  } catch (const fs::filesystem_error &err) {
+    HIPSYCL_DEBUG_ERROR
+        << "omp_sscp_executable: filesystem error while cleaning up "
+        << _kernel_cache_path << ": " << err.what() << ".\n";
+  }
 }
 
 result omp_sscp_executable_object::get_build_result() const {
@@ -106,10 +130,17 @@ omp_sscp_executable_object::supported_backend_kernel_names() const {
 void *omp_sscp_executable_object::get_module() const { return _module; }
 
 result omp_sscp_executable_object::build(const std::string &source) {
+  // Write binary image to temporary file
+  if (!common::filesystem::atomic_write(_kernel_cache_path, source)) {
+    HIPSYCL_DEBUG_ERROR << "Could not store JIT kernel library in temporary "
+                           "kernel cache in file "
+                        << _kernel_cache_path << std::endl;
+  }
+
   if (_module != nullptr)
     return make_success();
 
-  return make_shared_library_from_blob(_module, source);
+  return make_shared_library_from_blob(_module, _kernel_cache_path);
 }
 
 bool omp_sscp_executable_object::contains(

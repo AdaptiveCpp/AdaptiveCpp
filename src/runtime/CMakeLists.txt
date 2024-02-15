@@ -250,16 +250,18 @@ if(WITH_CPU_BACKEND)
   add_library(rt-backend-omp SHARED
     omp/omp_allocator.cpp
     omp/omp_backend.cpp
-    omp/omp_code_object.cpp
     omp/omp_event.cpp
     omp/omp_hardware_manager.cpp
     omp/omp_queue.cpp)
 
     find_package(OpenMP REQUIRED)
-    
-    target_include_directories(rt-backend-omp PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+
+    target_include_directories(rt-backend-omp PRIVATE
+      ${HIPSYCL_SOURCE_DIR}/include 
+      ${PROJECT_BINARY_DIR}/include)
 
     if(WITH_SSCP_COMPILER)
+      target_sources(rt-backend-omp PRIVATE omp/omp_code_object.cpp)
       target_compile_definitions(rt-backend-omp PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
       target_link_libraries(rt-backend-omp PRIVATE llvm-to-host)
     endif()

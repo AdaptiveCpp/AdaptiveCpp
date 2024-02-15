@@ -59,7 +59,6 @@ void *load_library(const std::string &filename, std::string_view loader) {
 #ifndef _WIN32
   if (void *handle = dlopen(filename.c_str(), RTLD_NOW)) {
     assert(handle != nullptr);
-    HIPSYCL_DEBUG_WARNING << "Handle: " << handle << "\n";
     return handle;
   } else {
     HIPSYCL_DEBUG_WARNING << loader << ": Could not load library: "

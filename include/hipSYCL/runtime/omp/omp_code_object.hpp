@@ -51,7 +51,7 @@ public:
                               const std::vector<std::string> &kernel_names,
                               const glue::kernel_configuration &config);
 
-    virtual result get_build_result() const;
+  virtual result get_build_result() const;
 
   virtual code_object_state state() const override;
   virtual code_format format() const override;
@@ -65,13 +65,16 @@ public:
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
   virtual void* get_module() const;
+
 private:
   result build(const std::string& source);
 
   hcf_object_id _hcf;
-  std::vector<std::string> _kernel_names;
-  result _build_result;
   glue::kernel_configuration::id_type _id;
+  std::vector<std::string> _kernel_names;
+  std::string _kernel_cache_path;
+
+  result _build_result;
   void* _module;
 };
 

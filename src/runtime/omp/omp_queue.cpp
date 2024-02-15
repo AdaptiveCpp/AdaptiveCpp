@@ -27,7 +27,9 @@
  */
 
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
+
 #include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
@@ -386,24 +388,25 @@ result omp_queue::submit_sscp_kernel_from_code_object(
                    kernel_name});
   }
 
+  kernel_adaptivity_engine adaptivity_engine{
+      hcf_object, kernel_name, kernel_info, num_groups,
+      group_size, args,        arg_sizes,   num_args};
+
   glue::kernel_configuration config = initial_config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+      glue::kernel_base_config_parameter::backend_id, backend_id::omp);
   config.append_base_configuration(
       glue::kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
 
-  auto binary_configuration_id = config.generate_id();
+  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
-  // glue::kernel_configuration::extend_hash(
-  //     code_object_configuration_id,
-  //     glue::kernel_base_config_parameter::runtime_device, device);
 
   auto get_image_and_kernel_names =
       [&](std::vector<std::string> &contained_kernels) -> std::string {
-    return glue::jit::select_image(kernel_info, &contained_kernels);
+    return adaptivity_engine.select_image_and_kernels(&contained_kernels);
   };
 
   auto jit_compiler = [&](std::string &compiled_image) -> bool {
@@ -432,10 +435,8 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     std::vector<std::string> kernel_names;
     get_image_and_kernel_names(kernel_names);
   
-    auto cache_file = _kernel_cache->get_persistent_cache_file(binary_configuration_id);
-
     omp_sscp_executable_object *exec_obj = new omp_sscp_executable_object{
-        cache_file, hcf_object, kernel_names, config};
+        binary_image, hcf_object, kernel_names, config};
     result r = exec_obj->get_build_result();
 
     if (!r.is_success()) {

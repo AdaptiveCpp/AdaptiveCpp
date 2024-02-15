@@ -75,8 +75,7 @@ namespace hipsycl {
 namespace compiler {
 
 LLVMToHostTranslator::LLVMToHostTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::host, KN}, KernelNames{KN},
-      TargetTriple(llvm::sys::getProcessTriple()), MCpu(std::string(llvm::sys::getHostCPUName())) {}
+    : LLVMToBackendTranslator{sycl::sscp::backend::host, KN}, KernelNames{KN} {}
 
 bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
@@ -93,7 +92,6 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
   M.setTargetTriple(Triple);
   // M.setDataLayout(DataLayout);
-  // todo: use getHostCPUFeatures or similar to set native features
 
   AddressSpaceMap ASMap = getAddressSpaceMap();
 
@@ -182,10 +180,6 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
   llvm::SmallVector<llvm::StringRef, 16> Invocation{
       ClangPath, "-O3", "-march=native", "-x", "ir", "-shared", "-o", OutputFilename, InputFile->TmpName};
-  // if (MCpu != "generic") {
-  //   Invocation.push_back("-mcpu");
-  //   Invocation.push_back(MCpu);
-  // }
 
   std::string ArgString;
   for (const auto &S : Invocation) {
@@ -214,15 +208,6 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 }
 
 bool LLVMToHostTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
-  if (Option == "triple") {
-    this->TargetTriple = Value;
-    return true;
-  }
-  if (Option == "cpu") {
-    this->MCpu = Value;
-    return true;
-  }
-
   return false;
 }
 

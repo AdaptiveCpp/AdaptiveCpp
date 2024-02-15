@@ -27,6 +27,8 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/GlobalSizesFitInI32OptPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/KnownGroupSizeOptPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
@@ -68,111 +70,8 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
   return true;
 }
 
-// inserts llvm.assume calls to assert that x >= RangeMin && x < RangeMax.
-bool insertRangeAssumptionForBuiltinCalls(llvm::Module &M, llvm::StringRef BuiltinName,
-                                          long long RangeMin, long long RangeMax, bool MaxIsLessThanEqual = false) {
-  llvm::Function *AssumeIntrinsic = llvm::Intrinsic::getDeclaration(&M, llvm::Intrinsic::assume);
-  if(!AssumeIntrinsic)
-    return false;
 
-  if(auto* F = M.getFunction(BuiltinName)) {
 
-    auto *ReturnedIntType = llvm::dyn_cast<llvm::IntegerType>(F->getReturnType());
-    if(!ReturnedIntType)
-      return false;
-
-    for(auto* U : F->users()) {
-      if(auto* C = llvm::dyn_cast<llvm::CallInst>(U)) {
-        auto* NextInst = C->getNextNonDebugInstruction();
-
-        auto *GreaterEqualMin = llvm::ICmpInst::Create(
-            llvm::Instruction::OtherOps::ICmp, llvm::ICmpInst::Predicate::ICMP_SGE, C,
-            llvm::ConstantInt::get(M.getContext(),
-                                   llvm::APInt(ReturnedIntType->getBitWidth(), RangeMin)),
-            "", NextInst);
-        
-        llvm::ICmpInst::Predicate MaxPredicate = llvm::ICmpInst::ICMP_SLT;
-        if(MaxIsLessThanEqual)
-          MaxPredicate = llvm::ICmpInst::ICMP_SLE;
-        auto *LesserThanMax = llvm::ICmpInst::Create(
-            llvm::Instruction::OtherOps::ICmp, MaxPredicate, C,
-            llvm::ConstantInt::get(M.getContext(),
-                                  llvm::APInt(ReturnedIntType->getBitWidth(), RangeMax)),
-            "", NextInst);
-        
-
-        llvm::SmallVector<llvm::Value*> CallArgGreaterEqualMin{GreaterEqualMin};
-        llvm::SmallVector<llvm::Value*> CallArgLesserThanMax{LesserThanMax};
-        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgGreaterEqualMin,
-                                            "", NextInst);
-        llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLesserThanMax,
-                                            "", NextInst);
-      }
-    }
-  }
-
-  return true;
-}
-
-bool applyKnownGroupSize(llvm::Module &M, PassHandler &PH, int KnownGroupSize,
-                         llvm::StringRef GetGroupSizeBuiltinName,
-                         llvm::StringRef GetLocalIdBuiltinName) {
-
-  // First create replacement functions for GetGroupSizeBuiltinName
-  // which directly return the known group size, and replace all
-  // uses.
-  if(auto* GetGroupSizeF = M.getFunction(GetGroupSizeBuiltinName)) {
-    std::string NewFunctionName = std::string{GetGroupSizeBuiltinName}+"_known_size";
-
-    auto *NewGetGroupSizeF = llvm::dyn_cast<llvm::Function>(
-        M.getOrInsertFunction(NewFunctionName, GetGroupSizeF->getFunctionType(),
-                              GetGroupSizeF->getAttributes())
-            .getCallee());
-    if(!NewGetGroupSizeF)
-      return false;
-
-    if(!NewGetGroupSizeF->hasFnAttribute(llvm::Attribute::AlwaysInline))
-      NewGetGroupSizeF->addFnAttr(llvm::Attribute::AlwaysInline);
-
-    llvm::BasicBlock *BB =
-        llvm::BasicBlock::Create(M.getContext(), "", NewGetGroupSizeF);
-
-    auto *ReturnedIntType = llvm::dyn_cast<llvm::IntegerType>(GetGroupSizeF->getReturnType());
-    if(!ReturnedIntType)
-      return false;
-
-    llvm::Constant *ReturnedValue = llvm::ConstantInt::get(
-        M.getContext(), llvm::APInt(ReturnedIntType->getBitWidth(), KnownGroupSize));
-
-    llvm::ReturnInst::Create(M.getContext(), ReturnedValue, BB);
-
-    GetGroupSizeF->replaceNonMetadataUsesWith(NewGetGroupSizeF);
-  }
-
-  // Insert __builtin_assume(0 <= local_id); __builtin_assume(local_id < group_size);
-  // for every call to GetLocalIdBuiltinName
-  if(!insertRangeAssumptionForBuiltinCalls(M, GetLocalIdBuiltinName, 0, KnownGroupSize))
-    return false;
-
-  return true;
-}
-
-void handleAdditionalQueriesAsIntHints(llvm::Module& M, PassHandler& PH, bool GlobalSizesFitInInt) {
-  static const char* IfFitsInIntBuiltinName = "__hipsycl_sscp_if_global_sizes_fit_in_int";
-  if(auto* F = M.getFunction(IfFitsInIntBuiltinName)) {
-    // Add definition
-    if(F->size() == 0) {
-      llvm::BasicBlock *BB =
-          llvm::BasicBlock::Create(M.getContext(), "", F);
-      llvm::ReturnInst::Create(
-          M.getContext(),
-          llvm::ConstantInt::get(
-              M.getContext(),
-              llvm::APInt(F->getReturnType()->getIntegerBitWidth(), GlobalSizesFitInInt ? 1 : 0)),
-          BB);
-    }
-  }
-}
 }
 
 LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
@@ -300,10 +199,14 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     KernelOutliningPass KP{OutliningEntrypoints};
     KP.run(M, MAM);
 
-    if(!optimizeForKnownGroupSizes(M, PH))
-      return;
-    if(!optimizeIfGlobalSizesFitInInt(M, PH))
-      return;
+    // These optimizations should be run before __hipsycl_sscp_* builtins
+    // are resolved, so before backend bitcode libraries are linked. We thus
+    // run them prior to flavoring.
+    KnownGroupSizeOptPass GroupSizeOptPass{KnownGroupSizeX, KnownGroupSizeY, KnownGroupSizeZ};
+    GlobalSizesFitInI32OptPass SizesAsIntOptPass{GlobalSizesFitInInt, KnownGroupSizeX,
+                                                 KnownGroupSizeY, KnownGroupSizeZ};
+    GroupSizeOptPass.run(M, MAM);
+    SizesAsIntOptPass.run(M, MAM);
 
     HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
 
@@ -488,73 +391,6 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
 void LLVMToBackendTranslator::setFailedIR(llvm::Module& M) {
   llvm::raw_string_ostream Stream{ErroringCode};
   llvm::WriteBitcodeToFile(M, Stream);
-}
-
-bool LLVMToBackendTranslator::optimizeForKnownGroupSizes(llvm::Module& M, PassHandler& PH) {
-  if(KnownGroupSizeX > 0) {
-    if (!applyKnownGroupSize(M, PH, KnownGroupSizeX, "__hipsycl_sscp_get_local_size_x",
-                             "__hipsycl_sscp_get_local_id_x"))
-      return false;
-  }
-
-  if(KnownGroupSizeY > 0) {
-    if (!applyKnownGroupSize(M, PH, KnownGroupSizeY, "__hipsycl_sscp_get_local_size_y",
-                             "__hipsycl_sscp_get_local_id_y"))
-      return false;
-  }
-
-  if(KnownGroupSizeZ > 0) {
-    if (!applyKnownGroupSize(M, PH, KnownGroupSizeZ, "__hipsycl_sscp_get_local_size_z",
-                             "__hipsycl_sscp_get_local_id_z"))
-      return false;
-  }
-
-  return true;
-}
-
-bool LLVMToBackendTranslator::optimizeIfGlobalSizesFitInInt(llvm::Module& M, PassHandler& PH) {
-  std::size_t MaxInt = std::numeric_limits<int>::max();
-  // This needs to be called regardless of whether the GlobalSizesFitInInt optimization is
-  // active.
-  handleAdditionalQueriesAsIntHints(M, PH, GlobalSizesFitInInt);
-
-  if(!GlobalSizesFitInInt)
-    return true;
-
-  if (KnownGroupSizeX > 0) {
-    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_x", 0,
-                                              MaxInt / KnownGroupSizeX, true))
-      return false;
-  }
-  if (KnownGroupSizeY > 0) {
-    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_y", 0,
-                                              MaxInt / KnownGroupSizeY, true))
-      return false;
-  }
-  if (KnownGroupSizeZ > 0) {
-    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_z", 0,
-                                              MaxInt / KnownGroupSizeZ, true))
-      return false;
-  }
-
-
-  if (KnownGroupSizeX > 0) {
-    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_x", 0,
-                                              MaxInt / KnownGroupSizeX))
-      return false;
-  }
-  if (KnownGroupSizeY > 0) {
-    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_y", 0,
-                                              MaxInt / KnownGroupSizeY))
-      return false;
-  }
-  if (KnownGroupSizeZ > 0) {
-    if (!insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_z", 0,
-                                              MaxInt / KnownGroupSizeZ))
-      return false;
-  }
-
-  return true;
 }
 
 }

@@ -38,6 +38,7 @@
 
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constant.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
@@ -561,7 +562,7 @@ bool dontArrayifyContiguousValues(
       for (auto *V : WLI->operand_values()) {
         HIPSYCL_DEBUG_INFO << "[SubCFG] Considering: " << *V << "\n";
 
-        if (V == IndVar || VecInfo.isPinned(*V))
+        if (V == IndVar || VecInfo.isPinned(*V) || llvm::isa<llvm::Constant>(V))
           continue;
         // todo: fix PHIs
         if (LookedAt.contains(V))
@@ -570,7 +571,7 @@ bool dontArrayifyContiguousValues(
 
         // collect cont and uniform source values
         if (auto *OpI = llvm::dyn_cast<llvm::Instruction>(V)) {
-          if (VecInfo.getVectorShape(*OpI).isContiguous()) {
+          if (VecInfo.getVectorShape(*OpI).isContiguousOrStrided()) {
             WL.push_back(OpI);
             ContiguousInsts.push_back(OpI);
           } else if (!UniformValues.contains(OpI))
@@ -643,7 +644,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
 #endif
         // if contiguous, and can be recalculated, don't arrayify but store
         // uniform values and insts required for recalculation
-        if (Shape.isContiguous()) {
+        if (Shape.isContiguousOrStrided()) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP,
                                            ReqdArrayElements, ContIdx_, VecInfo)) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying " << I << "\n";

@@ -207,6 +207,8 @@ protected:
   int KnownGroupSizeZ = 0;
 
   bool GlobalSizesFitInInt = false;
+  bool IsFastMath = false;
+
 private:
 
   void resolveExternalSymbols(llvm::Module& M);

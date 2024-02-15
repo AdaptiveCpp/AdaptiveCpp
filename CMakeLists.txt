@@ -57,7 +57,7 @@ endif()
 
 project(hipSYCL VERSION ${ACPP_VERSION_MAJOR}.${ACPP_VERSION_MINOR}.${ACPP_VERSION_PATCH})
 
-set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
+
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -220,7 +220,7 @@ if(BUILD_CLANG_PLUGIN)
   get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
   get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
   # The path to the internal clang includes is currently required on ROCm
-  # to let syclcc-clang fix a wrong order of system includes (clang's internal 
+  # to let acpp fix a wrong order of system includes (clang's internal 
   # includes are not of high enough priority in the include path search order).
   # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
   # which is a clang-specific header file.
@@ -295,8 +295,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_subdirectory(src)
-
 set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
 set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
   "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
@@ -334,6 +332,12 @@ endif()
 
 
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
+
+##########################################################
+## Do not define any variables that might be used by build
+## targets below this line.
+##########################################################
+add_subdirectory(src)
 
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")

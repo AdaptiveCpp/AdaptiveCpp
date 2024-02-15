@@ -70,6 +70,27 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
   return true;
 }
 
+void setFastMathFunctionAttribs(llvm::Module& M) {
+  auto forceAttr = [&](llvm::Function& F, llvm::StringRef Key, llvm::StringRef Value) {
+    if(F.hasFnAttribute(Key)) {
+      if(!F.getFnAttribute(Key).getValueAsString().equals(Value))
+        F.removeFnAttr(Key);
+    }
+    F.addFnAttr(Key, Value);
+  };
+
+  for(auto& F : M) {
+    if(!F.isIntrinsic()) {
+      forceAttr(F, "approx-func-fp-math","true");
+      forceAttr(F, "denormal-fp-math","preserve-sign,preserve-sign");
+      forceAttr(F, "no-infs-fp-math","true");
+      forceAttr(F, "no-nans-fp-math","true");
+      forceAttr(F, "no-signed-zeros-fp-math","true");
+      forceAttr(F, "no-trapping-math","true");
+      forceAttr(F, "unsafe-fp-math","true");
+    }
+  }
+}
 
 
 }
@@ -80,8 +101,12 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
 
 bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
+
   if(Flag == "global-sizes-fit-in-int") {
     GlobalSizesFitInInt = true;
+    return true;
+  } else if(Flag == "fast-math") {
+    IsFastMath = true;
     return true;
   }
 
@@ -232,7 +257,9 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     if(FlavoringSuccessful) {
       // Run optimizations
       HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing flavored IR...\n";
-
+      
+      if(IsFastMath)
+        setFastMathFunctionAttribs(M);
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
 
       if(!OptimizationSuccessful) {

@@ -179,11 +179,5 @@
 
 
 
- #define __hipsycl_return_wrapped_if_sscp(wrapper, content) \
-  __hipsycl_backend_switch(return content, \
-    return wrapper(content), \
-    return content, \
-    return content, \
-    return content)
 
 #endif

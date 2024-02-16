@@ -68,4 +68,10 @@ jobs:
           tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
           cd acpp-23.10.0/
           debuild -us -uc
-          sudo dpkg -i ../acpp_23.10.0-1_all.deb
+      - name: Install the package
+        run: |
+          sudo dpkg -i acpp_23.10.0-1_all.deb
+      - name: Release the package
+        uses: actions/checkout@v2
+        with:
+          files: acpp_23.10.0-1_all.deb

@@ -70,7 +70,8 @@ jobs:
           debuild -us -uc
       - name: Install the package
         run: |
-          sudo dpkg -i acpp_23.10.0-1_all.deb
+          cd acpp-23.10.0/
+          sudo dpkg -i ../acpp_23.10.0-1_all.deb
       - name: Release the package
         uses: actions/checkout@v2
         with:

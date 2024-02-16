@@ -75,6 +75,9 @@ static const std::array<const char *, 3> NumGroupsGlobalNames{
 
 static constexpr const char SscpDynamicLocalMemoryPtrName[] = "__hipsycl_sscp_dynamic_local_memory";
 
+static constexpr const char SscpAnnotationsName[] = "hipsycl.sscp.annotations";
+static constexpr const char SscpKernelDimensionName[] = "hipsycl_kernel_dimension";
+
 class SplitterAnnotationInfo;
 
 namespace utils {
@@ -200,7 +203,7 @@ template <class T> T *getValueOneLevel(llvm::Constant *V, unsigned idx = 0) {
   return llvm::dyn_cast<T>(V->getOperand(idx));
 }
 
-template <class Handler> void findFunctionsWithStringAnnotations(llvm::Module &M, Handler &&f) {
+template <class Handler> void findFunctionsWithStringAnnotationsWithArg(llvm::Module &M, Handler &&f) {
   for (auto &I : M.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
@@ -213,11 +216,16 @@ template <class Handler> void findFunctionsWithStringAnnotations(llvm::Module &M
               if (auto *Initializer =
                       llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())) {
                 llvm::StringRef Annotation = Initializer->getAsCString();
-                f(F, Annotation);
+                f(F, Annotation, CS->getNumOperands() > 3 ? CS->getOperand(4) : nullptr);
               }
       }
     }
   }
+}
+
+template <class Handler> void findFunctionsWithStringAnnotations(llvm::Module &M, Handler &&f) {
+  findFunctionsWithStringAnnotationsWithArg(M, [&f](llvm::Function *F, llvm::StringRef Annotation,
+                                                    llvm::Value *Arg) { f(F, Annotation); });
 }
 
 } // namespace utils

@@ -29,6 +29,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/cbs/KernelFlattening.hpp"
 #include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
 #include "hipSYCL/compiler/cbs/SimplifyKernel.hpp"
@@ -104,7 +105,7 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
       Operands.push_back(llvm::ValueAsMetadata::getConstant(
           llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 1)));
 
-      M.getOrInsertNamedMetadata("hipsycl.sscp.annotations")
+      M.getOrInsertNamedMetadata(SscpAnnotationsName)
           ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);

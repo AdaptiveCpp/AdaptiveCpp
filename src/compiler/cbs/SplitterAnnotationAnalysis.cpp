@@ -57,14 +57,15 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
     }
   });
 
-  if (auto MD = M.getNamedMetadata(SSCPAnnotations))
+  if (auto MD = M.getNamedMetadata(SscpAnnotationsName))
     for (auto OP : MD->operands()) {
       if (OP->getNumOperands() == 3 &&
           llvm::cast<llvm::MDString>(OP->getOperand(1))->getString() == SSCPKernelMD &&
           llvm::cast<llvm::ConstantInt>(
               llvm::cast<llvm::ConstantAsMetadata>(OP->getOperand(2))->getValue())
                   ->getZExtValue() == 1)
-        NDKernels.insert(llvm::cast<llvm::Function>(llvm::cast<llvm::ValueAsMetadata>(OP->getOperand(0))->getValue()));
+        NDKernels.insert(llvm::cast<llvm::Function>(
+            llvm::cast<llvm::ValueAsMetadata>(OP->getOperand(0))->getValue()));
     }
   return false;
 }

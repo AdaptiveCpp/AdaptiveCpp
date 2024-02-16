@@ -54,8 +54,9 @@ public:
 };
 
 class SubCfgFormationPass : public llvm::PassInfoMixin<SubCfgFormationPass> {
+  bool IsSscp_;
 public:
-  explicit SubCfgFormationPass() {}
+  explicit SubCfgFormationPass(bool IsSscp) : IsSscp_(IsSscp) {}
 
   llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &AM);
   static bool isRequired() { return true; }

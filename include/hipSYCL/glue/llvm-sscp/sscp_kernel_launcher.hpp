@@ -138,6 +138,7 @@ public:
   single_task(const UserKernel& k)
   : _k{k} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", 0)]]
   void operator()() const {
     _k();
   }
@@ -152,6 +153,7 @@ public:
                      sycl::range<Dimensions> execution_range)
       : _k{k}, _range{execution_range} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     auto this_item = sycl::detail::make_item<Dimensions>(
       sycl::detail::get_global_id<Dimensions>(), _range
@@ -171,6 +173,7 @@ public:
                             sycl::range<Dimensions> execution_range)
       : _k{k}, _range{execution_range}, _offset{offset} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     auto this_item = sycl::detail::make_item<Dimensions>(
         sycl::detail::get_global_id<Dimensions>() + _offset, _range, _offset);
@@ -191,6 +194,7 @@ public:
   ndrange_parallel_for(const UserKernel& k)
   : _k{k} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     const sycl::id<Dimensions> zero_offset{};
     sycl::nd_item<Dimensions> this_item{
@@ -211,6 +215,7 @@ public:
   ndrange_parallel_for_offset(const UserKernel& k, sycl::id<Dimensions> offset)
   : _k{k}, _offset{offset} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     sycl::nd_item<Dimensions> this_item{
         &_offset, sycl::detail::get_group_id<Dimensions>(),

@@ -27,6 +27,8 @@
  */
 
 #include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
+
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/utils/AggregateTypeUtils.hpp"
 
 #include <llvm/ADT/DenseMap.h>
@@ -121,7 +123,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
       NewArgumentTypes.push_back(EI.OriginalByValType);
     }
   }
-  
+
   std::string FunctionName = F.getName().str();
   F.setName(FunctionName + "_PreArgumentExpansion");
   auto OldLinkage = F.getLinkage();
@@ -134,6 +136,15 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
       NewF->addFnAttr(Attr);
     }
     NewF->setLinkage(OldLinkage);
+
+    if (auto Annotations = M.getNamedMetadata(SscpAnnotationsName)) {
+      for (auto *MD : Annotations->operands()) {
+        if (&F == llvm::cast<llvm::Function>(
+                      llvm::cast<llvm::ValueAsMetadata>(MD->getOperand(0))->getValue())) {
+          MD->replaceOperandWith(0, llvm::ValueAsMetadata::get(NewF));
+        }
+      }
+    }
 
     llvm::BasicBlock *BB =
           llvm::BasicBlock::Create(M.getContext(), "", NewF);

@@ -106,7 +106,12 @@ include(ExternalProject)
 if(WITH_SSCP_COMPILER)
   create_llvm_based_library(
     TARGET llvm-to-backend
-    SOURCES LLVMToBackend.cpp AddressSpaceInferencePass.cpp ../sscp/KernelOutliningPass.cpp)
+    SOURCES 
+      LLVMToBackend.cpp 
+      AddressSpaceInferencePass.cpp
+      KnownGroupSizeOptPass.cpp
+      GlobalSizesFitInI32OptPass.cpp
+      ../sscp/KernelOutliningPass.cpp)
 
   if(WITH_LLVM_TO_SPIRV)
     add_hipsycl_llvm_backend(

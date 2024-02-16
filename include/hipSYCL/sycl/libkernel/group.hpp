@@ -151,6 +151,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(););
     return _group_id;
 #endif
   }
@@ -168,6 +169,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(dimension);)
     return _group_id[dimension];
 #endif
   }
@@ -186,6 +188,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_global_size<Dimensions>(););
     return _num_groups * _local_range;
 #endif
   }
@@ -197,6 +200,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_global_size<Dimensions>(dimension););
     return _num_groups[dimension] * _local_range[dimension];
 #endif
   }
@@ -209,6 +213,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(););
     return _local_range;
 #endif
   }
@@ -219,6 +224,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(dimension););
     return _local_range[dimension];
 #endif
   }
@@ -226,6 +232,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_range() const
   {
+    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_local_size<Dimensions>(););
     return get_local_range().size();
   }
 
@@ -239,6 +246,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(););
     return _num_groups;
 #endif
   }
@@ -249,6 +257,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(dimension););
     return _num_groups[dimension];
 #endif
   }
@@ -256,6 +265,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_group_linear_range() const
   {
+    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_num_groups<Dimensions>(););
     return get_group_range().size();
   }
 
@@ -265,6 +275,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(dimension););
     return _group_id[dimension];
 #endif
   }
@@ -282,6 +293,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_group_linear_id() const
   {
+    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_group_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(get_id(),
                                               get_group_range());
   }
@@ -300,6 +312,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>();
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(););
     return _local_id;
 #endif
   }
@@ -310,6 +323,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>(dimension);
 #else
+    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(dimension););
     return _local_id[dimension];
 #endif
   }
@@ -321,6 +335,7 @@ public:
     return detail::linear_id<Dimensions>::get(detail::get_local_id<Dimensions>(),
                                               detail::get_local_size<Dimensions>());
 #else
+    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_local_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(_local_id,
                                               _local_range);
 #endif

@@ -58,8 +58,8 @@
 #include <llvm/Support/Program.h>
 #include <llvm/Support/raw_ostream.h>
 #if LLVM_VERSION_MAJOR < 16
-#include <llvm/Support/Host.h>
 #include <llvm/ADT/Triple.h>
+#include <llvm/Support/Host.h>
 #else
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
@@ -79,12 +79,6 @@ LLVMToHostTranslator::LLVMToHostTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{sycl::sscp::backend::host, KN}, KernelNames{KN} {}
 
 bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
-
-  {
-    std::error_code EC;
-    llvm::raw_fd_ostream rs{"hipsycl-sscp-host-before.ll", EC};
-    M.print(rs, nullptr);
-  }
 
   std::string Triple = llvm::sys::getProcessTriple();
   // Fixme:
@@ -131,21 +125,11 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
   MPM.run(M, *PH.ModuleAnalysisManager);
 
-  {
-    std::error_code EC;
-    llvm::raw_fd_ostream rs{"hipsycl-sscp-host-cbs.ll", EC};
-    M.print(rs, nullptr);
-  }
-
   return true;
 }
 
-bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
-  {
-    std::error_code EC;
-    llvm::raw_fd_ostream rs{"hipsycl-sscp-host.ll", EC};
-    FlavoredModule.print(rs, nullptr);
-  }
+bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
+                                                    std::string &out) {
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.so");
@@ -179,8 +163,9 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
   std::string ClangPath = HIPSYCL_CLANG_PATH;
 
-  llvm::SmallVector<llvm::StringRef, 16> Invocation{
-      ClangPath, "-O3", "-march=native", "-x", "ir", "-shared", "-o", OutputFilename, InputFile->TmpName};
+  llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath, "-O3",          "-march=native",
+                                                    "-x",      "ir",           "-shared",
+                                                    "-o",      OutputFilename, InputFile->TmpName};
 
   std::string ArgString;
   for (const auto &S : Invocation) {

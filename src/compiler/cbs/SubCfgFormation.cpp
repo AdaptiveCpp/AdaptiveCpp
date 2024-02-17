@@ -645,7 +645,9 @@ void SubCFG::arrayifyMultiSubCfgValues(
         continue;
       // if any use is in another subcfg
       if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, &I](auto *UI) {
-            return UI->getParent() != I.getParent() && OtherCFGBlocks.contains(UI->getParent());
+            return (UI->getParent() != I.getParent() ||
+                    UI->getParent() == I.getParent() && UI->comesBefore(&I)) &&
+                   OtherCFGBlocks.contains(UI->getParent());
           })) {
         // load from an alloca, just widen alloca
         if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(&I))
@@ -922,10 +924,13 @@ void SubCFG::fixSingleSubCfgValues(
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] No alloca, yet for " << *OPI << "\n";
-            Alloca = utils::arrayifyInstruction(AllocaIP, OPI, ContIdx_, ReqdArrayElements);
+            Alloca = utils::arrayifyInstruction(
+                AllocaIP, OPI, ContIdx_,
+                VecInfo.getVectorShape(I).isUniform() ? nullptr : ReqdArrayElements);
             VecInfo.setVectorShape(*Alloca, VecInfo.getVectorShape(I));
           }
 
+          auto Idx = ContIdx_;
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT
           // in split loop, OPI might be used multiple times, get the user, dominating this user and
           // insert load there
@@ -938,11 +943,13 @@ void SubCFG::fixSingleSubCfgValues(
 #else
           // doesn't happen if we keep the PHIs
           auto *NewIP = LoadIP;
-          if (!Alloca->isArrayAllocation())
+          if (!Alloca->isArrayAllocation()) {
             NewIP = UniLoadIP;
+            Idx = llvm::ConstantInt::get(ContIdx_->getType(), 0);
+          }
 #endif
 
-          auto *Load = utils::loadFromAlloca(Alloca, ContIdx_, NewIP, OPI->getName());
+          auto *Load = utils::loadFromAlloca(Alloca, Idx, NewIP, OPI->getName());
           utils::copyDgbValues(OPI, Load, NewIP);
 
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT

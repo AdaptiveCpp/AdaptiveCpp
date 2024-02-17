@@ -204,6 +204,13 @@ result launch_kernel_from_so(void *handle, const std::string &kernel_name,
                              unsigned shared_memory, void **kernel_args) {
   auto kernel = (omp_sscp_kernel *)detail::get_symbol_from_library(
       handle, kernel_name, "omp_sscp_exectuable_object");
+
+  if (!kernel) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"omp_queue: Could not load kernel from shared object"});
+  }
+
   sycl::range<3> group_range{num_groups[0], num_groups[1], num_groups[2]};
   sycl::range<3> local_range{local_size[0], local_size[1], local_size[2]};
 

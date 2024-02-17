@@ -83,7 +83,8 @@ omp_sscp_executable_object::omp_sscp_executable_object(
 }
 
 omp_sscp_executable_object::~omp_sscp_executable_object() {
-  detail::close_library(_module, "omp_sscp_executable");
+  if (_module)
+    detail::close_library(_module, "omp_sscp_executable");
   try {
     if (!fs::remove(_kernel_cache_path)) {
       HIPSYCL_DEBUG_INFO << "omp_sscp_executable: could not cleanup "

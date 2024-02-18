@@ -11,11 +11,16 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 override_dh_auto_configure:
 	dh_auto_configure  -- \
 	          -Scmake \
-	          -DCMAKE_C_COMPILER=/usr/bin/clang-17 \
 	          -DCMAKE_CXX_COMPILER=/usr/bin/clang++-17 \
 	          -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-17 \
 	          -DCMAKE_CXX_FLAGS="-g -fsanitize=address" \
 	          -DDEFAULT_TARGETS="omp" \
 		  -DWITH_ACCELERATED_CPU=ON \
-	          -DCMAKE_BUILD_TYPE=Debug \
-	          -DLLVM_DIR=/usr/lib/llvm-17/cmake/
+		  -DWITH_CUDA_BACKEND=ON \ 
+		  -DWITH_ROCM_BACKEND=OFF \
+	          -DWITH_LEVEL_ZERO_BACKEND=OFF \
+		  -DCMAKE_BUILD_TYPE=Debug \
+	          -DLLVM_DIR=/usr/lib/llvm-17/cmake/ \
+                  -DCUDA_CUDA_LIBRARY=/opt/AdaptiveCpp/cuda/lib64/stubs/libcuda.so \
+		  -DCUDA_TOOLKIT_ROOT_DIR=/opt/AdaptiveCpp/cuda \
+		  -DROCM_PATH=/opt/rocm 

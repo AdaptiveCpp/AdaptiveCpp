@@ -48,12 +48,6 @@ jobs:
           mkdir -p /opt/AdaptiveCpp/cuda
           wget -q -O cuda.sh https://developer.download.nvidia.com/compute/cuda/12.2.2/local_installers/cuda_12.2.2_535.104.05_linux.run
           sudo sh cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/AdaptiveCpp/cuda || true
-      - name: build AdaptiveCpp
-        run: |
-          mkdir build && cd build
-          echo ${CXXFLAGS}
-          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
-          make -j2 install
       - name: package AdaptiveCpp
         run: |
           export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"

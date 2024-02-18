@@ -1,5 +1,5 @@
 name: Package AdaptiveCpp for Ubuntu
-on: [push, pull_request]
+on: [push]
 
 jobs:
   packaging-acpp:
@@ -68,10 +68,11 @@ jobs:
           tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
           cd acpp-23.10.0/
           debuild -us -uc
-      - name: Install the package
-        run: |
-          cd acpp-23.10.0/
-          sudo dpkg -i ../acpp_23.10.0-1_all.deb
+          echo $(ls ../)
+      #- name: Install the package
+      #  run: |
+      #    cd acpp-23.10.0/
+      #    sudo dpkg -i ../acpp_23.10.0-1_all.deb
       - name: Release the package
         uses: actions/checkout@v2
         with:

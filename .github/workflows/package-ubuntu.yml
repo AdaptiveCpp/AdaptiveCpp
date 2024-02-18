@@ -1,5 +1,5 @@
 name: Package AdaptiveCpp for Ubuntu
-on: [push]
+on: [push, pull_request]
 
 jobs:
   packaging-acpp:
@@ -16,11 +16,8 @@ jobs:
       - name: install LLVM
         run: |
           wget https://apt.llvm.org/llvm.sh
-
           chmod +x llvm.sh
-
           sudo ./llvm.sh ${{matrix.clang}}
-
           sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
       - name: install boost
         run: |
@@ -28,17 +25,13 @@ jobs:
       - name: setup build environment
         run: |
           export CXXFLAGS="$CXXFLAGS"
-
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
             export CC=clang-${{matrix.clang}}
             export CXX=clang++-${{matrix.clang}}
           fi
-
           echo "CC=${CC}" >> $GITHUB_ENV
-
           echo "CXX=${CXX}" >> $GITHUB_ENV
-
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
       - name: install cmake
         run: |
@@ -51,11 +44,8 @@ jobs:
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build
-
           echo ${CXXFLAGS}
-
           cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
-
           make -j2 install
       - name: package AdaptiveCpp
         run: |

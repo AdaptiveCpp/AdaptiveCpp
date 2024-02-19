@@ -59,6 +59,8 @@ jobs:
           cd ..
           cp -R AdaptiveCpp acpp-23.10.0
           tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
+          echo $(ls ./)
+          echo ${GITBUB_WORKSPACE}
           cd acpp-23.10.0/
           debuild -us -uc
           echo $(ls ../)

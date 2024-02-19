@@ -9,7 +9,7 @@ jobs:
       matrix:
         clang: ['17']
         os: [ubuntu-22.04]
-        cuda: [12.2.2]
+        cuda: [11.0.2]
         rocm: [6.0.0]
     steps:
       - uses: actions/checkout@v2
@@ -46,8 +46,9 @@ jobs:
       - name: install CUDA
         run : |
           mkdir -p /opt/AdaptiveCpp/cuda
-          wget -q -O cuda.sh https://developer.download.nvidia.com/compute/cuda/12.2.2/local_installers/cuda_12.2.2_535.104.05_linux.run
+          wget -q -O cuda.sh http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run
           sudo sh cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/AdaptiveCpp/cuda || true
+          echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/AdaptiveCpp/cuda/version.txt
           rm cuda.sh
       - name: package AdaptiveCpp
         run: |

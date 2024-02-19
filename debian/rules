@@ -16,11 +16,11 @@ override_dh_auto_configure:
 	          -DCMAKE_CXX_FLAGS="-g -fsanitize=address" \
 	          -DDEFAULT_TARGETS="omp" \
 	          -DWITH_ACCELERATED_CPU=ON \
-	          -DWITH_CUDA_BACKEND=OFF \ 
+	          -DWITH_CUDA_BACKEND=OFF \
 	          -DWITH_ROCM_BACKEND=OFF \
 	          -DWITH_LEVEL_ZERO_BACKEND=OFF \
 	          -DCMAKE_BUILD_TYPE=Debug \
 	          -DLLVM_DIR=/usr/lib/llvm-17/cmake/ \
 	          -DCUDA_CUDA_LIBRARY=/opt/AdaptiveCpp/cuda/lib64/stubs/libcuda.so \
 	          -DCUDA_TOOLKIT_ROOT_DIR=/opt/AdaptiveCpp/cuda \
-	          -DROCM_PATH=/opt/rocm 
+	          -DROCM_PATH=/opt/rocm

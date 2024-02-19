@@ -224,6 +224,12 @@ namespace {
     while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
     return idx;
   }
+
+  template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
+  inline T ref_popcount(T x) noexcept {
+    std::bitset<sizeof(T)*CHAR_BIT> bset(x);
+    return bset.count();
+  }
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
@@ -396,7 +402,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
 
   namespace s = cl::sycl;
 
-  constexpr int FUN_COUNT = 4;
+  constexpr int FUN_COUNT = 5;
 
   // build inputs
 
@@ -421,6 +427,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
       acc[i++] = s::min(acc[0], acc[1]);
       acc[i++] = s::max(acc[0], acc[1]);
       acc[i++] = s::clz(acc[0]);
+      acc[i++] = s::popcount(acc[0]);
     });
   });
 
@@ -438,6 +445,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
       BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)));
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)));
       BOOST_TEST(comp(acc[i++], c) == ref_clz(comp(acc[0], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_popcount(comp(acc[0], c)));
     }
   }
 }

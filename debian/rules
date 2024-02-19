@@ -16,7 +16,7 @@ override_dh_auto_configure:
 	          -DCMAKE_CXX_FLAGS="-g -fsanitize=address" \
 	          -DDEFAULT_TARGETS="omp" \
 		  -DWITH_ACCELERATED_CPU=ON \
-		  -DWITH_CUDA_BACKEND=ON \ 
+		  -DWITH_CUDA_BACKEND=OFF \ 
 		  -DWITH_ROCM_BACKEND=OFF \
 	          -DWITH_LEVEL_ZERO_BACKEND=OFF \
 		  -DCMAKE_BUILD_TYPE=Debug \

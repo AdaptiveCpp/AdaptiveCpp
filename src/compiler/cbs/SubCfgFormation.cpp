@@ -45,6 +45,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Regex.h>
@@ -68,16 +69,42 @@ static const std::array<char, 3> DimName{'x', 'y', 'z'};
 llvm::Instruction *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName) {
   auto SizeT = F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext());
   auto *GV = F.getParent()->getOrInsertGlobal(VarName, SizeT);
-  for (auto &BB : F) {
-    for (auto &I : BB) {
-      if (auto *LoadI = llvm::dyn_cast<llvm::LoadInst>(&I)) {
-        if (LoadI->getPointerOperand() == GV)
-          return &I;
-      }
-    }
+  for (auto U : GV->users()) {
+    if (auto *LI = llvm::dyn_cast<llvm::LoadInst>(U); LI && LI->getFunction() == &F)
+      return LI;
   }
+
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
   return Builder.CreateLoad(SizeT, GV);
+}
+
+llvm::LoadInst *mergeGVLoadsInEntry(llvm::Function &F, llvm::StringRef VarName) {
+  auto SizeT = F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext());
+  auto *GV = F.getParent()->getOrInsertGlobal(VarName, SizeT);
+
+  llvm::LoadInst *FirstLoad = nullptr;
+  llvm::SmallVector<llvm::LoadInst *, 4> Loads;
+  for (auto U : GV->users()) {
+    if (auto *LI = llvm::dyn_cast<llvm::LoadInst>(U); LI && LI->getFunction() == &F) {
+      if (!FirstLoad)
+        FirstLoad = LI;
+      else
+        Loads.push_back(LI);
+    }
+  }
+
+  if (FirstLoad) {
+    FirstLoad->moveBefore(&F.getEntryBlock().front());
+    for (auto *LI : Loads) {
+      LI->replaceAllUsesWith(FirstLoad);
+      LI->eraseFromParent();
+    }
+    return FirstLoad;
+  }
+
+  llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
+  auto *Load = Builder.CreateLoad(GV->getType(), GV, "cbs.load." + GV->getName());
+  return Load;
 }
 
 // parses the range dimensionality from the mangled kernel name
@@ -235,10 +262,10 @@ getVectorizationInfo(llvm::Function &F, hipsycl::compiler::Region &R, llvm::Loop
   hipsycl::compiler::VectorizationInfo VecInfo{F, R};
   // seed varyingness
   for (size_t D = 0; D < Dim - 1; ++D) {
-    VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[D]),
+    VecInfo.setPinnedShape(*mergeGVLoadsInEntry(F, LocalIdGlobalNames[D]),
                            hipsycl::compiler::VectorShape::cont());
   }
-  VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]),
+  VecInfo.setPinnedShape(*mergeGVLoadsInEntry(F, LocalIdGlobalNames[Dim - 1]),
                          hipsycl::compiler::VectorShape::cont());
 
   hipsycl::compiler::VectorizationAnalysis VecAna{VecInfo, LI, DT, PDT};
@@ -314,12 +341,12 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB,
     Idx = Builder.CreateMul(Idx, LocalSize[D], "idx.mul." + Suffix, true);
     Idx = Builder.CreateAdd(IndVars[D], Idx, "idx.add." + Suffix, true);
 
-    VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[D])] = IndVars[D];
+    VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNames[D])] = IndVars[D];
   }
 
   // todo: replace `ret` with branch to innermost latch
 
-  VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[0])] = IndVars[0];
+  VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNames[0])] = IndVars[0];
 
   VMap[ContiguousIdx] = Idx;
   ContiguousIdx = Idx;

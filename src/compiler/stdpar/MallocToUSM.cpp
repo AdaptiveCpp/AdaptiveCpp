@@ -101,7 +101,7 @@ bool isRestrictedToRegularMalloc(llvm::Function* F) {
 
 bool isStdFunction(llvm::Function* F) {
   llvm::StringRef Name = F->getName();
-  if(Name.startswith("_ZNSt") || Name.startswith("_ZSt"))
+  if(Name.startswith("_ZNSt") || Name.startswith("_ZSt") || Name.startswith("_ZNKSt"))
     return true;
   return false;
 }
@@ -309,10 +309,8 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
   }
 
   // Internalize memory management definitions
-  for(auto* F: ManagedFreeFunctions) {
-    F->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  for(auto* F: ManagedFreeFunctions)
     F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
-  }
 
   // Ideally, we could insert an ABI tag for every function that uses USM, such that external
   // libraries do not ODR-resolve symbols to functions using USM when the libraries have not

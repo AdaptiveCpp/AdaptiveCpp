@@ -32,6 +32,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/glue/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/inorder_executor.hpp"
@@ -133,13 +134,13 @@ public:
       : queue{default_selector_v,
               [](exception_list e) { glue::default_async_handler(e); },
               propList} {
-    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
+    assert(_default_hints->has_hint<rt::hints::bind_to_device>());
   }
 
   explicit queue(const async_handler &asyncHandler,
                  const property_list &propList = {})
       : queue{default_selector_v, asyncHandler, propList} {
-    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
+    assert(_default_hints->has_hint<rt::hints::bind_to_device>());
   }
 
   template <
@@ -216,25 +217,29 @@ public:
       : detail::property_carrying_object{propList}, _ctx{syclContext},
         _handler{asyncHandler} {
 
+    _default_hints = std::make_shared<rt::execution_hints>();
+
     if(devices.empty()) {
-      throw invalid_parameter_error{"queue: No devices in device list"};
+      throw exception{make_error_code(errc::invalid),
+                      "queue: No devices in device list"};
     }
 
     for(const auto& dev : devices)
       if (!is_device_in_context(dev, syclContext))
-        throw invalid_object_error{"queue: Device is not in context"};
+        throw exception{make_error_code(errc::invalid),
+                        "queue: Device is not in context"};
 
     if(devices.size() == 1){
-      _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-          detail::extract_rt_device(devices[0])));
+      _default_hints->set_hint(rt::hints::bind_to_device{
+          detail::extract_rt_device(devices[0])});
     }
     else if(devices.size() > 1) {
       std::vector<rt::device_id> rt_devs;
       for(const auto& d : devices) {
         rt_devs.push_back(detail::extract_rt_device(d));
       }
-      _default_hints.add_hint(
-          rt::make_execution_hint<rt::hints::bind_to_device_group>(rt_devs));
+      _default_hints->set_hint(
+          rt::hints::bind_to_device_group{rt_devs});
     }
     // Otherwise we are in completely unrestricted scheduling land - don't
     // add any hints regarding target device.
@@ -252,28 +257,29 @@ public:
   }
 
   device get_device() const {
-    if (_default_hints.has_hint<rt::hints::bind_to_device>()) {
+    if (_default_hints->has_hint<rt::hints::bind_to_device>()) {
       rt::device_id id =
-          _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+          _default_hints->get_hint<rt::hints::bind_to_device>()->get_device_id();
       return device{id};
     } else {
-      throw feature_not_supported{
-          "queue::get_device() is unsupported for multi-device queues"};
+      throw exception{make_error_code(errc::feature_not_supported),
+                      "queue::get_device() is unsupported for "
+                      "multi-device queues"};
     }
   }
 
   std::vector<device> get_devices() const {
-    if(_default_hints.has_hint<rt::hints::bind_to_device>()) {
+    if(_default_hints->has_hint<rt::hints::bind_to_device>()) {
 
       rt::device_id id =
-          _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+          _default_hints->get_hint<rt::hints::bind_to_device>()->get_device_id();
       return std::vector<device>{device{id}};
 
-    } else if(_default_hints.has_hint<rt::hints::bind_to_device_group>()) {
+    } else if(_default_hints->has_hint<rt::hints::bind_to_device_group>()) {
 
       std::vector<device> devs;
       for (const auto &d :
-           _default_hints.get_hint<rt::hints::bind_to_device_group>()
+           _default_hints->get_hint<rt::hints::bind_to_device_group>()
                ->get_devices()) {
         devs.push_back(device{d});
       }
@@ -305,10 +311,11 @@ public:
       {
         std::lock_guard<std::mutex> lock{*_lock};
 
-        most_recent_event = _previous_submission->lock();
+        most_recent_event = *_previous_submission;
       }
       if(most_recent_event) {
-        
+        // Flush DAG for non-submitted events. Note that this does not affect
+        // instant nodes, as they immediately assume the submitted state.
         if(!most_recent_event->is_submitted())
           _requires_runtime.get()->dag().flush_sync();
         
@@ -337,7 +344,7 @@ public:
   event submit(const property_list& prop_list, T cgf) {
     std::lock_guard<std::mutex> lock{*_lock};
 
-    rt::execution_hints hints = _default_hints;
+    rt::execution_hints hints = *_default_hints;
     
     if(prop_list.has_property<property::command_group::hipSYCL_retarget>()) {
 
@@ -354,8 +361,7 @@ public:
             << std::endl;
       }
 
-      hints.overwrite_with(
-          rt::make_execution_hint<rt::hints::bind_to_device>(dev));
+      hints.set_hint(rt::hints::bind_to_device{dev});
     }
     if (prop_list.has_property<
             property::command_group::hipSYCL_prefer_execution_lane>()) {
@@ -366,13 +372,11 @@ public:
                   property::command_group::hipSYCL_prefer_execution_lane>()
               .lane;
 
-      hints.overwrite_with(
-          rt::make_execution_hint<rt::hints::prefer_execution_lane>(lane_id));
+      hints.set_hint(rt::hints::prefer_execution_lane{lane_id});
     }
     if (prop_list.has_property<
             property::command_group::hipSYCL_coarse_grained_events>()) {
-      hints.overwrite_with(
-          rt::make_execution_hint<rt::hints::coarse_grained_synchronization>());
+      hints.set_hint(rt::hints::coarse_grained_synchronization{});
     }
     // Should always have node_group hint from default hints
     assert(hints.has_hint<rt::hints::node_group>());
@@ -448,7 +452,7 @@ public:
     if(is_in_order()) {
       std::lock_guard<std::mutex> lock{*_lock};
 
-      if(auto prev = this->_previous_submission->lock()){
+      if(auto prev = *_previous_submission){
         if(!prev->is_known_complete()) {
           return std::vector<event>{event{prev, _handler}};
         }
@@ -508,6 +512,15 @@ public:
   }
 
   template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  event parallel_for(range<1> NumWorkItems,
+                     const ReductionsAndKernel &... redu_kernel) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
+    });
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -518,8 +531,29 @@ public:
   }
 
   template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  event parallel_for(range<1> NumWorkItems, event dependency,
+                     const ReductionsAndKernel &... redu_kernel) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependency);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
+    });
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems,
+                     const std::vector<event> &dependencies,
+                     const ReductionsAndKernel& ... redu_kernel) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependencies);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
+    });
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  event parallel_for(range<1> NumWorkItems,
                      const std::vector<event> &dependencies,
                      const ReductionsAndKernel& ... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
@@ -887,6 +921,12 @@ public:
   std::size_t hipSYCL_hash_code() const {
     return _node_group_id;
   }
+
+  rt::inorder_executor* hipSYCL_inorder_executor() const {
+    if(!_dedicated_inorder_executor)
+      return nullptr;
+    return static_cast<rt::inorder_executor*>(_dedicated_inorder_executor.get());
+  }
 private:
   template<int Dim>
   void apply_preferred_group_size(const property_list& prop_list, handler& cgh) {
@@ -903,7 +943,7 @@ private:
   template <class Cgf>
   rt::dag_node_ptr execute_submission(Cgf cgf, handler &cgh) {
     if (is_in_order()) {
-      auto previous = _previous_submission->lock();
+      auto previous = *_previous_submission;
       if(previous)
         cgh.depends_on(event{previous, _handler});
     }
@@ -927,9 +967,8 @@ private:
   }
 
   rt::dag_node_ptr extract_dag_node(sycl::handler& cgh) {
-  
-    const std::vector<rt::dag_node_ptr>& dag_nodes =
-      cgh.get_cg_nodes();
+
+    const rt::node_list_t &dag_nodes = cgh.get_cg_nodes();
 
     if(dag_nodes.empty()) {
       HIPSYCL_DEBUG_ERROR
@@ -956,28 +995,24 @@ private:
     HIPSYCL_DEBUG_INFO << "queue: Constructed queue with node group id "
                        << _node_group_id << std::endl;
 
-    _default_hints.add_hint(
-        rt::make_execution_hint<rt::hints::node_group>(_node_group_id));
+    _default_hints->set_hint(rt::hints::node_group{_node_group_id});
 
     if (this->has_property<property::queue::enable_profiling>()) {
-      _default_hints.add_hint(
-          rt::make_execution_hint<
-              rt::hints::request_instrumentation_submission_timestamp>());
-      _default_hints.add_hint(
-          rt::make_execution_hint<
-              rt::hints::request_instrumentation_start_timestamp>());
-      _default_hints.add_hint(
-          rt::make_execution_hint<
-              rt::hints::request_instrumentation_finish_timestamp>());
+      _default_hints->set_hint(
+          rt::hints::request_instrumentation_submission_timestamp{});
+      _default_hints->set_hint(
+              rt::hints::request_instrumentation_start_timestamp{});
+      _default_hints->set_hint(
+              rt::hints::request_instrumentation_finish_timestamp{});
     }
     if(this->has_property<property::queue::hipSYCL_coarse_grained_events>()){
-      _default_hints.add_hint(
-          rt::make_execution_hint<rt::hints::coarse_grained_synchronization>());
+      _default_hints->set_hint(
+          rt::hints::coarse_grained_synchronization{});
     }
 
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
-    _previous_submission = std::make_shared<std::weak_ptr<rt::dag_node>>();
+    _previous_submission = std::make_shared<rt::dag_node_ptr>(nullptr);
 
     if(_is_in_order && get_devices().size() == 1) {
       int priority = 0;
@@ -988,16 +1023,14 @@ private:
       rt::device_id rt_dev = detail::extract_rt_device(this->get_device());
       // Dedicated executor may not be supported by all backends,
       // so this might return nullptr.
-      std::shared_ptr<rt::backend_executor> dedicated_executor =
+      _dedicated_inorder_executor =
           _requires_runtime.get()
               ->backends()
               .get(rt_dev.get_backend())
               ->create_inorder_executor(rt_dev, priority);
       
-      if(dedicated_executor) {
-        _default_hints.add_hint(
-            rt::make_execution_hint<rt::hints::prefer_executor>(
-                dedicated_executor));
+      if(_dedicated_inorder_executor) {
+        _default_hints->set_hint(rt::hints::prefer_executor{_dedicated_inorder_executor});
       }
     }
 
@@ -1014,14 +1047,17 @@ private:
   rt::runtime_keep_alive_token _requires_runtime;  
   detail::queue_submission_hooks_ptr _hooks;
 
-  rt::execution_hints _default_hints;
+  std::shared_ptr<rt::execution_hints> _default_hints;
   context _ctx;
   async_handler _handler;
   bool _is_in_order;
 
-  std::shared_ptr<std::weak_ptr<rt::dag_node>> _previous_submission;
+  // Note: This must not be a weak_ptr, since in the case of instant submissions,
+  // the lifetime of nodes is not guaranteed to exceed task runtime.
+  std::shared_ptr<rt::dag_node_ptr> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
+  std::shared_ptr<rt::backend_executor> _dedicated_inorder_executor;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

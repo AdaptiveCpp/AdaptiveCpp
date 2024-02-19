@@ -37,7 +37,7 @@ namespace {
 using namespace hipsycl::compiler;
 
 bool canonicalizeExitBarriers(llvm::Function &F, SplitterAnnotationInfo &SAA) {
-  bool Changed;
+  bool Changed = false;
   llvm::SmallVector<llvm::BasicBlock *, 4> Exits;
   for (auto &BB : F)
     if (BB.getTerminator()->getNumSuccessors() == 0)

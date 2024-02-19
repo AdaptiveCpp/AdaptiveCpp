@@ -71,9 +71,8 @@ private:
   inorder_queue* _queue;
 };
 
-std::size_t
-get_maximum_execution_index_for_lane(const std::vector<dag_node_ptr> &nodes,
-                                     inorder_queue* lane) {
+std::size_t get_maximum_execution_index_for_lane(const node_list_t &nodes,
+                                                 inorder_queue *lane) {
   std::size_t index = 0;
   for (const auto &node : nodes) {
     if (node->is_submitted() &&
@@ -107,7 +106,7 @@ bool inorder_executor::is_taskgraph() const {
 }
 
 void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
-                                       const std::vector<dag_node_ptr> &reqs) {
+                                       const node_list_t &reqs) {
   
   HIPSYCL_DEBUG_INFO << "inorder_executor: Processing node " << node.get()
 	  << " with " << reqs.size() << " non-virtual requirement(s) and "
@@ -120,8 +119,7 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
 
   node->assign_to_execution_lane(_q.get());
 
-  node->assign_execution_index(_num_submitted_operations);
-  ++_num_submitted_operations;
+  node->assign_execution_index(++_num_submitted_operations);
 
   // Submit synchronization mechanisms
   result res;

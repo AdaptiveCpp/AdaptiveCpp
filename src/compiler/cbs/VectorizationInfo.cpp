@@ -52,7 +52,7 @@ void VectorizationInfo::print(const Value *val, llvm::raw_ostream &out) const {
   out << *val;
 
   // show shadow input (if any)
-  auto *phi = dyn_cast<PHINode>(val);
+  // auto *phi = dyn_cast<PHINode>(val);
   //  if (phi) {
   //    const Value * shadowIn = getShadowInput(*phi);
   //    if (shadowIn) {
@@ -143,7 +143,7 @@ void VectorizationInfo::print(llvm::raw_ostream &out) const {
 }
 
 VectorizationInfo::VectorizationInfo(llvm::Function &scalarFn, Region &_region)
-    : scalarFn(scalarFn), DL(scalarFn.getParent()->getDataLayout()), region(_region) {
+    : DL(scalarFn.getParent()->getDataLayout()), region(_region), scalarFn(scalarFn) {
   for (auto &arg : scalarFn.args()) {
     //    RV_UNUSED(arg);
     setPinned(arg);

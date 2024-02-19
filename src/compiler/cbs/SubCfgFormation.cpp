@@ -32,10 +32,13 @@
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/UniformityAnalysis.hpp"
 
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constant.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
@@ -147,10 +150,14 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
 
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
   llvm::Value *LocalSizePtr = nullptr;
-  if (!LocalSizeArg->getType()->isArrayTy())
-    LocalSizePtr = Builder.CreatePointerCast(
-        LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), SizeTSize), "local_size.cast");
-
+  if (!LocalSizeArg->getType()->isArrayTy()) {
+#if HAS_TYPED_PTR
+    auto PtrTy = llvm::Type::getIntNPtrTy(F.getContext(), SizeTSize);
+#else
+    auto PtrTy = llvm::PointerType::get(F.getContext(), 0);
+#endif
+    LocalSizePtr = Builder.CreatePointerCast(LocalSizeArg, PtrTy, "local_size.cast");
+  }
   for (unsigned int I = 0; I < Dim; ++I) {
     if (LocalSizeArg->getType()->isArrayTy()) {
       LocalSize[I] =
@@ -398,9 +405,10 @@ SubCFG::createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, size_t> 
 SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
                const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds,
                const SplitterAnnotationInfo &SAA, llvm::Value *IndVar, size_t Dim)
-    : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)),
-      EntryBarrier_(EntryBarrier), EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr),
-      ContIdx_(IndVar), PreHeader_(nullptr), Dim(Dim) {
+    : EntryId_(BarrierIds.lookup(EntryBarrier)), EntryBarrier_(EntryBarrier),
+      LastBarrierIdStorage_(LastBarrierIdStorage),
+      ContIdx_(IndVar), EntryBB_(EntryBarrier->getSingleSuccessor()),
+      LoadBB_(nullptr), PreHeader_(nullptr), Dim(Dim) {
   assert(ContIdx_ && "Must have found __hipsycl_local_id_{x,y,z}");
 
   llvm::SmallVector<llvm::BasicBlock *, 4> WL{EntryBarrier};
@@ -554,7 +562,7 @@ bool dontArrayifyContiguousValues(
       for (auto *V : WLI->operand_values()) {
         HIPSYCL_DEBUG_INFO << "[SubCFG] Considering: " << *V << "\n";
 
-        if (V == IndVar || VecInfo.isPinned(*V))
+        if (V == IndVar || VecInfo.isPinned(*V) || llvm::isa<llvm::Constant>(V))
           continue;
         // todo: fix PHIs
         if (LookedAt.contains(V))
@@ -563,7 +571,7 @@ bool dontArrayifyContiguousValues(
 
         // collect cont and uniform source values
         if (auto *OpI = llvm::dyn_cast<llvm::Instruction>(V)) {
-          if (VecInfo.getVectorShape(*OpI).isContiguous()) {
+          if (VecInfo.getVectorShape(*OpI).isContiguousOrStrided()) {
             WL.push_back(OpI);
             ContiguousInsts.push_back(OpI);
           } else if (!UniformValues.contains(OpI))
@@ -606,7 +614,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
       if (InstAllocaMap.lookup(&I))
         continue;
       // if any use is in another subcfg
-      if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, this, &I](auto *UI) {
+      if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, &I](auto *UI) {
             return UI->getParent() != I.getParent() && OtherCFGBlocks.contains(UI->getParent());
           })) {
         // load from an alloca, just widen alloca
@@ -636,7 +644,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
 #endif
         // if contiguous, and can be recalculated, don't arrayify but store
         // uniform values and insts required for recalculation
-        if (Shape.isContiguous()) {
+        if (Shape.isContiguousOrStrided()) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP,
                                            ReqdArrayElements, ContIdx_, VecInfo)) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying " << I << "\n";

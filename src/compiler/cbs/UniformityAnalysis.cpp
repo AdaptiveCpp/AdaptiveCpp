@@ -377,20 +377,20 @@ void VectorizationAnalysis::analyze() {
   }
 }
 
-static bool AllUniformOrUndefCall(const VectorizationInfo &VecInfo, const Instruction &I) {
-  const auto *C = dyn_cast<CallInst>(&I);
-  if (!C)
-    return false;
-  for (const llvm::Value *Op : C->args()) {
-    if (!VecInfo.hasKnownShape(*Op))
-      continue;
-    auto OpShape = VecInfo.getVectorShape(*Op);
-    if (OpShape.isUniform() || !OpShape.isDefined())
-      continue;
-    return false;
-  }
-  return true;
-}
+// static bool AllUniformOrUndefCall(const VectorizationInfo &VecInfo, const Instruction &I) {
+//   const auto *C = dyn_cast<CallInst>(&I);
+//   if (!C)
+//     return false;
+//   for (const llvm::Value *Op : C->args()) {
+//     if (!VecInfo.hasKnownShape(*Op))
+//       continue;
+//     auto OpShape = VecInfo.getVectorShape(*Op);
+//     if (OpShape.isUniform() || !OpShape.isDefined())
+//       continue;
+//     return false;
+//   }
+//   return true;
+// }
 
 void VectorizationAnalysis::promoteUndefShapesToUniform(const Function &F) {
   // Walk through the program and query recursive resolvers for all completly

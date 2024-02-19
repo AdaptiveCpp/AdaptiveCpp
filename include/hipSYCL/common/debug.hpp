@@ -40,6 +40,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <string>
 
 #ifndef HIPSYCL_COMPILER_COMPONENT
 #include "hipSYCL/runtime/application.hpp"
@@ -66,12 +67,18 @@ private:
     _debug_level =
         rt::application::get_settings().get<rt::setting::debug_level>();
 #else
-    const char *env = std::getenv("HIPSYCL_DEBUG_LEVEL");
-    if (env) {
-      if (std::string{env}.find_first_not_of("0123456789") ==
+    
+    auto process_env = [this](const char* e) {
+      if (std::string{e}.find_first_not_of("0123456789") ==
           std::string::npos) {
-        _debug_level = std::stoi(std::string{env});
+        _debug_level = std::stoi(std::string{e});
       }
+    };
+    
+    if (const char *env = std::getenv("ACPP_DEBUG_LEVEL")) {
+      process_env(env);
+    } else if (const char *env = std::getenv("HIPSYCL_DEBUG_LEVEL")){
+      process_env(env);
     }
 #endif
   }
@@ -95,13 +102,13 @@ private:
 #endif
 
 #ifdef HIPSYCL_DEBUG_NOCOLOR
-#define HIPSYCL_DEBUG_PREFIX_ERROR   "[hipSYCL Error] "
-#define HIPSYCL_DEBUG_PREFIX_WARNING "[hipSYCL Warning] "
-#define HIPSYCL_DEBUG_PREFIX_INFO    "[hipSYCL Info] "
+#define HIPSYCL_DEBUG_PREFIX_ERROR   "[AdaptiveCpp Error] "
+#define HIPSYCL_DEBUG_PREFIX_WARNING "[AdaptiveCpp Warning] "
+#define HIPSYCL_DEBUG_PREFIX_INFO    "[AdaptiveCpp Info] "
 #else
-#define HIPSYCL_DEBUG_PREFIX_ERROR   "\033[1;31m[hipSYCL Error] \033[0m"
-#define HIPSYCL_DEBUG_PREFIX_WARNING "\033[;35m[hipSYCL Warning] \033[0m"
-#define HIPSYCL_DEBUG_PREFIX_INFO    "\033[;32m[hipSYCL Info] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_ERROR   "\033[1;31m[AdaptiveCpp Error] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_WARNING "\033[;35m[AdaptiveCpp Warning] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_INFO    "\033[;32m[AdaptiveCpp Info] \033[0m"
 #endif
 
 #define HIPSYCL_DEBUG_ERROR \

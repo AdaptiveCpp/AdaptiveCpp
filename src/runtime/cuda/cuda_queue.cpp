@@ -27,6 +27,8 @@
 
 #include "driver_types.h"
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/cuda/cuda_instrumentation.hpp"
@@ -89,7 +91,9 @@ public:
                              operation &op, dag_node_ptr node) 
                              : _queue{q}, _operation{&op}, _node{node} {
     assert(q);
-    assert(_node);
+    
+    if(!_node)
+      return;
 
     if (_node->get_execution_hints()
             .has_hint<
@@ -113,6 +117,9 @@ public:
   }
 
   ~cuda_instrumentation_guard() {
+    if(!_node)
+      return;
+    
     if (_node->get_execution_hints()
             .has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
       std::shared_ptr<dag_node_event> task_finish = _queue->insert_event();
@@ -177,8 +184,10 @@ void cuda_queue::activate_device() const {
 }
 
 cuda_queue::cuda_queue(cuda_backend *be, device_id dev, int priority)
-    : _dev{dev}, _multipass_code_object_invoker{this},
-      _sscp_code_object_invoker{this}, _stream{nullptr}, _backend{be} {
+    : _dev{dev}, _stream{nullptr},
+      _multipass_code_object_invoker{this},
+      _sscp_code_object_invoker{this}, _backend{be},
+      _kernel_cache{kernel_cache::get()} {
   this->activate_device();
 
   cudaError_t err;
@@ -316,7 +325,7 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     
   } else {
     
-    cudaMemcpy3DParms params = {0};
+    cudaMemcpy3DParms params {};
     params.srcPtr = make_cudaPitchedPtr(op.source().get_access_ptr(),
                                         op.source().get_allocation_shape()[2] *
                                             op.source().get_element_size(),
@@ -468,17 +477,6 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
 
   this->activate_device();
 
-  std::string global_kernel_name = op.get_global_kernel_name();
-  const kernel_cache::kernel_name_index_t *kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
-
-  if(!kidx) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"cuda_queue: Could not obtain kernel index for kernel " +
-                   global_kernel_name});
-  }
-
   // For now we need to extract HCF in order to get a list of available
   // compilation targets (list of embedded device images in HCF).
   // TODO we could cache this vector to avoid retrieving HCF for every kernel launch
@@ -500,61 +498,43 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
 
   int device = _dev.get_id();
 
-  // This defines the conditions that we apply when looking for appropriate
-  // code objects.
-  // The correct hcf id and backend are already enforced by the kernel cache,
-  // so we don't need to verify here.
-  auto code_object_selector = [&](const code_object* candidate) -> bool {
-    // We do not need to check for ptx since all CUDA code objects are PTX
-    // Also no need to check for CUDA backend since the kernel cache already
-    // guarantees that we are only given candidates for the requested backend (CUDA).
-    return (candidate->target_arch() == selected_target) &&
-           (candidate->state() == code_object_state::executable) &&
-           (static_cast<const cuda_executable_object *>(candidate)
-                ->get_device() == device) &&
-           (candidate->source_compilation_flow() ==
-            compilation_flow::explicit_multipass);
-  };
+  glue::kernel_configuration config;
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::explicit_multipass);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::target_arch, selected_target);
+
+  auto binary_configuration_id = config.generate_id();
+  auto code_object_configuration_id = binary_configuration_id;
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_device, device);
 
   // Will be invoked by the kernel cache in case there is a miss in the kernel
   // cache and we have to construct a new code object
   auto code_object_constructor = [&]() -> code_object* {
+    const common::hcf_container::node *tn =
+        hcf->root_node()->get_subnode(selected_target);
+    if(!tn)
+      return nullptr;
+    if(!tn->has_binary_data_attached())
+      return nullptr;
+    
+    std::string source_code;
+    if(!hcf->get_binary_attachment(tn, source_code)) {
+      HIPSYCL_DEBUG_ERROR << "cuda_queue: Could not extract PTX code from "
+                              "HCF node; invalid HCF data?"
+                          << std::endl;
+      return nullptr;
+    }
 
-    // First we need to obtain the source object. Need to use recursive_*
-    // to avoid deadlocks since we are already inside the kernel cache here.
-
-    auto source_object_selector = [&](const code_object *candidate) -> bool {
-      return (candidate->state() == code_object_state::source) &&
-             (candidate->target_arch() == selected_target);
-    };
-
-    auto source_object_constructor = [&]() -> code_object* {
-      const common::hcf_container::node *tn =
-          hcf->root_node()->get_subnode(selected_target);
-      if(!tn)
-        return nullptr;
-      if(!tn->has_binary_data_attached())
-        return nullptr;
-      
-      std::string source_code;
-      if(!hcf->get_binary_attachment(tn, source_code)) {
-        HIPSYCL_DEBUG_ERROR << "cuda_queue: Could not extract PTX code from "
-                               "HCF node; invalid HCF data?"
-                            << std::endl;
-        return nullptr;
-      }
-      // The source object parses the PTX code and can give out information
-      // such as a list of contained kernels
-      return new cuda_source_object{hcf_object, selected_target, source_code};
-    };
-
-    const cuda_source_object *source = static_cast<const cuda_source_object *>(
-        rt::kernel_cache::get().recursive_get_or_construct_code_object(
-            *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
-            source_object_selector, source_object_constructor));
-
-    cuda_executable_object *exec_obj =
-        new cuda_multipass_executable_object{source, device};
+    cuda_executable_object *exec_obj = new cuda_multipass_executable_object{
+        hcf_object, selected_target, source_code, device};
     result r = exec_obj->get_build_result();
 
     if(!r.is_success()) {
@@ -566,9 +546,8 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
-      *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
-      code_object_selector, code_object_constructor);
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
+      code_object_configuration_id, code_object_constructor);
 
   if(!obj) {
     return make_error(__hipsycl_here(),
@@ -604,23 +583,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     const std::string &kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
-    const glue::kernel_configuration &config) {
+    const glue::kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
   this->activate_device();
 
-  std::string global_kernel_name = op.get_global_kernel_name();
-  const kernel_cache::kernel_name_index_t* kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
-
-  if(!kidx) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"cuda_queue: Could not obtain kernel index for kernel " +
-                   global_kernel_name});
-  }
-
-  auto configuration_id = config.generate_id();
   int device = this->_dev.get_id();
 
   cuda_hardware_context *ctx = static_cast<cuda_hardware_context *>(
@@ -635,50 +602,68 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __hipsycl_here(),
         error_info{"cuda_queue: Could not obtain hcf kernel info for kernel " +
-            global_kernel_name});
+            kernel_name});
   }
 
-  auto code_object_selector = [&](const code_object *candidate) -> bool {
-    if ((candidate->managing_backend() != backend_id::cuda) ||
-        (candidate->source_compilation_flow() != compilation_flow::sscp) ||
-        (candidate->state() != code_object_state::executable))
-      return false;
+  kernel_adaptivity_engine adaptivity_engine{
+      hcf_object, kernel_name, kernel_info, num_groups,
+      group_size, args,        arg_sizes,   num_args};
 
-    const cuda_sscp_executable_object *obj =
-        static_cast<const cuda_sscp_executable_object *>(candidate);
-    
-    if(obj->configuration_id() != configuration_id)
-      return false;
+  glue::kernel_configuration config = initial_config;
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::sscp);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+  
+  for(const auto& flag : kernel_info->get_compilation_flags())
+    config.set_build_flag(flag);
+  for(const auto& opt : kernel_info->get_compilation_options())
+    config.set_build_option(opt.first, opt.second);
+  // TODO This is incorrect, we should attempt to find a better way to determine
+  // the right ptx version
+  config.set_build_option("ptx-version", compute_capability);
+  config.set_build_option("ptx-target-device", compute_capability);
+  
+  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
+  auto code_object_configuration_id = binary_configuration_id;
+  glue::kernel_configuration::extend_hash(
+      code_object_configuration_id,
+      glue::kernel_base_config_parameter::runtime_device, device);
 
-    return obj->get_device() == device;
+  auto get_image_and_kernel_names =
+      [&](std::vector<std::string> &contained_kernels) -> std::string {
+    return adaptivity_engine.select_image_and_kernels(&contained_kernels);
   };
 
-  auto code_object_constructor = [&]() -> code_object* {
+  auto jit_compiler = [&](std::string& compiled_image) -> bool {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
-    std::string selected_image_name =
-        glue::jit::select_image(kernel_info, &kernel_names);
+    std::string selected_image_name = get_image_and_kernel_names(kernel_names);
 
     // Construct PTX translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
       compiler::createLLVMToPtxTranslator(kernel_names);
 
-    // TODO Shouldn't we compile with the most recent ptx version supported
-    // by clang/CUDA?
-    translator->setBuildOption("ptx-version", compute_capability);
-    translator->setBuildOption("ptx-target-device", compute_capability);
-
     // Lower kernels to PTX
-    std::string ptx_image;
     auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, ptx_image);
+        hcf, selected_image_name, config, compiled_image);
     
     if(!err.is_success()) {
       register_error(err);
-      return nullptr;
+      return false;
     }
+    return true;
+  };
 
+  auto code_object_constructor = [&](const std::string& ptx_image) -> code_object* {
+
+    std::vector<std::string> kernel_names;
+    get_image_and_kernel_names(kernel_names);
+    
     cuda_sscp_executable_object *exec_obj = new cuda_sscp_executable_object{
         ptx_image, target_arch_name, hcf_object, kernel_names, device, config};
     result r = exec_obj->get_build_result();
@@ -696,9 +681,9 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
-      *kidx, kernel_name, backend_id::cuda, hcf_object,
-      code_object_selector, code_object_constructor);
+  const code_object *obj = _kernel_cache->get_or_construct_jit_code_object(
+      code_object_configuration_id, binary_configuration_id,
+      jit_compiler, code_object_constructor);
 
   if(!obj) {
     return make_error(__hipsycl_here(),

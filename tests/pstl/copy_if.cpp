@@ -34,7 +34,7 @@
 
 #include "pstl_test_suite.hpp"
 
-BOOST_FIXTURE_TEST_SUITE(pstl_copy, enable_unified_shared_memory)
+BOOST_FIXTURE_TEST_SUITE(pstl_copy_if, enable_unified_shared_memory)
 
 
 template<class Generator>
@@ -54,7 +54,10 @@ void test_copy_if(std::size_t problem_size, Generator&& gen) {
   std::copy_if(data.begin(), data.end(), dest_host.begin(), p);
 
   BOOST_CHECK(ret == dest_device.begin() + problem_size);
-  BOOST_CHECK(dest_device == dest_device);
+  // Our copy_if implementation is currently incorrect, since
+  // we always copy results to the same position (we would
+  // actually need to run a scan algorithm to find the right place)
+  //BOOST_CHECK(dest_device == dest_host);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty) {

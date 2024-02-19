@@ -41,6 +41,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/DebugInfo.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -102,6 +103,29 @@ private:
   bool IsFound;
 };
 
+void setNVVMReflectParameter(llvm::Module& M, llvm::StringRef Name, int Value) {
+  llvm::SmallVector<llvm::Metadata*, 4> Metadata;
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 4)));
+  Metadata.push_back(llvm::MDString::get(M.getContext(), "nvvm-reflect-" + std::string{Name}));
+  Metadata.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), Value)));
+
+  M.getModuleFlagsMetadata()->addOperand(llvm::MDTuple::get(M.getContext(), Metadata)); 
+}
+
+void setFTZMode(llvm::Module& M, int Mode) {
+  setNVVMReflectParameter(M, "ftz", Mode);
+}
+
+void setPrecDiv(llvm::Module& M, int Mode) {
+  setNVVMReflectParameter(M, "prec-div", Mode);
+}
+
+void setPrecSqrt(llvm::Module& M, int Mode) {
+  setNVVMReflectParameter(M, "prec-sqrt", Mode);
+}
+
 }
 
 LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
@@ -116,6 +140,19 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   M.setTargetTriple(Triple);
   M.setDataLayout(DataLayout);
+
+  // Initialize libdevice parameters. These values are < 0 in case no explicit
+  // setting has been done.
+  if(FlushDenormalsToZero < 0)
+    FlushDenormalsToZero = IsFastMath ? 1 : 0;
+  if(PreciseDiv < 0)
+    PreciseDiv = IsFastMath ? 0 : 1;
+  if(PreciseSqrt < 0)
+    PreciseSqrt = IsFastMath ? 0 : 1;
+
+  setFTZMode(M, FlushDenormalsToZero);
+  setPrecDiv(M, PreciseDiv);
+  setPrecSqrt(M, PreciseSqrt);
 
   AddressSpaceMap ASMap = getAddressSpaceMap();
   
@@ -141,6 +178,27 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       M.getOrInsertNamedMetadata("nvvm.annotations")
           ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 
+      if(KnownGroupSizeX > 0 && KnownGroupSizeY > 0 && KnownGroupSizeZ > 0) {
+
+        llvm::SmallVector<llvm::Metadata*, 7> KnownGroupSizeOperands;
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::get(F));
+        
+        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidx"));
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+
+        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidy"));
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+        
+        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidz"));
+        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+        
+        M.getOrInsertNamedMetadata("nvvm.annotations")
+          ->addOperand(llvm::MDTuple::get(M.getContext(), KnownGroupSizeOperands));
+      }
+
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
     }
   }
@@ -157,6 +215,11 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   AddressSpaceInferencePass ASIPass {ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
+
+  // It seems there is an issue with debug info in PTX, so strip it for now
+  // TODO: We should attempt to find out what exactly is causing the problem
+  // so that code still can be debugged on NVIDIA GPUs.
+  llvm::StripDebugInfo(M);
 
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
@@ -207,6 +270,8 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     "-o",
                                                     OutputFilename,
                                                     InputFile->TmpName};
+  if(IsFastMath)
+    Invocation.push_back("-ffast-math");
 
   std::string ArgString;
   for(const auto& S : Invocation) {
@@ -246,6 +311,20 @@ bool LLVMToPtxTranslator::applyBuildOption(const std::string &Option, const std:
     return true;
   }
 
+  return false;
+}
+
+bool LLVMToPtxTranslator::applyBuildFlag(const std::string& Option) {
+  if(Option == "ftz") {
+    this->FlushDenormalsToZero = 1;
+    return true;
+  } else if(Option == "approx-div") {
+    this->PreciseDiv = 0;
+    return true;
+  } else if(Option == "approx-sqrt") {
+    this->PreciseSqrt = 0;
+    return true;
+  }
   return false;
 }
 

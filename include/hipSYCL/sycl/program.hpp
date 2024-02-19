@@ -87,7 +87,8 @@ public:
   void build_with_source(string_class kernelSource, string_class buildOptions = "")
   {
     // On CUDA, we may be able to use NVRTC library here for runtime compilation?
-    throw unimplemented{"program::build_with_source() is unimplemented."};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "program::build_with_source() is unimplemented."};
   }
 
   void link(string_class linkOptions = "")

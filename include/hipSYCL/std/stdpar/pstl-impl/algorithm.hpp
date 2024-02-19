@@ -48,12 +48,12 @@ HIPSYCL_STDPAR_ENTRYPOINT void for_each(hipsycl::stdpar::par_unseq, ForwardIt fi
   };
 
   auto fallback = [&](){
-    std::for_each(hipsycl::stdpar::par_unseq_host_fallback, first ,last, f);
+    std::for_each(hipsycl::stdpar::par_unseq_host_fallback, first, last, f);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(hipsycl::stdpar::algorithm_type::for_each{},
                                std::distance(first, last), offloader, fallback,
-                               first, last, f);
+                               first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), f);
 }
 
 template<class ForwardIt, class Size, class UnaryFunction2>
@@ -94,9 +94,10 @@ ForwardIt2 transform(hipsycl::stdpar::par_unseq,
                           last1, d_first, unary_op);
   };
 
-  HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm_type::transform{},
-                         std::distance(first1, last1), ForwardIt2, offloader,
-                         fallback, first1, last1, d_first, unary_op);
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm_type::transform{},
+      std::distance(first1, last1), ForwardIt2, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), d_first, unary_op);
 }
 
 template <class ForwardIt1, class ForwardIt2, class ForwardIt3,
@@ -119,9 +120,10 @@ ForwardIt3 transform(hipsycl::stdpar::par_unseq,
                           last1, first2, d_first, binary_op);
   };
 
-  HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm_type::transform{},
-                         std::distance(first1, last1), ForwardIt3, offloader,
-                         fallback, first1, last1, first2, d_first, binary_op);
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm_type::transform{},
+      std::distance(first1, last1), ForwardIt3, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, d_first, binary_op);
 }
 
 template <class ForwardIt1, class ForwardIt2>
@@ -142,7 +144,8 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(const hipsycl::stdpar::par_unseq,
 
   HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm_type::copy{},
                          std::distance(first, last), ForwardIt2, offloader,
-                         fallback, first, last, d_first);
+                         fallback, first,
+                         HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
 
 template<class ForwardIt1, class ForwardIt2, class UnaryPredicate >
@@ -165,7 +168,8 @@ ForwardIt2 copy_if(hipsycl::stdpar::par_unseq,
 
   HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm_type::copy_if{},
                          std::distance(first, last), ForwardIt2, offloader,
-                         fallback, first, last, d_first, pred);
+                         fallback, first,
+                         HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, pred);
 }
 
 template<class ForwardIt1, class Size, class ForwardIt2 >
@@ -202,8 +206,9 @@ void fill(hipsycl::stdpar::par_unseq,
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(hipsycl::stdpar::algorithm_type::fill{},
-                               std::distance(first, last), offloader,
-                               fallback, first, last, value);
+                               std::distance(first, last), offloader, fallback,
+                               first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
+                               value);
 }
 
 template <class ForwardIt, class Size, class T>
@@ -237,9 +242,9 @@ HIPSYCL_STDPAR_ENTRYPOINT void generate(hipsycl::stdpar::par_unseq, ForwardIt fi
     std::generate(hipsycl::stdpar::par_unseq_host_fallback, first, last, g);
   };
 
-  HIPSYCL_STDPAR_OFFLOAD_NORET(hipsycl::stdpar::algorithm_type::generate{},
-                               std::distance(first, last), offloader,
-                               fallback, first, last, g);
+  HIPSYCL_STDPAR_OFFLOAD_NORET(
+      hipsycl::stdpar::algorithm_type::generate{}, std::distance(first, last),
+      offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), g);
 }
 
 template <class ForwardIt, class Size, class Generator>
@@ -276,7 +281,8 @@ void replace(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(hipsycl::stdpar::algorithm_type::replace{},
                                std::distance(first, last), offloader, fallback,
-                               first, last, old_value, new_value);
+                               first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
+                               old_value, new_value);
 }
 
 template <class ForwardIt, class UnaryPredicate, class T>
@@ -294,7 +300,8 @@ void replace_if(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(hipsycl::stdpar::algorithm_type::replace_if{},
                                std::distance(first, last), offloader, fallback,
-                               first, last, p, new_value);
+                               first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p,
+                               new_value);
 }
 
 template <class ForwardIt1, class ForwardIt2, class T>
@@ -315,9 +322,10 @@ replace_copy(hipsycl::stdpar::par_unseq, ForwardIt1 first, ForwardIt1 last,
                              last, d_first, old_value, new_value);
   };
 
-  HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm_type::replace_copy{},
-                         std::distance(first, last), ForwardIt2, offloader,
-                         fallback, first, last, d_first, old_value, new_value);
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm_type::replace_copy{},
+      std::distance(first, last), ForwardIt2, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, old_value, new_value);
 }
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate, class T>
@@ -338,9 +346,10 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
                                 last, d_first, p, new_value);
   };
 
-  HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm_type::replace_copy_if{},
-                         std::distance(first, last), ForwardIt2, offloader,
-                         fallback, first, last, d_first, p, new_value);
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm_type::replace_copy_if{},
+      std::distance(first, last), ForwardIt2, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, p, new_value);
 }
 
 /*
@@ -387,7 +396,8 @@ bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(hipsycl::stdpar::algorithm_type::all_of{},
                                   std::distance(first, last), bool, offloader,
-                                  fallback, first, last, p);
+                                  fallback, first,
+                                  HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
 template<class ForwardIt, class UnaryPredicate>
@@ -418,7 +428,8 @@ bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(hipsycl::stdpar::algorithm_type::any_of{},
                                   std::distance(first, last), bool, offloader,
-                                  fallback, first, last, p);
+                                  fallback, first,
+                                  HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
 template<class ForwardIt, class UnaryPredicate>
@@ -449,7 +460,8 @@ bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(hipsycl::stdpar::algorithm_type::none_of{},
                                   std::distance(first, last), bool, offloader,
-                                  fallback, first, last, p);
+                                  fallback, first,
+                                  HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
 }

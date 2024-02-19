@@ -27,7 +27,10 @@
 
 #include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/backend.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <fstream>
@@ -108,6 +111,17 @@ hcf_kernel_info::hcf_kernel_info(
     _original_arg_indices.push_back(arg_original_index);
   }
 
+  if(const auto* flags_node = kernel_node->get_subnode("compile-flags")) {
+    for(const auto& flag : flags_node->key_value_pairs) {
+      _compilation_flags.push_back(flag.first);
+    }
+  }
+  if(const auto* options_node = kernel_node->get_subnode("compile-options")) {
+    for(const auto& flag : options_node->key_value_pairs) {
+      _compilation_flags.push_back(flag.first);
+    }
+  }
+
   _parsing_successful = true;
 }
 
@@ -143,6 +157,15 @@ hcf_kernel_info::get_images_containing_kernel() const {
 
 hcf_object_id hcf_kernel_info::get_hcf_object_id() const {
   return _id;
+}
+
+const std::vector<std::string> &hcf_kernel_info::get_compilation_flags() const {
+  return _compilation_flags;
+}
+
+const std::vector<std::pair<std::string, std::string>> &
+hcf_kernel_info::get_compilation_options() const {
+  return _compilation_options;
 }
 
 const std::string& hcf_image_info::get_format() const {
@@ -191,11 +214,6 @@ const std::vector<std::string> &hcf_image_info::get_contained_kernels() const {
 
 bool hcf_image_info::is_valid() const {
   return _parsing_successful;
-}
-
-kernel_cache& kernel_cache::get() {
-  static kernel_cache c;
-  return c;
 }
 
 hcf_cache& hcf_cache::get() {
@@ -372,20 +390,77 @@ hcf_cache::get_image_info(hcf_object_id obj,
   return it->second.get();
 }
 
-const kernel_cache::kernel_name_index_t*
-kernel_cache::get_global_kernel_index(const std::string &kernel_name) const {
-  auto it = _kernel_index_map.find(kernel_name);
-  if(it == _kernel_index_map.end())
-    return nullptr;
-  return &(it->second);
-}
 
+
+
+std::shared_ptr<kernel_cache> kernel_cache::get() {
+  // required since kernel_cache has a private default constructor
+  struct make_shared_enabler : public kernel_cache {};
+  static std::shared_ptr<kernel_cache> c = std::make_shared<make_shared_enabler>();
+  return c;
+}
 
 void kernel_cache::unload() {
   std::lock_guard<std::mutex> lock{_mutex};
 
-  _kernel_code_objects.clear();
   _code_objects.clear();
+}
+
+const code_object* kernel_cache::get_code_object(code_object_id id) const {
+  std::lock_guard<std::mutex> lock{_mutex};
+  return get_code_object_impl(id);
+}
+
+const code_object* kernel_cache::get_code_object_impl(code_object_id id) const {
+  auto it = _code_objects.find(id);
+  if(it == _code_objects.end())
+    return nullptr;
+  return it->second.get();
+}
+
+std::string kernel_cache::get_persistent_cache_file(code_object_id id_of_binary) const {
+  using namespace common::filesystem;
+  std::string cache_dir = tuningdb::get().get_jit_cache_dir();
+  return join_path(cache_dir, glue::kernel_configuration::to_string(id_of_binary)+".jit");
+}
+
+bool kernel_cache::persistent_cache_lookup(code_object_id id_of_binary,
+                                           std::string &out) const {
+  std::string filename = get_persistent_cache_file(id_of_binary);
+  std::ifstream file{filename, std::ios::in | std::ios::binary | std::ios::ate};
+  
+  if(!file.is_open())
+    return false;
+
+  HIPSYCL_DEBUG_INFO << "kernel_cache: Persistent cache hit for id "
+                     << glue::kernel_configuration::to_string(id_of_binary)
+                     << " in file " << filename << std::endl;
+
+  std::streamsize file_size = file.tellg();
+  file.seekg(0, std::ios::beg);
+  out.resize(file_size);
+  file.read(out.data(), file_size);
+  
+  return true;
+}
+
+void kernel_cache::persistent_cache_store(code_object_id id_of_binary,
+                                          const std::string &data) const {
+  if(application::get_settings().get<setting::no_jit_cache_population>())
+    return;
+
+  std::string filename = get_persistent_cache_file(id_of_binary);
+
+  HIPSYCL_DEBUG_INFO << "kernel_cache: Storing compiled binary with id "
+                     << glue::kernel_configuration::to_string(id_of_binary)
+                     << " in persistent cache file " << filename << std::endl;
+  
+
+  if(!common::filesystem::atomic_write(filename, data)) {
+    HIPSYCL_DEBUG_ERROR
+        << "Could not store JIT result in persistent kernel cache in file "
+        << filename << std::endl;
+  }
 }
 
 } // rt

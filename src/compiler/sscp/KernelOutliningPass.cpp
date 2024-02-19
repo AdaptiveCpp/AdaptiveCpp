@@ -31,6 +31,25 @@ namespace compiler {
 
 namespace {
 
+bool isUsedInFunctions(llvm::SmallPtrSet<llvm::User*, 16>& VisitedUsers, llvm::User* User) {
+  if(llvm::isa<llvm::Function>(User))
+      return true;
+  if(llvm::Instruction* I = llvm::dyn_cast<llvm::Instruction>(User)){
+    if(I->getFunction())
+      return true;
+  }
+  
+  if(VisitedUsers.contains(User))
+    return false;
+  VisitedUsers.insert(User);
+
+  for(auto* U : User->users()) {
+    if(isUsedInFunctions(VisitedUsers, U))
+      return true;
+  }
+  return false;
+}
+
 template<class FunctionSetT>
 void descendCallGraphAndAdd(llvm::Function* F, llvm::CallGraph& CG, FunctionSetT& Set){
   if(!F || Set.contains(F))
@@ -78,7 +97,7 @@ public:
   llvm::Type* run(llvm::Function* F, int ArgNo) {
     VisitedUsers.clear();
     if(llvm::Value* Arg = F->getArg(ArgNo)) {
-      if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
+      if(llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
 
         // If either byval or byref attributes are present, we can just look up
         // the pointee type directly.
@@ -138,7 +157,7 @@ private:
         Scores[GEPI->getSourceElementType()] = CurrentScore - 1;
       } else if (auto EEI = llvm::dyn_cast<llvm::ExtractElementInst>(Current)) {
         Scores[EEI->getVectorOperand()->getType()] = CurrentScore - 2;
-      } else if (auto ACI = llvm::dyn_cast<llvm::AddrSpaceCastInst>(Current)) {
+      } else if (llvm::dyn_cast<llvm::AddrSpaceCastInst>(Current)) {
         // Follow address space casts, we don't care about pointer address spaces
         rankUsers(Current, Scores, CurrentScore);
       } else if(auto CI = llvm::dyn_cast<llvm::CallBase>(Current)) {
@@ -315,10 +334,10 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   for(auto F: SSCPEntrypoints)
     descendCallGraphAndAdd(F, CG, DeviceFunctions);
 
-  for(auto* F : DeviceFunctions) {
+  // for(auto* F : DeviceFunctions) {
     //HIPSYCL_DEBUG_INFO << "SSCP Kernel outlining: Function is device function: "
     //                   << F->getName().str() << "\n";
-  }
+  // }
   
   llvm::SmallVector<llvm::Function*, 16> PureHostFunctions;
   for(auto& F: M) {
@@ -351,7 +370,11 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   llvm::SmallVector<llvm::GlobalVariable*, 16> UnneededGlobals;
   for(auto& G: M.globals()) {
     G.removeDeadConstantUsers();
-    if(G.getNumUses() == 0)
+    // Throw away globals that are either totally unused or don't have any
+    // use inside functions (either directly or indirectly). The latter is
+    // to remove globals with circular dependencies, which can cause JIT failures.
+    llvm::SmallPtrSet<llvm::User*, 16> VisitedUsers;
+    if(G.getNumUses() == 0 || !isUsedInFunctions(VisitedUsers, &G))
       UnneededGlobals.push_back(&G);
   }
   for(auto& G : UnneededGlobals) {

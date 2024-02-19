@@ -2,20 +2,23 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="83.973839mm"
-   height="21.09042mm"
-   viewBox="0 0 83.973838 21.09042"
+   width="99.176247mm"
+   height="21.090403mm"
+   viewBox="0 0 99.176246 21.090403"
    version="1.1"
    id="svg8"
-   inkscape:version="0.92.5 (2060ec1f9f, 2020-04-08)"
-   sodipodi:docname="logo-color.svg">
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   sodipodi:docname="logo-color13b.svg"
+   inkscape:export-filename="/home/aksel/src/hipSYCL/master/doc/img/logo/logo-color13.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <defs
      id="defs2" />
   <sodipodi:namedview
@@ -25,22 +28,23 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="3.959798"
-     inkscape:cx="123.22671"
-     inkscape:cy="57.550732"
+     inkscape:zoom="2.8"
+     inkscape:cx="200.17857"
+     inkscape:cy="19.107143"
      inkscape:document-units="mm"
      inkscape:current-layer="g4819"
      showgrid="false"
-     inkscape:window-width="1920"
-     inkscape:window-height="1011"
+     inkscape:window-width="2560"
+     inkscape:window-height="1400"
      inkscape:window-x="0"
-     inkscape:window-y="32"
+     inkscape:window-y="40"
      inkscape:window-maximized="1"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     showguides="false" />
+     showguides="false"
+     inkscape:pagecheckerboard="0" />
   <metadata
      id="metadata5">
     <rdf:RDF>
@@ -49,7 +53,6 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -57,7 +60,7 @@
      inkscape:label="Ebene 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-67.359818,-184.30628)">
+     transform="translate(-67.359818,-184.3063)">
     <g
        id="g4819">
       <g
@@ -83,7 +86,7 @@
          id="g1418">
         <text
            xml:space="preserve"
-           style="font-style:normal;font-weight:normal;font-size:17.23652267px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#383838;fill-opacity:1;stroke:none;stroke-width:0.43091303"
+           style="font-style:normal;font-weight:normal;font-size:17.2365px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#383838;fill-opacity:1;stroke:none;stroke-width:0.430913"
            x="72.269844"
            y="196.92342"
            id="text4770"><tspan
@@ -91,15 +94,15 @@
              id="tspan4768"
              x="72.269844"
              y="196.92342"
-             style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.23652267px;font-family:'Trade Gothic LT Std';-inkscape-font-specification:'Trade Gothic LT Std, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#383838;fill-opacity:1;stroke-width:0.43091303"><tspan
-   id="tspan4584"
-   style="fill:#c50d29;fill-opacity:1">Open</tspan>SYCL</tspan></text>
+             style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2365px;font-family:'Trade Gothic LT Std';-inkscape-font-specification:'Trade Gothic LT Std, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#383838;fill-opacity:1;stroke-width:0.430913">Adaptive<tspan
+   style="fill:#c50d29;fill-opacity:1"
+   id="tspan14913">Cpp</tspan></tspan></text>
         <path
            sodipodi:nodetypes="cczszszszccc"
            inkscape:connector-curvature="0"
            id="path4682"
-           d="m 72.003244,189.60551 c -2.656947,1.73051 -4.642452,3.91523 -4.643426,6.17197 4.3e-5,5.31258 7.687674,9.62174 15.527619,9.61922 7.839945,-0.003 13.820774,-2.46399 18.196333,-3.92825 4.37556,-1.46426 9.77759,-2.13051 14.693,-2.26569 4.91541,-0.13518 19.97911,-0.6127 19.76141,-0.63052 -0.73296,-0.06 -14.90552,0.021 -19.7976,0.021 -4.89208,0 -10.05289,0.49092 -15.03978,1.82715 -4.638183,1.2428 -9.357904,3.22267 -16.745976,3.22267 -7.388072,0 -13.940081,-4.30688 -13.939829,-9.61951 0.0053,-1.53814 0.687131,-3.05316 1.988249,-4.41797 z"
-           style="fill:#c50d29;fill-opacity:1;stroke:none;stroke-width:0.14904052;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+           d="m 72.820953,189.60551 c -3.124836,1.73051 -5.459989,3.91523 -5.461135,6.17197 5.1e-5,5.31258 9.041477,9.62174 18.26204,9.61922 9.220562,-0.003 16.254622,-2.46399 21.400712,-3.92825 5.1461,-1.46426 11.49943,-2.13051 17.28045,-2.26569 5.78101,-0.13518 23.49744,-0.6127 23.2414,-0.63052 -0.86203,-0.06 -17.53039,0.021 -23.28397,0.021 -5.75357,0 -11.8232,0.49092 -17.68829,1.82715 -5.45497,1.2428 -11.005833,3.22267 -19.694948,3.22267 -8.689115,0 -16.394936,-4.30688 -16.394639,-9.61951 0.0062,-1.53814 0.808135,-3.05316 2.33838,-4.41797 z"
+           style="fill:#c50d29;fill-opacity:1;stroke:none;stroke-width:0.161632;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
       </g>
     </g>
   </g>

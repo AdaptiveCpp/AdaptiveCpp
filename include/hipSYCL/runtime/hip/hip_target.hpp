@@ -37,11 +37,17 @@
 #endif
 
 #ifdef HIPSYCL_RT_HIP_TARGET_CUDA
-#define __HIP_PLATFORM_NVCC__
+#define __HIP_PLATFORM_NVCC__ // Only needed for ROCm <6.0
+#define __HIP_PLATFORM_NVIDIA__
 #include <hip/hip_runtime.h>
 #elif defined(HIPSYCL_RT_HIP_TARGET_ROCM)
-#ifndef __HIP_PLATFORM_HCC__
+#ifndef __HIP_PLATFORM_HCC__ // Only needed for ROCm <6.0
 #define __HIP_PLATFORM_HCC__
+#endif
+#ifndef __HIP_PLATFORM_AMD__
+#define __HIP_PLATFORM_AMD__
+#endif
+#ifndef __HIP_ROCclr__
 #define __HIP_ROCclr__ (1)
 #endif
 #include <hip/hip_runtime.h>

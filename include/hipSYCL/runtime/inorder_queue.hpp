@@ -54,6 +54,8 @@ private:
   bool _is_complete;
 };
 
+/// Represents an in-order queue. Implementations of this abstract
+/// interface have to be thread-safe.
 class inorder_queue
 {
 public:

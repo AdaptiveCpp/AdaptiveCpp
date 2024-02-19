@@ -9,3 +9,4 @@
 * 2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
 * ... many more changes, including support for CPUs with LLVM compiler support, Level Zero runtime, generic single-pass compiler, ...
 * 2023/2/9: hipSYCL was renamed to Open SYCL
+* Sep 2023: Open SYCL was renamed to AdaptiveCpp due to external legal pressure and to account for a broadening of the project scope.

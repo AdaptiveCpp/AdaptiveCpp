@@ -31,6 +31,8 @@
 #include <cmath>
 #include <cassert>
 #include <functional>
+#include <atomic>
+#include <mutex>
 
 #include "backend.hpp"
 #include "device_id.hpp"
@@ -145,7 +147,7 @@ public:
 
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
-                  const std::vector<dag_node_ptr> &reqs) override;
+                  const node_list_t &reqs) override;
 
   template <class F> void for_each_queue(rt::device_id dev, F handler) const {
     assert(dev.get_id() < _device_data.size());
@@ -170,9 +172,35 @@ private:
   };
 
   std::vector<per_device_data> _device_data;
-  std::size_t _num_submitted_operations;
   std::vector<inorder_queue*> _managed_queues;
   backend_id _backend;
+};
+
+template<class Executor>
+class lazily_constructed_executor {
+public:
+  template<class Factory>
+  lazily_constructed_executor(Factory&& F)
+  : _is_initialized{false}, _factory{std::forward<Factory>(F)} {}
+
+  Executor* get() {
+    if(_is_initialized.load(std::memory_order_acquire))
+      return _ptr.get();
+    else {
+      std::lock_guard<std::mutex> lock{_mutex};
+      if(!_is_initialized.load(std::memory_order_acquire)) {
+        _ptr = _factory();
+        _is_initialized.store(true, std::memory_order_release);
+      }
+      return _ptr.get();
+    }
+  }
+
+private:
+  std::atomic<bool> _is_initialized;
+  std::mutex _mutex;
+  std::function<std::unique_ptr<Executor>()> _factory;
+  std::unique_ptr<Executor> _ptr = nullptr;
 };
 
 }

@@ -122,7 +122,7 @@ void dag_submitted_ops::wait_for_group(std::size_t node_group) {
   for(int i = current_ops.size() - 1; i >= 0; --i) {
     const dag_node_ptr& node = current_ops[i];
     assert(node->is_submitted());
-    if (hints::node_group *g =
+    if (const hints::node_group *g =
             node->get_execution_hints().get_hint<hints::node_group>()) {
       if (g->get_id() == node_group) {
         HIPSYCL_DEBUG_INFO
@@ -134,14 +134,14 @@ void dag_submitted_ops::wait_for_group(std::size_t node_group) {
   }
 }
 
-std::vector<dag_node_ptr> dag_submitted_ops::get_group(std::size_t node_group) {
+node_list_t dag_submitted_ops::get_group(std::size_t node_group) {
   
-  std::vector<dag_node_ptr> ops;
+  node_list_t ops;
   {
     std::lock_guard lock{_lock};
     for(dag_node_ptr node : _ops) {
       assert(node->is_submitted());
-      if (hints::node_group *g =
+      if (const hints::node_group *g =
               node->get_execution_hints().get_hint<hints::node_group>()) {
         if (g->get_id() == node_group) {
           ops.push_back(node);

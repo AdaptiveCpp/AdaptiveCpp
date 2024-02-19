@@ -295,7 +295,8 @@ llvm::Loop *getOneWorkItemLoop(const llvm::LoopInfo &LI) {
 }
 
 llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop) {
-  llvm::BasicBlock *Entry;
+  llvm::BasicBlock *Entry = nullptr;
+  assert(!llvm::successors(WILoop->getHeader()).empty() && "WILoop must have a body!");
   for (auto *Succ : llvm::successors(WILoop->getHeader())) {
     if (Succ != WILoop->getExitBlock()) {
       Entry = Succ;
@@ -370,7 +371,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
   for (auto &I : *EntryBlock) {
     if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
-      if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified))
+      if (Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified))
         continue; // already arrayificated
       if (!std::all_of(Alloca->user_begin(), Alloca->user_end(), [&LoopBlocks](llvm::User *User) {
             auto *Inst = llvm::dyn_cast<llvm::Instruction>(User);

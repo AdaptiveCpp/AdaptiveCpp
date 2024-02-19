@@ -177,9 +177,11 @@ public:
                                  sizeof(mem_type), &mem_type, nullptr);
 
     out.is_from_host_backend = false;
+    out.is_optimized_host = false;
+
     if(err != CL_SUCCESS)
       return err;
-    
+
     if(mem_type == CL_MEM_TYPE_HOST_INTEL)
       out.is_optimized_host = true;
     else if(mem_type == CL_MEM_TYPE_SHARED_INTEL)
@@ -187,7 +189,8 @@ public:
     else if(mem_type == CL_MEM_TYPE_DEVICE_INTEL) {
       cl_device_id dev;
       err = _mem_alloc_info(_ctx.get(), ptr, CL_MEM_ALLOC_DEVICE_INTEL,
-                                 sizeof(mem_type), &dev, nullptr);
+                                 sizeof(dev), &dev, nullptr);
+
       if(err != CL_SUCCESS)
         return err;
       
@@ -242,6 +245,23 @@ public:
         wait_events.size(),
         (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
         (event != nullptr) ? &tmp : nullptr);
+    if(event != nullptr && err == CL_SUCCESS) {
+      *event = tmp;
+    }
+    return err;
+  }
+
+  cl_int enqueue_prefetch(cl::CommandQueue &queue, const void *ptr,
+                          std::size_t bytes,
+                          cl_mem_migration_flags flags,
+                          const std::vector<cl::Event> &wait_events,
+                          cl::Event *event) override {
+    cl_event tmp;
+    cl_int err = _migrate_mem(
+        queue.get(), ptr, bytes, flags, wait_events.size(),
+        (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
+        (event != nullptr) ? &tmp : nullptr);
+
     if(event != nullptr && err == CL_SUCCESS) {
       *event = tmp;
     }
@@ -423,6 +443,27 @@ public:
     unsigned char pattern_byte = static_cast<char>(pattern);
     return queue.enqueueMemFillSVM(ptr, pattern_byte, bytes, &wait_events, out);
   }
+
+
+  cl_int enqueue_prefetch(cl::CommandQueue &queue, const void *ptr,
+                          std::size_t bytes,
+                          cl_mem_migration_flags flags,
+                          const std::vector<cl::Event> &wait_events,
+                          cl::Event *event) override {
+    // Seems there is a bug in CommandQueue::enqueueMigrateSVM, so we directly
+    // call the OpenCL function
+    cl_event tmp;
+    cl_int err = ::clEnqueueSVMMigrateMem(
+        queue.get(), 1, &ptr, &bytes, flags, wait_events.size(),
+        (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
+        (event != nullptr) ? &tmp : nullptr);
+    
+    if(event != nullptr && err == CL_SUCCESS) {
+      *event = tmp;
+    }
+    return err;
+  }
+
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
     return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM, cl_bool{true});

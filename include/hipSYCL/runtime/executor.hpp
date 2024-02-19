@@ -54,7 +54,7 @@ public:
 
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
-                  const std::vector<dag_node_ptr> &reqs) = 0;
+                  const node_list_t &reqs) = 0;
 
   virtual bool can_execute_on_device(const device_id& dev) const = 0;
   virtual bool is_submitted_by_me(dag_node_ptr node) const = 0;

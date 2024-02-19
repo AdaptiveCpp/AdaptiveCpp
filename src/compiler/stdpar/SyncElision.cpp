@@ -30,6 +30,10 @@
 #include "hipSYCL/compiler/stdpar/SyncElision.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
+
+#include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Attributes.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Instruction.h>
@@ -44,57 +48,257 @@ namespace compiler {
 
 namespace {
 
-bool accessesMemory(llvm::Instruction* I) {
+template <class Handler>
+bool descendInstructionUseTree(llvm::Instruction *I, Handler &&H,
+                               llvm::Instruction *Parent = nullptr) {
+  if(H(I, Parent)) {
+    for(auto* U : I->users()) {
+      if(auto* UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+        if(!descendInstructionUseTree(UI, H, I))
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+using InstToInstListMapT =
+    llvm::SmallDenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 16>>;
+
+// Identifies store instructions that might be related for argument handling:
+// We identify these instructions by looking for allocas in the function. If that alloca
+// is only used by getelementptr, stores, and calls to stdpar functions, chances are
+// these instructions are only relevant for constructing stdpar arguments.
+//
+// The result is a map from encountered store instructions to other instructions referencing the same
+// memory.
+void identifyStoresPotentiallyForStdparArgHandling(
+    llvm::Function *F, const llvm::SmallPtrSet<llvm::Function *, 16> &StdparFunctions,
+    InstToInstListMapT &Out) {
+  for(auto& BB : *F) {
+    for(auto& I : BB) {
+      if(llvm::isa<llvm::AllocaInst>(&I)) {
+        llvm::SmallVector<llvm::Instruction*, 16> Users;
+
+        bool onlyUsedInAllowedInstructions = descendInstructionUseTree(
+            &I, [&](llvm::Instruction *Current, llvm::Instruction *Parent) {
+              if (llvm::isa<llvm::AllocaInst>(Current) ||
+                  llvm::isa<llvm::GetElementPtrInst>(Current)) {
+                Users.push_back(Current);
+                return true;
+              } else if(auto *SI = llvm::dyn_cast<llvm::StoreInst>(Current)) {
+                // For store instructions, we enforce that the previous instruction in
+                // the use chain must be the pointer operand, not the value operand.
+                if(SI->getValueOperand() != Parent) {
+                  Users.push_back(Current);
+                  return true;
+                }
+              } else if (auto *CB = llvm::dyn_cast<llvm::CallBase>(Current)) {
+                if (StdparFunctions.contains(CB->getCalledFunction())) {
+                  Users.push_back(Current);
+                  return true;
+                } else if(CB->getCalledFunction()->getName().startswith("llvm.lifetime")) {
+                  return true;
+                }
+              }
+
+              return false;
+            });
+
+        if(onlyUsedInAllowedInstructions) {
+          for(auto* U: Users) {
+            if(auto* SI = llvm::dyn_cast<llvm::StoreInst>(U)) {
+              for(auto* U : Users) {
+                Out[SI].push_back(U);
+              }  
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void identifyStoresPotentiallyForStdparArgHandling(
+    const llvm::SmallVector<llvm::Instruction *, 16> &StdparCallPositions,
+    const llvm::SmallPtrSet<llvm::Function *, 16> &StdparFunctions,
+    InstToInstListMapT &Out) {
+  llvm::SmallPtrSet<llvm::Function*, 16> InvolvedFunctions;
+
+  for(auto* I : StdparCallPositions) {
+    if(I) {
+      InvolvedFunctions.insert(I->getParent()->getParent());
+    }
+  }
+
+  for(auto* F: InvolvedFunctions) {
+    identifyStoresPotentiallyForStdparArgHandling(F, StdparFunctions, Out);
+  }
+}
+
+bool instructionAccessesMemory(llvm::Instruction* I) {
   if (llvm::isa<llvm::StoreInst>(I) || llvm::isa<llvm::LoadInst>(I) ||
       llvm::isa<llvm::AtomicRMWInst>(I) || llvm::isa<llvm::AtomicCmpXchgInst>(I) ||
       llvm::isa<llvm::FenceInst>(I))
     return true;
-  
-  if(auto* CB = llvm::dyn_cast<llvm::CallBase>(I)) {
-    if(auto* F = CB->getCalledFunction()) {
-      if(F->isIntrinsic()) {
-        // Currently we assume that all intrinsics apart from llvm.lifetime
-        // may access memory. This is of course not true, but since intrinsics
-        // are backend-specific it might be difficult to get a comprehensive list
-        // of safe intrinsic
-        if(!F->getName().startswith("llvm.lifetime"))
-          return true;
-      }
+
+  return false;
+}
+
+bool functionDoesNotAccessMemory(llvm::Function* F){
+  if(!F)
+    return true;
+  if(F->isIntrinsic()) {
+    if(F->getName().startswith("llvm.lifetime")){
+      return true;
     }
   }
-
+  // We could improve this logic massively: E.g. a function which does not have ptr arguments,
+  // does not have gobal variable users, contains no inttoptr instructions, and only calls functions
+  // which satisfy these criteria could be assumed to not access memory.
   return false;
 }
 
-bool isBranchingInst(llvm::Instruction* I) {
-  if(auto* CB = llvm::dyn_cast<llvm::CallBase>(I))
-    if(auto * F = CB->getCalledFunction())
-      if(!F->isIntrinsic())
+// returns whether To is in the same BB as From, and succeeds it in the instruction list.
+bool isSucceedingInBB(llvm::Instruction* From, llvm::Instruction* To) {
+  if(From->getParent() == To->getParent()) {
+    for(auto* I = From; I != nullptr; I = I->getNextNonDebugInstruction()) {
+      if(I == To)
         return true;
-
-  return llvm::isa<llvm::BranchInst>(I) || llvm::isa<llvm::CatchReturnInst>(I) ||
-         llvm::isa<llvm::CatchSwitchInst>(I) || llvm::isa<llvm::CleanupReturnInst>(I) ||
-         llvm::isa<llvm::IndirectBrInst>(I) || llvm::isa<llvm::ResumeInst>(I) ||
-         llvm::isa<llvm::ReturnInst>(I) || llvm::isa<llvm::SwitchInst>(I);
-}
-
-bool instructionRequiresSync(llvm::Instruction* I) {
-  assert(I);
-
-  if(accessesMemory(I) || isBranchingInst(I))
-    return true;
-  
+    }
+  } 
   return false;
 }
 
-constexpr const char* ConsumeMarker = "__hipsycl_stdpar_consume_sync";
-constexpr const char* OptimizableMarker = "__hipsycl_stdpar_optimizable_sync";
-
+template <unsigned N>
+bool allAreSucceedingInBB(llvm::Instruction* From,
+                          const llvm::SmallVector<llvm::Instruction *, N> &To) {
+  for(auto* I : To) {
+    if(!isSucceedingInBB(From, I))
+      return false;
+  }
+  return true;
 }
+
+constexpr const char* BarrierBuiltinName = "__hipsycl_stdpar_optional_barrier";
+constexpr const char* EntrypointMarker = "hipsycl_stdpar_entrypoint";
+
+template<class Handler>
+void forEachStdparFunction(llvm::Module& M, Handler&& H){
+  utils::findFunctionsWithStringAnnotations(M,  [&](llvm::Function* F, llvm::StringRef Annotation){
+    if(F) {
+      if(Annotation.compare(EntrypointMarker) == 0) {
+        H(F);
+      }
+    }
+  });
+}
+
+template <class Handler>
+void forEachReachableInstructionRequiringSync(
+    llvm::Instruction *Start, const llvm::SmallPtrSet<llvm::Function *, 16> &StdparFunctions,
+    const InstToInstListMapT& PotentialStoresForStdparArgs,
+    llvm::SmallPtrSet<llvm::BasicBlock*, 16> &CompletelyVisitedBlocks,
+    Handler &&H) {
+
+  if(!Start)
+    return;
+
+  llvm::Instruction* Current = Start;
+  if(CompletelyVisitedBlocks.contains(Current->getParent())) {
+    return;
+  }
+
+  llvm::Instruction* FirstInst = &(*Current->getParent()->getFirstInsertionPt());
+  if(Current == FirstInst) {
+    CompletelyVisitedBlocks.insert(Current->getParent());
+  }
+
+  while(Current) {
+    if(auto* CB = llvm::dyn_cast<llvm::CallBase>(Current)) {
+      llvm::Function* CalledF = CB->getCalledFunction();
+      if(CalledF->getName().equals(BarrierBuiltinName)) {
+        // basic block already contains barrier; nothing to do
+        return;
+      }
+
+      // If we have found a call to an stdpar function, we can skip it --
+      // after all, the whole point is to not sync after every stdpar call.
+      // For all other calls, we need a sync because we currently
+      // do not take control flow beyond our own function into account.
+      // We can also safely ignore functions for which we know that they
+      // do not access memory
+      bool CanSkipFunctionCall =
+          StdparFunctions.contains(CalledF) || functionDoesNotAccessMemory(CalledF);
+
+      if(!CanSkipFunctionCall) {
+        H(Current);
+        return;
+      }
+    } else if(instructionAccessesMemory(Current)) {
+      bool isSkippableStore = false;
+      if(llvm::isa<llvm::StoreInst>(Current)) {
+        // Check if the store is perhaps only used to setup arguments of stdpar calls
+        // (e.g. to assemble kernel lambdas)
+        auto It = PotentialStoresForStdparArgs.find(Current);
+        if(It != PotentialStoresForStdparArgs.end()) {
+          // Store is skippable, if the referenced memory is used by stdpar function calls
+          // which succeed the store in the control flow.
+          llvm::SmallVector<llvm::Instruction*, 16> StdparCallsUsingMemory;
+          for(auto* I : It->getSecond()) {
+            if(auto *CB = llvm::dyn_cast<llvm::CallBase>(I)){
+              if(StdparFunctions.contains(CB->getCalledFunction())) {
+                StdparCallsUsingMemory.push_back(CB);
+              }
+            }
+          }
+          if(allAreSucceedingInBB(Current, StdparCallsUsingMemory)) {
+            isSkippableStore = true;
+          }
+        }
+      }
+
+      if(!isSkippableStore) {
+        H(Current);
+        return;
+      } else {
+        HIPSYCL_DEBUG_INFO
+            << "[stdpar] SyncElision: Detected store that does not block barrier movement\n";
+      }
+    } else if(Current->isTerminator()){
+      // If this terminator causes control flow to exit from this function, we need
+      // to insert synchronization.
+      // TODO: Look again at exception handling instructions in more detail
+      if (llvm::isa<llvm::ReturnInst>(Current) || llvm::isa<llvm::InvokeInst>(Current) ||
+          llvm::isa<llvm::CallBrInst>(Current) || llvm::isa<llvm::ResumeInst>(Current)) {
+        H(Current);
+        return;
+      }
+    }
+    Current = Current->getNextNonDebugInstruction();
+  }
+  // We have reached the end of this BB - so we need to look
+  // at all its successors in the CFG
+  llvm::BasicBlock* BB = Start->getParent();
+  for(int i = 0; i < BB->getTerminator()->getNumSuccessors(); ++i) {
+    llvm::BasicBlock* Successor = BB->getTerminator()->getSuccessor(i);
+    if(Successor->size() > 0) {
+      llvm::Instruction* FirstI = &(*Successor->getFirstInsertionPt());
+      forEachReachableInstructionRequiringSync(
+          FirstI, StdparFunctions, PotentialStoresForStdparArgs, CompletelyVisitedBlocks, H);
+    }
+  }
+}
+}
+
 
 llvm::PreservedAnalyses SyncElisionInliningPass::run(llvm::Module& M, llvm::ModuleAnalysisManager& AM) {
 
-  auto InlineEachCaller = [&](llvm::Function *F) {
+  auto InlineEachCaller = [](llvm::Function *F) {
     if(!F)
       return;
     for (auto *U : F->users()) {
@@ -110,82 +314,100 @@ llvm::PreservedAnalyses SyncElisionInliningPass::run(llvm::Module& M, llvm::Modu
     }
   };
 
-  InlineEachCaller(M.getFunction(ConsumeMarker));
-  InlineEachCaller(M.getFunction(OptimizableMarker));
+  forEachStdparFunction(M, [&](llvm::Function* F){
+    InlineEachCaller(F);
+  });
 
   return llvm::PreservedAnalyses::all();
 }
 
 llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
 
-  if(auto* F = M.getFunction(ConsumeMarker)) {
-    F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
-  }
-  if(auto* F = M.getFunction(OptimizableMarker)) {
-    F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
-  }
+  llvm::SmallPtrSet<llvm::Function*, 16> StdparFunctions;
+  forEachStdparFunction(M, [&](llvm::Function *F) {
+    HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Found stdpar call: " << F->getName() << "\n";
+    if (F->hasFnAttribute(llvm::Attribute::NoInline)) {
+      F->removeFnAttr(llvm::Attribute::NoInline);
+    }
+    StdparFunctions.insert(F);
+  });
 
-  llvm::SmallVector<llvm::CallInst*, 16> RemovableSyncCalls;
-  std::size_t TotalNumSyncCalls = 0;
+  if(auto* SyncF = M.getFunction(BarrierBuiltinName)) {
+    SyncF->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+    if (SyncF->hasFnAttribute(llvm::Attribute::NoInline)) {
+      SyncF->removeFnAttr(llvm::Attribute::NoInline);
+    }
 
-  for(auto& F : M) {
-    for(auto& BB: F) {
-      llvm::CallInst* PreviousOptimizableSyncInst = nullptr;
-      for(auto& I: BB) {
-        // We currently only support call instructions for consume and sync builtins, as
-        // those are easier to handle (particularly regarding BB terminators)
-        llvm::CallInst* CI = llvm::dyn_cast<llvm::CallInst>(&I);
-
-        // If we have encountered any other instruction,
-        // we may have to reset whether PreviousOptimizableSyncInst was set.
-        bool NeedsReset = true;
-
-        if(CI){
-          if(auto* CalledF = CI->getCalledFunction()){
-            if(CalledF->getName().compare(OptimizableMarker) == 0) {
-              ++TotalNumSyncCalls;
-              PreviousOptimizableSyncInst = CI;
-              NeedsReset = false;
-            } else if(CalledF->getName().compare(ConsumeMarker) == 0) {
-              if(PreviousOptimizableSyncInst) {
-                RemovableSyncCalls.push_back(PreviousOptimizableSyncInst);
-                HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Eliding synchronization in function "
-                                   << F.getName().str() << "\n";
-              }
-            } else {
-              if(!instructionRequiresSync(&I))
-                NeedsReset = false;
+    llvm::SmallPtrSet<llvm::Instruction*, 16> SyncCallsToRemove;
+    llvm::SmallVector<llvm::Instruction*, 16> StdparCallPositions;
+    
+    for(auto* U : SyncF->users()) {
+      if(auto* I = llvm::dyn_cast<llvm::CallBase>(U)){
+        
+        llvm::Function* Caller = I->getParent()->getParent();
+        if(StdparFunctions.contains(Caller)) {
+          
+          for(auto* CallerU : Caller->users()) {
+            if(auto* CB = llvm::dyn_cast<llvm::CallBase>(CallerU)) {
+              HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Found stdpar call in potential need of "
+                                    "synchronization: Call to "
+                                 << Caller->getName() << " in function "
+                                 << CB->getParent()->getParent()->getName() << "\n";
+              SyncCallsToRemove.insert(I);
+              StdparCallPositions.push_back(CB);
             }
           }
+        } else {
+          HIPSYCL_DEBUG_WARNING << "[stdpar] SyncElision: Encountered call to " << BarrierBuiltinName
+                                << " in function that is not stdpar entrypoint\n";
         }
+      }
+    }
+    
+    // Remove synchronization calls present in stdpar function definitions
+    for(auto* I : SyncCallsToRemove) {
+      I->eraseFromParent();
+    }
 
-        if(NeedsReset)
-          PreviousOptimizableSyncInst = nullptr;
+    // It can frequently happen that we have store instructions between two stdpar calls.
+    // These store instructions can prevent synchronization elision, even if they are just
+    // used to set up stdpar arguments (e.g., construct lambda objects).
+    // To counter this, we try to identify instructions that are purely used for argument handling,
+    // and do not interact with the stdpar kernel itself.
+    InstToInstListMapT InstructionsPotentiallyForStdparArgHandling;
+    identifyStoresPotentiallyForStdparArgHandling(
+        StdparCallPositions, StdparFunctions, InstructionsPotentiallyForStdparArgHandling);
+
+    for(auto* I : StdparCallPositions) {
+      // For the start of our search, we need be move to the next instruction following
+      // the stdpar call.
+      // If the stdpar call is mapped to an InvokeInst (which is tpyically the case),
+      // it does not have a next instruction.
+      //
+      // It is important to have this logic here, and not e.g. when collecting StdparCallPositions,
+      // because the appropriate start position might be altered by other barrier insertions
+      // in earlier iterations!
+      llvm::SmallVector<llvm::Instruction*, 8> StartPositions;
+      if(I->isTerminator()) {
+        for(int i = 0; i < I->getNumSuccessors(); ++i) {
+          StartPositions.push_back(&*(I->getSuccessor(i)->getFirstInsertionPt()));
+        }
+      } else {
+        StartPositions.push_back(I->getNextNonDebugInstruction());
+      }
+      for(auto* Start : StartPositions) {
+
+        llvm::SmallPtrSet<llvm::BasicBlock*, 16> VisitedBlocks;
+        forEachReachableInstructionRequiringSync(
+            Start, StdparFunctions, InstructionsPotentiallyForStdparArgHandling, VisitedBlocks,
+            [&](llvm::Instruction *InsertSyncBefore) {
+              HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Inserting synchronization in function "
+                                << InsertSyncBefore->getParent()->getParent()->getName() << "\n";
+              llvm::CallInst::Create(SyncF->getFunctionType(), SyncF, "", InsertSyncBefore);
+            });
       }
     }
   }
-
-  auto* ConsumeFunction = M.getFunction(ConsumeMarker);
-  if(ConsumeFunction) {
-    llvm::SmallVector<llvm::CallInst*, 16> Calls;
-    for(auto* U : ConsumeFunction->users()) {
-      llvm::CallInst* CI = llvm::dyn_cast<llvm::CallInst>(U);
-      if(CI) {
-        Calls.push_back(CI);
-      }
-    }
-    for(auto* CI : Calls)
-      CI->eraseFromParent();
-    ConsumeFunction->replaceAllUsesWith(llvm::UndefValue::get(ConsumeFunction->getType()));
-    ConsumeFunction->eraseFromParent();
-  }
-
-
-  for(auto* Call : RemovableSyncCalls)
-    Call->eraseFromParent();
-  HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Removed " << RemovableSyncCalls.size()
-                     << " kernel wait() calls out of " << TotalNumSyncCalls << " total calls"
-                     << "\n";
 
   return llvm::PreservedAnalyses::none();
 }

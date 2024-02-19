@@ -114,12 +114,21 @@ public:
 
   const std::vector<std::string> &get_images_containing_kernel() const;
   hcf_object_id get_hcf_object_id() const;
+
+  const std::vector<std::string>& get_compilation_flags() const;
+  const std::vector<std::pair<std::string, std::string>> &
+  get_compilation_options() const;
+
 private:
   std::vector<std::size_t> _arg_offsets;
   std::vector<std::size_t> _arg_sizes;
   std::vector<std::size_t> _original_arg_indices;
   std::vector<argument_type> _arg_types;
   std::vector<std::string> _image_providers;
+  
+  std::vector<std::string> _compilation_flags;
+  std::vector<std::pair<std::string, std::string>> _compilation_options;
+
   hcf_object_id _id;
   bool _parsing_successful = false;
 };
@@ -146,6 +155,8 @@ private:
 
 // Stores all HCF data, and also extracts information for data
 // in the SSCP format.
+//
+// This class is thread-safe.
 class hcf_cache {
 public:
   static hcf_cache& get();
@@ -216,238 +227,136 @@ private:
 
 class kernel_cache {
 public:
+  using code_object_id = glue::kernel_configuration::id_type;
   using code_object_ptr = std::unique_ptr<const code_object>;
-  using code_object_index_t = std::size_t;
-  using kernel_name_index_t = std::size_t;
 
-  static kernel_cache& get();
-
-  const kernel_name_index_t*
-  get_global_kernel_index(const std::string &kernel_name) const;
-
+  static std::shared_ptr<kernel_cache> get();
 
   template<class KernelT>
   void register_kernel() {
-    std::string name = get_global_kernel_name<KernelT>();
-
+    // This function is not needed in the current implementation, but it might
+    // be useful in the future.
+    std::string name = typeid(KernelT).name();
     HIPSYCL_DEBUG_INFO << "kernel_cache: Registering kernel " << name << std::endl;
-
-    _kernel_names.push_back(name);
-    kernel_name_index_t idx = _kernel_names.size() - 1;
-    _kernel_index_map[name] = idx;
   }
 
-  template<class KernelT>
-  std::string get_global_kernel_name() const {
-    return typeid(KernelT).name();
-  }
+  /// Retrieve object for provided code object id, or nullptr
+  /// if not found.
+  const code_object* get_code_object(code_object_id id) const;
 
-  template<class KernelT>
-  kernel_name_index_t get_global_kernel_index() const {
-    return get_global_kernel_index(get_global_kernel_name<KernelT>());
-  }
-
-  // Retrieve object for provided kernel and backend, or nullptr
-  // if not found.
-  template<class Predicate>
-  const code_object* get_code_object(kernel_name_index_t kernel_index,
-    const std::string& backend_kernel_name,
-    backend_id b, Predicate&& object_selector) {
-
+  /// Obtain or construct code objects. This is only for code objects
+  /// that do not need to rely on our persistent kernel cache for JIT compilation
+  /// results. The provided code object id is allowed to rely on values which might
+  /// change between application runs.
+  template <class Constructor>
+  const code_object *get_or_construct_code_object(code_object_id id,
+                                                  Constructor &&c) {
     std::lock_guard<std::mutex> lock{_mutex};
-    return get_code_object_impl(kernel_index, backend_kernel_name, b,
-                                object_selector);
+    return get_or_construct_code_object_impl(id, c);
   }
 
-  template<class Predicate>
-  const code_object* get_code_object(kernel_name_index_t kernel_index,
-    const std::string& backend_kernel_name,
-    backend_id b, hcf_object_id source_object, Predicate&& object_selector) {
-
+  /// Obtain or construct code objects. This is for code objects
+  /// which rely on AdaptiveCpp-handled JIT compilation.
+  /// In order to implement optimizations such as persistent on-disk kernel cache,
+  /// we need to have explicit access to the JIT-compiled binary and distinguish
+  /// the act of JIT compilation from constructing the backend code objects (e.g. CUmodule).
+  ///
+  /// This is why this function has two factory function arguments, and two ids:
+  /// \c id_of_binary: A unique id of the binary. This value should only include configuration
+  /// that is relevant for the jit-compiled code. It should not depend on any values
+  /// that might vary between application runs (e.g. cl_context), because the binary
+  /// might be persistently cached on-disk.
+  /// \c id_of_code_object: The full id of the backend code object that the user wants to obtain.
+  /// This id may depend on values which vary between application runs, such as cl_context.
+  /// \c j Has signature bool(std::string&). Will be invoked when JIT compilation is triggered, and
+  /// is expected to carry out JIT compilation.
+  /// Should return true if the compilation was successful. The binary output of JIT compilation
+  /// should be stored in the string reference.
+  /// \c c Is expected to turn the JIT-compiled binary into a code_object*. Has signature
+  /// code_object*(const std::string&). It is expected to return nullptr on error. The JIT-compiled
+  /// binary will be passed in as string reference.
+  template <class CodeObjectConstructor, class JitCompiler>
+  const code_object *get_or_construct_jit_code_object(code_object_id id_of_code_object,
+                                                      code_object_id id_of_binary,
+                                                      JitCompiler &&jit_compile,
+                                                      CodeObjectConstructor &&c) {
+    if(auto* code_object = get_code_object(id_of_code_object)) {
+      HIPSYCL_DEBUG_INFO << "kernel_cache: Cache hit for id "
+                         << glue::kernel_configuration::to_string(id_of_code_object) << "\n";
+      return code_object;
+    }
+    HIPSYCL_DEBUG_INFO << "kernel_cache: Cache MISS for id "
+                      << glue::kernel_configuration::to_string(id_of_code_object) << "\n";
+    
+    std::string compiled_binary;
+    // TODO: We might want to allow JIT compilation in parallel at some point
     std::lock_guard<std::mutex> lock{_mutex};
 
-    auto pred = [&](const code_object *obj) {
-      if (obj->hcf_source() != source_object)
-        return false;
+    if(!persistent_cache_lookup(id_of_binary, compiled_binary)){
+      if(!jit_compile(compiled_binary))
+        return nullptr;
 
-      return object_selector(obj);
-    };
-
-    return get_code_object_impl(kernel_index, backend_kernel_name, b,
-                                pred);
-  }
-
-  template <class Constructor, class Predicate>
-  const code_object *get_or_construct_code_object(
-      kernel_name_index_t kernel_index, const std::string &backend_kernel_name,
-      backend_id b, Predicate &&object_selector, Constructor &&c) {
-
-    std::lock_guard<std::mutex> lock{_mutex};
-
-    return get_or_construct_code_object_impl(kernel_index, backend_kernel_name,
-                                             b, object_selector, c);
-  }
-
-  // Only to be used within a Constructor passed to get_or_construct_code_object!
-  template <class Constructor, class Predicate>
-  const code_object *recursive_get_or_construct_code_object(
-      kernel_name_index_t kernel_index, const std::string &backend_kernel_name,
-      backend_id b, Predicate &&object_selector, Constructor &&c) {
-
-    return get_or_construct_code_object_impl(kernel_index, backend_kernel_name,
-                                             b, object_selector, c);
-  }
-
-  template <class Constructor, class Predicate>
-  const code_object *
-  get_or_construct_code_object(kernel_name_index_t kernel_index,
-                               const std::string &backend_kernel_name,
-                               backend_id b, hcf_object_id source_object,
-                               Predicate &&object_selector, Constructor &&c) {
-
-    auto pred = [&](const code_object *obj) {
-      if (obj->hcf_source() != source_object)
-        return false;
-
-      return object_selector(obj);
-    };
-
-    return get_or_construct_code_object(kernel_index, backend_kernel_name, b,
-                                        pred, c);
-  }
-
-  // Only to be used within a Constructor passed to get_or_construct_code_object!
-  template <class Constructor, class Predicate>
-  const code_object *
-  recursive_get_or_construct_code_object(kernel_name_index_t kernel_index,
-                               const std::string &backend_kernel_name,
-                               backend_id b, hcf_object_id source_object,
-                               Predicate &&object_selector, Constructor &&c) {
-
-    auto pred = [&](const code_object *obj) {
-      if (obj->hcf_source() != source_object)
-        return false;
-
-      return object_selector(obj);
-    };
-
-    return recursive_get_or_construct_code_object(
-        kernel_index, backend_kernel_name, b, pred, c);
+      if(_is_first_jit_compilation) {
+        _is_first_jit_compilation = false;
+        HIPSYCL_DEBUG_WARNING
+            << "kernel_cache: This application run has resulted in new "
+               "binaries being JIT-compiled. This indicates that the runtime "
+               "optimization process has not yet reached peak performance. You "
+               "may want to run the application again until this warning no "
+               "longer appears to achieve optimal performance."
+            << std::endl;
+      }
+      persistent_cache_store(id_of_binary, compiled_binary);
+    }
+    
+    const code_object* new_object = c(compiled_binary);
+    if(new_object)
+      _code_objects[id_of_code_object] = code_object_ptr{new_object};
+    
+    return new_object;
   }
 
   // Unload entire cache and release resources to prepare runtime shutdown.
   void unload();
 private:
+  bool persistent_cache_lookup(code_object_id id_of_binary, std::string& out) const;
+  void persistent_cache_store(code_object_id id_of_binary, const std::string& data) const;
+  std::string get_persistent_cache_file(code_object_id id_of_binary) const;
+  
+  const code_object* get_code_object_impl(code_object_id id) const;
 
-  template<class Predicate>
-  const code_object* get_code_object_impl(kernel_name_index_t kernel_index,
-    const std::string& backend_kernel_name,
-    backend_id b, Predicate&& object_selector) {
-
-    HIPSYCL_DEBUG_INFO << "kernel_cache: Querying kernel cache, having "
-                       << _code_objects.size() << " code objects." << std::endl;
-    assert(kernel_index < _kernel_names.size());
-
-    auto& backend_code_objects = _kernel_code_objects[b];
-    // Need an entry for every kernel
-    if(backend_code_objects.size() != _kernel_names.size()) {
-      backend_code_objects.resize(_kernel_names.size());
+  template <class Constructor>
+  const code_object *get_or_construct_code_object_impl(code_object_id id,
+                                                  Constructor &&c) {
+    auto* existing_code_object = get_code_object_impl(id);
+    if(existing_code_object) {
+      HIPSYCL_DEBUG_INFO << "kernel_cache: Cache hit for id "
+                         << glue::kernel_configuration::to_string(id) << "\n";
+      return existing_code_object;
     }
+    HIPSYCL_DEBUG_INFO << "kernel_cache: Cache MISS for id "
+                      << glue::kernel_configuration::to_string(id) << "\n";
 
-    auto& kernel_objects = backend_code_objects[kernel_index];
-
-    // Check for best case: Desired code object exists
-    // and is connected to the kernel
-    for(code_object_index_t cidx : kernel_objects) {
-      assert(cidx < _code_objects.size());
-      if(object_selector(_code_objects[cidx].get()))
-        return _code_objects[cidx].get();
+    const code_object* new_object = c();
+    if(new_object) {
+      _code_objects[id] = code_object_ptr{new_object};
     }
-    HIPSYCL_DEBUG_INFO << "kernel_cache: Requested object not hooked up to "
-                          "kernel index, attempting full cache search."
-                       << std::endl;
-
-    // Check for second best case: Desired code object
-    // exists, but it is not yet connected to the kernel.
-    // We need to go through all the backend's code objects to check
-    // if we can find it.
-    for(code_object_index_t cidx = 0; cidx < _code_objects.size(); ++cidx) {
-      const code_object* obj = _code_objects[cidx].get();
-      if(obj->managing_backend() == b) {
-        // Only investigate code objects as candidates where the predicate
-        // says that they are relevant
-        if(object_selector(obj)) {
-          if(obj->contains(backend_kernel_name)) {
-            // Connect this kernel to the object for future use
-            kernel_objects.push_back(cidx);
-            return obj;
-          }
-        }
-      }
-    }
-
-    // Worst case: code object does not exist
-    return nullptr;
+    return new_object;
   }
-
-  template <class Constructor, class Predicate>
-  const code_object *get_or_construct_code_object_impl(
-      kernel_name_index_t kernel_index, const std::string &backend_kernel_name,
-      backend_id b, Predicate &&object_selector, Constructor &&c) {
-
-    const code_object *obj = get_code_object_impl(
-        kernel_index, backend_kernel_name, b, object_selector);
-    if(obj) {
-      HIPSYCL_DEBUG_INFO << "kernel_cache: cache hit for kernel index "
-                         << kernel_index << " and backend kernel name "
-                         << backend_kernel_name << std::endl;
-      return obj;
-    } else {
-      HIPSYCL_DEBUG_INFO << "kernel_cache: cache MISS; constructing new object "
-                            "for kernel index "
-                         << kernel_index << " and backend kernel name "
-                         << backend_kernel_name << std::endl;
-    }
-    
-    // We haven't found the requested object: Construct new code object
-    const code_object* new_obj = c();
-    if(new_obj) {
-      _code_objects.emplace_back(code_object_ptr{new_obj});
-      code_object_index_t new_cidx = _code_objects.size() - 1;
-
-      _kernel_code_objects[b][kernel_index].push_back(new_cidx);
-    } else {
-      register_error(
-          __hipsycl_here(),
-          error_info{"kernel_cache: code object creation has failed"});
-    }
-
-    return new_obj;
-  }
-
-  // These objects should only be written to during startup - they
-  // are not thread-safe!
-  std::vector<std::string> _kernel_names;
-  std::unordered_map<std::string, kernel_name_index_t> _kernel_index_map;
-
-
-  // These objects are thread-safe and can be written and read from multiple
-  // threads at runtime if the mutex is locked.
-  // Maps kernel_name_index_t to code objects
-  common::small_map<rt::backend_id, std::vector<std::vector<code_object_index_t>>> _kernel_code_objects;
-
-  std::vector<code_object_ptr> _code_objects;
-
-  kernel_cache() = default;
 
   mutable std::mutex _mutex;
+
+  std::unordered_map<code_object_id, code_object_ptr, glue::kernel_id_hash>
+      _code_objects;
+  
+  bool _is_first_jit_compilation = true;
 };
 
 namespace detail {
 
 template<class T>
 struct kernel_registrator {
-  kernel_registrator() { kernel_cache::get().register_kernel<T>(); }
+  kernel_registrator() { kernel_cache::get()->register_kernel<T>(); }
 };
 
 template<class KernelT>

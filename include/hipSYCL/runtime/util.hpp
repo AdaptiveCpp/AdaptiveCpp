@@ -59,10 +59,7 @@ U* cast(T* val)
 
 template <int Dim> class static_array {
 public:
-
   static_array() = default;
-  static_array(const static_array &other) : _data{other._data} {}
-
 
   static_array(std::size_t dim0) {
     for (int i = 0; i < Dim; ++i)

@@ -36,6 +36,7 @@
 #include "hipSYCL/common/hcf_container.hpp"
 
 #include <cstddef>
+
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
@@ -60,7 +61,7 @@ namespace compiler {
 class Timer {
 public:
   Timer(llvm::StringRef Name, bool PrintAtDestruction = false, llvm::StringRef Description = "")
-  : Name{Name}, Print{PrintAtDestruction}, Description{Description} {
+  : Print{PrintAtDestruction}, Name{Name}, Description{Description} {
     Start = std::chrono::high_resolution_clock::now();;
     IsRunning = true;
   }
@@ -214,6 +215,16 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, DeviceMAM);
 
+  // Strip module-level inline assembly. Module-level inline assembly is used
+  // by some libstdc++ versions (>13?) in their headers. This causes problems
+  // because we cannot infer whether global assembly code not contained in functions
+  // is part of device or host code. Thus, such inline assembly can cause JIT
+  // failures.
+  // Because global inline assembly does not make sense in device code (there are
+  // multiple JIT targets, each with their own inline assembly syntax), such code
+  // cannot be relevant to device code and we can safely strip it from device code.
+  DeviceModule->setModuleInlineAsm("");
+
   // Fix std:: math function calls to point to our builtins.
   // This is required such that e.g. std::sin() can be called in kernels.
   // This should be done prior to kernel outlining, such that the now defunct
@@ -312,11 +323,12 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   return DeviceModule;
 }
 
-std::string generateHCF(llvm::Module& DeviceModule,
-                        std::size_t HcfObjectId,
-                        const std::vector<KernelInfo>& Kernels,
-                        const std::vector<std::string>& ExportedSymbols,
-                        const std::vector<std::string>& ImportedSymbols) {
+std::string
+generateHCF(llvm::Module &DeviceModule, std::size_t HcfObjectId,
+            const std::vector<KernelInfo> &Kernels, const std::vector<std::string> &ExportedSymbols,
+            const std::vector<std::string> &ImportedSymbols,
+            const std::vector<std::string> &KernelCompileFlags,
+            const std::vector<std::pair<std::string, std::string>> &KernelCompileOptions) {
 
   std::string ModuleContent;
   llvm::raw_string_ostream OutputStream{ModuleContent};
@@ -346,6 +358,16 @@ std::string generateHCF(llvm::Module& DeviceModule,
   for(const auto& Kernel : Kernels) {
     auto* K = KernelsNode->add_subnode(Kernel.Name);
     K->set_as_list("image-providers", {std::string{"llvm-ir.global"}});
+    
+    auto* FlagsNode = K->add_subnode("compile-flags");
+    for(const auto& F : KernelCompileFlags) {
+      FlagsNode->set(F, "1");
+    }
+    auto *OptsNode = K->add_subnode("compile-options");
+    for(const auto& O : KernelCompileOptions) {
+      OptsNode->set(O.first, O.second);
+    }
+
     auto* ParamsNode = K->add_subnode("parameters");
 
     for(std::size_t i = 0; i < Kernel.Parameters.size(); ++i) {
@@ -400,7 +422,8 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
       IRGenTimer.stopAndPrint();
 
       Timer HCFGenTimer{"generateHCF"};
-      HcfString = generateHCF(*DeviceIR, HcfObjectId, Kernels, ExportedSymbols, ImportedSymbols);
+      HcfString = generateHCF(*DeviceIR, HcfObjectId, Kernels, ExportedSymbols, ImportedSymbols,
+                              CompilationFlags, CompilationOptions);
       HCFGenTimer.stopAndPrint();
 
       if(SSCPEmitHcf) {
@@ -433,6 +456,26 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
     }
   }
   return llvm::PreservedAnalyses::none();
+}
+
+TargetSeparationPass::TargetSeparationPass(const std::string &KernelCompilationOptions) {
+  llvm::StringRef Opts{KernelCompilationOptions};
+
+  llvm::SmallVector<llvm::StringRef> Fragments;
+  Opts.split(Fragments, ',', -1, false);
+
+  for(auto& S : Fragments) {
+    if(S.contains("=")) {
+      llvm::SmallVector<llvm::StringRef> OptionFragments;
+      S.split(OptionFragments, '=', 1, false);
+      if(OptionFragments.size() == 2) {
+        CompilationOptions.push_back(
+            std::make_pair(std::string{OptionFragments[0]}, std::string{OptionFragments[1]}));
+      }
+    } else {
+      CompilationFlags.push_back(std::string{S});
+    }
+  }
 }
 }
 }

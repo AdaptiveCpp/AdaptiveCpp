@@ -480,7 +480,7 @@ public:
     if (type == rt::kernel_type::ndrange_parallel_for) {
       this->_invoker = [](rt::dag_node* node) {};
 
-      throw sycl::feature_not_supported{
+      throw sycl::exception{sycl::make_error_code(sycl::errc::feature_not_supported),
         "nd_range kernels on CPU are only supported if either compiler support (requires using Clang)\n"
         "or fibers are enabled, as otherwise they cannot be efficiently implemented. It is recommended:\n"
         " * to verify that you really need the features of nd_range parallel for.\n"

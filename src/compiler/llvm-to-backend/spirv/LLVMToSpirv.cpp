@@ -41,7 +41,9 @@
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/DebugInfo.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -79,7 +81,7 @@ void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
       "long_constant_composite,+SPV_INTEL_fpga_invocation_pipelining_attributes,+SPV_INTEL_fpga_"
       "dsp_control,+SPV_INTEL_arithmetic_fence,+SPV_INTEL_runtime_aligned,"
       "+SPV_INTEL_optnone,+SPV_INTEL_token_type,+SPV_INTEL_bfloat16_conversion,+SPV_INTEL_joint_"
-      "matrix,+SPV_INTEL_hw_thread_queries,+SPV_INTEL_memory_access_aliasing"
+      "matrix,+SPV_INTEL_hw_thread_queries,+SPV_INTEL_memory_access_aliasing,+SPV_EXT_relaxed_printf_string_address_space"
   };
   for(const auto& S : Args) {
     out.push_back(S);
@@ -151,6 +153,19 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
       F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+
+      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+        llvm::SmallVector<llvm::Metadata *> MDs;
+        MDs.push_back(llvm::ConstantAsMetadata::get(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+        MDs.push_back(llvm::ConstantAsMetadata::get(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+        MDs.push_back(llvm::ConstantAsMetadata::get(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+
+        static const char* ReqdWGSize = "reqd_work_group_size";
+        F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
+      }
     }
   }
 
@@ -181,8 +196,9 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Configuring kernel for " << DynamicLocalMemSize
                        << " bytes of local memory\n";
     if(!setDynamicLocalMemoryCapacity(M, DynamicLocalMemSize)) {
-      this->registerError("Could not set dynamic local memory size");
-      return false;
+      HIPSYCL_DEBUG_WARNING
+          << "Could not set dynamic local memory size; this could imply that local memory "
+             "requested by the application is not actually used inside kernels\n";
     }
   } else {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Removing dynamic local memory support from module\n";
@@ -211,6 +227,10 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   AddressSpaceInferencePass ASIPass{ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
+
+  // It seems there is an issue with debug info in llvm-spirv, so strip it for now
+  // TODO: We should attempt to find out what exactly is causing the problem
+  llvm::StripDebugInfo(M);
 
   return true;
 }
@@ -246,6 +266,9 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   };
   if(UseIntelLLVMSpirvArgs)
     appendIntelLLVMSpirvOptions(Args);
+  else {
+    Args.push_back("-spirv-ext=+SPV_EXT_relaxed_printf_string_address_space");
+  }
 
   llvm::SmallVector<llvm::StringRef, 16> Invocation{LLVMSpirVTranslator};
   for(const auto& A : Args)

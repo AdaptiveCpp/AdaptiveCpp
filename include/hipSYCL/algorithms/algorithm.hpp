@@ -70,6 +70,10 @@ inline bool should_use_memcpy(const sycl::device& dev) {
   // through the host?)
   if(dev.get_backend() == sycl::backend::ocl)
     return false;
+  if(dev.get_backend() == sycl::backend::hip)
+    // It was reported that hipMemcpy does not handly copies involving
+    // shared allocations efficiently
+    return false;
   return true;
 }
 
@@ -77,6 +81,8 @@ inline bool should_use_memset(const sycl::device& dev) {
   if(dev.get_backend() == sycl::backend::omp)
     return false;
   if(dev.get_backend() == sycl::backend::ocl)
+    return false;
+  if(dev.get_backend() == sycl::backend::hip)
     return false;
   return true;
 }

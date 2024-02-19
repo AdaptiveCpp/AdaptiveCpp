@@ -1,12 +1,12 @@
 # Heterogeneous container format (HCF) documentation
 
-In all [compilation flows](compilation.md) in which Open SYCL takes responsibility for embedding device code in the host binary, the embedded device code will be in the HCF format.
+In all [compilation flows](compilation.md) in which AdaptiveCpp takes responsibility for embedding device code in the host binary, the embedded device code will be in the HCF format.
 
 HCF is a format that has been designed to be easy to parse, and allow binary content as well as text-based metadata to coexist in a flexible hierarchical structure.
 
-The Open SYCL runtime can be instructed to dump the HCF data embedded in the application by setting the environment variable `HIPSYCL_HCF_DUMP_DIRECTORY` [(details)](env_variables.md).
+The AdaptiveCpp runtime can be instructed to dump the HCF data embedded in the application by setting the environment variable `HIPSYCL_HCF_DUMP_DIRECTORY` [(details)](env_variables.md).
 
-`opensycl-hcf-tool` can be used to inspect or alter HCF files.
+`acpp-hcf-tool` can be used to inspect or alter HCF files.
 
 ## HCF definition
 

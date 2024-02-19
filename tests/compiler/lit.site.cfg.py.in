@@ -2,7 +2,7 @@ import os
 
 config.my_src_root = r'@CMAKE_SOURCE_DIR@'
 config.my_obj_root = r'@CMAKE_BINARY_DIR@'
-config.opensycl_syclcc = r'@OPENSYCL_SYCLCC@'
+config.acpp_compiler = r'@ACPP_COMPILER@'
 
 lit_config.load_config(
         config, os.path.join(config.my_src_root, "compiler/lit.cfg.py"))

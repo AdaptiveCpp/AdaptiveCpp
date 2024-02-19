@@ -180,10 +180,12 @@ protected:
   
   bool linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
                        const std::string &ForcedTriple = "",
-                       const std::string &ForcedDataLayout = "");
+                       const std::string &ForcedDataLayout = "",
+                       bool LinkOnlyNeeded = true);
   bool linkBitcodeString(llvm::Module &M, const std::string &Bitcode,
                          const std::string &ForcedTriple = "",
-                         const std::string &ForcedDataLayout = "");
+                         const std::string &ForcedDataLayout = "",
+                         bool LinkOnlyNeeded = true);
   // If backend needs to set IR constants, it should do so here.
   virtual bool prepareBackendFlavor(llvm::Module& M) = 0;
   // Transform LLVM IR as much as required to backend-specific flavor
@@ -197,6 +199,16 @@ protected:
   void registerError(const std::string& E) {
     Errors.push_back(E);
   }
+
+  // These will be non-zero if work group sizes are known at jit time.
+  // Backends should check these values for being != 0 before using them.
+  int KnownGroupSizeX = 0;
+  int KnownGroupSizeY = 0;
+  int KnownGroupSizeZ = 0;
+
+  bool GlobalSizesFitInInt = false;
+  bool IsFastMath = false;
+
 private:
 
   void resolveExternalSymbols(llvm::Module& M);
@@ -211,6 +223,7 @@ private:
 
   // In case an error occurs, the code will be stored here
   std::string ErroringCode;
+
 };
 
 }

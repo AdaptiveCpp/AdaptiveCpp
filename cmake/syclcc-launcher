@@ -63,14 +63,22 @@ if __name__ == '__main__':
           'command [command-args...]'.format(sys.argv[0], CXX_COMPILER_ARG, SYCLCC_ARG), file=sys.stderr)
     sys.exit(1)
 
-  command_in = sys.argv[command_offset]
-  command_in_args = sys.argv[command_offset + 1:]
+  # If this is a compilation step, attempt to find the expected compiler (e.g. clang++).
+  # This may not be the first argument, in case additional CMAKE_CXX_COMPILER_LAUNCHERs are set.
+  compiler_offset = command_offset
+  while compiler_offset < len(sys.argv) and (
+      not os.path.isfile(sys.argv[compiler_offset]) or
+      not os.path.samefile(cxx_compiler_exe, sys.argv[compiler_offset])):
+    compiler_offset += 1
+  is_compilation_step = compiler_offset < len(sys.argv)
 
-  # When invoked with a command line for expected compiler (e.g. clang++), replace with a syclcc invocation.
+  # When invoked with a command line for expected compiler, replace with a syclcc invocation.
+  if is_compilation_step:
+    launcher_commands = sys.argv[command_offset:compiler_offset]
+    compiler_args = sys.argv[compiler_offset + 1:]
+    command_line = [*launcher_commands, *syclcc_exe, *syclcc_specific_args, *compiler_args]
   # Otherwise, e.g. for invocations of `ar` for linking static libraries, just continue with the command as-is.
-  if os.path.samefile(cxx_compiler_exe, command_in):
-    command_line = [*syclcc_exe, *syclcc_specific_args, *command_in_args]
   else:
-    command_line = [command_in, *command_in_args]
+    command_line = sys.argv[command_offset:]
 
   sys.exit(subprocess.run(command_line).returncode)

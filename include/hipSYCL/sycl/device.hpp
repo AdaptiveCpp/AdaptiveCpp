@@ -150,7 +150,7 @@ public:
 
   bool hipSYCL_has_compiled_kernels() const {
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
-    if (is_cpu())
+    if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
 #endif
     
@@ -196,7 +196,8 @@ public:
               = nullptr>
   std::vector<device> create_sub_devices(size_t nbSubDev) const
   {
-    throw feature_not_supported{"subdevices are unsupported."};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "subdevices are unsupported."};
   }
 
   // Available only when prop == info::partition_property::partition_by_counts
@@ -205,7 +206,8 @@ public:
               = nullptr>
   std::vector<device> create_sub_devices(const std::vector<size_t> &counts) const
   {
-    throw feature_not_supported{"subdevices are unsupported."};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "subdevices are unsupported."};
   }
 
   // Available only when prop == info::partition_property::partition_by_affinity_domain
@@ -215,7 +217,8 @@ public:
   std::vector<device> create_sub_devices(info::partition_affinity_domain
                                           affinityDomain) const
   {
-    throw feature_not_supported{"subdevices are unsupported."};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "subdevices are unsupported."};
   }
 
   static std::vector<device>
@@ -284,7 +287,8 @@ private:
                    ->get_hardware_manager()
                    ->get_device(_device_id.get_id());
     if (!ptr) {
-      throw runtime_error{"Could not access device"};
+      throw exception{make_error_code(errc::runtime),
+                      "Could not access device"};
     }
     return ptr;
   }
@@ -722,7 +726,10 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_interop_user_sync)
 { return true; }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, parent_device)
-{ throw invalid_object_error{"Device is not a subdevice"}; }
+{
+  throw exception{make_error_code(errc::invalid),
+                  "Device is not a subdevice"};
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, partition_max_sub_devices) {
   return get_rt_device()->get_property(

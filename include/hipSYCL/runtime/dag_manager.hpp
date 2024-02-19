@@ -59,7 +59,7 @@ public:
   void wait();
   void wait(std::size_t node_group_id);
 
-  std::vector<dag_node_ptr> get_group(std::size_t node_group_id);
+  node_list_t get_group(std::size_t node_group_id);
 
   void register_submitted_ops(dag_node_ptr);
 private:
@@ -77,7 +77,8 @@ private:
   // Should only be used for flush_async()
   std::mutex _flush_mutex;
 
-  runtime* _rt;
+  // TODO: This is not used anywhere
+  [[maybe_unused]] runtime* _rt;
 };
 
 class dag_build_guard

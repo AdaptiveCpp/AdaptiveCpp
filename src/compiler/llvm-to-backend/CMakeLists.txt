@@ -1,7 +1,6 @@
 
 set(LLVM_TO_BACKEND_INCLUDE_DIRS 
   ../../../include
-  ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}/include)
 
@@ -25,8 +24,13 @@ function(create_llvm_based_library)
 
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
+  target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
+  find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS})
+  if(NOT LLVM_LIBRARY)
+    message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
+  endif()
   llvm_config(${target} USE_SHARED core support irreader passes)
   # We need symbolic functions for stdpar
   target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
@@ -49,7 +53,7 @@ function(create_llvm_to_backend_library)
   set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
 
   create_llvm_based_library(TARGET ${target} SOURCES ${sources})
-  target_link_libraries(${target} PUBLIC llvm-to-backend opensycl-common)
+  target_link_libraries(${target} PUBLIC llvm-to-backend acpp-common)
 endfunction()
 
 function(create_llvm_to_backend_tool)
@@ -70,6 +74,7 @@ function(create_llvm_to_backend_tool)
 
   target_include_directories(${target}-tool PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
+  target_include_directories(${target}-tool SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   
   target_compile_definitions(${target}-tool PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_TOOL_COMPONENT)
   target_link_libraries(${target}-tool PRIVATE ${target})
@@ -101,7 +106,12 @@ include(ExternalProject)
 if(WITH_SSCP_COMPILER)
   create_llvm_based_library(
     TARGET llvm-to-backend
-    SOURCES LLVMToBackend.cpp AddressSpaceInferencePass.cpp ../sscp/KernelOutliningPass.cpp)
+    SOURCES 
+      LLVMToBackend.cpp 
+      AddressSpaceInferencePass.cpp
+      KnownGroupSizeOptPass.cpp
+      GlobalSizesFitInI32OptPass.cpp
+      ../sscp/KernelOutliningPass.cpp)
 
   if(WITH_LLVM_TO_SPIRV)
     add_hipsycl_llvm_backend(
@@ -118,24 +128,27 @@ if(WITH_SSCP_COMPILER)
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
     set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/llvm-spirv)
 
-    ExternalProject_Add(LLVMSpirvTranslator
-    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
-    GIT_TAG origin/${LLVMSPIRV_BRANCH}
-    GIT_SHALLOW ON
-    GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
-    BUILD_ALWAYS OFF
-    INSTALL_DIR ${LLVMSPIRV_INSTALLDIR}
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
-    CMAKE_CACHE_ARGS
-      -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
-      -DLLVM_DIR:PATH=${LLVM_DIR}
-      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
-    PATCH_COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch || true
+    include(FetchContent)
+    FetchContent_Declare(LLVMSpirvTranslator
+      GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+      GIT_TAG origin/${LLVMSPIRV_BRANCH}
+      GIT_SHALLOW ON
     )
+
+    FetchContent_GetProperties(LLVMSpirvTranslator)
+    if(NOT LLVMSpirvTranslator_POPULATED)
+      FetchContent_Populate(LLVMSpirvTranslator)
+      execute_process(COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch ${llvmspirvtranslator_SOURCE_DIR}/lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch)
+      execute_process(COMMAND ${CMAKE_COMMAND} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DLLVM_SPIRV_BUILD_EXTERNAL=ON -DLLVM_DIR=${LLVM_DIR} -DCMAKE_INSTALL_PREFIX=${LLVMSPIRV_INSTALLDIR} -DCMAKE_BUILD_TYPE=Release -S ${llvmspirvtranslator_SOURCE_DIR} -B ${llvmspirvtranslator_BINARY_DIR})
+    endif()
+    
+    add_custom_target(llvm-spirv-translator ALL COMMAND ${CMAKE_COMMAND} --build ${llvmspirvtranslator_BINARY_DIR} --config Release)
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --install ${llvmspirvtranslator_BINARY_DIR})")
 
     target_compile_definitions(llvm-to-spirv PRIVATE
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
+    
+    
   endif()
 
   if(WITH_LLVM_TO_PTX)
@@ -156,27 +169,25 @@ if(WITH_SSCP_COMPILER)
       TOOL amdgpu/LLVMToAmdgpuTool.cpp)
 
     target_compile_definitions(llvm-to-amdgpu PRIVATE
-      -DHIPSYCL_ROCM_PATH="${ROCM_PATH}")
+      -DACPP_ROCM_PATH="${ROCM_PATH}")
+    
+    find_program(HIPCC_PATH hipcc HINTS ${ROCM_PATH}/bin)
+    if(HIPCC_PATH)
+      target_compile_definitions(llvm-to-amdgpu PRIVATE
+        -DACPP_HIPCC_PATH="${HIPCC_PATH}")
+    endif()
+    target_compile_definitions(llvm-to-amdgpu PRIVATE
+        -DACPP_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
 
     find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)
+   
     if(HIPRTC_LIBRARY)
       message(STATUS "Found hipRTC: ${HIPRTC_LIBRARY}")
-      target_compile_definitions(llvm-to-amdgpu PRIVATE -DHIPSYCL_SSCP_AMDGPU_USE_HIPRTC)
+
       target_include_directories(llvm-to-amdgpu PRIVATE ${ROCM_PATH}/include)
       target_link_libraries(llvm-to-amdgpu PRIVATE ${HIPRTC_LIBRARY})
+      target_compile_definitions(llvm-to-amdgpu PRIVATE -DACPP_HIPRTC_LINK)
     endif()
 
-    if(HIPSYCL_SSCP_AMDGPU_USE_ROCM_CLANG)
-      find_program(ROCM_CLANG_PATH NAMES clang++ HINTS ${ROCM_PATH}/llvm/bin)
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DHIPSYCL_CLANG_PATH="${ROCM_CLANG_PATH}")
-    else()
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
-    endif()
-    if(HIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION)
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DHIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION)
-    endif()
   endif()
 endif()

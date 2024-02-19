@@ -26,6 +26,8 @@
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
+#include <llvm/Support/Casting.h>
+
 namespace {
 
 bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {
@@ -45,7 +47,13 @@ bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {
     }
     HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Global variable still in use " << VarName << "\n";
     for (auto *U : GV->users()) {
-      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] >>> " << *U << "\n";
+      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] >>> " << *U;
+      if (auto I = llvm::dyn_cast<llvm::Instruction>(U)) {
+        HIPSYCL_DEBUG_EXECUTE_INFO(
+          llvm::outs() << " in " << I->getFunction()->getName()
+        );
+      }
+      HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << "\n");
     }
   }
   return false;

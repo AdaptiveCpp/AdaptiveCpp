@@ -214,12 +214,16 @@ result launch_kernel_from_so(void *handle, const std::string &kernel_name,
   sycl::range<3> group_range{num_groups[0], num_groups[1], num_groups[2]};
   sycl::range<3> local_range{local_size[0], local_size[1], local_size[2]};
 
-  glue::host::iterate_range_omp_for(group_range, [&](sycl::id<3> id) {
-    sycl::detail::host_local_memory::request_from_threadprivate_pool(shared_memory);
-    work_group_info info{num_groups, make_id(id), local_size, hipsycl::sycl::detail::host_local_memory::get_ptr()};
-    kernel(&info, kernel_args);
-  });
-
+#ifdef _OPENMP
+  #pragma omp parallel
+#endif
+  {
+    glue::host::iterate_range_omp_for(group_range, [&](sycl::id<3> id) {
+      sycl::detail::host_local_memory::request_from_threadprivate_pool(shared_memory);
+      work_group_info info{num_groups, make_id(id), local_size, hipsycl::sycl::detail::host_local_memory::get_ptr()};
+      kernel(&info, kernel_args);
+    });
+  }
   return make_success();
 }
 #endif

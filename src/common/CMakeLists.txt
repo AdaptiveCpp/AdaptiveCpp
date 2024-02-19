@@ -14,7 +14,7 @@ target_include_directories(acpp-common
 target_link_libraries(acpp-common PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 
 list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
-find_package(Filesystem Final Experimental)
+find_package(Filesystem COMPONENTS Final Experimental)
 if(NOT Filesystem_FOUND)
     # we only try to find Boost filesystem if neither the regular nor experimental std::filesystem have been found
     find_package(Filesystem REQUIRED Boost)

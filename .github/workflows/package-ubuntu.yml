@@ -59,15 +59,12 @@ jobs:
           cd ..
           cp -R AdaptiveCpp acpp-23.10.0
           tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
-          echo $(ls ./)
-          echo ${GITHUB_WORKSPACE}
           cd acpp-23.10.0/
           debuild -us -uc
-          echo $(ls ../)
       - name: Install the package
         run: |
-          cd ${GITHUB_WORKSPACE}/acpp-23.10.0/
-          sudo dpkg -i ../acpp_23.10.0-1_all.deb
+          cd ${GITHUB_WORKSPACE}/../
+          sudo dpkg -i acpp_23.10.0-1_all.deb
       - name: Release the package
         uses: actions/checkout@v2
         with:

@@ -12,7 +12,7 @@ jobs:
         cuda: ['11.0']
         nvhpc_version: ['22.11']
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: build
       run : |
         mkdir build && cd build
@@ -86,7 +86,7 @@ jobs:
         clang_version: ['15']
         cuda: ['11.0'] # Just to be able to build the backend for explicit multipass
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: build
       run : |
         mkdir build && cd build
@@ -133,7 +133,7 @@ jobs:
       matrix:
         clang_version: ['15']
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: build
       run : |
         mkdir build && cd build

@@ -34,11 +34,12 @@ jobs:
             cuda: 11.0.2
             rocm: 5.6.1
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install OpenCL development files
       run : |
+        sudo apt update
         sudo apt install ocl-icd-opencl-dev
     - name: Install TBB for PSTL tests
       run : |
@@ -128,7 +129,7 @@ jobs:
         nvhpc: [23.9]
         cuda: [12.2]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Free Disk Space (Ubuntu)

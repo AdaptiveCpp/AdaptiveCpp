@@ -16,11 +16,12 @@ jobs:
           - clang: 12
             os: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: install LLVM
         run: |
+          sudo apt update
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.clang}}
@@ -78,7 +79,7 @@ jobs:
         clang: [14, 15, 16, 17]
         os: [ubuntu-22.04]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: install LLVM

@@ -12,7 +12,7 @@ jobs:
         cuda: [11.0.2]
         rocm: [6.0.0]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: install LLVM
@@ -66,6 +66,6 @@ jobs:
           cd ${GITHUB_WORKSPACE}/../
           sudo dpkg -i acpp_23.10.0-1_all.deb
       - name: Release the package
-        uses: actions/checkout@v2
+        uses: softprops/action-gh-release@v1
         with:
           files: acpp_23.10.0-1_all.deb

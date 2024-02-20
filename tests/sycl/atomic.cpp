@@ -31,7 +31,7 @@
 #include <cstddef>
 #include <type_traits>
 
-using namespace cl;
+
 
 BOOST_FIXTURE_TEST_SUITE(atomic_tests, reset_device_fixture)
 

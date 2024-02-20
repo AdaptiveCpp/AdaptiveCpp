@@ -7,7 +7,7 @@
 #include <array>
 #include <iostream>
 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 int main()
 {
@@ -15,7 +15,7 @@ int main()
   constexpr size_t dot_num_groups = 32;
   constexpr size_t array_size = 1024;
 
-  cl::sycl::queue queue;
+  sycl::queue queue;
   std::vector<int> host_buf;
   std::vector<int> host_buf2;
   std::vector<int> host_outbuf(dot_num_groups);
@@ -26,22 +26,22 @@ int main()
   }
 
   {
-    cl::sycl::buffer<int, 1> d_a{host_buf.data(), host_buf.size()};
-    cl::sycl::buffer<int, 1> d_b{host_buf2.data(), host_buf2.size()};
-    cl::sycl::buffer<int, 1> d_sum{host_outbuf.data(), host_outbuf.size()};
+    sycl::buffer<int, 1> d_a{host_buf.data(), host_buf.size()};
+    sycl::buffer<int, 1> d_b{host_buf2.data(), host_buf2.size()};
+    sycl::buffer<int, 1> d_sum{host_outbuf.data(), host_outbuf.size()};
 
-    queue.submit([&](cl::sycl::handler &cgh) {
-      using namespace cl::sycl::access;
+    queue.submit([&](sycl::handler &cgh) {
+      using namespace sycl::access;
       auto ka = d_a.template get_access<mode::read>(cgh);
       auto kb = d_b.template get_access<mode::read>(cgh);
       auto ksum = d_sum.template get_access<mode::discard_write>(cgh);
 
-      auto wg_sum = cl::sycl::accessor<int, 1, mode::read_write, target::local>(cl::sycl::range<1>(dot_wgsize), cgh);
+      auto wg_sum = sycl::accessor<int, 1, mode::read_write, target::local>(sycl::range<1>(dot_wgsize), cgh);
 
       size_t N = array_size;
       cgh.parallel_for<class dot_kernel>(
-        cl::sycl::nd_range<1>{dot_num_groups * dot_wgsize, dot_wgsize},
-        [=](cl::sycl::nd_item<1> item) noexcept {
+        sycl::nd_range<1>{dot_num_groups * dot_wgsize, dot_wgsize},
+        [=](sycl::nd_item<1> item) noexcept {
           size_t i = item.get_global_id(0);
           size_t li = item.get_local_id(0);
           size_t global_size = item.get_global_range()[0];
@@ -53,7 +53,7 @@ int main()
           size_t local_size = item.get_local_range()[0];
           for(int offset = local_size / 2; offset > 0; offset /= 2)
           {
-            item.barrier(cl::sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
             if(li < offset)
               wg_sum[li] += wg_sum[li + offset];
           }

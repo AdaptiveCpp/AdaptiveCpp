@@ -40,8 +40,6 @@
 #include <sstream>
 #include <string>
 
-using namespace cl;
-
 #ifndef __HIPSYCL_ENABLE_SPIRV_TARGET__
 #define HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
 #endif
@@ -158,7 +156,7 @@ T initialize_type(T init) {
 template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T initialize_type(elementType<T> init) {
-  constexpr size_t N = T::get_count();
+  constexpr size_t N = T::size();
 
   if constexpr (std::is_same_v<elementType<T>, bool>)
     return T{init};
@@ -268,11 +266,20 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global
 template<int N, int M, typename T>
 class test_kernel;
 
+inline int gpu_selector(const sycl::device &dev) {
+  if(dev.has(sycl::aspect::gpu)){
+    return 1;
+  }else{
+    return -1;
+  }
+}
+
 template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
          typename ValidationFunction>
 void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
-  sycl::queue    queue;
+
+  sycl::queue    queue{gpu_selector};
   std::vector<size_t> local_sizes  = {25, 144, 256};
   std::vector<size_t> global_sizes = {100, 576, 1024};
   // currently only groupsizes between 128 and 256 are supported for HIP

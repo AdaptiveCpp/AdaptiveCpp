@@ -155,10 +155,10 @@ std::vector<fs::path> get_plugin_search_paths()
     std::vector<char> path_buffer(MAX_PATH);
     if(GetModuleFileNameA(handle, path_buffer.data(), path_buffer.size()))
     {
-      paths.emplace_back(std::filesystem::path{path_buffer.data()}.parent_path() / "hipSYCL");
+      paths.emplace_back(fs::path{path_buffer.data()}.parent_path() / "hipSYCL");
     }
   }
-  const auto install_prefixed_path = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL";
+  const auto install_prefixed_path = fs::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL";
 #endif
 
   if(paths.empty()

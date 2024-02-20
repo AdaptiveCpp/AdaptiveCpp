@@ -39,6 +39,7 @@ jobs:
         submodules: 'recursive'
     - name: Install OpenCL development files
       run : |
+        sudo apt update
         sudo apt install ocl-icd-opencl-dev
     - name: Install TBB for PSTL tests
       run : |

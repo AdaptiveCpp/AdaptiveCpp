@@ -21,6 +21,7 @@ jobs:
           submodules: 'recursive'
       - name: install LLVM
         run: |
+          sudo apt update
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.clang}}

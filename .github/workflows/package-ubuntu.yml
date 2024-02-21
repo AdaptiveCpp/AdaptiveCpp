@@ -67,6 +67,6 @@ jobs:
           sudo dpkg -i acpp_23.10.0-1_all.deb
       - name: Release the package
         uses: softprops/action-gh-release@v1
-          if: startsWith(github.ref, 'refs/heads/')
+        if: startsWith(github.ref, 'refs/heads/')
         with:
           files: acpp_23.10.0-1_amd64.deb

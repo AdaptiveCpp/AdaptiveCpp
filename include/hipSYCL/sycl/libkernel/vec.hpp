@@ -558,16 +558,16 @@ public:
 
   // ToDo: These functions have changed signatures with SYCL 2020
   // ToDo: could use native vector types for load / store
-  template <access::address_space AddressSpace>
+  template <access::address_space AddressSpace, access::decorated IsDecorated>
   HIPSYCL_UNIVERSAL_TARGET
-  void load(size_t offset, multi_ptr<const T, AddressSpace> ptr) {
+  void load(size_t offset, multi_ptr<const T, AddressSpace, IsDecorated> ptr) {
     for(int i = 0; i < N; ++i)
       _data[i] = ptr.get()[offset * N + i];
   }
 
-  template <access::address_space AddressSpace>
+  template <access::address_space AddressSpace, access::decorated IsDecorated>
   HIPSYCL_UNIVERSAL_TARGET
-  void store(size_t offset, multi_ptr<T, AddressSpace> ptr) const {
+  void store(size_t offset, multi_ptr<T, AddressSpace, IsDecorated> ptr) const {
     for(int i = 0; i < N; ++i)
       ptr.get()[offset * N + i] = _data[i];
   }

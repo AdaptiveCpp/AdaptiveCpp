@@ -16,7 +16,7 @@ jobs:
           - clang: 12
             os: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: install LLVM
@@ -79,7 +79,7 @@ jobs:
         clang: [14, 15, 16, 17]
         os: [ubuntu-22.04]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: install LLVM

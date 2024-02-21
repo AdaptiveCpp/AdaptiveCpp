@@ -4,6 +4,7 @@ export DH_OPTIONS=-v
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+export DEB_BUILD_OPTIONS = nocheck, nostrip
 
 %:
 	        dh $@
@@ -24,3 +25,7 @@ override_dh_auto_configure:
 	          -DCUDA_CUDA_LIBRARY=/opt/AdaptiveCpp/cuda/lib64/stubs/libcuda.so \
 	          -DCUDA_TOOLKIT_ROOT_DIR=/opt/AdaptiveCpp/cuda \
 	          -DROCM_PATH=/opt/rocm
+override_dh_auto_install:
+	dh_auto_install -- prefix=`pwd`/install
+override_dh_auto_dwz:
+#	dh_auto_dwz -- --no-dwz-multifile

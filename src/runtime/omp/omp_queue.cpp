@@ -187,16 +187,18 @@ private:
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 struct work_group_info {
-  work_group_info(rt::range<3> num_groups, rt::id<3> group_id, rt::range<3> local_size, void* local_memory)
-    : _num_groups(num_groups), _group_id(group_id), _local_size(local_size), _local_memory(local_memory){}
+  work_group_info(rt::range<3> num_groups, rt::id<3> group_id,
+                  rt::range<3> local_size, void *local_memory)
+      : _num_groups(num_groups), _group_id(group_id), _local_size(local_size),
+        _local_memory(local_memory) {}
 
   rt::range<3> _num_groups;
   rt::range<3> _group_id;
   rt::range<3> _local_size;
-  void* _local_memory;
+  void *_local_memory;
 };
 
-using omp_sscp_kernel = void(const work_group_info*, void**);
+using omp_sscp_kernel = void(const work_group_info *, void **);
 
 result launch_kernel_from_so(void *handle, const std::string &kernel_name,
                              const rt::range<3> &num_groups,
@@ -211,18 +213,20 @@ result launch_kernel_from_so(void *handle, const std::string &kernel_name,
         error_info{"omp_queue: Could not load kernel from shared object"});
   }
 
-  sycl::range<3> group_range{num_groups[0], num_groups[1], num_groups[2]};
-  sycl::range<3> local_range{local_size[0], local_size[1], local_size[2]};
-
 #ifdef _OPENMP
-  #pragma omp parallel
+#pragma omp parallel for collapse(3)
 #endif
-  {
-    glue::host::iterate_range_omp_for(group_range, [&](sycl::id<3> id) {
-      sycl::detail::host_local_memory::request_from_threadprivate_pool(shared_memory);
-      work_group_info info{num_groups, make_id(id), local_size, hipsycl::sycl::detail::host_local_memory::get_ptr()};
-      kernel(&info, kernel_args);
-    });
+  for (std::size_t k = 0; k < num_groups.get(2); ++k) {
+    for (std::size_t j = 0; j < num_groups.get(1); ++j) {
+      for (std::size_t i = 0; i < num_groups.get(0); ++i) {
+        sycl::detail::host_local_memory::request_from_threadprivate_pool(
+            shared_memory);
+        work_group_info info{
+            num_groups, rt::id<3>{i, j, k}, local_size,
+            hipsycl::sycl::detail::host_local_memory::get_ptr()};
+        kernel(&info, kernel_args);
+      }
+    }
   }
   return make_success();
 }
@@ -412,7 +416,8 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
 
-  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
+  auto binary_configuration_id =
+      adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
 
   auto get_image_and_kernel_names =
@@ -445,7 +450,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
       [&](const std::string &binary_image) -> code_object * {
     std::vector<std::string> kernel_names;
     get_image_and_kernel_names(kernel_names);
-  
+
     omp_sscp_executable_object *exec_obj = new omp_sscp_executable_object{
         binary_image, hcf_object, kernel_names, config};
     result r = exec_obj->get_build_result();

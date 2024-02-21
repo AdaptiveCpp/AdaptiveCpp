@@ -64,7 +64,7 @@ jobs:
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          sudo dpkg -i acpp_23.10.0-1_all.deb
+          sudo dpkg -i acpp_23.10.0-1_amd64.deb
       - name: Release the package
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/heads/')

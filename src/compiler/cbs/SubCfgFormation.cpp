@@ -36,6 +36,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/BasicBlock.h>
@@ -189,7 +190,7 @@ void fillStores(llvm::Value *V, int Idx, llvm::SmallVector<llvm::Value *, 3> &Lo
 // reinterpret single argument as array if neccessary and load scalar size values into LocalSize
 void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSizeArg,
                                 const llvm::DataLayout &DL,
-                                llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
+                                llvm::SmallVector<llvm::Value *, 3> &LocalSize, bool IsSscp) {
   // local_size is just an array of size_t's..
   auto SizeTSize = DL.getLargestLegalIntTypeSizeInBits();
   auto *SizeT = DL.getLargestLegalIntType(F.getContext());
@@ -205,17 +206,18 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
     LocalSizePtr = Builder.CreatePointerCast(LocalSizeArg, PtrTy, "local_size.cast");
   }
   for (unsigned int I = 0; I < Dim; ++I) {
+    auto CurDimName = DimName[IsSscp ? Dim - I - 1 : I];
     if (LocalSizeArg->getType()->isArrayTy()) {
       LocalSize[I] =
-          Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{DimName[I]});
+          Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{CurDimName});
     } else {
       auto *LocalSizeGep =
           Builder.CreateInBoundsGEP(SizeT, LocalSizePtr, Builder.getIntN(SizeTSize, I),
-                                    "local_size.gep." + llvm::Twine{DimName[I]});
+                                    "local_size.gep." + llvm::Twine{CurDimName});
       HIPSYCL_DEBUG_INFO << *LocalSizeGep << "\n";
 
       LocalSize[I] =
-          Builder.CreateLoad(SizeT, LocalSizeGep, "local_size." + llvm::Twine{DimName[I]});
+          Builder.CreateLoad(SizeT, LocalSizeGep, "local_size." + llvm::Twine{CurDimName});
     }
   }
 }
@@ -226,7 +228,7 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
   if (isSscpKernel) {
     llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
     for (int I = 0; I < Dim; ++I) {
-      auto Load = getLoadForGlobalVariable(F, LocalSizeGlobalNames[I]);
+      auto Load = getLoadForGlobalVariable(F, LocalSizeGlobalNames[Dim - I - 1]);
       Load->moveBefore(F.getEntryBlock().getTerminator());
       LocalSize[I] = Load;
     }
@@ -243,7 +245,7 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
     for (auto *U : LocalSizeArg->users())
       fillStores(U, 0, LocalSize);
   else
-    loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize);
+    loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize, false);
 
   Annotation->eraseFromParent();
   return LocalSize;
@@ -279,18 +281,32 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB,
                        const llvm::ArrayRef<llvm::Value *> &LocalSize, int EntryId,
                        llvm::ValueToValueMapTy &VMap,
                        llvm::SmallVector<llvm::BasicBlock *, 3> &Latches,
-                       llvm::BasicBlock *&LastHeader, llvm::Value *&ContiguousIdx) {
+                       llvm::BasicBlock *&LastHeader, llvm::Value *&ContiguousIdx, bool IsSscp) {
   const auto &DL = F.getParent()->getDataLayout();
   auto *LoadBB = LastHeader;
   llvm::IRBuilder Builder{LoadBB, LoadBB->getFirstInsertionPt()};
 
   const size_t Dim = LocalSize.size();
 
+  std::array<llvm::StringRef, 3> LocalIdGlobalNamesRotated;
+  std::array<char, 3> DimNameRotated;
+  if (IsSscp)
+    for (size_t D = 0; D < Dim; ++D) {
+      LocalIdGlobalNamesRotated[D] = LocalIdGlobalNames[Dim - D - 1];
+      DimNameRotated[D] = DimName[Dim - D - 1];
+    }
+  else
+    for (size_t D = 0; D < Dim; ++D) {
+      LocalIdGlobalNamesRotated[D] = LocalIdGlobalNames[D];
+      DimNameRotated[D] = DimName[D];
+    }
+
   // from innermost to outermost: create loops around the LastHeader and use AfterBB as dummy exit
   // to be replaced by the outer latch later
   llvm::SmallVector<llvm::PHINode *, 3> IndVars;
   for (int D = Dim - 1; D >= 0; --D) {
-    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
+    const std::string Suffix =
+        (llvm::Twine{DimNameRotated[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
 
     auto *Header = llvm::BasicBlock::Create(LastHeader->getContext(), "header." + Suffix + "b",
                                             LastHeader->getParent(), LastHeader);
@@ -336,17 +352,18 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB,
   Builder.SetInsertPoint(IndVars[Dim - 1]->getParent(), ++IndVars[Dim - 1]->getIterator());
   llvm::Value *Idx = IndVars[0];
   for (size_t D = 1; D < Dim; ++D) {
-    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
+    const std::string Suffix =
+        (llvm::Twine{DimNameRotated[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
 
     Idx = Builder.CreateMul(Idx, LocalSize[D], "idx.mul." + Suffix, true);
     Idx = Builder.CreateAdd(IndVars[D], Idx, "idx.add." + Suffix, true);
 
-    VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNames[D])] = IndVars[D];
+    VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNamesRotated[D])] = IndVars[D];
   }
 
   // todo: replace `ret` with branch to innermost latch
 
-  VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNames[0])] = IndVars[0];
+  VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNamesRotated[0])] = IndVars[0];
 
   VMap[ContiguousIdx] = Idx;
   ContiguousIdx = Idx;
@@ -416,7 +433,7 @@ public:
                  llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
                      &ContInstReplicaMap,
                  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-                 llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize);
+                 llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize, bool IsSscp);
 
   void arrayifyMultiSubCfgValues(
       llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
@@ -526,7 +543,7 @@ void SubCFG::replicate(
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
         &ContInstReplicaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-    llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize) {
+    llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize, bool IsSscp) {
   llvm::ValueToValueMapTy VMap;
 
   // clone blocks
@@ -549,7 +566,7 @@ void SubCFG::replicate(
   llvm::BasicBlock *LastHeader = LoadBB_;
   llvm::Value *Idx = ContIdx_;
 
-  createLoopsAround(F, AfterBB, LocalSize, EntryId_, VMap, Latches, LastHeader, Idx);
+  createLoopsAround(F, AfterBB, LocalSize, EntryId_, VMap, Latches, LastHeader, Idx, IsSscp);
 
   PreHeader_ = createUniformLoadBB(LastHeader);
   LastHeader->replacePhiUsesWith(&F.getEntryBlock(), PreHeader_);
@@ -1270,7 +1287,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   for (auto &Cfg : SubCFGs) {
     Cfg.print();
     Cfg.replicate(F, InstAllocaMap, BaseInstAllocaMap, InstContReplicaMap, RemappedInstAllocaMap,
-                  *ExitingBlocks.begin(), LocalSize);
+                  *ExitingBlocks.begin(), LocalSize, IsSscp);
     purgeLifetime(Cfg);
   }
 
@@ -1349,7 +1366,7 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
   llvm::SmallVector<llvm::BasicBlock *, 3> Latches;
   auto *LastHeader = Body;
 
-  createLoopsAround(F, ExitBB, LocalSize, 0, VMap, Latches, LastHeader, Idx);
+  createLoopsAround(F, ExitBB, LocalSize, 0, VMap, Latches, LastHeader, Idx, IsSscp);
 
   F.getEntryBlock().getTerminator()->setSuccessor(0, LastHeader);
   llvm::remapInstructionsInBlocks(Blocks, VMap);

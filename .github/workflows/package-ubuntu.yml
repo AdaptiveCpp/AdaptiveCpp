@@ -65,8 +65,7 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/../
           sudo dpkg -i acpp_23.10.0-1_amd64.deb
-      - name: Release the package
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/heads/')
+      - name: Release Packages
+        uses: actions/upload-artifact@v4
         with:
-          files: acpp_23.10.0-1_amd64.deb
+          path: acpp_23.10.0-1_amd64.deb

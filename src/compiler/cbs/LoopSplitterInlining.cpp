@@ -36,6 +36,7 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 
 namespace {
+  using namespace hipsycl::compiler::cbs;
 
 bool inlineCallsInBasicBlock(llvm::BasicBlock &BB,
                              const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
@@ -56,7 +57,7 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB,
               break;
           } else if (SAA.isSplitterFunc(CallI->getCalledFunction()) &&
                      CallI->getCalledFunction()->getName() !=
-                         hipsycl::compiler::BarrierIntrinsicName) {
+                         BarrierIntrinsicName) {
             HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] Replace barrier with intrinsic: "
                                << CallI->getCalledFunction()->getName() << "\n";
             hipsycl::compiler::utils::createBarrier(CallI, SAA);

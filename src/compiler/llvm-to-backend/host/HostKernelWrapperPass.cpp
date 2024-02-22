@@ -61,7 +61,7 @@ llvm::StoreInst *storeToGlobalVar(llvm::IRBuilderBase Bld, llvm::Value *V,
   return Bld.CreateStore(V, GV);
 }
 
-void ReplaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm::Value *To) {
+void replaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm::Value *To) {
   auto M = F.getParent();
   auto GV = M->getGlobalVariable(GlobalVarName);
   if (!GV)
@@ -79,6 +79,17 @@ void ReplaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm:
     I->eraseFromParent();
 }
 
+/*
+ * This creates a wrapper function for a kernel function that takes the following arguments:
+ * - A pointer to a struct containing {num_groups, group_id, local_size, local_mem_ptr}
+ * - A pointer to pointers (the actual kernel arguments)
+ * The wrapper function will extract the work group information and the user arguments from the
+ * provided pointers and call the kernel function with the extracted arguments.
+ * The original kernel is then inlined and all calls to the original kernel are replaced with the
+ * wrapper.
+ * This makes calling the kernel from the host code straighforward, as only the work group info
+ * struct and the user arguments need to be passed to the wrapper.
+ */
 llvm::Function *makeWrapperFunction(llvm::Function &F) {
   auto M = F.getParent();
   auto &Ctx = M->getContext();
@@ -99,10 +110,13 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
   ArgTypes.push_back(llvm::PointerType::getUnqual(WorkGroupInfoT));
   ArgTypes.push_back(UserArgsT);
 
+  std::string FName = F.getName().str();
+  F.setName(FName + "_original");
+
   auto WrapperT = llvm::FunctionType::get(Bld.getVoidTy(), ArgTypes, false);
   auto Wrapper = llvm::cast<llvm::Function>(
-      M->getOrInsertFunction(("__sscp_wrapper_" + F.getName()).str(), WrapperT, F.getAttributes())
-          .getCallee());
+      M->getOrInsertFunction(FName, WrapperT, F.getAttributes()).getCallee());
+  Wrapper->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
 
   auto WrapperBB = llvm::BasicBlock::Create(Ctx, "entry", Wrapper);
   Bld.SetInsertPoint(WrapperBB);
@@ -147,11 +161,15 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
   utils::checkedInlineFunction(FCall, "HostKernelWrapperPass");
 
   for (int I = 0; I < 3; ++I) {
-    ReplaceUsesOfGVWith(*Wrapper, NumGroupsGlobalNames[I], NumGroups[I]);
-    ReplaceUsesOfGVWith(*Wrapper, GroupIdGlobalNames[I], GroupIds[I]);
-    ReplaceUsesOfGVWith(*Wrapper, LocalSizeGlobalNames[I], LocalSize[I]);
+    replaceUsesOfGVWith(*Wrapper, cbs::NumGroupsGlobalNames[I], NumGroups[I]);
+    replaceUsesOfGVWith(*Wrapper, cbs::GroupIdGlobalNames[I], GroupIds[I]);
+    replaceUsesOfGVWith(*Wrapper, cbs::LocalSizeGlobalNames[I], LocalSize[I]);
   }
-  ReplaceUsesOfGVWith(*Wrapper, SscpDynamicLocalMemoryPtrName, LocalMemPtr);
+  replaceUsesOfGVWith(*Wrapper, cbs::SscpDynamicLocalMemoryPtrName, LocalMemPtr);
+
+  F.setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
+  F.replaceAllUsesWith(Wrapper);
+  // can't erase here, since the original function is still transformed.
 
   return Wrapper;
 }
@@ -167,16 +185,9 @@ llvm::PreservedAnalyses HostKernelWrapperPass::run(llvm::Function &F,
     return llvm::PreservedAnalyses::all();
 
   auto Wrapper = makeWrapperFunction(F);
-  F.replaceAllUsesWith(Wrapper);
-  std::string Name = F.getName().str();
-  F.setName(Name + "_is_wrapped");
-  Wrapper->setName(Name);
+  
   HIPSYCL_DEBUG_INFO << "[SSCP][HostKernelWrapper] Created kernel wrapper: " << Wrapper->getName()
                      << "\n";
-
-  F.replaceAllUsesWith(Wrapper);
-  // Todo: uncertain if we can erase/remove since we're still tranforming it..? would have to do
-  // Module pass? Afaict, it will not be in the final module anyways.. (uncertain why :D)
 
   return llvm::PreservedAnalyses::none();
 }

@@ -48,32 +48,34 @@ struct MDKind {
   static constexpr const char LoopState[] = "hipSYCL.loop_state";
 };
 
-static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
-static constexpr const char LocalIdGlobalNameX[] = "__hipsycl_local_id_x";
-static constexpr const char LocalIdGlobalNameY[] = "__hipsycl_local_id_y";
-static constexpr const char LocalIdGlobalNameZ[] = "__hipsycl_local_id_z";
+namespace cbs {
+static constexpr const char BarrierIntrinsicName[] = "__hipsycl_cbs_barrier";
+static constexpr const char LocalIdGlobalNameX[] = "__hipsycl_cbs_local_id_x";
+static constexpr const char LocalIdGlobalNameY[] = "__hipsycl_cbs_local_id_y";
+static constexpr const char LocalIdGlobalNameZ[] = "__hipsycl_cbs_local_id_z";
 static const std::array<const char *, 3> LocalIdGlobalNames{LocalIdGlobalNameX, LocalIdGlobalNameY,
                                                             LocalIdGlobalNameZ};
 
-static constexpr const char LocalSizeGlobalNameX[] = "__hipsycl_local_size_x";
-static constexpr const char LocalSizeGlobalNameY[] = "__hipsycl_local_size_y";
-static constexpr const char LocalSizeGlobalNameZ[] = "__hipsycl_local_size_z";
+static constexpr const char LocalSizeGlobalNameX[] = "__hipsycl_cbs_local_size_x";
+static constexpr const char LocalSizeGlobalNameY[] = "__hipsycl_cbs_local_size_y";
+static constexpr const char LocalSizeGlobalNameZ[] = "__hipsycl_cbs_local_size_z";
 static const std::array<const char *, 3> LocalSizeGlobalNames{
     LocalSizeGlobalNameX, LocalSizeGlobalNameY, LocalSizeGlobalNameZ};
 
-static constexpr const char GroupIdGlobalNameX[] = "__hipsycl_group_id_x";
-static constexpr const char GroupIdGlobalNameY[] = "__hipsycl_group_id_y";
-static constexpr const char GroupIdGlobalNameZ[] = "__hipsycl_group_id_z";
+static constexpr const char GroupIdGlobalNameX[] = "__hipsycl_cbs_group_id_x";
+static constexpr const char GroupIdGlobalNameY[] = "__hipsycl_cbs_group_id_y";
+static constexpr const char GroupIdGlobalNameZ[] = "__hipsycl_cbs_group_id_z";
 static const std::array<const char *, 3> GroupIdGlobalNames{GroupIdGlobalNameX, GroupIdGlobalNameY,
                                                             GroupIdGlobalNameZ};
 
-static constexpr const char NumGroupsGlobalNameX[] = "__hipsycl_num_groups_x";
-static constexpr const char NumGroupsGlobalNameY[] = "__hipsycl_num_groups_y";
-static constexpr const char NumGroupsGlobalNameZ[] = "__hipsycl_num_groups_z";
+static constexpr const char NumGroupsGlobalNameX[] = "__hipsycl_cbs_num_groups_x";
+static constexpr const char NumGroupsGlobalNameY[] = "__hipsycl_cbs_num_groups_y";
+static constexpr const char NumGroupsGlobalNameZ[] = "__hipsycl_cbs_num_groups_z";
 static const std::array<const char *, 3> NumGroupsGlobalNames{
     NumGroupsGlobalNameX, NumGroupsGlobalNameY, NumGroupsGlobalNameZ};
 
-static constexpr const char SscpDynamicLocalMemoryPtrName[] = "__hipsycl_sscp_dynamic_local_memory";
+static constexpr const char SscpDynamicLocalMemoryPtrName[] = "__hipsycl_cbs_sscp_dynamic_local_memory";
+} // namespace cbs
 
 static constexpr const char SscpAnnotationsName[] = "hipsycl.sscp.annotations";
 static constexpr const char SscpKernelDimensionName[] = "hipsycl_kernel_dimension";
@@ -203,7 +205,8 @@ template <class T> T *getValueOneLevel(llvm::Constant *V, unsigned idx = 0) {
   return llvm::dyn_cast<T>(V->getOperand(idx));
 }
 
-template <class Handler> void findFunctionsWithStringAnnotationsWithArg(llvm::Module &M, Handler &&f) {
+template <class Handler>
+void findFunctionsWithStringAnnotationsWithArg(llvm::Module &M, Handler &&f) {
   for (auto &I : M.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));

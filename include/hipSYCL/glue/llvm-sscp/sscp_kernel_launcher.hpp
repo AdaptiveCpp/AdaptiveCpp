@@ -36,6 +36,7 @@
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
+#include "hipSYCL/sycl/interop_handle.hpp"
 #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"

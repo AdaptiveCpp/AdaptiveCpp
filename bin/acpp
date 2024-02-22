@@ -1761,7 +1761,7 @@ class compiler:
       mb.set_host_compiler(self._host_compiler)
 
     if not "omp" in self._targets and not "omp.accelerated" in self._targets and\
-            not "omp.library-only" in self._targets:
+            not "omp.library-only" in self._targets and not "generic" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
      self._backends.append(omp_sequential_invocation(config))

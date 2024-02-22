@@ -113,7 +113,6 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 
   // Don't try to compile host kernel during device passes
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__) && \
-   !defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__) && \
    !defined(SYCL_DEVICE_ONLY)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();

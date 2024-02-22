@@ -12,7 +12,6 @@
 * `__hipsycl_if_target_cuda(code)` - `code` will only be compiled for the CUDA backend.
 * `__hipsycl_if_target_hip(code)` - `code` will only be compiled for the HIP backend.
 * `__hipsycl_if_target_hiplike(code)` - `code` will only be compiled for the CUDA and HIP backend.
-* `__hipsycl_if_target_spirv(code)` - `code` will only be compiled for the SPIR-V backend.
 
 ## Information about current compiler
 
@@ -20,7 +19,6 @@
 
 * `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA` - Set to 1 if the compiler currently compiling the code supports CUDA language extensions. 0 otherwise.
 * `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP` - Set to 1 if the compiler currently compiling the code supports HIP language extensions. 0 otherwise.
-* `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV` - Set to 1 if the compiler currently compiling the code supports SPIR-V builtins.
 * `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HOST` - Always set to 1, since every compiler supports the host language, which is just C++.
 
 ## Information about compilation passes
@@ -36,7 +34,7 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 ### Properties of current compilation pass
 
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS` - Set to 1 if the current compilation pass targets at least one device backend. 0 otherwise.
-* `HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)` - returns 1 if the current compilation pass targets the provided backend (`CUDA|HIP|SPIRV|HOST`) and no other backend.
+* `HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)` - returns 1 if the current compilation pass targets the provided backend (`CUDA|HIP|HOST`) and no other backend.
 * `HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` - Set to 1 if the current compilation pass compiles for both host and device in a single, unified compilation pass.
 * `SYCL_DEVICE_ONLY` - defined if the current compilation pass targets a device backend and `HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` is 0. **Note**: `SYCL_DEVICE_ONLY` is not defined for `cuda-nvcxx` where host and device are compiled in a single pass. This is therefore in general not suitable to implement specialized code paths for host and device in a portable way
 * `__HIPSYCL_CLANG__` - defined by `acpp` when compiling with the clang plugin
@@ -56,7 +54,6 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 
 * (deprecated) `HIPSYCL_PLATFORM_CUDA` - defined when CUDA language extensions are available
 * (deprecated) `HIPSYCL_PLATFORM_ROCM`, `HIPSYCL_PLATFORM_HIP` - defined when HIP language extensions are available
-* (deprecated) `HIPSYCL_PLATFORM_SPIRV` - defined if SPIR-V intrinsics are available 
 * (deprecated) `HIPSYCL_PLATFORM_CPU` - defined if compiling for the host
 
 

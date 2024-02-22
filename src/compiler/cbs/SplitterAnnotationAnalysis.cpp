@@ -42,7 +42,7 @@ std::basic_ostream<char> &operator<<(std::basic_ostream<char> &Ost, const llvm::
 }
 
 bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
-  if (auto *BarrIntrinsic = M.getFunction(hipsycl::compiler::BarrierIntrinsicName)) {
+  if (auto *BarrIntrinsic = M.getFunction(hipsycl::compiler::cbs::BarrierIntrinsicName)) {
     SplitterFuncs.insert(BarrIntrinsic);
     HIPSYCL_DEBUG_INFO << "Found splitter intrinsic " << BarrIntrinsic->getName() << "\n";
   }

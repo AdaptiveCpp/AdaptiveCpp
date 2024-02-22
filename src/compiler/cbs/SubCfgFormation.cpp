@@ -63,6 +63,7 @@
 
 namespace {
 using namespace hipsycl::compiler;
+using namespace hipsycl::compiler::cbs;
 
 static const std::array<char, 3> DimName{'x', 'y', 'z'};
 
@@ -483,7 +484,7 @@ SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdSt
       LastBarrierIdStorage_(LastBarrierIdStorage), ContIdx_(IndVar),
       EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr), PreHeader_(nullptr),
       Dim(Dim) {
-  assert(ContIdx_ && "Must have found __hipsycl_local_id_{x,y,z}");
+  assert(ContIdx_ && "Must have found __hipsycl_cbs_local_id_{x,y,z}");
 
   llvm::SmallVector<llvm::BasicBlock *, 4> WL{EntryBarrier};
   while (!WL.empty()) {

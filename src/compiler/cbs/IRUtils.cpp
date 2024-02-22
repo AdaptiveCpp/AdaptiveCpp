@@ -43,6 +43,8 @@
 #include <llvm/Transforms/Utils/PromoteMemToReg.h>
 
 namespace hipsycl::compiler::utils {
+using namespace hipsycl::compiler::cbs;
+
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,
                           llvm::Function &F) {
   DT.reset();

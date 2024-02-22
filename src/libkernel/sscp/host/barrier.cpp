@@ -27,7 +27,7 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 
-extern "C" [[clang::convergent]] void __hipsycl_barrier();
+extern "C" [[clang::convergent]] void __hipsycl_cbs_barrier();
 
 __attribute__((always_inline)) void
 __hipsycl_cpu_mem_fence(__hipsycl_sscp_memory_scope fence_scope,
@@ -41,7 +41,7 @@ __hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
                                   __hipsycl_sscp_memory_order order) {
 
   // TODO: Correctly take into account memory order for local_barrier
-  __hipsycl_barrier();
+  __hipsycl_cbs_barrier();
   if(fence_scope != __hipsycl_sscp_memory_scope::work_group) {
     __hipsycl_cpu_mem_fence(fence_scope, order);
   }

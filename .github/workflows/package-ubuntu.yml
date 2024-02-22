@@ -65,7 +65,14 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/../
           sudo dpkg -i acpp_23.10.0-1_amd64.deb
+      - name: Inspect directory
+        run: |
+          echo $(ls -lart ../)
+          echo $(which acpp)
+          echo $LD_LIBRARY_PATH
+          echo ${ls -lart usr/lib/cmake}
+          echo ${ls -lart /usr/lib/cmake}
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
-          path: acpp_23.10.0-1_amd64.deb
+          path: ${GITHUB_PACKAGE}/../acpp_23.10.0-1_amd64.deb

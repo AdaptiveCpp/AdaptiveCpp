@@ -51,6 +51,8 @@ std::vector<std::string> list_regular_files(const std::string &directory,
 /// Writes data atomically to filename
 bool atomic_write(const std::string& filename, const std::string& data);
 
+/// Removes a file, returns true if successful.
+bool remove(const std::string &filename);
 
 class tuningdb {
 public:

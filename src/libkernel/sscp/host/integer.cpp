@@ -27,9 +27,9 @@
 
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
-#include "hipSYCL/sycl/libkernel/host/builtins.hpp"
 
-using namespace hipsycl::sycl::detail::host_builtins;
+#include <limits.h>
+
 HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
   __builtin_assume(a >= -8388608 && a <= 8388607);
   __builtin_assume(b >= -8388608 && b <= 8388607);

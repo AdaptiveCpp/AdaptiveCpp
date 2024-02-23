@@ -44,6 +44,7 @@
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instruction.h>
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
 #include <llvm/Support/Casting.h>
@@ -97,10 +98,11 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
   llvm::IRBuilder<> Bld(&F.getEntryBlock());
 
   auto SizeT = M->getDataLayout().getLargestLegalIntType(Ctx);
-  auto WorkGroupInfoT = llvm::StructType::get(llvm::ArrayType::get(SizeT, 3), // # groups
-                                              llvm::ArrayType::get(SizeT, 3), // group id
-                                              llvm::ArrayType::get(SizeT, 3), // local size
-                                              Bld.getInt32Ty());              // local memory size
+  auto WorkGroupInfoT =
+      llvm::StructType::get(llvm::ArrayType::get(SizeT, 3),                 // # groups
+                            llvm::ArrayType::get(SizeT, 3),                 // group id
+                            llvm::ArrayType::get(SizeT, 3),                 // local size
+                            llvm::PointerType::getUnqual(Bld.getInt8Ty())); // local memory size
   auto VoidPtrT = llvm::PointerType::getUnqual(Bld.getVoidTy());
   auto UserArgsT = llvm::PointerType::getUnqual(VoidPtrT);
 
@@ -140,16 +142,15 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
   LocalSize[1] = LoadFromContext(2, 1, "local_size_y");
   LocalSize[2] = LoadFromContext(2, 2, "local_size_z");
 
-  llvm::Value* LocalMemSize = nullptr;
-  if(DynamicLocalMemSize != -1) {
-    LocalMemSize = Bld.getInt32(DynamicLocalMemSize);
-  } else {
-    LocalMemSize = Bld.CreateLoad(
-      Bld.getInt32Ty(), Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0),
-                                   {Bld.getInt64(0), Bld.getInt32(3)}, "local_mem_size"));
-  }
-  
-  auto LocalMemPtr = Bld.CreateAlloca(Bld.getInt8Ty(), LocalMemSize, "local_mem_ptr");
+  auto LocalMemPtr = Bld.CreateLoad(
+      llvm::PointerType::get(Ctx, 0),
+      Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0), {Bld.getInt64(0), Bld.getInt32(3)}),
+      "local_mem_ptr");
+
+  if (DynamicLocalMemSize >= 0)
+    LocalMemPtr->setMetadata(
+        llvm::LLVMContext::MD_dereferenceable,
+        llvm::MDNode::get(Ctx, {llvm::ConstantAsMetadata::get(Bld.getInt64(DynamicLocalMemSize))}));
 
   llvm::SmallVector<llvm::Value *> Args;
 

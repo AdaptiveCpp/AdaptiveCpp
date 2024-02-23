@@ -32,8 +32,6 @@
 #include <sstream>
 #include <string>
 
-#include <unistd.h>
-
 #include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/omp/omp_code_object.hpp"
 
@@ -83,8 +81,7 @@ omp_sscp_executable_object::omp_sscp_executable_object(
     const std::vector<std::string> &kernel_names,
     const glue::kernel_configuration &config)
     : _hcf{hcf_source}, _id{config.generate_id()}, _module{nullptr},
-      _kernel_cache_path(kernel_cache::get_persistent_cache_file(_id) + "-" +
-                         std::to_string(getpid()) + ".so") {
+      _kernel_cache_path(kernel_cache::get_persistent_cache_file(_id) + ".so") {
   _build_result = build(binary, kernel_names);
 }
 

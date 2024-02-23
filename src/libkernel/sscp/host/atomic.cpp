@@ -350,61 +350,61 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f64 __hipsycl_sscp_atomic_fetch_add_f64(
 HIPSYCL_SSCP_BUILTIN __hipsycl_int8 __hipsycl_sscp_atomic_fetch_sub_i8(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int8 *ptr, __hipsycl_int8 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_int16 __hipsycl_sscp_atomic_fetch_sub_i16(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int16 *ptr, __hipsycl_int16 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_atomic_fetch_sub_i32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int32 *ptr, __hipsycl_int32 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_int64 __hipsycl_sscp_atomic_fetch_sub_i64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_int64 *ptr, __hipsycl_int64 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_atomic_fetch_sub_u8(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_uint8 *ptr, __hipsycl_uint8 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_atomic_fetch_sub_u16(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_uint16 *ptr, __hipsycl_uint16 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_atomic_fetch_sub_u32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_uint32 *ptr, __hipsycl_uint32 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_atomic_fetch_sub_u64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_uint64 *ptr, __hipsycl_uint64 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_f32 __hipsycl_sscp_atomic_fetch_sub_f32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f32 *ptr, __hipsycl_f32 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_f64 __hipsycl_sscp_atomic_fetch_sub_f64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f64 *ptr, __hipsycl_f64 x) {
-  return __atomic_fetch_add(ptr, -x, builtin_memory_order(order));
+  return __atomic_fetch_sub(ptr, x, builtin_memory_order(order));
 }
 
 
@@ -461,7 +461,7 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f32 __hipsycl_sscp_atomic_fetch_min_f32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f32 *ptr, __hipsycl_f32 x) {
   __hipsycl_int32 old_i = __hipsycl_sscp_atomic_load_i32(as, order, scope, (__hipsycl_int32*)ptr);
-  __hipsycl_f32 old = *(__hipsycl_int32*)&old_i;
+  __hipsycl_f32 old = *(__hipsycl_f32*)&old_i;
   do{
     if (old < x) return old;
   } while (!__hipsycl_sscp_cmp_exch_strong_i32(as, order, order, scope, (__hipsycl_int32*)ptr, (__hipsycl_int32*)&old, *(__hipsycl_int32*)&x));
@@ -472,7 +472,7 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f64 __hipsycl_sscp_atomic_fetch_min_f64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f64 *ptr, __hipsycl_f64 x) {
   __hipsycl_int64 old_i = __hipsycl_sscp_atomic_load_i64(as, order, scope, (__hipsycl_int64*)ptr);
-  __hipsycl_f64 old = *(__hipsycl_int64*)&old_i;
+  __hipsycl_f64 old = *(__hipsycl_f64*)&old_i;
   do{
     if (old < x) return old;
   } while (!__hipsycl_sscp_cmp_exch_strong_i64(as, order, order, scope, (__hipsycl_int64*)ptr, (__hipsycl_int64*)&old, *(__hipsycl_int64*)&x));
@@ -532,7 +532,7 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f32 __hipsycl_sscp_atomic_fetch_max_f32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f32 *ptr, __hipsycl_f32 x) {
   __hipsycl_int32 old_i = __hipsycl_sscp_atomic_load_i32(as, order, scope, (__hipsycl_int32*)ptr);
-  __hipsycl_f32 old = *(__hipsycl_int32*)&old_i;
+  __hipsycl_f32 old = *(__hipsycl_f32*)&old_i;
   do{
     if (old > x) return old;
   } while (!__hipsycl_sscp_cmp_exch_strong_i32(as, order, order, scope, (__hipsycl_int32*)ptr, (__hipsycl_int32*)&old, *(__hipsycl_int32*)&x));
@@ -543,7 +543,7 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_f64 __hipsycl_sscp_atomic_fetch_max_f64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f64 *ptr, __hipsycl_f64 x) {
   __hipsycl_int64 old_i = __hipsycl_sscp_atomic_load_i64(as, order, scope, (__hipsycl_int64*)ptr);
-  __hipsycl_f64 old = *(__hipsycl_int64*)&old_i;
+  __hipsycl_f64 old = *(__hipsycl_f64*)&old_i;
   do{
     if (old > x) return old;
   } while (!__hipsycl_sscp_cmp_exch_strong_i64(as, order, order, scope, (__hipsycl_int64*)ptr, (__hipsycl_int64*)&old, *(__hipsycl_int64*)&x));

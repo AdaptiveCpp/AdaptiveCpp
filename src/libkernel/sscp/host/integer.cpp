@@ -50,7 +50,7 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_clz_u8(__hipsycl_uint8 a){
   }
 
   constexpr __hipsycl_uint8 diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(__hipsycl_uint8));
-  return __builtin_clz(a);
+  return __builtin_clz(a) - diff;
 }
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_clz_u16(__hipsycl_uint16 a){
   // builtin_clz(0) is UB on some arch
@@ -59,7 +59,7 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_clz_u16(__hipsycl_uint16 a)
   }
 
   constexpr __hipsycl_uint16 diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(__hipsycl_uint16));
-  return __builtin_clz(a);
+  return __builtin_clz(a) - diff;
 }
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_clz_u32(__hipsycl_uint32 a){
   // builtin_clz(0) is UB on some arch
@@ -73,5 +73,19 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_clz_u64(__hipsycl_uint64 a)
   if (a == 0) {
     return CHAR_BIT*sizeof(__hipsycl_uint64);
   }
-  return __builtin_clz(a);
+  return __builtin_clzll(a);
+}
+
+
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_popcount_u8(__hipsycl_uint8 a){
+  return __builtin_popcount(a & 0xff);
+}
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_popcount_u16(__hipsycl_uint16 a){
+  return __builtin_popcount(a & 0xffff);
+}
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_popcount_u32(__hipsycl_uint32 a){
+  return __builtin_popcount(a);
+}	
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_popcount_u64(__hipsycl_uint64 a){
+  return __builtin_popcountll(a);
 }

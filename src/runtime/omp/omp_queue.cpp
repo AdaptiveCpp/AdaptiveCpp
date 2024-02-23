@@ -48,6 +48,11 @@
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/omp/omp_code_object.hpp"
+#ifndef WIN32
+#include <unistd.h>
+#else
+#include <Windows.h>
+#endif
 #endif
 
 #include <memory>
@@ -182,20 +187,43 @@ private:
 };
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
+
+std::size_t get_page_size() {
+#ifndef WIN32
+  return static_cast<std::size_t>(sysconf(_SC_PAGESIZE));
+#else
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwPageSize;
+#endif
+}
+
 result
 launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
                       const rt::range<3> &num_groups,
                       const rt::range<3> &local_size, unsigned shared_memory,
                       void **kernel_args) {
 #ifdef _OPENMP
-#pragma omp parallel for collapse(3)
+#pragma omp parallel
 #endif
-  for (std::size_t k = 0; k < num_groups.get(2); ++k) {
-    for (std::size_t j = 0; j < num_groups.get(1); ++j) {
-      for (std::size_t i = 0; i < num_groups.get(0); ++i) {
-        omp_sscp_executable_object::work_group_info info{
-            num_groups, rt::id<3>{i, j, k}, local_size, shared_memory};
-        kernel(&info, kernel_args);
+  {
+    // get page aligned local memory from heap
+    static thread_local std::vector<char> local_memory;
+
+    const auto page_size = get_page_size();
+    local_memory.resize(shared_memory + page_size);
+    auto aligned_local_memory = reinterpret_cast<void*>(next_multiple_of(reinterpret_cast<std::uint64_t>(local_memory.data()), page_size));
+
+#ifdef _OPENMP
+#pragma omp for collapse(3)
+#endif
+    for (std::size_t k = 0; k < num_groups.get(2); ++k) {
+      for (std::size_t j = 0; j < num_groups.get(1); ++j) {
+        for (std::size_t i = 0; i < num_groups.get(0); ++i) {
+          omp_sscp_executable_object::work_group_info info{
+              num_groups, rt::id<3>{i, j, k}, local_size, aligned_local_memory};
+          kernel(&info, kernel_args);
+        }
       }
     }
   }

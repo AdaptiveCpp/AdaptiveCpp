@@ -46,9 +46,6 @@
 #include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
-#include HIPSYCL_CXX_FILESYSTEM_HEADER
-namespace fs = HIPSYCL_CXX_FILESYSTEM_NAMESPACE;
-
 namespace hipsycl {
 namespace rt {
 
@@ -94,15 +91,9 @@ omp_sscp_executable_object::omp_sscp_executable_object(
 omp_sscp_executable_object::~omp_sscp_executable_object() {
   if (_module)
     detail::close_library(_module, "omp_sscp_executable");
-  try {
-    if (!fs::remove(_kernel_cache_path)) {
-      HIPSYCL_DEBUG_INFO << "omp_sscp_executable: could not cleanup "
-                         << _kernel_cache_path << ".\n";
-    }
-  } catch (const fs::filesystem_error &err) {
-    HIPSYCL_DEBUG_ERROR
-        << "omp_sscp_executable: filesystem error while cleaning up "
-        << _kernel_cache_path << ": " << err.what() << ".\n";
+  if(!common::filesystem::remove(_kernel_cache_path)) {
+    HIPSYCL_DEBUG_ERROR << "Could not remove kernel cache file: "
+                        << _kernel_cache_path << std::endl;
   }
 }
 

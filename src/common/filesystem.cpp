@@ -28,6 +28,7 @@
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/config.hpp"
 #include "hipSYCL/common/stable_running_hash.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include <fstream>
 #include <random>
@@ -148,6 +149,13 @@ bool atomic_write(const std::string &filename, const std::string &data) {
   fs::rename(tmp_path, p);
 
   return true;
+}
+
+bool remove(const std::string &filename) {
+  try {
+    return fs::remove(filename);
+  } catch (const fs::filesystem_error &err) {}
+  return false;
 }
 
 tuningdb::tuningdb() {

@@ -35,7 +35,11 @@ namespace hipsycl {
 namespace compiler {
 
 class HostKernelWrapperPass : public llvm::PassInfoMixin<HostKernelWrapperPass> {
+  std::int64_t DynamicLocalMemSize;
 public:
+  explicit HostKernelWrapperPass(std::int64_t DynamicLocalMemSize)
+      : DynamicLocalMemSize{DynamicLocalMemSize} {}
+
   llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &AM);
   static bool isRequired() { return true; }
 };

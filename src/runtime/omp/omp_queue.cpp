@@ -28,8 +28,6 @@
 
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
-#include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
@@ -38,7 +36,6 @@
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/instrumentation.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
-#include "hipSYCL/runtime/omp/omp_code_object.hpp"
 #include "hipSYCL/runtime/omp/omp_event.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
@@ -47,9 +44,10 @@
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 #include "hipSYCL/compiler/llvm-to-backend/host/LLVMToHostFactory.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
-#include "hipSYCL/runtime/dylib_loader.hpp"
-#include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
+#include "hipSYCL/runtime/adaptivity_engine.hpp"
+#include "hipSYCL/runtime/omp/omp_code_object.hpp"
 #endif
 
 #include <memory>
@@ -195,11 +193,8 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
   for (std::size_t k = 0; k < num_groups.get(2); ++k) {
     for (std::size_t j = 0; j < num_groups.get(1); ++j) {
       for (std::size_t i = 0; i < num_groups.get(0); ++i) {
-        sycl::detail::host_local_memory::request_from_threadprivate_pool(
-            shared_memory);
         omp_sscp_executable_object::work_group_info info{
-            num_groups, rt::id<3>{i, j, k}, local_size,
-            hipsycl::sycl::detail::host_local_memory::get_ptr()};
+            num_groups, rt::id<3>{i, j, k}, local_size, shared_memory};
         kernel(&info, kernel_args);
       }
     }
@@ -392,6 +387,9 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
 
+  // Todo: should be set via adaptivity engine
+  // config.set_build_option("host-dynamic-local-mem-allocation-size", local_mem_size);
+
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
@@ -454,7 +452,8 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   }
 
   auto kernel =
-      static_cast<const omp_sscp_executable_object *>(obj)->get_kernel(kernel_name);
+      static_cast<const omp_sscp_executable_object *>(obj)->get_kernel(
+          kernel_name);
 
   glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
                                             num_args};
@@ -465,8 +464,8 @@ result omp_queue::submit_sscp_kernel_from_code_object(
             "omp_queue: Could not map C++ arguments to kernel arguments"});
   }
 
-  return launch_kernel_from_so(kernel, num_groups, group_size,
-                               local_mem_size, arg_mapper.get_mapped_args());
+  return launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
+                               arg_mapper.get_mapped_args());
 
 #else
   return make_error(

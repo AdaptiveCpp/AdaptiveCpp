@@ -52,6 +52,7 @@ protected:
   virtual AddressSpaceMap getAddressSpaceMap() const override;
 private:
   std::vector<std::string> KernelNames;
+  std::int64_t DynamicLocalMemSize = -1;
 };
 
 }

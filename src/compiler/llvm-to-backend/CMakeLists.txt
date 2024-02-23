@@ -194,6 +194,20 @@ if(WITH_SSCP_COMPILER)
 
 
   if(WITH_LLVM_TO_HOST)
+    include(CheckCXXCompilerFlag)
+
+    check_cxx_compiler_flag(-mcpu=native HAS_MCPU_NATIVE)
+    check_cxx_compiler_flag(-march=native HAS_MARCH_NATIVE)
+
+    if(HAS_MARCH_NATIVE)
+      set(HOST_CPU_FLAG -march=native)
+    elseif(HAS_MCPU_NATIVE)
+      set(HOST_CPU_FLAG -mcpu=native)
+    else()
+      set(HOST_CPU_FLAG "")
+      message(WARNING "Could not find -mcpu=native or -march=native. Host code generation may be suboptimal.")
+    endif()
+
     add_hipsycl_llvm_backend(
       BACKEND host
       LIBRARY host/LLVMToHost.cpp host/HostKernelWrapperPass.cpp
@@ -201,7 +215,8 @@ if(WITH_SSCP_COMPILER)
 
     target_compile_definitions(llvm-to-host PRIVATE
       -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
-      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}")
+      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
+      -DHIPSYCL_HOST_CPU_FLAG="${HOST_CPU_FLAG}")
     target_link_libraries(llvm-to-host PRIVATE acpp-clang-cbs)
   endif()
 

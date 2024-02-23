@@ -80,16 +80,6 @@ LLVMToHostTranslator::LLVMToHostTranslator(const std::vector<std::string> &KN)
 
 bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
-  std::string Triple = llvm::sys::getProcessTriple();
-  // Fixme:
-  // std::string DataLayout =
-  // "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
-
-  M.setTargetTriple(Triple);
-  // M.setDataLayout(DataLayout);
-
-  AddressSpaceMap ASMap = getAddressSpaceMap();
-
   for (auto KernelName : KernelNames) {
     if (auto *F = M.getFunction(KernelName)) {
 
@@ -114,15 +104,15 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
     return false;
 
   llvm::ModulePassManager MPM;
-
-  MPM.addPass(AddressSpaceInferencePass{ASMap});
+  PH.ModuleAnalysisManager->clear(); // for some reason we need to reset the analyses... otherwise
+                                     // we get a crash at IPSCCP
 
   PH.PassBuilder->registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
     MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
   });
   PH.PassBuilder->registerModuleAnalyses(*PH.ModuleAnalysisManager);
   registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true);
-  
+
   llvm::FunctionPassManager FPM;
   FPM.addPass(HostKernelWrapperPass{DynamicLocalMemSize});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
@@ -165,11 +155,11 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
 
-  std::string ClangPath = HIPSYCL_CLANG_PATH;
+  const std::string ClangPath = HIPSYCL_CLANG_PATH;
+  const std::string CpuFlag = HIPSYCL_HOST_CPU_FLAG;
 
-  llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath, "-O3",          "-march=native",
-                                                    "-x",      "ir",           "-shared",
-                                                    "-o",      OutputFilename, InputFile->TmpName};
+  llvm::SmallVector<llvm::StringRef, 16> Invocation{
+      ClangPath, "-O3", CpuFlag, "-x", "ir", "-shared", "-o", OutputFilename, InputFile->TmpName};
 
   std::string ArgString;
   for (const auto &S : Invocation) {
@@ -214,13 +204,12 @@ bool LLVMToHostTranslator::isKernelAfterFlavoring(llvm::Function &F) {
 
 AddressSpaceMap LLVMToHostTranslator::getAddressSpaceMap() const {
   AddressSpaceMap ASMap;
-  // TODO for CPU
+  // Zero initialize for CPU.. we don't have address spaces
   ASMap[AddressSpace::Generic] = 0;
   ASMap[AddressSpace::Global] = 0;
   ASMap[AddressSpace::Local] = 0;
   ASMap[AddressSpace::Private] = 0;
   ASMap[AddressSpace::Constant] = 0;
-  // NVVM wants to have allocas in address space 0
   ASMap[AddressSpace::AllocaDefault] = 0;
   ASMap[AddressSpace::GlobalVariableDefault] = 0;
   ASMap[AddressSpace::ConstantGlobalVariableDefault] = 0;

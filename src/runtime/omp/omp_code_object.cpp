@@ -54,10 +54,20 @@ namespace rt {
 
 namespace {
 
-result make_shared_library_from_blob(void *&module,
+result make_shared_library_from_blob(void *&module, const std::string &blob,
                                      const std::string &cache_file) {
+  // Write binary image to temporary file
+  if (!common::filesystem::atomic_write(cache_file, blob)) {
+    HIPSYCL_DEBUG_ERROR << "Could not store JIT kernel library in temporary "
+                           "kernel cache in file "
+                        << cache_file << std::endl;
+    return make_error(
+        __hipsycl_here(),
+        error_info{"omp_sscp_executable_object: could not store JIT kernel "
+                   "library in temporary kernel cache"});
+  }
 
-  // assume we have source == so file path
+  // now load the same so file
   HIPSYCL_DEBUG_INFO << "Load module: " << cache_file << "\n";
   module = detail::load_library(cache_file, "omp_sscp_executable");
 
@@ -75,11 +85,10 @@ omp_sscp_executable_object::omp_sscp_executable_object(
     const std::string &binary, hcf_object_id hcf_source,
     const std::vector<std::string> &kernel_names,
     const glue::kernel_configuration &config)
-    : _hcf{hcf_source}, _kernel_names{kernel_names}, _id{config.generate_id()},
-      _module{nullptr},
+    : _hcf{hcf_source}, _id{config.generate_id()}, _module{nullptr},
       _kernel_cache_path(kernel_cache::get_persistent_cache_file(_id) + "-" +
                          std::to_string(getpid()) + ".so") {
-  _build_result = build(binary);
+  _build_result = build(binary, kernel_names);
 }
 
 omp_sscp_executable_object::~omp_sscp_executable_object() {
@@ -106,7 +115,7 @@ code_object_state omp_sscp_executable_object::state() const {
 }
 
 code_format omp_sscp_executable_object::format() const {
-  return code_format::ptx;
+  return code_format::native_isa;
 }
 
 backend_id omp_sscp_executable_object::managing_backend() const {
@@ -116,7 +125,7 @@ backend_id omp_sscp_executable_object::managing_backend() const {
 hcf_object_id omp_sscp_executable_object::hcf_source() const { return _hcf; }
 
 std::string omp_sscp_executable_object::target_arch() const {
-  return "cpu"; // fixme..?
+  return "native-host";
 }
 
 compilation_flow omp_sscp_executable_object::source_compilation_flow() const {
@@ -125,32 +134,52 @@ compilation_flow omp_sscp_executable_object::source_compilation_flow() const {
 
 std::vector<std::string>
 omp_sscp_executable_object::supported_backend_kernel_names() const {
-  return _kernel_names;
+  std::vector<std::string> names;
+  names.reserve(_kernels.size());
+  std::transform(_kernels.begin(), _kernels.end(), std::back_inserter(names),
+                 [](const auto &pair) { return pair.first; });
+  return names;
 }
 
 void *omp_sscp_executable_object::get_module() const { return _module; }
 
-result omp_sscp_executable_object::build(const std::string &source) {
-  // Write binary image to temporary file
-  if (!common::filesystem::atomic_write(_kernel_cache_path, source)) {
-    HIPSYCL_DEBUG_ERROR << "Could not store JIT kernel library in temporary "
-                           "kernel cache in file "
-                        << _kernel_cache_path << std::endl;
-  }
-
+result omp_sscp_executable_object::build(
+    const std::string &source, const std::vector<std::string> &kernel_names) {
   if (_module != nullptr)
     return make_success();
 
-  return make_shared_library_from_blob(_module, _kernel_cache_path);
+  if (auto result = make_shared_library_from_blob(_module, source, _kernel_cache_path);
+      !result.is_success())
+    return result;
+
+  // find all kernel symbols
+  for (const auto &kernel_name : kernel_names) {
+    if (auto kernel = (omp_sscp_kernel *)detail::get_symbol_from_library(
+            _module, kernel_name, "omp_sscp_exectuable_object")) {
+      _kernels.emplace(kernel_name, kernel);
+    } else {
+      return make_error(__hipsycl_here(),
+                        error_info{"omp_sscp_executable_object: could not load "
+                                   "kernel from shared library"});
+    }
+  }
+  return make_success();
 }
 
 bool omp_sscp_executable_object::contains(
     const std::string &backend_kernel_name) const {
-  for (const auto &kernel_name : _kernel_names) {
+  for (const auto &[kernel_name, kernel] : _kernels) {
     if (kernel_name == backend_kernel_name)
       return true;
   }
   return false;
+}
+
+omp_sscp_executable_object::omp_sscp_kernel *omp_sscp_executable_object::get_kernel(const std::string &backend_kernel_name) const {
+  auto it = _kernels.find(backend_kernel_name);
+  if (it != _kernels.end())
+    return it->second;
+  return nullptr;
 }
 
 } // namespace rt

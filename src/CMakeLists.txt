@@ -8,15 +8,13 @@ if(NOT APPLE AND NOT WIN32)
   # parallelism to bleed into code that is executed within the runtime, where
   # USM is a big no-no.
   set(HIPSYCL_STDPAR_RT_LINKER_FLAGS "-Wl,-Bsymbolic-functions")
+  set(base $ORIGIN)
 else()
   set(HIPSYCL_STDPAR_RT_LINKER_FLAGS "")
+  set(base @loader_path)
 endif()
 
 add_subdirectory(common)
-
-list( APPEND CMAKE_INSTALL_RPATH
-  ${CMAKE_INSTALL_PREFIX}/lib
-  ${CMAKE_INSTALL_PREFIX}/lib/hipSYCL/llvm-to-backend)
 
 set(WITH_LLVM_TO_AMDGPU_AMDHSA false)
 set(WITH_LLVM_TO_PTX false)

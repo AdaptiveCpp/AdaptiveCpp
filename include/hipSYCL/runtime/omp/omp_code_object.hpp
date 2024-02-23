@@ -28,28 +28,43 @@
 #ifndef HIPSYCL_OMP_CODE_OBJECT_HPP
 #define HIPSYCL_OMP_CODE_OBJECT_HPP
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "hipSYCL/glue/kernel_configuration.hpp"
-#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
 struct CUmod_st;
 
 namespace hipsycl {
 namespace rt {
 
-
 class omp_sscp_executable_object : public code_object {
 public:
-  virtual ~omp_sscp_executable_object();
- 
+  // The kernel argument struct providing work-group information.
+  struct work_group_info {
+    work_group_info(rt::range<3> num_groups, rt::id<3> group_id,
+                    rt::range<3> local_size, void *local_memory)
+        : _num_groups(num_groups), _group_id(group_id), _local_size(local_size),
+          _local_memory(local_memory) {}
+
+    rt::range<3> _num_groups;
+    rt::range<3> _group_id;
+    rt::range<3> _local_size;
+    void *_local_memory;
+  };
+
+  using omp_sscp_kernel = void(const work_group_info *, void **);
+
   omp_sscp_executable_object(const std::string &shared_lib_path,
-                              hcf_object_id hcf_source,
-                              const std::vector<std::string> &kernel_names,
-                              const glue::kernel_configuration &config);
+                             hcf_object_id hcf_source,
+                             const std::vector<std::string> &kernel_names,
+                             const glue::kernel_configuration &config);
+
+  virtual ~omp_sscp_executable_object();
 
   virtual result get_build_result() const;
 
@@ -64,21 +79,22 @@ public:
   supported_backend_kernel_names() const override;
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
-  virtual void* get_module() const;
+  virtual void *get_module() const;
+  virtual omp_sscp_kernel *get_kernel(const std::string& backend_kernel_name) const;
 
 private:
-  result build(const std::string& source);
+  result build(const std::string &source, const std::vector<std::string> &kernel_names);
 
   hcf_object_id _hcf;
   glue::kernel_configuration::id_type _id;
-  std::vector<std::string> _kernel_names;
   std::string _kernel_cache_path;
 
   result _build_result;
-  void* _module;
+  void *_module;
+  std::unordered_map<std::string, omp_sscp_kernel*> _kernels;
 };
 
-}
-}
+} // namespace rt
+} // namespace hipsycl
 
 #endif

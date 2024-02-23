@@ -47,11 +47,9 @@
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 #include "hipSYCL/compiler/llvm-to-backend/host/LLVMToHostFactory.hpp"
-#include "hipSYCL/glue/generic/host/iterate_range.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
-#include "hipSYCL/sycl/libkernel/range.hpp"
 #endif
 
 #include <memory>
@@ -186,33 +184,11 @@ private:
 };
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
-struct work_group_info {
-  work_group_info(rt::range<3> num_groups, rt::id<3> group_id,
-                  rt::range<3> local_size, void *local_memory)
-      : _num_groups(num_groups), _group_id(group_id), _local_size(local_size),
-        _local_memory(local_memory) {}
-
-  rt::range<3> _num_groups;
-  rt::range<3> _group_id;
-  rt::range<3> _local_size;
-  void *_local_memory;
-};
-
-using omp_sscp_kernel = void(const work_group_info *, void **);
-
-result launch_kernel_from_so(void *handle, const std::string &kernel_name,
-                             const rt::range<3> &num_groups,
-                             const rt::range<3> &local_size,
-                             unsigned shared_memory, void **kernel_args) {
-  auto kernel = (omp_sscp_kernel *)detail::get_symbol_from_library(
-      handle, kernel_name, "omp_sscp_exectuable_object");
-
-  if (!kernel) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{"omp_queue: Could not load kernel from shared object"});
-  }
-
+result
+launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
+                      const rt::range<3> &num_groups,
+                      const rt::range<3> &local_size, unsigned shared_memory,
+                      void **kernel_args) {
 #ifdef _OPENMP
 #pragma omp parallel for collapse(3)
 #endif
@@ -221,7 +197,7 @@ result launch_kernel_from_so(void *handle, const std::string &kernel_name,
       for (std::size_t i = 0; i < num_groups.get(0); ++i) {
         sycl::detail::host_local_memory::request_from_threadprivate_pool(
             shared_memory);
-        work_group_info info{
+        omp_sscp_executable_object::work_group_info info{
             num_groups, rt::id<3>{i, j, k}, local_size,
             hipsycl::sycl::detail::host_local_memory::get_ptr()};
         kernel(&info, kernel_args);
@@ -477,8 +453,8 @@ result omp_queue::submit_sscp_kernel_from_code_object(
                       error_info{"omp_queue: Code object construction failed"});
   }
 
-  void *handle =
-      static_cast<const omp_sscp_executable_object *>(obj)->get_module();
+  auto kernel =
+      static_cast<const omp_sscp_executable_object *>(obj)->get_kernel(kernel_name);
 
   glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
                                             num_args};
@@ -489,7 +465,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
             "omp_queue: Could not map C++ arguments to kernel arguments"});
   }
 
-  return launch_kernel_from_so(handle, kernel_name, num_groups, group_size,
+  return launch_kernel_from_so(kernel, num_groups, group_size,
                                local_mem_size, arg_mapper.get_mapped_args());
 
 #else

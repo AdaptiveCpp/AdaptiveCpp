@@ -45,42 +45,6 @@ inline constexpr int builtin_memory_order(__hipsycl_sscp_memory_order o) noexcep
   return __ATOMIC_RELAXED;
 }
 
-#ifndef __HIP_MEMORY_SCOPE_SINGLETHREAD
- #define __HIP_MEMORY_SCOPE_SINGLETHREAD 1
-#endif
-
-#ifndef __HIP_MEMORY_SCOPE_WAVEFRONT
- #define __HIP_MEMORY_SCOPE_WAVEFRONT 2
-#endif
-
-#ifndef __HIP_MEMORY_SCOPE_WORKGROUP
- #define __HIP_MEMORY_SCOPE_WORKGROUP 3
-#endif
-
-#ifndef __HIP_MEMORY_SCOPE_AGENT
- #define __HIP_MEMORY_SCOPE_AGENT 4
-#endif
-
-#ifndef __HIP_MEMORY_SCOPE_SYSTEM
- #define __HIP_MEMORY_SCOPE_SYSTEM 5
-#endif
-
-inline constexpr int builtin_memory_scope(__hipsycl_sscp_memory_scope s) noexcept {
-  switch(s) {
-    case __hipsycl_sscp_memory_scope::work_item:
-      return __HIP_MEMORY_SCOPE_SINGLETHREAD;
-    case __hipsycl_sscp_memory_scope::sub_group:
-      return __HIP_MEMORY_SCOPE_WAVEFRONT;
-    case __hipsycl_sscp_memory_scope::work_group:
-      return __HIP_MEMORY_SCOPE_WORKGROUP;
-    case __hipsycl_sscp_memory_scope::device:
-      return __HIP_MEMORY_SCOPE_AGENT;
-    case __hipsycl_sscp_memory_scope::system:
-      return __HIP_MEMORY_SCOPE_SYSTEM;
-  }
-}
-
-
 
 // ********************** atomic store ***************************
 

@@ -28,8 +28,8 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/print.hpp"
 
-#include <iostream>
+#include <stdio.h>
 
 void __hipsycl_sscp_print(const char* msg) {
-  std::cout << msg;
+  puts(msg);
 }

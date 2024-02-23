@@ -90,19 +90,17 @@ void replaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm:
  * This makes calling the kernel from the host code straighforward, as only the work group info
  * struct and the user arguments need to be passed to the wrapper.
  */
-llvm::Function *makeWrapperFunction(llvm::Function &F) {
+llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocalMemSize) {
   auto M = F.getParent();
   auto &Ctx = M->getContext();
 
   llvm::IRBuilder<> Bld(&F.getEntryBlock());
 
   auto SizeT = M->getDataLayout().getLargestLegalIntType(Ctx);
-  auto Int8T = llvm::IntegerType::get(Ctx, 8);
-  auto WorkGroupInfoT =
-      llvm::StructType::get(llvm::ArrayType::get(SizeT, 3),       // # groups
-                            llvm::ArrayType::get(SizeT, 3),       // group id
-                            llvm::ArrayType::get(SizeT, 3),       // local size
-                            llvm::PointerType::getUnqual(Int8T)); // local memory ptr
+  auto WorkGroupInfoT = llvm::StructType::get(llvm::ArrayType::get(SizeT, 3), // # groups
+                                              llvm::ArrayType::get(SizeT, 3), // group id
+                                              llvm::ArrayType::get(SizeT, 3), // local size
+                                              Bld.getInt32Ty());              // local memory size
   auto VoidPtrT = llvm::PointerType::getUnqual(Bld.getVoidTy());
   auto UserArgsT = llvm::PointerType::getUnqual(VoidPtrT);
 
@@ -142,10 +140,16 @@ llvm::Function *makeWrapperFunction(llvm::Function &F) {
   LocalSize[1] = LoadFromContext(2, 1, "local_size_y");
   LocalSize[2] = LoadFromContext(2, 2, "local_size_z");
 
-  auto LocalMemPtr = Bld.CreateLoad(
-      llvm::PointerType::get(Ctx, 0),
-      Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0), {Bld.getInt64(0), Bld.getInt32(3)}),
-      "local_mem_ptr");
+  llvm::Value* LocalMemSize = nullptr;
+  if(DynamicLocalMemSize != -1) {
+    LocalMemSize = Bld.getInt32(DynamicLocalMemSize);
+  } else {
+    LocalMemSize = Bld.CreateLoad(
+      Bld.getInt32Ty(), Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0),
+                                   {Bld.getInt64(0), Bld.getInt32(3)}, "local_mem_size"));
+  }
+  
+  auto LocalMemPtr = Bld.CreateAlloca(Bld.getInt8Ty(), LocalMemSize, "local_mem_ptr");
 
   llvm::SmallVector<llvm::Value *> Args;
 
@@ -184,8 +188,8 @@ llvm::PreservedAnalyses HostKernelWrapperPass::run(llvm::Function &F,
   if (!SAA || !SAA->isKernelFunc(&F))
     return llvm::PreservedAnalyses::all();
 
-  auto Wrapper = makeWrapperFunction(F);
-  
+  auto Wrapper = makeWrapperFunction(F, DynamicLocalMemSize);
+
   HIPSYCL_DEBUG_INFO << "[SSCP][HostKernelWrapper] Created kernel wrapper: " << Wrapper->getName()
                      << "\n";
 

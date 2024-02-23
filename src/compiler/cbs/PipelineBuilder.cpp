@@ -117,8 +117,7 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp
     FPM.addPass(KernelFlatteningPass{});
   if (Opt != OptLevel::O0)
     FPM.addPass(LoopsParallelMarkerPass{});
-  if (IsSscp)
-    FPM.addPass(HostKernelWrapperPass{});
+  
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }
 

@@ -63,7 +63,16 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/../
           sudo dpkg -i acpp_23.10.0-1_amd64.deb
+      - name: build CPU tests
         run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=usr/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+          make -j2
+      - name: run CPU tests
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:

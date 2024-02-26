@@ -48,12 +48,15 @@
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/omp/omp_code_object.hpp"
+
 #ifndef WIN32
 #include <unistd.h>
 #else
 #include <Windows.h>
 #endif
 #endif
+
+#include <omp.h>
 
 #include <memory>
 
@@ -600,9 +603,27 @@ result omp_sscp_code_object_invoker::submit_kernel(
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, const std::string &kernel_name,
     const glue::kernel_configuration &config) {
+
   return _queue->submit_sscp_kernel_from_code_object(
-      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
-      arg_sizes, num_args, config);
+      op, hcf_object, kernel_name, num_groups, group_size,
+      local_mem_size, args, arg_sizes, num_args, config);
 }
+
+rt::range<3> omp_sscp_code_object_invoker::select_group_size(
+    const rt::range<3> &num_groups, const rt::range<3> &group_size) const {
+  rt::range<3> selected_group_size = group_size;
+#ifdef _OPENMP
+  const int max_threads = omp_get_max_threads();
+#else
+  const int max_threads = 1;
+#endif
+  constexpr auto divisor = 1;
+  auto z = std::min(
+      std::max<std::size_t>(num_groups.get(0) / (max_threads * divisor), 16),
+      std::min<std::size_t>(num_groups.get(0), 1024));
+  selected_group_size = rt::range<3>{z, 1, 1};
+  return selected_group_size;
+}
+
 } // namespace rt
 } // namespace hipsycl

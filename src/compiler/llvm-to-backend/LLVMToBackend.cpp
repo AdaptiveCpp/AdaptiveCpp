@@ -38,6 +38,8 @@
 #include <cstdint>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/DiagnosticInfo.h>
+#include <llvm/IR/DiagnosticPrinter.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/Support/raw_ostream.h>
@@ -99,7 +101,7 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
   const std::vector<std::string>& OutliningEPs)
 : S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {}
 
-bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
+bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) {
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
 
   if(Flag == "global-sizes-fit-in-int") {
@@ -156,7 +158,7 @@ bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, s
     setFailedIR(*M);
     return false;
   }
-  
+
   llvm::raw_string_ostream OutputStream{Out};
   llvm::WriteBitcodeToFile(*M, OutputStream);
 
@@ -194,7 +196,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
 
   if(!this->prepareBackendFlavor(M))
     return false;
-  
+
   // We need to resolve symbols now instead of after optimization, because we
   // may have to reuotline if the code that is linked in after symbol resolution
   // depends on IR constants.
@@ -257,7 +259,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     if(FlavoringSuccessful) {
       // Run optimizations
       HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing flavored IR...\n";
-      
+
       if(IsFastMath)
         setFastMathFunctionAttribs(M);
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
@@ -291,6 +293,17 @@ bool LLVMToBackendTranslator::translatePreparedIR(llvm::Module &FlavoredModule, 
 bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) {
   assert(PH.PassBuilder);
   assert(PH.ModuleAnalysisManager);
+
+  // silence optimization remarks,..
+  M.getContext().setDiagnosticHandlerCallBack(
+      [](const llvm::DiagnosticInfo &DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI.getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI.print(DP);
+          llvm::errs() << "\n";
+        }
+      });
 
   llvm::ModulePassManager MPM =
       PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
@@ -355,7 +368,7 @@ void LLVMToBackendTranslator::provideExternalSymbolResolver(ExternalSymbolResolv
 void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
 
   if(HasExternalSymbolResolver) {
-    
+
     // TODO We can not rely on LinkedIRIds being reliable, since
     // we only link needed symbols. Therefore, just because we have linked one module once
     // we may have to do it again.
@@ -385,11 +398,11 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
       // symbol definitions to work. So we need to try to resolve the new
       // stuff in the next iteration.
       llvm::SmallSet<std::string, 16> NewUnresolvedSymbolsSet;
-      
+
       for(const auto& IRID : IRs) {
 
         SymbolListType NewUndefinedSymbolsFromIR;
-        
+
         if (!this->linkBitcodeString(
                 M, SymbolResolver.retrieveBitcode(IRID, NewUndefinedSymbolsFromIR))) {
           HIPSYCL_DEBUG_WARNING
@@ -403,7 +416,7 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
                                 << " as a dependency\n";
           }
         }
-        
+
       }
 
       if(NewUnresolvedSymbolsSet.empty()) {

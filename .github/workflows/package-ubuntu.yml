@@ -77,4 +77,3 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
-        with:

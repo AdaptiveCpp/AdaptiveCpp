@@ -368,9 +368,8 @@ private:
 
     const auto rt_global_range = flip_range(global_range);
     auto selected_group_size = flip_range(group_size);
-    if (group_size.size() == 0) {
+    if (group_size.size() == 0)
       selected_group_size = invoker->select_group_size(rt_global_range, selected_group_size);
-    }
     
     rt::range<3> num_groups;
     for(int i = 0; i < 3; ++i) {

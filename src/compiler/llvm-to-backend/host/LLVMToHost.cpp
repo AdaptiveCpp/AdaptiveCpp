@@ -159,7 +159,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   const std::string CpuFlag = HIPSYCL_HOST_CPU_FLAG;
 
   llvm::SmallVector<llvm::StringRef, 16> Invocation{
-      ClangPath, "-O3", CpuFlag, "-x", "ir", "-shared", "-o", OutputFilename, InputFile->TmpName};
+      ClangPath, "-O3", CpuFlag, "-x", "ir", "-shared", "-Wno-pass-failed", "-o", OutputFilename, InputFile->TmpName};
 
   std::string ArgString;
   for (const auto &S : Invocation) {

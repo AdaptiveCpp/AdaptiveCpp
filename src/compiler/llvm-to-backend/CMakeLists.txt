@@ -215,7 +215,6 @@ if(WITH_SSCP_COMPILER)
 
     target_compile_definitions(llvm-to-host PRIVATE
       -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
-      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
       -DHIPSYCL_HOST_CPU_FLAG="${HOST_CPU_FLAG}")
     target_link_libraries(llvm-to-host PRIVATE acpp-clang-cbs)
   endif()

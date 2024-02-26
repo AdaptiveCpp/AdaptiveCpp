@@ -37,7 +37,6 @@
 #include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
-struct CUmod_st;
 
 namespace hipsycl {
 namespace rt {

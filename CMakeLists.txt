@@ -4,8 +4,8 @@ if(NOT CMAKE_VERSION VERSION_LESS 3.12)
 endif()
 
 
-set(ACPP_VERSION_MAJOR 23)
-set(ACPP_VERSION_MINOR 10)
+set(ACPP_VERSION_MAJOR 24)
+set(ACPP_VERSION_MINOR 02)
 set(ACPP_VERSION_PATCH 0)
 if(NOT ACPP_VERSION_SUFFIX)
   # Get the latest abbreviated commit hash of the working branch

@@ -90,8 +90,15 @@ endif()
 list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
-# Check for OpenCL
-find_package(OpenCL QUIET)
+
+# Check for OpenCL unless user has explicitly set WITH_SSCP_COMPILER to False
+if (DEFINED WITH_SSCP_COMPILER)
+  if (WITH_SSCP_COMPILER)
+    find_package(OpenCL QUIET)
+  endif()
+else()
+  find_package(OpenCL QUIET)
+endif()
 
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)

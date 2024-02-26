@@ -31,6 +31,38 @@ It is generally not necessary to compile LLVM by yourself. However, if you wish 
 - Generate `libLLVM.so`: `-DLLVM_BUILD_LLVM_DYLIB=ON` (only required if the SSCP compilation flow is enabled when building AdaptiveCpp, which is true by default for supported versions of LLVM)
 - Enable the correct backends for your hardware: `nvptx` for NVIDIA GPUs and `amdgpu` for AMD GPUs.
 
+An example build of LLVM 15 from source might look like this:
+
+```
+git clone https://github.com/llvm/llvm-project -b release/15.x
+cd llvm-project
+mkdir -p build
+cd build
+
+INSTALL_PREFIX=/path/to/desired/llvm/installation/directory
+
+cmake -DCMAKE_C_COMPILER=`which gcc` -DCMAKE_CXX_COMPILER=`which g++` \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
+      -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;lld;openmp" \
+      -DOPENMP_ENABLE_LIBOMPTARGET=OFF \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DLLVM_ENABLE_ASSERTIONS=OFF \
+      -DLLVM_TARGETS_TO_BUILD="AMDGPU;NVPTX;X86" \
+      -DCLANG_ANALYZER_ENABLE_Z3_SOLVER=0 \
+      -DLLVM_INCLUDE_BENCHMARKS=0 \
+      -DLLVM_INCLUDE_EXAMPLES=0 \
+      -DLLVM_INCLUDE_TESTS=0 \
+      -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+      -DCMAKE_INSTALL_RPATH=$INSTALL_PREFIX/lib \
+      -DLLVM_ENABLE_OCAMLDOC=OFF \
+      -DLLVM_ENABLE_BINDINGS=OFF \
+      -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=OFF \
+      -DLLVM_BUILD_LLVM_DYLIB=ON \
+      -DLLVM_ENABLE_DUMP=OFF  ../llvm
+make install
+```
+
 ## Pointing AdaptiveCpp to the right LLVM
 
 When invoking cmake, the AdaptiveCpp build infrastructure will attempt to find LLVM automatically (see below for how to invoke cmake).

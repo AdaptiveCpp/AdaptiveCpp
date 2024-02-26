@@ -2,15 +2,13 @@ name: Package AdaptiveCpp for Ubuntu
 on: [push, pull_request]
 
 jobs:
-  packaging-acpp:
+  packaging-acpp-cpu-backend:
     name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
         clang: ['17']
         os: [ubuntu-22.04]
-        cuda: [11.0.2]
-        rocm: [6.0.0]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,8 +68,8 @@ jobs:
           echo $(ls -lart ../)
           echo $(which acpp)
           echo $LD_LIBRARY_PATH
-          echo ${ls -lart usr/lib/cmake}
-          echo ${ls -lart /usr/lib/cmake}
+          echo $(ls -lart usr/lib/cmake)
+          echo $(ls -lart /usr/lib/cmake)
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:

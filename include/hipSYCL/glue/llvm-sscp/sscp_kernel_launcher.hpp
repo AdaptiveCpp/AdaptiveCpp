@@ -338,6 +338,17 @@ public:
   }
 
 private:
+  template <int Dim>
+  rt::range<3> flip_range(const sycl::range<Dim> &r) {
+      rt::range<3> rt_range{1,1,1};
+
+      for (int i = 0; i < Dim; ++i) {
+        rt_range[i] = r[Dim - i - 1];
+      }
+
+      return rt_range;
+  }
+
   template <class Kernel, int Dim>
   void launch_kernel_with_global_range(const Kernel &k,
                                        rt::kernel_operation *op,
@@ -345,23 +356,27 @@ private:
                                        const sycl::range<Dim> &group_size,
                                        unsigned local_mem_size) {
 
-    sycl::range<Dim> selected_group_size = group_size;
-    if(group_size.size() == 0) {
-      if constexpr(Dim == 1) {
-        selected_group_size = sycl::range{128};
-      } else if constexpr(Dim == 2) {
-        selected_group_size = sycl::range{16,16};
-      } else if constexpr(Dim == 3) {
-        selected_group_size = sycl::range{4,8,8};
-      }
+    auto sscp_invoker = this->get_launch_capabilities().get_sscp_invoker();
+    if(!sscp_invoker) {
+      rt::register_error(
+          __hipsycl_here(),
+          rt::error_info{"Attempted to prepare to launch SSCP kernel, but the backend "
+                         "did not configure the kernel launcher for SSCP."});
     }
 
-    sycl::range<Dim> num_groups;
-    for(int i = 0; i < Dim; ++i) {
-      num_groups[i] = (global_range[i] + selected_group_size[i] - 1) /
+    auto* invoker = sscp_invoker.value();
+
+    const auto rt_global_range = flip_range(global_range);
+    auto selected_group_size = flip_range(group_size);
+    if (group_size.size() == 0) {
+      selected_group_size = invoker->select_group_size(rt_global_range, selected_group_size);
+    }
+    
+    rt::range<3> num_groups;
+    for(int i = 0; i < 3; ++i) {
+      num_groups[i] = (rt_global_range[i] + selected_group_size[i] - 1) /
                       selected_group_size[i];
     }
-
     launch_kernel(k, op, num_groups, selected_group_size, local_mem_size);
   }
 
@@ -370,17 +385,6 @@ private:
                      const sycl::range<Dim> &num_groups,
                      const sycl::range<Dim> &group_size,
                      unsigned local_mem_size) {
-
-    auto flip_range = [](const sycl::range<Dim> &r) {
-      rt::range<3> rt_range{1,1,1};
-
-      for (int i = 0; i < Dim; ++i) {
-        rt_range[i] = r[Dim - i - 1];
-      }
-
-      return rt_range;
-    };
-
     launch_kernel(k, op, flip_range(num_groups), flip_range(group_size),
                   local_mem_size);
   }

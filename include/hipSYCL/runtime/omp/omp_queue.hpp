@@ -53,6 +53,10 @@ public:
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name,
                                const glue::kernel_configuration& config) override;
+  
+  virtual rt::range<3> select_group_size(const rt::range<3> &num_groups,
+                                         const rt::range<3> &group_size) const override;
+
 private:
   omp_queue* _queue;
 };

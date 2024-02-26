@@ -73,4 +73,4 @@ jobs:
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
-          path: ${GITHUB_PACKAGE}/../acpp_23.10.0-1_amd64.deb
+          path: /home/runner/work/AdaptiveCpp/acpp_23.10.0-1_amd64.deb

@@ -56,6 +56,7 @@ jobs:
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
+          name: cpu-backend
           path: /home/runner/work/AdaptiveCpp/acpp_23.10.0-1_amd64.deb
       - name: build CPU tests
         run: |

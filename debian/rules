@@ -24,6 +24,7 @@ override_dh_auto_configure:
 	          -DLLVM_DIR=/usr/lib/llvm-17/cmake/ \
 	          -DCUDA_CUDA_LIBRARY=/opt/AdaptiveCpp/cuda/lib64/stubs/libcuda.so \
 	          -DCUDA_TOOLKIT_ROOT_DIR=/opt/AdaptiveCpp/cuda \
+	          -DOpenCL_LIBRARY=/usr/lib/x86_64-linux-gnu/libopencl-clang.so \
 	          -DROCM_PATH=/opt/rocm
 override_dh_auto_build:
 	dh_auto_build -- -j2

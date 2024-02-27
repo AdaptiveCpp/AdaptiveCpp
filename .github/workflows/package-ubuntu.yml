@@ -24,8 +24,7 @@ jobs:
           sudo apt install libboost-all-dev libtbb-dev cmake wget curl gpg
       - name: install OpenCL develpment files and loader
         run: |
-          apt install libopencl-clang-dev
-          apt install ocl-icd-opencl-dev
+          sudo apt install libopencl-clang-dev ocl-icd-opencl-dev
       - name: setup build environment
         run: |
           export CXXFLAGS="$CXXFLAGS"

@@ -19,9 +19,9 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.clang}}
           sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
-      - name: install boost
+      - name: install dependencies
         run: |
-          sudo apt install libboost-all-dev
+          sudo apt install libboost-all-dev cmake wget curl gpg
       - name: setup build environment
         run: |
           export CXXFLAGS="$CXXFLAGS"
@@ -33,14 +33,40 @@ jobs:
           echo "CC=${CC}" >> $GITHUB_ENV
           echo "CXX=${CXX}" >> $GITHUB_ENV
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
-      - name: install cmake
-        run: |
-          sudo apt install cmake
       - name: install packaging helpers
         run: |
           sudo  apt install build-essential
           sudo  apt install devscripts
           sudo  apt install debhelper
+      - name: package AdaptiveCpp
+        run: |
+          export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
+          export DEBFULLNAME="Sanchi Vaishnavi"
+          echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
+          echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
+          cd ..
+          cp -R AdaptiveCpp acpp-23.10.0
+          tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
+          cd acpp-23.10.0/
+          debuild -us -uc
+      - name: Install the package
+        run: |
+          cd ${GITHUB_WORKSPACE}/../
+          sudo dpkg -i acpp_23.10.0-1_amd64.deb
+      - name: Release Packages
+        uses: actions/upload-artifact@v4
+        with:
+          path: /home/runner/work/AdaptiveCpp/acpp_23.10.0-1_amd64.deb
+      - name: build CPU tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build-tests-cpu
+          cd ${GITHUB_WORKSPACE}/build-tests-cpu
+          cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=/usr/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+          make -j2
+      - name: run CPU tests
+        run: |
+          cd ${GITHUB_WORKSPACE}/build-tests-cpu
+          LD_LIBRARY_PATH=/usr/lib ./sycl_tests
       - name: install CUDA
         run : |
           mkdir -p /opt/AdaptiveCpp/cuda

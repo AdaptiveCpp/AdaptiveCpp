@@ -51,7 +51,7 @@ AdaptiveCpp allows using backend-specific language extensions (e.g. CUDA/HIP C++
 
 ## Generic SSCP compilation flow
 
-**Note:** This flow is work-in-progress and support level may vary quickly.
+**Note:** This flow is AdaptiveCpp's default compilation flow, and for good reason: It compiles faster, typically generates faster code, and creates portable binaries. It however one of the focal points of our work, and development is thus moving quickly.
 
 AdaptiveCpp supports a generic single-pass compiler flow, where a single compiler invocation generates both host and device code. The SSCP compilation consists of two stages:
 1. Stage 1 happens at compile time: During the regular C++ host compilation, AdaptiveCpp extracts LLVM IR for kernels with backend-independent representations of builtins, kernel annotations etc. This LLVM IR is embedded in the host code. During stage 1, it is not yet known on which device(s) the code will ultimately run.
@@ -70,6 +70,7 @@ Currently, the SSCP flow is implemented for
 * CUDA devices
 * SPIR-V devices through oneAPI Level Zero
 * AMD ROCm devices
+* The host CPU
 
 Some features (e.g. SYCL 2020 reductions or group algorithms) are not yet implemented.
 

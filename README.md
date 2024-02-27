@@ -16,12 +16,12 @@ Supported compilation flows include ([details](doc/compilation.md)):
    1. NVIDIA CUDA GPUs through PTX;
    2. AMD ROCm GPUs through amdgcn code;
    3. Intel GPUs through SPIR-V (Level Zero);
-   4. SPIR-V compatible OpenCL devices supporting Intel USM extensions or fine-grained system SVM (such as Intel's OpenCL implementation for CPUs or GPUs)
+   4. SPIR-V compatible OpenCL devices supporting Intel USM extensions or fine-grained system SVM (such as Intel's OpenCL implementation for CPUs or GPUs);
+   5. The host CPU through LLVM
 2. Additionally, **AdaptiveCpp can aggregate existing clang toolchains and augment them with support for SYCL constructs**. This allows for a high degree of interoperability between SYCL and other models such as CUDA or HIP. For example, in this mode, the AdaptiveCpp CUDA and ROCm backends rely on the clang CUDA/HIP frontends that have been augmented by AdaptiveCpp to *additionally* also understand other models like SYCL. This means that the AdaptiveCpp compiler can not only compile SYCL code, but also CUDA/HIP code *even if they are mixed in the same source file*, making all CUDA/HIP features - such as the latest device intrinsics - also available from SYCL code ([details](doc/hip-source-interop.md)). Additionally, vendor-optimized template libraries such as rocPRIM or CUB can also be used with AdaptiveCpp. This allows for highly optimized code paths in SYCL code for specific devices. Support includes:
    1. Any LLVM-supported CPU (including e.g. x86, arm, power etc) through the regular clang host toolchain with dedicated compiler transformation to accelerate SYCL constructs;
    2. NVIDIA CUDA GPUs through the clang CUDA toolchain;
-   3. AMD ROCm GPUs through the clang HIP toolchain;
-   4. Intel GPUs through oneAPI Level Zero and the clang SYCL toolchain (*highly* experimental, deprecated)
+   3. AMD ROCm GPUs through the clang HIP toolchain
 3. Or **AdaptiveCpp can be used in library-only compilation flows**. In these compilation flows, AdaptiveCpp acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support:
    1. Any CPU supported by any OpenMP compilers;
    2. NVIDIA GPUs through CUDA and the NVIDIA nvc++ compiler, bringing NVIDIA vendor support and day 1 hardware support to the SYCL ecosystem

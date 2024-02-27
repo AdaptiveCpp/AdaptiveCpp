@@ -3,14 +3,17 @@ It is recommended to use the CMake integration for larger projects. See the sect
 
 ## AdaptiveCpp targets specification
 
-Both `acpp` and the cmake integration expect an AdaptiveCpp targets specification. This specification defines which compilation flows AdaptiveCpp should enable, and which devices from a compilation flow AdaptiveCpp should target during compilation. In general, it has the form:
+Both `acpp` and the cmake integration can be optionally provided with an AdaptiveCpp targets specification. This specification defines which compilation flows AdaptiveCpp should enable, and which devices from a compilation flow AdaptiveCpp should target during compilation. In general, it has the form:
 
 ```
 "flow1:target1,target2,...;flow2:...;..."
 ```
-and can be passed either as `acpp` command line argument, environment variable or CMake argument depending on whether `acpp` or `cmake` is used.
+and can be passed either as `acpp` command line argument (`--acpp-targets=...`), environment variable (`ACPP_TARGETS=...`) or CMake argument (`-DACPP_TARGETS=...`) depending on whether `acpp` or `cmake` is used.
 
 "compilation flow" refers to one of the available compilation flows defined in the [compilation flow](compilation.md) documentation.
+
+AdaptiveCpp's default compilation flow is the `generic` target, if AdaptiveCpp was compiled with support for the generic SSCP compiler, which is typically the case for LLVM-enabled AdaptiveCpp builds. `generic` compiles faster, typically creates faster code, and creates portable binaries that can dispatch kernels to all backends.
+**Unless you have have very specific needs, you probably should use `generic`.**
 
 ### Requirements for specifying targets of individual compilation flows
 
@@ -52,6 +55,7 @@ Of course, the desired flows can also always be specified explicitly.
 
 ### Examples
 
+* `generic` - creates a binary that can run on all backends. This also typically creates the fastest binaries.
 * `"omp.library-only;cuda.explicit-multipass:sm_61;sm_70"`  - compiles for the CPU backend and Pascal and Volta era GPUs
 * `"omp;cuda:sm_70;hip:gfx906"`  - compiles for the CPU backend (library or accelerated), NVIDIA Volta era GPUs via explicit multipass, AMD Vega 20 GPUs
 * `"omp.accelerated;cuda:sm_70;spirv`" - compiles for the CPU backend (compiler accelerated), NVIDIA Volta era GPUs, and SPIR-V devices

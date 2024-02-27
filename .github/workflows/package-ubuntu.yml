@@ -67,6 +67,38 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/build-tests-cpu
           LD_LIBRARY_PATH=/usr/lib ./sycl_tests
+  packaging-acpp-cuda-backend:
+    name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        clang: ['17']
+        os: [ubuntu-22.04]
+        cuda: [11.0.2]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: install LLVM
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{matrix.clang}}
+          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
+      - name: install dependencies
+        run: |
+          sudo apt install cmake libboost-all-dev wget gpg curl
+      - name: setup build environment
+        run: |
+          export CXXFLAGS="$CXXFLAGS"
+          if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
+            export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
+            export CC=clang-${{matrix.clang}}
+            export CXX=clang++-${{matrix.clang}}
+          fi
+          echo "CC=${CC}" >> $GITHUB_ENV
+          echo "CXX=${CXX}" >> $GITHUB_ENV
+          echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
       - name: install CUDA
         run : |
           mkdir -p /opt/AdaptiveCpp/cuda
@@ -74,6 +106,11 @@ jobs:
           sudo sh cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/AdaptiveCpp/cuda || true
           echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/AdaptiveCpp/cuda/version.txt
           rm cuda.sh
+      - name: install packaging helpers
+        run: |
+          sudo  apt install build-essential
+          sudo  apt install devscripts
+          sudo  apt install debhelper
       - name: package AdaptiveCpp
         run: |
           export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
@@ -92,14 +129,11 @@ jobs:
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
+          name: cuda-backend
           path: /home/runner/work/AdaptiveCpp/acpp_23.10.0-1_amd64.deb
-      - name: build CPU tests
+      - name: build CUDA tests
         run: |
-          mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
-          cd ${GITHUB_WORKSPACE}/build/tests-cpu
-          cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=usr/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+          mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
+          cd ${GITHUB_WORKSPACE}/build/tests-cuda
+          cmake -DACPP_TARGETS="cuda:sm_60" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
           make -j2
-      - name: run CPU tests
-        run: |
-          cd ${GITHUB_WORKSPACE}/build/tests-cpu
-          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests

@@ -96,9 +96,12 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
     }
   }
 
+  std::string BuiltinBitcodeFileName = "libkernel-sscp-host-full.bc";
+  if(IsFastMath)
+    BuiltinBitcodeFileName = "libkernel-sscp-host-fast-full.bc";
   std::string BuiltinBitcodeFile =
       common::filesystem::join_path(common::filesystem::get_install_directory(),
-                                    {"lib", "hipSYCL", "bitcode", "libkernel-sscp-host-full.bc"});
+                                    {"lib", "hipSYCL", "bitcode", BuiltinBitcodeFileName});
 
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
@@ -124,7 +127,6 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
 bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     std::string &out) {
-
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.so");
 

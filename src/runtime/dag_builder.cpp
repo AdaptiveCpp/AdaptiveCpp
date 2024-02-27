@@ -34,6 +34,7 @@
 #include "hipSYCL/sycl/access.hpp"
 
 #include <mutex>
+#include <utility>
 
 // TODO: Implement the following optimization:
 // - Reorder requirements such that larger accesses come first. This will cause
@@ -228,8 +229,7 @@ dag dag_builder::finish_and_reset()
 {
   std::lock_guard<std::mutex> lock{_mutex};
 
-  dag final_dag = _current_dag;
-  _current_dag = dag{};
+  dag final_dag = std::exchange(_current_dag, {});
 
   HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operations: " << std::endl;
   int operation_index = 0;

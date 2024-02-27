@@ -206,6 +206,9 @@ protected:
   int KnownGroupSizeY = 0;
   int KnownGroupSizeZ = 0;
 
+  // Will be >= 0 if set by option. Backends using this should therefore check >= 0.
+  std::int64_t KnownLocalMemSize = -1;
+
   bool GlobalSizesFitInInt = false;
   bool IsFastMath = false;
 

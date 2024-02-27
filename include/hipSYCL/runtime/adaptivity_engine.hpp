@@ -45,7 +45,8 @@ public:
     const range<3>& block_size,
     void** args,
     std::size_t* arg_sizes,
-    std::size_t num_args);
+    std::size_t num_args,
+    std::size_t local_mem_size);
 
   glue::kernel_configuration::id_type
   finalize_binary_configuration(glue::kernel_configuration &config);
@@ -60,6 +61,7 @@ private:
   void** _args;
   std::size_t* _arg_sizes;
   std::size_t _num_args;
+  std::size_t _local_mem_size;
 
   int _adaptivity_level;
 };

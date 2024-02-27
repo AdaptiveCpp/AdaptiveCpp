@@ -114,7 +114,7 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
   registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true);
 
   llvm::FunctionPassManager FPM;
-  FPM.addPass(HostKernelWrapperPass{DynamicLocalMemSize});
+  FPM.addPass(HostKernelWrapperPass{KnownLocalMemSize});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 
   MPM.run(M, *PH.ModuleAnalysisManager);
@@ -188,10 +188,6 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 }
 
 bool LLVMToHostTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
-  if (Option == "host-dynamic-local-mem-allocation-size") {
-    this->DynamicLocalMemSize = static_cast<unsigned>(std::stoi(Value));
-    return true;
-  }
   return false;
 }
 

@@ -42,6 +42,7 @@ std::string group_size_build_opt_z = "known-group-size-z";
 
 std::string global_sizes_fit_in_int_opt = "global-sizes-fit-in-int";
 
+std::string local_mem_size_build_opt = "known-local-mem-size";
 }
 
 kernel_adaptivity_engine::kernel_adaptivity_engine(hcf_object_id hcf_object,
@@ -50,10 +51,11 @@ kernel_adaptivity_engine::kernel_adaptivity_engine(hcf_object_id hcf_object,
                                      const range<3> &num_groups,
                                      const range<3> &block_size, void **args,
                                      std::size_t *arg_sizes,
-                                     std::size_t num_args)
+                                     std::size_t num_args,
+                                     std::size_t local_mem_size)
     : _hcf{hcf_object}, _kernel_name{backend_kernel_name}, _kernel_info{kernel_info},
       _num_groups{num_groups}, _block_size{block_size}, _args{args},
-      _arg_sizes{arg_sizes}, _num_args{num_args} {
+      _arg_sizes{arg_sizes}, _num_args{num_args}, _local_mem_size(local_mem_size) {
 
   _adaptivity_level = application::get_settings().get<setting::adaptivity_level>();
 }
@@ -80,6 +82,10 @@ kernel_adaptivity_engine::finalize_binary_configuration(
     auto int_max = std::numeric_limits<int>::max();
     if (global_size[0] * global_size[1] * global_size[2] < int_max)
       config.set_build_flag(global_sizes_fit_in_int_opt);
+
+    // Hard-code local memory size into the JIT binary
+    config.set_build_option(local_mem_size_build_opt,
+                            std::to_string(_local_mem_size));
   }
 
   return config.generate_id();

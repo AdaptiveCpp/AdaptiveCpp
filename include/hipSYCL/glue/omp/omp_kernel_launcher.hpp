@@ -121,7 +121,12 @@ void reducible_parallel_invocation(Function kernel,
 
   auto sequential_reducers =
       std::make_tuple(host::sequential_reducer{max_threads, reductions}...);
-#ifdef _OPENMP
+#ifndef _OPENMP
+  HIPSYCL_DEBUG_WARNING
+      << "omp_kernel_launcher: Kernel launcher was built without OpenMP "
+         "support, the kernel will execute sequentially!"
+      << std::endl;
+#else
 #pragma omp parallel shared(sequential_reducers)
 #endif
   {

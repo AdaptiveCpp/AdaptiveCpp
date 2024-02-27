@@ -28,6 +28,7 @@
 
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
@@ -206,6 +207,19 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
                       const rt::range<3> &num_groups,
                       const rt::range<3> &local_size, unsigned shared_memory,
                       void **kernel_args) {
+  if (num_groups.size() == 1 && shared_memory == 0) {
+    omp_sscp_executable_object::work_group_info info{
+        num_groups, rt::id<3>{0, 0, 0}, local_size, nullptr};
+    kernel(&info, kernel_args);
+    return make_success();
+  }
+
+#ifndef _OPENMP
+  HIPSYCL_DEBUG_WARNING << "omp_queue: SSCP kernel launching was built without OpenMP "
+                          "support, the kernel will execute sequentially!"
+                        << std::endl;
+#endif
+
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
@@ -407,7 +421,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
 
   kernel_adaptivity_engine adaptivity_engine{
       hcf_object, kernel_name, kernel_info, num_groups,
-      group_size, args,        arg_sizes,   num_args};
+      group_size, args,        arg_sizes,   num_args, local_mem_size};
 
   glue::kernel_configuration config = initial_config;
   config.append_base_configuration(
@@ -417,9 +431,6 @@ result omp_queue::submit_sscp_kernel_from_code_object(
       compilation_flow::sscp);
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
-
-  // Todo: should be set via adaptivity engine
-  // config.set_build_option("host-dynamic-local-mem-allocation-size", local_mem_size);
 
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(config);
@@ -610,7 +621,7 @@ result omp_sscp_code_object_invoker::submit_kernel(
 }
 
 rt::range<3> omp_sscp_code_object_invoker::select_group_size(
-    const rt::range<3> &num_groups, const rt::range<3> &group_size) const {
+    const rt::range<3> &global_range, const rt::range<3> &group_size) const {
   rt::range<3> selected_group_size = group_size;
 #ifdef _OPENMP
   const int max_threads = omp_get_max_threads();
@@ -619,8 +630,8 @@ rt::range<3> omp_sscp_code_object_invoker::select_group_size(
 #endif
   constexpr auto divisor = 1;
   auto z = std::min(
-      std::max<std::size_t>(num_groups.get(0) / (max_threads * divisor), 16),
-      std::min<std::size_t>(num_groups.get(0), 1024));
+      std::max<std::size_t>(global_range.get(0) / (max_threads * divisor), 16),
+      std::min<std::size_t>(global_range.get(0), 1024));
   selected_group_size = rt::range<3>{z, 1, 1};
   return selected_group_size;
 }

@@ -28,7 +28,6 @@
 
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/localmem.hpp"
-#include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
 
 extern "C" void* __hipsycl_cbs_sscp_dynamic_local_memory;
 

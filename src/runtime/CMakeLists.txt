@@ -16,6 +16,8 @@ set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
 
 set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 
+set(CMAKE_INSTALL_RPATH ${base} ${base}/hipSYCL)
+
 add_library(acpp-rt SHARED
   application.cpp
   runtime.cpp
@@ -86,6 +88,7 @@ install(TARGETS acpp-rt
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 
+set(CMAKE_INSTALL_RPATH ${base}/../ ${base}/llvm-to-backend)
 
 if(WITH_CUDA_BACKEND)
   add_library(rt-backend-cuda SHARED
@@ -251,7 +254,7 @@ if(WITH_CPU_BACKEND)
     omp/omp_queue.cpp)
 
     find_package(OpenMP REQUIRED)
-
+    
     target_include_directories(rt-backend-omp PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
     if(APPLE)
       if(CMAKE_VERSION VERSION_LESS "3.16")

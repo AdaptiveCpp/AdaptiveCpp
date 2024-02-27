@@ -4,6 +4,7 @@ set(LLVM_TO_BACKEND_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}/include)
 
+set(CMAKE_INSTALL_RPATH ${base} ${base}/../../)
 
 function(create_llvm_based_library)
   set(options)

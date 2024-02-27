@@ -7,51 +7,63 @@ endif()
 set(ACPP_VERSION_MAJOR 23)
 set(ACPP_VERSION_MINOR 10)
 set(ACPP_VERSION_PATCH 0)
+
+execute_process(
+        COMMAND git status
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE GIT_STATUS
+)
+
 if(NOT ACPP_VERSION_SUFFIX)
-  # Get the latest abbreviated commit hash of the working branch
-  execute_process(
-    COMMAND git log -1 --format=%h
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
-    RESULT_VARIABLE GIT_HASH_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # git branch
-  execute_process(
-    COMMAND git rev-parse --abbrev-ref HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_BRANCH
-    RESULT_VARIABLE GIT_BRANCH_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # date of commit
-  execute_process(COMMAND git show -s --format=%cd --date=short HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_DATE
-    RESULT_VARIABLE GIT_DATE_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # Convert YYYY-MM-DD to YYYYMMDD
-  # We can't use --date=format:%Y%m%d to be compatible with git pre-2.6
-  string(REPLACE "-" "" ACPP_GIT_DATE ${ACPP_GIT_DATE})
-  # check whether there are local changes
-  execute_process(COMMAND git diff-index --name-only HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_LOCAL_CHANGES
-    RESULT_VARIABLE GIT_LOCAL_CHANGES_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
+  # With a release tarball, "git status" will fail (return non zero)
+  if(GIT_STATUS)
+    set(ACPP_VERSION_SUFFIX "")
+  else()
+    # Get the latest abbreviated commit hash of the working branch
+    execute_process(
+      COMMAND git log -1 --format=%h
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
+      RESULT_VARIABLE GIT_HASH_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # git branch
+    execute_process(
+      COMMAND git rev-parse --abbrev-ref HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_BRANCH
+      RESULT_VARIABLE GIT_BRANCH_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # date of commit
+    execute_process(COMMAND git show -s --format=%cd --date=short HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_DATE
+      RESULT_VARIABLE GIT_DATE_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # Convert YYYY-MM-DD to YYYYMMDD
+    # We can't use --date=format:%Y%m%d to be compatible with git pre-2.6
+    string(REPLACE "-" "" ACPP_GIT_DATE ${ACPP_GIT_DATE})
+    # check whether there are local changes
+    execute_process(COMMAND git diff-index --name-only HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_LOCAL_CHANGES
+      RESULT_VARIABLE GIT_LOCAL_CHANGES_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
   
-  if (GIT_HASH_RETURN_CODE EQUAL 0 AND GIT_BRANCH_RETURN_CODE EQUAL 0 AND 
-      GIT_DATE_RETURN_CODE EQUAL 0 AND GIT_LOCAL_CHANGES_RETURN_CODE EQUAL 0)
+    if (GIT_HASH_RETURN_CODE EQUAL 0 AND GIT_BRANCH_RETURN_CODE EQUAL 0 AND 
+        GIT_DATE_RETURN_CODE EQUAL 0 AND GIT_LOCAL_CHANGES_RETURN_CODE EQUAL 0)
     
-    if(NOT "${ACPP_LOCAL_CHANGES}" STREQUAL "")
-      set(DIRTY_STR ".dirty")
-    else()
-      set(DIRTY_STR "")
-    endif()
+      if(NOT "${ACPP_LOCAL_CHANGES}" STREQUAL "")
+        set(DIRTY_STR ".dirty")
+      else()
+        set(DIRTY_STR "")
+      endif()
   
-    set(ACPP_VERSION_SUFFIX "+git.${ACPP_GIT_COMMIT_HASH}.${ACPP_GIT_DATE}.branch.${ACPP_GIT_BRANCH}${DIRTY_STR}")
+      set(ACPP_VERSION_SUFFIX "+git.${ACPP_GIT_COMMIT_HASH}.${ACPP_GIT_DATE}.branch.${ACPP_GIT_BRANCH}${DIRTY_STR}")
+    endif()
   endif()
 endif()
 

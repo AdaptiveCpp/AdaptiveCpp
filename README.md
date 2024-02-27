@@ -33,6 +33,33 @@ Because a program compiled with AdaptiveCpp appears just like any other program 
 
 An illustration on how the project fits into the SYCL ecosystem can be found ([here](doc/sycl-ecosystem.md)).
 
+
+## Performance, extracting performance & benchmarking
+
+See the [AdaptiveCpp performance guide](doc/performance.md).
+
+## Installing and using AdaptiveCpp
+* [Building & Installing](doc/installing.md)
+
+In order to compile software with AdaptiveCpp, use `acpp`. `acpp` can be used like a regular compiler, i.e. you can use `acpp -o test test.cpp` to compile your application called `test.cpp` with AdaptiveCpp.
+
+`acpp` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target to compile for). See `acpp --help` for a comprehensive list of options.
+
+When compiling with AdaptiveCpp, you can specify the targets you wish to compile for using the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument. See the documentation on [using AdaptiveCpp](doc/using-hipsycl.md) for details. When in doubt, use `--acpp-targets=generic` which is AdaptiveCpp's default compiler. It not only has the lowest compile times, but typically als generates the fastest executables. Additionally, it generates a binary that can run on any supported device. **Other compilation flows like omp, cuda, hip are typically mostly interesting for backend interoperability use cases**.
+
+Instructions for using AdaptiveCpp in CMake projects can also be found in the documentation on [using AdaptiveCpp](doc/using-hipsycl.md).
+
+## Documentation
+* AdaptiveCpp [design and architecture](doc/architecture.md)
+* AdaptiveCpp runtime [specification](doc/runtime-spec.md)
+* AdaptiveCpp [compilation model](doc/compilation.md)
+* How to use raw HIP/CUDA inside AdaptiveCpp code to create [optimized code paths](doc/hip-source-interop.md)
+* A simple SYCL example code for testing purposes can be found [here](doc/examples.md).
+* [SYCL Extensions implemented in AdaptiveCpp](doc/extensions.md)
+* [Macros used by AdaptiveCpp](doc/macros.md)
+* [Environment variables supported by AdaptiveCpp](doc/env_variables.md)
+
+
 ## About the project
 
 While AdaptiveCpp started its life as a hobby project, development is now primarily led and funded by Heidelberg University, with contributions from the community. AdaptiveCpp not only serves as a research platform, but is also a solution used in production on machines of all scales, including some of the most powerful supercomputers.
@@ -62,75 +89,4 @@ AdaptiveCpp is a research project. As such, if you use AdaptiveCpp in your resea
 ### Acknowledgements
 
 We gratefully acknowledge [contributions](https://github.com/illuhad/hipSYCL/graphs/contributors) from the community.
-
-## Performance
-
-AdaptiveCpp has been repeatedly shown to deliver very competitive performance compared to other SYCL implementations or proprietary solutions like CUDA. See for example:
-
-* *Sohan Lal, Aksel Alpay, Philip Salzmann, Biagio Cosenza, Nicolai Stawinoga, Peter Thoman, Thomas Fahringer, and Vincent Heuveline. 2020. SYCL-Bench: A Versatile Single-Source Benchmark Suite for Heterogeneous Computing. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 10, 1. DOI:https://doi.org/10.1145/3388333.3388669*
-* *Brian Homerding and John Tramm. 2020. Evaluating the Performance of the hipSYCL Toolchain for HPC Kernels on NVIDIA V100 GPUs. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 16, 1–7. DOI:https://doi.org/10.1145/3388333.3388660*
-* *Tom Deakin and Simon McIntosh-Smith. 2020. Evaluating the performance of HPC-style SYCL applications. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 12, 1–11. DOI:https://doi.org/10.1145/3388333.3388643*
-
-
-### Extracting performance & benchmarking AdaptiveCpp
-
-#### General performance hints
-
-* For strong-scaling/latency-bound problems, the alternative instant task submission mode can be used, which can substantially lower task launch latencies. Define the macro `HIPSYCL_ALLOW_INSTANT_SUBMISSION=1` before including `sycl.hpp` to enable it. Instant submission is possible with operations that do not use buffers (USM only), have no dependencies on non-instant tasks, do not use SYCL 2020 reductions and use in-order queues. In the stdpar model, instant submission is active by default.
-* Building AdaptiveCpp against newer LLVM generally results in better performance for backends that are relying on LLVM.
-* Unlike other SYCL implementations that may rely on kernel compilation at runtime, some compilation flows in AdaptiveCpp rely heavily on ahead-of-time compilation. So make sure to use appropriate optimization flags when compiling.
-* For the CPU backend:
-   * Don't forget that, due to AdaptiveCpp's ahead-of-time compilation nature, you may also want to enable latest vectorization instruction sets when compiling, e.g. using `-march=native`.
-   * Enable OpenMP thread pinning (e.g. `OMP_PROC_BIND=true`). AdaptiveCpp uses asynchronous worker threads for some light-weight tasks such as garbage collection, and these additional threads can interfere with kernel execution if OpenMP threads are not bound to cores.
-   * When using `OMP_PROC_BIND`, there have been observations that performance suffers substantially, if AdaptiveCpp's OpenMP backend has been compiled against a different OpenMP implementation than the one used by `acpp` under the hood. For example, if `omp.acclerated` is used, `acpp` relies on clang and typically LLVM `libomp`, while the AdaptiveCpp runtime library may have been compiled with gcc and `libgomp`. The easiest way to resolve this is to appropriately use `cmake -DCMAKE_CXX_COMPILER=...` when building AdaptiveCpp to ensure that it is built using the same compiler. **If you oberve substantial performance differences between AdaptiveCpp and native OpenMP, chances are your setup is broken.**
-   * Don't use `nd_range` parallel for unless you absolutely have to, as it is difficult to map efficiently to CPUs. 
-      * If you don't need barriers or local memory, use `parallel_for` with `range` argument.
-      * If you need local memory or barriers, scoped parallelism or hierarchical parallelism models may perform better on CPU than `parallel_for` kernels using `nd_range` argument and should be preferred. Especially scoped parallelism also works well on GPUs.
-      * If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](doc/compilation.md) for details.
-* For performance in the C++ parallelism model specifically, see also [here](doc/stdpar.md).
-
-#### Comparing against other LLVM-based compilers
-
-When targeting the CUDA or HIP backends, AdaptiveCpp just massages the AST slightly to get `clang -x cuda` and `clang -x hip` to accept SYCL code. AdaptiveCpp is not involved in the actual code generation. Therefore *any significant deviation in kernel performance compared to clang-compiled CUDA or clang-compiled HIP is unexpected.*
-
-As a consequence, if you compare it to other llvm-based compilers please make sure to compile AdaptiveCpp against the same llvm version. Otherwise you would effectively be simply comparing the performance of two different LLVM versions. This is in particular true when comparing it to clang CUDA or clang HIP.
-
-
-## Current state
-AdaptiveCpp is not yet a fully conformant SYCL implementation, although many SYCL programs already work with AdaptiveCpp.
-* SYCL 2020 [feature support matrix](https://github.com/hipSYCL/featuresupport)
-* A (likely incomplete) list of [limitations](doc/limitations.md) for older SYCL 1.2.1 features
-* A (also incomplete) timeline showing development [history](doc/history.md)
-
-## Hardware and operating system support
-
-Supported hardware:
-* Any CPU for which a C++17 OpenMP compiler exists
-* NVIDIA CUDA GPUs. Note that clang, which AdaptiveCpp relies on, may not always support the very latest CUDA version which may sometimes impact support for *very* new hardware. See the [clang documentation](https://www.llvm.org/docs/CompileCudaWithLLVM.html) for more details.
-* AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
-
-Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows support with CPU and CUDA backends is experimental, see [Using AdaptiveCpp on Windows](https://github.com/OpenSYCL/OpenSYCL/wiki/Using-Open-SYCL-on-Windows).
-
-## Installing and using AdaptiveCpp
-* [Building & Installing](doc/installing.md)
-
-In order to compile software with AdaptiveCpp, use `acpp`. `acpp` can be used like a regular compiler, i.e. you can use `acpp -o test test.cpp` to compile your application called `test.cpp` with AdaptiveCpp.
-
-`acpp` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target to compile for). See `acpp --help` for a comprehensive list of options.
-
-When compiling with AdaptiveCpp, you will need to specify the targets you wish to compile for using the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument. See the documentation on [using AdaptiveCpp](doc/using-hipsycl.md) for details. When in doubt, use `--acpp-targets=generic` which will generate a binary that can run on any supported offload device. If parallel kernel execution on CPU is also needed, use `--acpp-targets="omp;generic"`.
-
-Instructions for using AdaptiveCpp in CMake projects can also be found in the documentation on [using AdaptiveCpp](doc/using-hipsycl.md).
-
-## Documentation
-* AdaptiveCpp [design and architecture](doc/architecture.md)
-* AdaptiveCpp runtime [specification](doc/runtime-spec.md)
-* AdaptiveCpp [compilation model](doc/compilation.md)
-* How to use raw HIP/CUDA inside AdaptiveCpp code to create [optimized code paths](doc/hip-source-interop.md)
-* A simple SYCL example code for testing purposes can be found [here](doc/examples.md).
-* [SYCL Extensions implemented in AdaptiveCpp](doc/extensions.md)
-* [Macros used by AdaptiveCpp](doc/macros.md)
-* [Environment variables supported by AdaptiveCpp](doc/env_variables.md)
-
-
 

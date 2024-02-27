@@ -1,6 +1,11 @@
 
 # Building and installing AdaptiveCpp
 
+
+## Operating system support
+
+Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows support with CPU and CUDA backends is experimental, see [Using AdaptiveCpp on Windows](https://github.com/OpenSYCL/OpenSYCL/wiki/Using-Open-SYCL-on-Windows).
+
 ## Installation from source (Linux)
 
 ### Software dependencies
@@ -17,7 +22,7 @@ In addition, the various supported [compilation flows](compilation.md) and progr
 ### A standard installation
 
 For a standard installation that has the most important features enabled, you will additionally need to install an official LLVM release >= 14. Please do not use a development version or vendor-specific fork of LLVM.
-This can be very conveniently be achieved e.g. using https://apt.llvm.org. [(detailed instructions)](install-llvm.md).
+This can be very conveniently be achieved e.g. using https://apt.llvm.org [(detailed instructions)](install-llvm.md).
 
 Next, ensure that you have the stacks installed that you want to target (e.g. CUDA, ROCm, OpenCL etc).
 
@@ -97,6 +102,10 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 
 ###### General
 *  `-DCMAKE_CXX_COMPILER` should be pointed to the C++ compiler to compile AdaptiveCpp with. Note that this also sets the default C++ compiler for the CPU backend when using acpp once AdaptiveCpp is installed. This can however also be modified later using `HIPSYCL_CPU_CXX`.
+
+###### generic
+
+* `-DWITH_SSCP_COMPILER=OFF/ON` can be used to explicitly enable or disable the generic SSCP compiler.
 
 ###### omp.library-only
 

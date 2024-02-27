@@ -479,6 +479,8 @@ if(NOT DEFAULT_TARGETS)
   endif()
 endif()
 
+set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final Experimental Boost" CACHE STRING "Which filesystem libraries should be searched for")
+
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 
 

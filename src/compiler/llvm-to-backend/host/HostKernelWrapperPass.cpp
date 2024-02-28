@@ -103,7 +103,7 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
                             llvm::ArrayType::get(SizeT, 3),                 // group id
                             llvm::ArrayType::get(SizeT, 3),                 // local size
                             llvm::PointerType::getUnqual(Bld.getInt8Ty())); // local memory size
-  auto VoidPtrT = llvm::PointerType::getUnqual(Bld.getVoidTy());
+  auto VoidPtrT = llvm::PointerType::getUnqual(Bld.getInt8Ty());
   auto UserArgsT = llvm::PointerType::getUnqual(VoidPtrT);
 
   llvm::SmallVector<llvm::Type *> ArgTypes;
@@ -143,7 +143,7 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
   LocalSize[2] = LoadFromContext(2, 2, "local_size_z");
 
   auto LocalMemPtr = Bld.CreateLoad(
-      llvm::PointerType::get(Ctx, 0),
+      VoidPtrT,
       Bld.CreateInBoundsGEP(WorkGroupInfoT, Wrapper->getArg(0), {Bld.getInt64(0), Bld.getInt32(3)}),
       "local_mem_ptr");
 
@@ -156,9 +156,18 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
 
   auto ArgArray = Wrapper->arg_begin() + 1;
   for (int I = 0; I < F.arg_size(); ++I) {
-    auto GEP =
-        Bld.CreateInBoundsGEP(UserArgsT, ArgArray, llvm::ArrayRef<llvm::Value *>{Bld.getInt32(I)});
-    Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), Bld.CreateLoad(VoidPtrT, GEP)));
+
+    if (ArgArray->getType()->isOpaquePointerTy()) {
+      auto GEP = Bld.CreateInBoundsGEP(UserArgsT, ArgArray,
+                                       llvm::ArrayRef<llvm::Value *>{Bld.getInt32(I)});
+      Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), Bld.CreateLoad(VoidPtrT, GEP)));
+    } else {
+      auto GEP = Bld.CreateInBoundsGEP(UserArgsT->getNonOpaquePointerElementType(), ArgArray,
+                                       llvm::ArrayRef<llvm::Value *>{Bld.getInt32(I)});
+      auto CastedPtr = Bld.CreatePointerCast(Bld.CreateLoad(VoidPtrT, GEP),
+                                             llvm::PointerType::getUnqual(F.getArg(I)->getType()));
+      Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), CastedPtr));
+    }
   }
   auto FCall = Bld.CreateCall(&F, Args);
   Bld.CreateRetVoid();

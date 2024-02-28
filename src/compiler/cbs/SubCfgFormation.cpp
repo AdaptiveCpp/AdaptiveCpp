@@ -118,21 +118,23 @@ std::size_t getRangeDim(llvm::Function &F) {
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));
 
-  if (auto MD = F.getParent()->getNamedMetadata(SscpAnnotationsName))
+  if (auto MD = F.getParent()->getNamedMetadata(SscpAnnotationsName)) {
     for (auto OP : MD->operands()) {
       if (OP->getNumOperands() == 3 &&
           llvm::cast<llvm::MDString>(OP->getOperand(1))->getString() == SscpKernelDimensionName) {
         if (&F == llvm::dyn_cast<llvm::Function>(
                       llvm::cast<llvm::ValueAsMetadata>(OP->getOperand(0))->getValue())) {
-          if (auto CI = llvm::dyn_cast<llvm::ConstantInt>(
-                  llvm::cast<llvm::ConstantAsMetadata>(OP->getOperand(2))->getValue()))
+          auto ConstMD = llvm::cast<llvm::ConstantAsMetadata>(OP->getOperand(2))->getValue();
+          if (auto CI = llvm::dyn_cast<llvm::ConstantInt>(ConstMD))
             return CI->getZExtValue();
-          if (auto ZI = llvm::dyn_cast<llvm::ConstantAggregateZero>(
-                  llvm::cast<llvm::ConstantAsMetadata>(OP->getOperand(2))->getValue()))
+          if (auto ZI = llvm::dyn_cast<llvm::ConstantAggregateZero>(ConstMD))
             return 0;
+          if (auto CS = llvm::dyn_cast<llvm::ConstantStruct>(ConstMD))
+            return llvm::cast<llvm::ConstantInt>(CS->getOperand(0))->getZExtValue();
         }
       }
     }
+  }
   llvm_unreachable("[SubCFG] Could not deduce kernel dimensionality!");
 }
 
@@ -746,8 +748,8 @@ void remapInstruction(llvm::Instruction *I, llvm::ValueToValueMapTy &VMap) {
   HIPSYCL_DEBUG_INFO << "[SubCFG] remapped Inst " << *I << "\n";
 }
 
-// inserts loads from the loop state allocas for varying values that were identified as multi-subcfg
-// values
+// inserts loads from the loop state allocas for varying values that were identified as
+// multi-subcfg values
 void SubCFG::loadMultiSubCfgValues(
     const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
@@ -928,8 +930,8 @@ void SubCFG::fixSingleSubCfgValues(
         // check if all operands dominate the instruction -> otherwise we have to fix it
         if (auto *OPI = llvm::dyn_cast<llvm::Instruction>(OPV); OPI && !DT.dominates(OPI, &I)) {
           if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(Inst)) {
-            // if a PHI node, we have to check that the incoming values dominate the terminators of
-            // the incoming block..
+            // if a PHI node, we have to check that the incoming values dominate the terminators
+            // of the incoming block..
             bool FoundIncoming = false;
             for (auto &Incoming : Phi->incoming_values()) {
               if (OPV == Incoming.get()) {
@@ -977,8 +979,8 @@ void SubCFG::fixSingleSubCfgValues(
 
           auto Idx = ContIdx_;
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT
-          // in split loop, OPI might be used multiple times, get the user, dominating this user and
-          // insert load there
+          // in split loop, OPI might be used multiple times, get the user, dominating this user
+          // and insert load there
           llvm::Instruction *NewIP = &I;
           for (auto *U : OPI->users()) {
             if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U); UI && DT.dominates(UI, NewIP)) {

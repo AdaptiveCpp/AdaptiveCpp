@@ -418,7 +418,7 @@ const code_object* kernel_cache::get_code_object_impl(code_object_id id) const {
   return it->second.get();
 }
 
-std::string kernel_cache::get_persistent_cache_file(code_object_id id_of_binary) const {
+std::string kernel_cache::get_persistent_cache_file(code_object_id id_of_binary) {
   using namespace common::filesystem;
   std::string cache_dir = tuningdb::get().get_jit_cache_dir();
   return join_path(cache_dir, glue::kernel_configuration::to_string(id_of_binary)+".jit");

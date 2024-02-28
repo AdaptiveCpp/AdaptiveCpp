@@ -573,7 +573,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   kernel_adaptivity_engine adaptivity_engine{
       hcf_object, kernel_name, kernel_info, num_groups,
-      group_size, args,        arg_sizes,   num_args};
+      group_size, args,        arg_sizes,   num_args, local_mem_size};
 
 
   // Need to create custom config to ensure we can distinguish other

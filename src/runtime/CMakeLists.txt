@@ -25,6 +25,7 @@ add_library(acpp-rt SHARED
   backend.cpp
   backend_loader.cpp
   device_id.cpp
+  dylib_loader.cpp
   operations.cpp
   data.cpp
   inorder_executor.cpp
@@ -254,8 +255,17 @@ if(WITH_CPU_BACKEND)
     omp/omp_queue.cpp)
 
     find_package(OpenMP REQUIRED)
-    
-    target_include_directories(rt-backend-omp PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+
+    target_include_directories(rt-backend-omp PRIVATE
+      ${HIPSYCL_SOURCE_DIR}/include 
+      ${PROJECT_BINARY_DIR}/include)
+
+    if(WITH_SSCP_COMPILER)
+      target_sources(rt-backend-omp PRIVATE omp/omp_code_object.cpp)
+      target_compile_definitions(rt-backend-omp PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+      target_link_libraries(rt-backend-omp PRIVATE llvm-to-host)
+    endif()
+
     if(APPLE)
       if(CMAKE_VERSION VERSION_LESS "3.16")
         message(FATAL_ERROR "CMake 3.16.0+ is required for macOS OpenMP support!")

@@ -779,14 +779,6 @@ public:
     return host_accessor{*this, std::forward<Args>(args)...};
   }
 
-  void set_final_data(std::shared_ptr<T> finalData)
-  {
-    std::lock_guard<std::mutex> lock {_impl->lock};
-    set_write_back_target(finalData.get());
-    
-    _impl->writeback_buffer = finalData;
-  }
-
   // TODO Add special handling of iterators for set_final_data()
   template <typename Destination = std::nullptr_t>
   void set_final_data(Destination finalData = nullptr)
@@ -1030,20 +1022,38 @@ private:
 
     return result;
   }
-  
-  
+
   template <typename Destination = std::nullptr_t>
-  void set_write_back_target(Destination finalData = nullptr)
-  {
-    if constexpr(std::is_pointer_v<Destination> || std::is_null_pointer_v<Destination>){
+  void set_write_back_target(Destination finalData = nullptr) {
+    if constexpr (std::is_pointer_v<Destination> ||
+                  std::is_null_pointer_v<Destination>) {
       if (finalData) {
         enable_write_back(true);
-      }
-      else {
+      } else {
         enable_write_back(false);
       }
 
       _impl->writeback_ptr = finalData;
+    } else if constexpr (std::is_same_v<std::weak_ptr<T>, Destination> ||
+                         std::is_same_v<std::weak_ptr<T[]>, Destination>) {
+      auto finalDataPtr = finalData.lock();
+      if (finalDataPtr) {
+        enable_write_back(true);
+      } else {
+        enable_write_back(false);
+      }
+
+      _impl->writeback_ptr = finalDataPtr.get();
+    } else if constexpr (std::is_same_v<std::shared_ptr<T>, Destination> ||
+                         std::is_same_v<std::shared_ptr<T[]>, Destination>) {
+      if (finalData) {
+        enable_write_back(true);
+      } else {
+        enable_write_back(false);
+      }
+
+      _impl->writeback_ptr = finalData.get();
+      _impl->writeback_buffer = finalData;
     } else {
       // Assume it is an iterator to contiguous memory
       enable_write_back(true);

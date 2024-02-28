@@ -109,8 +109,11 @@ public:
 class use_mutex : public detail::buffer_property
 {
 public:
-  use_mutex(mutex_class& ref);
-  mutex_class* get_mutex_ptr() const;
+  use_mutex(mutex_class& ref) : mutex{ref} {}
+  mutex_class* get_mutex_ptr() const { return &mutex; }
+
+private:
+  mutex_class &mutex;
 };
 
 class context_bound : public detail::buffer_property

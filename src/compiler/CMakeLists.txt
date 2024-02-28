@@ -12,7 +12,7 @@ if(WITH_ACCELERATED_CPU)
   add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)
 endif()
 
-if(WITH_ACCELERATED_CPU)
+if(WITH_ACCELERATED_CPU OR WITH_SSCP_COMPILER)
   set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp
     cbs/SplitterAnnotationAnalysis.cpp
     cbs/IRUtils.cpp
@@ -32,15 +32,13 @@ if(WITH_ACCELERATED_CPU)
     cbs/VectorShapeTransformer.cpp
     cbs/Region.cpp
     cbs/SyncDependenceAnalysis.cpp)
-else()
-  set(CBS_PLUGIN "")
+
+  add_library(acpp-clang-cbs OBJECT
+    ${CBS_PLUGIN}
+  )
+  
+  set_property(TARGET acpp-clang-cbs PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif()
-
-add_library(acpp-clang-cbs OBJECT
-  ${CBS_PLUGIN}
-)
-
-set_property(TARGET acpp-clang-cbs PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if(WITH_SSCP_COMPILER)
   set(WITH_REFLECTION_BUILTINS ON)
@@ -135,9 +133,12 @@ function(configure_target)
 endfunction(configure_target)
 
 configure_target(TARGET acpp-clang)
-configure_target(TARGET acpp-clang-cbs)
 
-target_link_libraries(acpp-clang acpp-clang-cbs)
+if (WITH_ACCELERATED_CPU OR WITH_SSCP_COMPILER)
+  configure_target(TARGET acpp-clang-cbs)
+
+  target_link_libraries(acpp-clang acpp-clang-cbs)
+endif()
 
 
 if(APPLE)

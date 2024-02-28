@@ -23,6 +23,14 @@ AdaptiveCpp has been repeatedly shown to deliver very competitive performance co
 
 The other compilation flows `omp`, `cuda`, `hip` should mainly be used when *interoperability* with vendor programming languages like CUDA or HIP is more important than benefitting from the latest compiler features.
 
+## Different compilers may have different compilation flag defaults
+
+* Some other compilers like `nvcc` or `hipcc` compile with `-O3` by default. AdaptiveCpp, like regular g++ or clang++ compilers, does not do this and instead expects optimization flags to be provided by the user.
+* The oneAPI SYCL compiler `icpx` compiles with `-ffast-math -ffp-contract=fast` by default. AdaptiveCpp does not use `-ffast-math` by default. Make sure to align these flags to obtain fair comparisons.
+* AdaptiveCpp's clang-based compilation flows (`omp`, `generic`, `hip`, `cuda`) compile with `-ffp-contract=fast` by default. Non-clang based flows do not use that flag. If you use compilation flows that do not rely on clang (e.g. `cuda-nvcxx` or `omp.library-only`), it is your own responsibility to apply comparable compilation flags!
+* If you are unsure, the compilation flags used by clang-based compilers under the hood can be inspected using `<clang invocation> -###`. This also works for AdaptiveCpp's clang-based compilation flows. When in doubt, use this mechanism to align compilation flags between compilers.
+* The compiler invocation that `acpp` generates can be printed and its flags inspected with `--acpp-dryrun`.
+
 ## Ahead-of-time vs JIT compilation
 
 The compilation targets `omp`, `hip` and `cuda` perform ahead-of-time compilation. This means they depend strongly on the user to provide correct optimization flags when compiling.

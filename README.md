@@ -7,34 +7,24 @@
 AdaptiveCpp is the independent, community-driven modern platform for C++-based heterogeneous programming models targeting CPUs and GPUs from all major vendors. AdaptiveCpp lets applications adapt themselves to all the hardware found in the system. This includes use cases where a single binary needs to be able to target all supported hardware, or utilize hardware from different vendors simultaneously.
 
 It currently supports the following programming models:
-1. **SYCL**: At its core is a SYCL implementation that supports many use cases and approaches of implementing SYCL. 
-2. **C++ standard parallelism**: Additionally, AdaptiveCpp features experimental support for offloading C++ algorithms from the parallel STL. See [here](doc/stdpar.md) for details on which algorithms can be offloaded. **AdaptiveCpp is currently the only solution that can offload C++ standard parallelism constructs to GPUs from Intel, NVIDIA and AMD -- even from a single binary.**
+1. **SYCL**: At its core is a highly competitive and flexible SYCL implementation that supports many compilation flows.
+2. **C++ standard parallelism**: Additionally, AdaptiveCpp features experimental support for offloading C++ algorithms from the parallel STL. See [here](doc/stdpar.md) for details on which algorithms can be offloaded. **AdaptiveCpp is currently the only solution capable of demonstrating C++ standard parallelism performance across NVIDIA, AMD and Intel GPUs, and in most cases outperforms vendor compilers.**
 
-Supported compilation flows include ([details](doc/compilation.md)):
+AdaptiveCpp supports CPUs (including x86, arm and other LLVM-supported architectures) as well as GPUs from Intel, NVIDIA, and AMD. This includes the ability to generate a single binary that can offload to all supported devices.
 
-1. **A generic, single-pass compiler infrastructure that compiles kernels to a unified code representation** that is then lowered at runtime to target devices, providing a high degree of portability, low compilation times, flexibility and extensibility. **AdaptiveCpp is the only major SYCL implementation that supports a single-pass compiler design, where the code is only parsed once for both host and target devices**. Support includes:
-   1. NVIDIA CUDA GPUs through PTX;
-   2. AMD ROCm GPUs through amdgcn code;
-   3. Intel GPUs through SPIR-V (Level Zero);
-   4. SPIR-V compatible OpenCL devices supporting Intel USM extensions or fine-grained system SVM (such as Intel's OpenCL implementation for CPUs or GPUs);
-   5. The host CPU through LLVM
-2. Additionally, **AdaptiveCpp can aggregate existing clang toolchains and augment them with support for SYCL constructs**. This allows for a high degree of interoperability between SYCL and other models such as CUDA or HIP. For example, in this mode, the AdaptiveCpp CUDA and ROCm backends rely on the clang CUDA/HIP frontends that have been augmented by AdaptiveCpp to *additionally* also understand other models like SYCL. This means that the AdaptiveCpp compiler can not only compile SYCL code, but also CUDA/HIP code *even if they are mixed in the same source file*, making all CUDA/HIP features - such as the latest device intrinsics - also available from SYCL code ([details](doc/hip-source-interop.md)). Additionally, vendor-optimized template libraries such as rocPRIM or CUB can also be used with AdaptiveCpp. This allows for highly optimized code paths in SYCL code for specific devices. Support includes:
-   1. Any LLVM-supported CPU (including e.g. x86, arm, power etc) through the regular clang host toolchain with dedicated compiler transformation to accelerate SYCL constructs;
-   2. NVIDIA CUDA GPUs through the clang CUDA toolchain;
-   3. AMD ROCm GPUs through the clang HIP toolchain
-3. Or **AdaptiveCpp can be used in library-only compilation flows**. In these compilation flows, AdaptiveCpp acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support:
-   1. Any CPU supported by any OpenMP compilers;
-   2. NVIDIA GPUs through CUDA and the NVIDIA nvc++ compiler, bringing NVIDIA vendor support and day 1 hardware support to the SYCL ecosystem
+AdaptiveCpp's compilation flows include
+1. A powerful, generic LLVM JIT compiler. This is AdaptiveCpp's default, most portable and usually most performant compilation flow. It is also the **world's only SYCL compiler that only needs to parse the source code a single time** across both host and device compilation.
+2. Compilation flows focused on providing interoperability at source code level with vendor programming models (including e.g. the ability to mix-and-match CUDA and SYCL in the same source file)
+3. Library-only compilation flows focused on deployment simplicity. These compilation flows allow utilizing third-party compilers, with AdaptiveCpp merely acting as a library.
 
-The following illustration shows the complete stack and its capabilities to target hardware:
-![Compiler stack](/doc/img/stack.png)
+A full list of its compilation capabilities can be found [here](doc/compilation.md).
 
-Because a program compiled with AdaptiveCpp appears just like any other program written in vendor-supported programming models (like CUDA or HIP) to vendor-provided software, vendor tools such as profilers or debuggers also work well with AdaptiveCpp.
+Because a program compiled with AdaptiveCpp appears just like any other program written in vendor-supported programming models (like CUDA or HIP) to vendor-provided software, vendor tools such as profilers or debuggers also work with AdaptiveCpp.
 
 An illustration on how the project fits into the SYCL ecosystem can be found ([here](doc/sycl-ecosystem.md)).
 
 
-## Performance, extracting performance & benchmarking
+## Performance & benchmarking
 
 See the [AdaptiveCpp performance guide](doc/performance.md).
 
@@ -46,16 +36,6 @@ In order to compile software with AdaptiveCpp, use `acpp`. `acpp` can be used li
 `acpp` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target to compile for). See `acpp --help` for a comprehensive list of options.
 
 For details and instructions on using AdaptiveCpp in CMake projects, please see the documentation on [using AdaptiveCpp](doc/using-hipsycl.md).
-
-## Documentation
-* AdaptiveCpp [design and architecture](doc/architecture.md)
-* AdaptiveCpp runtime [specification](doc/runtime-spec.md)
-* AdaptiveCpp [compilation model](doc/compilation.md)
-* How to use raw HIP/CUDA inside AdaptiveCpp code to create [optimized code paths](doc/hip-source-interop.md)
-* A simple SYCL example code for testing purposes can be found [here](doc/examples.md).
-* [SYCL Extensions implemented in AdaptiveCpp](doc/extensions.md)
-* [Macros used by AdaptiveCpp](doc/macros.md)
-* [Environment variables supported by AdaptiveCpp](doc/env_variables.md)
 
 
 ## About the project
@@ -91,3 +71,13 @@ AdaptiveCpp is a production platform for heterogeneous computing, but also a res
 
 We gratefully acknowledge [contributions](https://github.com/illuhad/hipSYCL/graphs/contributors) from the community.
 
+
+## Documentation
+* AdaptiveCpp [design and architecture](doc/architecture.md)
+* AdaptiveCpp runtime [specification](doc/runtime-spec.md)
+* AdaptiveCpp [compilation model](doc/compilation.md)
+* How to use raw HIP/CUDA inside AdaptiveCpp code to create [optimized code paths](doc/hip-source-interop.md)
+* A simple SYCL example code for testing purposes can be found [here](doc/examples.md).
+* [SYCL Extensions implemented in AdaptiveCpp](doc/extensions.md)
+* [Macros used by AdaptiveCpp](doc/macros.md)
+* [Environment variables supported by AdaptiveCpp](doc/env_variables.md)

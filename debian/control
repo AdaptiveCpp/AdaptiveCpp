@@ -3,13 +3,13 @@ Maintainer: Sanchi Vaishnavi <sanchi.vaishnavi@stud.uni-heidelberg.de>
 Section: devel
 Priority: optional
 Standards-Version: 4.6.2
-Build-Depends: debhelper-compat (= 13)
+Build-Depends: debhelper-compat (= 13), cmake
 Homepage: https://adaptivecpp.github.io/
 Rules-Requires-Root: no
 
 
 Package: acpp
 Architecture: any
-Depends: ${shlibs:Depends}, ${perl:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${perl:Depends}, ${misc:Depends}, python3
 Description: Implementation of SYCL and C++ standard parallelism 
  Implementation of SYCL and C++ standard parallelism for CPUs and GPUs from all vendors. The independent, community-driven compiler for C++-based heterogeneous programming models.

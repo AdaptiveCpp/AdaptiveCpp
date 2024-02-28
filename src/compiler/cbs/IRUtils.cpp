@@ -122,7 +122,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
   return llvm::CallInst::Create(F, "", InsertBefore);
 }
 
-bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
+bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix, int NoInlineDebugLevel) {
   if (CI->getCalledFunction()->isIntrinsic() ||
       CI->getCalledFunction()->getName() == BarrierIntrinsicName)
     return false;
@@ -139,8 +139,11 @@ bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
 #else
   llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI);
   if (!ILR.isSuccess()) {
-    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << CalleeName << ">: '"
-                          << ILR.getFailureReason() << "'\n";
+    HIPSYCL_DEBUG_STREAM(NoInlineDebugLevel, (NoInlineDebugLevel >= HIPSYCL_DEBUG_LEVEL_INFO
+                                                  ? HIPSYCL_DEBUG_PREFIX_INFO
+                                                  : HIPSYCL_DEBUG_PREFIX_WARNING))
+        << PassPrefix << " failed to inline function <" << CalleeName << ">: '"
+        << ILR.getFailureReason() << "'\n";
 #endif
     return false;
   }

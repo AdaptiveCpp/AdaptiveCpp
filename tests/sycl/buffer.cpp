@@ -61,6 +61,29 @@ BOOST_AUTO_TEST_CASE(buffer_versioning) {
   }
 }
 
+struct SimpleStruct {
+  int a, b, c;
+};
+
+using buffer_test_types = boost::mpl::list<int, float, SimpleStruct>;
+BOOST_AUTO_TEST_CASE_TEMPLATE(buffer_construction, T, buffer_test_types) {
+  using cl::sycl::buffer, cl::sycl::range;
+
+  constexpr std::size_t size = 1024;
+  auto r = range<1>(size);
+
+  std::vector<T> host_data(size);
+
+  T* host_ptr = host_data.data();
+  const T* const_host_ptr = host_data.data();
+
+  buffer<T> buf1(r);
+  buffer<const T> buf2(r);
+
+  buffer<T> buf3(host_ptr, r);
+  buffer<const T> buf4(const_host_ptr, r);
+}
+
 // TODO: Extend this
 BOOST_AUTO_TEST_CASE(buffer_api) {
   namespace s = cl::sycl;

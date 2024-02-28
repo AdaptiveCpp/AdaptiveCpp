@@ -339,6 +339,7 @@ endif()
 
 
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
+set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final Experimental Boost" CACHE STRING "Which filesystem libraries should be searched for")
 
 ##########################################################
 ## Do not define any variables that might be used by build
@@ -478,8 +479,6 @@ if(NOT DEFAULT_TARGETS)
     set(DEFAULT_TARGETS "omp")
   endif()
 endif()
-
-set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final Experimental Boost" CACHE STRING "Which filesystem libraries should be searched for")
 
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 

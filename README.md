@@ -60,7 +60,8 @@ For details and instructions on using AdaptiveCpp in CMake projects, please see 
 
 ## About the project
 
-While AdaptiveCpp started its life as a hobby project, development is now primarily led and funded by Heidelberg University, with contributions from the community. AdaptiveCpp not only serves as a research platform, but is also a solution used in production on machines of all scales, including some of the most powerful supercomputers.
+Development of AdaptiveCpp is currently primarily led by Heidelberg University, with contributions from a growing community. We see AdaptiveCpp as a community-driven project, in contrast to the many vendor-driven heterogeneous compiler efforts.
+AdaptiveCpp not only serves as a research platform, but is also a solution used in production on machines of all scales, including some of the most powerful supercomputers.
 
 ### Getting in touch
 
@@ -71,11 +72,13 @@ Alternatively, open a discussion or issue in this repository.
 
 We encourage contributions and are looking forward to your pull request! Please have a look at [CONTRIBUTING.md](CONTRIBUTING.md). If you need any guidance, please just open an issue and we will get back to you shortly.
 
+If your institution or organization is considering to support the AdaptiveCpp development in some official capacity, we are always happy to discuss collaborations and to broaden the developer community. Please do reach out :-)
+
 If you are a student at Heidelberg University and wish to work on AdaptiveCpp, please get in touch with us. There are various options possible and we are happy to include you in the project :-)
 
 ### Citing AdaptiveCpp
 
-AdaptiveCpp is a research project. As such, if you use AdaptiveCpp in your research, we kindly request that you cite one of the following publications, depending on your focus:
+AdaptiveCpp is a production platform for heterogeneous computing, but also a research project. As such, if you use AdaptiveCpp in your research, we kindly request that you cite one of the following publications, depending on your focus:
 
 * A general overview, SYCL 2020, performance and the relationship with oneAPI: *Aksel Alpay, Bálint Soproni, Holger Wünsche, and Vincent Heuveline. 2022. Exploring the possibility of a hipSYCL-based implementation of oneAPI. In International Workshop on OpenCL (IWOCL'22). Association for Computing Machinery, New York, NY, USA, Article 10, 1–12. https://doi.org/10.1145/3529538.3530005*
 * The generic single-pass compiler: *Aksel Alpay and Vincent Heuveline. 2023. One Pass to Bind Them: The First Single-Pass SYCL Compiler with Unified Code Representation Across Backends. In Proceedings of the 2023 International Workshop on OpenCL (IWOCL '23). Association for Computing Machinery, New York, NY, USA, Article 7, 1–12. https://doi.org/10.1145/3585341.3585351*

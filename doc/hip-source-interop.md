@@ -1,6 +1,8 @@
-# Using platform-specific features in AdaptiveCpp
+# Using platform-specific features in AdaptiveCpp (interoperability compilation flows only)
 
-Platform specific features can be used as follows:
+The interoperability-focused compilation flows `omp`, `cuda` and `hip` allow using backend-provided programming models like CUDA or HIP within SYCL kernels.
+
+This can be used as follows:
 ```cpp
 HIPSYCL_UNIVERSAL_TARGET
 void optimized_codepaths()

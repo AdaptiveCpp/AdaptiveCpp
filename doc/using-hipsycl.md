@@ -78,13 +78,13 @@ The full excerpt from `acpp --help` follows below. Note the options can also be 
 acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the AdaptiveCpp project
   AdaptiveCpp version: 23.10.0+git.2d0c6b6f.20240226.branch.develop
   Installation root: /install/path
-  Plugin LLVM version: 16, can accelerate CPU: True
+  Plugin LLVM version: <version>, can accelerate CPU: <bool>
   Available runtime backends:
-     librt-backend-ocl.so
-     librt-backend-omp.so
-     librt-backend-hip.so
-     librt-backend-cuda.so
-     librt-backend-ze.so
+     librt-backend-<name>.so
+     librt-backend-<name>.so
+     librt-backend-<name>.so
+     librt-backend-<name>.so
+     librt-backend-<name>.so
 Usage: acpp <options>
 
 Options are:
@@ -100,7 +100,7 @@ Options are:
 --acpp-clang=<value>
   [can also be set with environment variable: ACPP_CLANG=<value>]
   [default value provided by field 'default-clang' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: /usr/lib/llvm-16/bin/clang++]
+  [current value: NOT SET]
   The path to the clang executable that should be used for compilation
     (Note: *must* be compatible with the clang version that the 
      hipSYCL clang plugin was compiled against!)
@@ -115,13 +115,13 @@ Options are:
 --acpp-cuda-path=<value>
   [can also be set with environment variable: ACPP_CUDA_PATH=<value>]
   [default value provided by field 'default-cuda-path' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: /opt/cuda-11.6]
+  [current value: NOT SET]
   The path to the CUDA toolkit installation directry
 
 --acpp-rocm-path=<value>
   [can also be set with environment variable: ACPP_ROCM_PATH=<value>]
   [default value provided by field 'default-rocm-path' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: /opt/rocm]
+  [current value: NOT SET]
   The path to the ROCm installation directory
 
 --acpp-gpu-arch=<value>
@@ -135,61 +135,61 @@ Options are:
 --acpp-cpu-cxx=<value>
   [can also be set with environment variable: ACPP_CPU_CXX=<value>]
   [default value provided by field 'default-cpu-cxx' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: /usr/bin/c++]
+  [current value: NOT SET]
   The compiler that should be used when targeting only CPUs.
 
 --acpp-clang-include-path=<value>
   [can also be set with environment variable: ACPP_CLANG_INCLUDE_PATH=<value>]
   [default value provided by field 'default-clang-include-path' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: /usr/lib/llvm-16/lib/clang/16/include/..]
+  [current value: NOT SET]
   The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm.
 
 --acpp-squential-link-line=<value>
   [can also be set with environment variable: ACPP_SEQUENTIAL_LINK_LINE=<value>]
   [default value provided by field 'default-sequential-link-line' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -L/usr/lib/x86_64-linux-gnu -lboost_context -lboost_fiber -Wl,-rpath=/usr/lib/x86_64-linux-gnu]
+  [current value: NOT SET]
  The arguments passed to the linker for the sequential backend
 
 --acpp-squential-cxx-flags=<value>
   [can also be set with environment variable: ACPP_SEQUENTIAL_CXX_FLAGS=<value>]
   [default value provided by field 'default-sequential-cxx-flags' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -I/usr/include -D_ENABLE_EXTENDED_ALIGNED_STORAGE]
+  [current value: NOT SET]
  The arguments passed to the compiler to compile for the sequential backend
 
 --acpp-omp-link-line=<value>
   [can also be set with environment variable: ACPP_OMP_LINK_LINE=<value>]
   [default value provided by field 'default-omp-link-line' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -L/usr/lib/x86_64-linux-gnu -lboost_context -lboost_fiber -Wl,-rpath=/usr/lib/x86_64-linux-gnu -fopenmp]
+  [current value: NOT SET]
  The arguments passed to the linker for the OpenMP backend.
 
 --acpp-omp-cxx-flags=<value>
   [can also be set with environment variable: ACPP_OMP_CXX_FLAGS=<value>]
   [default value provided by field 'default-omp-cxx-flags' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -I/usr/include -fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE]
+  [current value: NOT SET]
  The arguments passed to the compiler to compile for the OpenMP backend
 
 --acpp-rocm-link-line=<value>
   [can also be set with environment variable: ACPP_ROCM_LINK_LINE=<value>]
   [default value provided by field 'default-rocm-link-line' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib -L/opt/rocm/lib -L/opt/rocm/hip/lib -lamdhip64]
+  [current value: NOT SET]
  The arguments passed to the linker for the ROCm backend.
 
 --acpp-rocm-cxx-flags=<value>
   [can also be set with environment variable: ACPP_ROCM_CXX_FLAGS=<value>]
   [default value provided by field 'default-rocm-cxx-flags' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -isystem $HIPSYCL_PATH/include/AdaptiveCpp/hipSYCL/std/hiplike -isystem /usr/lib/llvm-16/lib/clang/16/include/.. -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__]
+  [current value: NOT SET]
  The arguments passed to the compiler to compile for the ROCm backend
 
 --acpp-cuda-link-line=<value>
   [can also be set with environment variable: ACPP_CUDA_LINK_LINE=<value>]
   [default value provided by field 'default-cuda-link-line' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart]
+  [current value: NOT SET]
  The arguments passed to the linker for the CUDA backend.
 
 --acpp-cuda-cxx-flags=<value>
   [can also be set with environment variable: ACPP_CUDA_CXX_FLAGS=<value>]
   [default value provided by field 'default-cuda-cxx-flags' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/AdaptiveCpp/hipSYCL/std/hiplike]
+  [current value: NOT SET]
  The arguments passed to the compiler to compile for the CUDA backend
 
 --acpp-config-file-dir=<value>
@@ -202,7 +202,7 @@ Options are:
 --acpp-targets=<value>
   [can also be set with environment variable: ACPP_TARGETS=<value>]
   [default value provided by field 'default-targets' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: omp;generic]
+  [current value: NOT SET]
   Specify backends and targets to compile for. Example: --acpp-targets='omp;hip:gfx900,gfx906'
     Available backends:
       * omp - OpenMP CPU backend
@@ -248,7 +248,7 @@ Options are:
 --acpp-use-accelerated-cpu
   [can also be set by setting environment variable ACPP_USE_ACCELERATED_CPU to any value other than false|off|0 ]
   [default value provided by field 'default-use-accelerated-cpu' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: True]
+  [current value: NOT SET]
   If set, Clang is used for host compilation and explicit compiler support
   is enabled for accelerating the nd-range parallel_for on CPU.
   Uses continuation-based synchronization to execute all work-items
@@ -258,14 +258,14 @@ Options are:
 --acpp-dryrun
   [can also be set by setting environment variable ACPP_DRYRUN to any value other than false|off|0 ]
   [default value provided by field 'default-is-dryrun' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: False]
+  [current value: NOT SET]
   If set, only shows compilation commands that would be executed, 
   but does not actually execute it. 
 
 --acpp-explicit-multipass
   [can also be set by setting environment variable ACPP_EXPLICIT_MULTIPASS to any value other than false|off|0 ]
   [default value provided by field 'default-is-explicit-multipass' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: False]
+  [current value: NOT SET]
   If set, executes device passes as separate compiler invocation and lets AdaptiveCpp control embedding device
   images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
   incompatible. In this mode, source code level interoperability may not be supported in the host pass.
@@ -274,7 +274,7 @@ Options are:
 --acpp-save-temps
   [can also be set by setting environment variable ACPP_SAVE_TEMPS to any value other than false|off|0 ]
   [default value provided by field 'default-save-temps' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
-  [current value: False]
+  [current value: NOT SET]
   If set, do not delete temporary files created during compilation.
 
 --acpp-stdpar

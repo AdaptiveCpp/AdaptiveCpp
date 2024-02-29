@@ -48,7 +48,7 @@ The following image illustrates the runtime architecture:
 
 ## Compiler
 
-Compilation of user code is driven by python script called `acpp` which provides a uniform interface to the compilers for individual backends.
+Compilation of user code is driven by a python script called `acpp` which provides a uniform interface to the compilers for individual backends.
 
 ## Glue
 

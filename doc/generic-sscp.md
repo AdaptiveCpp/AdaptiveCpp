@@ -30,7 +30,7 @@ The final LLVM IR device bitcode is then embedded into a stage 1 IR constant str
 During stage 2, the `llvm-to-backend` infrastructure is responsible for turning the generic LLVM IR into something that a backend can actually execute. This means in particular:
 - Flavoring the LLVM IR such that the appropriate LLVM backend can handle the code; e.g. by correctly mapping address spaces, attaching information to mark kernels as entry points, correctly setting target triple, data layout, and function calling conventions etc.
 - Mapping `__hipsycl_sscp_*` builtins to backend builtins. This typically happens by linking backend-specific bitcode libraries.
-- Running optimization passes on the finalized IR
+- Running optimization passes on the finalized IR.
 - Lowering the flavored, optimized IR to backend-specific formats, such as ptx or SPIR-V.
 
-For debugging, development, or advanced use cases, each `llvm-to-backend` implementation provides a tool (called `llvm-to-ptx-tool`, `llvm-to-spirv-tool`, ....) that can be invoked to perform the stage 2 compilation step manually.
+For debugging, development, or advanced use cases, each `llvm-to-backend` implementation provides a tool (called `llvm-to-ptx-tool`, `llvm-to-spirv-tool`, ...) that can be invoked to perform the stage 2 compilation step manually.

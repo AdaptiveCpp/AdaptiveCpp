@@ -48,7 +48,7 @@ The generic compilation target will try to create increasingly more optimized ke
 
 This optimization process is complete when the following warning is no longer printed:
 ```
-[AdaptiveCpp Warning] kernel_cache: This application run has resulted in new "binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+[AdaptiveCpp Warning] kernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
 ```
 
 The extent of this can be controlled using the environment variable `ACPP_ADAPTIITY_LEVEL`. A value of 0 disables the feature. The default is 1. Higher levels are expected to result in higher peak performance, but may require more application runs to converge to this performance. The default level of 1 usually guarantees peak performance for the second application run.

@@ -12,7 +12,7 @@ AdaptiveCpp supports multiple types of compilation flows:
    1. Any LLVM-supported CPU (including e.g. x86, arm, power etc) through the regular clang host toolchain with dedicated compiler transformation to accelerate SYCL constructs;
    2. NVIDIA CUDA GPUs through the clang CUDA toolchain;
    3. AMD ROCm GPUs through the clang HIP toolchain
-3. Or **AdaptiveCpp can be used in library-only compilation flows**. In these compilation flows, AdaptiveCpp acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support:
+3. Or **AdaptiveCpp can be used in library-only compilation flows**. In these compilation flows, AdaptiveCpp acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support for:
    1. Any CPU supported by any OpenMP compilers;
    2. NVIDIA GPUs through CUDA and the NVIDIA nvc++ compiler, bringing NVIDIA vendor support and day 1 hardware support to the SYCL ecosystem
 

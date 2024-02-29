@@ -3,11 +3,9 @@ It is recommended to use the CMake integration for larger projects. See the sect
 
 ## Using acpp
 
-`acpp` can be invoked like a regular compiler (e.g. `acpp -O3 -o test test.cpp`). It supports multiple compilation flows. In a typical installation (i.e. when AdaptiveCpp was built against LLVM >= 14 and the generic SSCP compiler was not explicitly disabled), it uses the `generic` compilation flow by default. This compilation flow usually compiles the fastest, produces the fastest binaries, and its generated binaries can run on all supported devices.
+`acpp` can be invoked like a regular compiler (e.g. `acpp -O3 -o test test.cpp`). It supports multiple compilation flows. In a typical installation (i.e. when AdaptiveCpp was built against LLVM >= 14 and the generic SSCP compiler was not explicitly disabled), it uses the `generic` compilation flow by default. This compilation flow usually compiles the fastest, produces the fastest binaries, and its generated binaries can run on all supported devices. **Unless you have have very specific needs, you probably should use the default `generic` compiler.**
 
-Advanced users with more specific needs may want to specify compilation flows explicitly.This is achieved with the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument.
-
-Again, when in doubt, use `--acpp-targets=generic` which is AdaptiveCpp's default compiler - for good reason, including performance!
+Advanced users or users with more specific needs may want to specify compilation flows explicitly.This is achieved with the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument.
 
 **Other compilation flows like omp, cuda, hip are typically mostly interesting for backend interoperability use cases, not if performance is the top priority.**.
 
@@ -22,8 +20,6 @@ and can be passed either as `acpp` command line argument (`--acpp-targets=...`),
 
 "compilation flow" refers to one of the available compilation flows defined in the [compilation flow](compilation.md) documentation.
 
-AdaptiveCpp's default compilation flow is the `generic` target, if AdaptiveCpp was compiled with support for the generic SSCP compiler, which is typically the case for LLVM-enabled AdaptiveCpp builds. `generic` compiles faster, typically creates faster code, and creates portable binaries that can dispatch kernels to all backends.
-**Unless you have have very specific needs, you probably should use `generic`.**
 
 ### Requirements for specifying targets of individual compilation flows
 

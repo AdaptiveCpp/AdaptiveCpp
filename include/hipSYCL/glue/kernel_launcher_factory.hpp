@@ -102,7 +102,8 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   }
 #endif
 
-#ifdef __HIPSYCL_ENABLE_LLVM_SSCP_TARGET__
+#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__) && \
+  !defined(SYCL_DEVICE_ONLY)
   {
     auto launcher = std::make_unique<sscp_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,

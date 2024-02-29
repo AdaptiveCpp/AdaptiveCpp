@@ -16,11 +16,12 @@ jobs:
           - clang: 12
             os: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: install LLVM
         run: |
+          sudo apt update
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.clang}}
@@ -78,7 +79,7 @@ jobs:
         clang: [14, 15, 16, 17]
         os: [ubuntu-22.04]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: install LLVM
@@ -112,21 +113,33 @@ jobs:
       - name: Print detected devices
         run: |
           ${GITHUB_WORKSPACE}/build/install/bin/acpp-info
-      - name: run SSCP LIT tests
+      - name: run SSCP LIT tests (OpenCL)
         run: |
           mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
           cd ${GITHUB_WORKSPACE}/build/tests-sscp  
           cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
-          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp
-      - name: run Reflection LIT tests
+          ACPP_VISIBILITY_MASK=ocl LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp
+      - name: run Reflection LIT tests (OpenCL)
         run: |
           mkdir ${GITHUB_WORKSPACE}/build/tests-reflection
           cd ${GITHUB_WORKSPACE}/build/tests-reflection  
           cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
-          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-reflection
-      - name: run stdpar LIT tests
+          ACPP_VISIBILITY_MASK=ocl LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-reflection
+      - name: run stdpar LIT tests (OpenCL)
         run: |
           mkdir ${GITHUB_WORKSPACE}/build/tests-stdpar
           cd ${GITHUB_WORKSPACE}/build/tests-stdpar
           cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
-          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar
+          ACPP_VISIBILITY_MASK=ocl LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar
+      - name: run SSCP LIT tests (OpenMP)
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-sscp  
+          ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp
+      - name: run Reflection LIT tests (OpenMP)
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-reflection  
+          ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-reflection
+      - name: run stdpar LIT tests (OpenMP)
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-stdpar
+          ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar

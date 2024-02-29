@@ -132,7 +132,6 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI,
   if (!Changed) {
     HIPSYCL_DEBUG_INFO << "[ParallelMarker] no wi loop found..?\n";
   }
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   return Changed;
 }
 } // namespace

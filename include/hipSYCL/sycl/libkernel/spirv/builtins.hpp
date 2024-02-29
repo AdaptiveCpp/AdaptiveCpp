@@ -367,6 +367,11 @@ HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
   return __spirv_ocl_u_mul24(x, y);
 }
 
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_popcount(T x) noexcept {
+  return __spirv_ocl_popcount(x);
+}
+
 // **************** common functions *****************
 
 template<class T, std::enable_if_t<!std::is_integral_v<T>,int> = 0>

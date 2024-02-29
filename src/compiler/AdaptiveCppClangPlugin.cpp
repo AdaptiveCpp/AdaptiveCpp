@@ -187,7 +187,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
 #endif
             if(!CompilationStateManager::getASTPassState().isDeviceCompilation())
-              registerCBSPipeline(MPM, Opt);
+              registerCBSPipeline(MPM, Opt, false);
           });
           // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
           // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254

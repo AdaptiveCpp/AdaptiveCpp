@@ -212,6 +212,83 @@ void iterate_partial_range(const sycl::range<Dim> whole_range,
     }
   }
 }
+
+template <int Dim, class Function>
+void iterate_range_omp_for(sycl::range<Dim> r, Function f) noexcept {
+
+  if constexpr (Dim == 1) {
+#ifdef _OPENMP
+    #pragma omp for
+#endif
+    for (std::size_t i = 0; i < r.get(0); ++i) {
+      f(sycl::id<Dim>{i});
+    }
+  } else if constexpr (Dim == 2) {
+#ifdef _OPENMP
+    #pragma omp for collapse(2)
+#endif
+    for (std::size_t i = 0; i < r.get(0); ++i) {
+      for (std::size_t j = 0; j < r.get(1); ++j) {
+        f(sycl::id<Dim>{i, j});
+      }
+    }
+  } else if constexpr (Dim == 3) {
+#ifdef _OPENMP
+    #pragma omp for collapse(3)
+#endif
+    for (std::size_t i = 0; i < r.get(0); ++i) {
+      for (std::size_t j = 0; j < r.get(1); ++j) {
+        for (std::size_t k = 0; k < r.get(2); ++k) {
+          f(sycl::id<Dim>{i, j, k});
+        }
+      }
+    }
+  }
+}
+
+template <int Dim, class Function>
+void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
+                           Function f) noexcept {
+
+  const std::size_t min_i = offset.get(0);
+  const std::size_t max_i = offset.get(0) + r.get(0);
+
+  if constexpr (Dim == 1) {
+#ifdef _OPENMP
+  #pragma omp for
+#endif
+    for (std::size_t i = min_i; i < max_i; ++i) {
+      f(sycl::id<Dim>{i});
+    }
+  } else if constexpr (Dim == 2) {
+    const std::size_t min_j = offset.get(1);
+    const std::size_t max_j = offset.get(1) + r.get(1);
+#ifdef _OPENMP
+  #pragma omp for collapse(2)
+#endif
+    for (std::size_t i = min_i; i < max_i; ++i) {
+      for (std::size_t j = min_j; j < max_j; ++j) {
+        f(sycl::id<Dim>{i, j});
+      }
+    }
+  } else if constexpr (Dim == 3) {
+    const std::size_t min_j = offset.get(1);
+    const std::size_t min_k = offset.get(2);
+    const std::size_t max_j = offset.get(1) + r.get(1);
+    const std::size_t max_k = offset.get(2) + r.get(2);
+#ifdef _OPENMP
+  #pragma omp for collapse(3)
+#endif
+    for (std::size_t i = min_i; i < max_i; ++i) {
+      for (std::size_t j = min_j; j < max_j; ++j) {
+        for (std::size_t k = min_k; k < max_k; ++k) {
+          f(sycl::id<Dim>{i, j, k});
+        }
+      }
+    }
+  }
+}
+
 }
 }
 } // namespace hipsycl

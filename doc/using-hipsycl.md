@@ -18,7 +18,7 @@ Whether a compilation flow needs to be followed by a target list or not varies b
 
 For the following compilation flows, targets cannot be specified:
 * `omp.*`
-* `spirv`
+* `generic`
 
 For the following compilation flows, targets can optionally be specified:
 * `cuda-nvcxx` - Targets take the format of `ccXY` where `XY` stands for the compute capability of the device.
@@ -214,7 +214,12 @@ Options are:
       * hip  - HIP backend
                Requires specification of targets of the form gfxXYZ,
                e.g. gfx906 for Vega 20, gfx900 for Vega 10
-      * spirv - use clang SYCL driver to generate spirv
+               Backend Flavors:
+               - hip.explicit-multipass: HIP backend in explicit multipass mode
+                                         (see --acpp-explicit-multipass)
+               - hip.integrated-multipass: Force HIP backend to operate in integrated
+                                           multipass mode.
+      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device""")
 
 --acpp-use-accelerated-cpu
   [can also be set by setting environment variable HIPSYCL_USE_ACCELERATED_CPU to any value other than false|off|0 ]

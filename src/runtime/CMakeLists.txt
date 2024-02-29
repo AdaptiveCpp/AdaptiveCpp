@@ -16,6 +16,8 @@ set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
 
 set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 
+set(CMAKE_INSTALL_RPATH ${base} ${base}/hipSYCL)
+
 add_library(acpp-rt SHARED
   application.cpp
   runtime.cpp
@@ -23,6 +25,7 @@ add_library(acpp-rt SHARED
   backend.cpp
   backend_loader.cpp
   device_id.cpp
+  dylib_loader.cpp
   operations.cpp
   data.cpp
   inorder_executor.cpp
@@ -86,6 +89,7 @@ install(TARGETS acpp-rt
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 
+set(CMAKE_INSTALL_RPATH ${base}/../ ${base}/llvm-to-backend)
 
 if(WITH_CUDA_BACKEND)
   add_library(rt-backend-cuda SHARED
@@ -252,7 +256,16 @@ if(WITH_CPU_BACKEND)
 
     find_package(OpenMP REQUIRED)
 
-    target_include_directories(rt-backend-omp PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+    target_include_directories(rt-backend-omp PRIVATE
+      ${HIPSYCL_SOURCE_DIR}/include 
+      ${PROJECT_BINARY_DIR}/include)
+
+    if(WITH_SSCP_COMPILER)
+      target_sources(rt-backend-omp PRIVATE omp/omp_code_object.cpp)
+      target_compile_definitions(rt-backend-omp PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+      target_link_libraries(rt-backend-omp PRIVATE llvm-to-host)
+    endif()
+
     if(APPLE)
       if(CMAKE_VERSION VERSION_LESS "3.16")
         message(FATAL_ERROR "CMake 3.16.0+ is required for macOS OpenMP support!")

@@ -246,6 +246,14 @@ inline std::uint64_t power_of_2_ceil(std::uint64_t a) {
   return next_power_of_2(a - 1);
 }
 
+inline std::uint64_t ceil_division(std::uint64_t a, std::uint64_t b) {
+  return (a + b - 1) / b;
+}
+
+inline std::uint64_t next_multiple_of(std::uint64_t a, std::uint64_t b) {
+  return ceil_division(a, b) * b;
+}
+
 }
 }
 

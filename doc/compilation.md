@@ -28,7 +28,6 @@ Not all backends support all models. The following compilation flows are current
 | `cuda-nvcxx` | NVIDIA GPUs | Library-only | CUDA backend using nvc++ |
 | `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | Integrated SMCP | HIP backend |
 | `hip.explicit-multipass` | AMD GPUs (supported by ROCm) | Explicit SMCP | HIP backend |
-| `spirv` | Intel GPUs | Explicit SMCP | SPIR-V/Level Zero backend |
 | `generic` | (see below) | Generic SSCP | Generic single-pass flow |
 
 **Note:** 

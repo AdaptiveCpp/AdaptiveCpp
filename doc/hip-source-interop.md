@@ -11,9 +11,6 @@ void optimized_codepaths()
   __hipsycl_if_target_hip(
     // Only executed on HIP device. ROCm specific device functions can be called here
   );
-  __hipsycl_if_target_spirv(
-    // Only executed on SPIR-V device. SPIR-V specific code here
-  );
   __hipsycl_if_target_host(
     // Host-specific code here. Since this runs exclusively on host, this can be any
     // arbitrary C++ code, and the usual SYCL kernel restrictions don't apply.

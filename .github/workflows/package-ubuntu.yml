@@ -5,6 +5,8 @@ jobs:
   packaging-acpp-cpu-backend:
     name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}
     runs-on: ${{matrix.os}}
+    container:
+      image: ubuntu:jammy-20240212
     strategy:
       matrix:
         clang: ['17']

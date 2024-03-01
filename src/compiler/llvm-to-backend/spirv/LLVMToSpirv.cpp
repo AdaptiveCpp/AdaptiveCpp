@@ -314,7 +314,7 @@ bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const st
 }
 
 bool LLVMToSpirvTranslator::applyBuildFlag(const std::string& Flag) {
-  if(Flag == "enable-intel-llvm-spirv-options") {
+  if(Flag == "spirv-enable-intel-llvm-spirv-options") {
     UseIntelLLVMSpirvArgs = true;
     return true;
   }

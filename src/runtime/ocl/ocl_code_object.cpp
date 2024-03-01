@@ -69,7 +69,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
   
   std::string options_string="-cl-uniform-work-group-size";
   for(const auto& flag : config.build_flags()) {
-    if(flag == "fast-math") {
+    if(flag == glue::kernel_build_flag::fast_math) {
       options_string += " -cl-fast-relaxed-math";
     }
   }

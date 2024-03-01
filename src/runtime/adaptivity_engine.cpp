@@ -34,17 +34,6 @@
 namespace hipsycl {
 namespace rt {
 
-namespace {
-
-std::string group_size_build_opt_x = "known-group-size-x";
-std::string group_size_build_opt_y = "known-group-size-y";
-std::string group_size_build_opt_z = "known-group-size-z";
-
-std::string global_sizes_fit_in_int_opt = "global-sizes-fit-in-int";
-
-std::string local_mem_size_build_opt = "known-local-mem-size";
-}
-
 kernel_adaptivity_engine::kernel_adaptivity_engine(hcf_object_id hcf_object,
                                      const std::string &backend_kernel_name,
                                      const hcf_kernel_info* kernel_info,
@@ -70,22 +59,22 @@ kernel_adaptivity_engine::finalize_binary_configuration(
         glue::kernel_base_config_parameter::single_kernel, _kernel_name);
 
     // Hard-code group sizes into the JIT binary
-    config.set_build_option(group_size_build_opt_x,
-                            std::to_string(_block_size[0]));
-    config.set_build_option(group_size_build_opt_y,
-                            std::to_string(_block_size[1]));
-    config.set_build_option(group_size_build_opt_z,
-                            std::to_string(_block_size[2]));
+    config.set_build_option(glue::kernel_build_option::known_group_size_x,
+                            _block_size[0]);
+    config.set_build_option(glue::kernel_build_option::known_group_size_y,
+                            _block_size[1]);
+    config.set_build_option(glue::kernel_build_option::known_group_size_z,
+                            _block_size[2]);
 
     // Try to optimize size_t -> i32 for queries if those fit in int
     auto global_size = _num_groups * _block_size;
     auto int_max = std::numeric_limits<int>::max();
     if (global_size[0] * global_size[1] * global_size[2] < int_max)
-      config.set_build_flag(global_sizes_fit_in_int_opt);
+      config.set_build_flag(glue::kernel_build_flag::global_sizes_fit_in_int);
 
     // Hard-code local memory size into the JIT binary
-    config.set_build_option(local_mem_size_build_opt,
-                            std::to_string(_local_mem_size));
+    config.set_build_option(glue::kernel_build_option::known_local_mem_size,
+                            _local_mem_size);
   }
 
   return config.generate_id();

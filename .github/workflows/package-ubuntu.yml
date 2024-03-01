@@ -12,10 +12,10 @@ jobs:
         clang: ['17']
         os: [ubuntu-22.04]
     steps:
-      - name: install git on container
+      - name: install git and other dependencies in container
         run: |
           apt update
-          apt install -y git
+          apt install -y git wget curl gpg
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -27,7 +27,7 @@ jobs:
           sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
       - name: install dependencies
         run: |
-          sudo apt install libboost-all-dev libtbb-dev cmake wget curl gpg python3
+          sudo apt install libboost-all-dev libtbb-dev cmake python3
       - name: install OpenCL develpment files and loader
         run: |
           sudo apt install libopencl-clang-dev ocl-icd-opencl-dev

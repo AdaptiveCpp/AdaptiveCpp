@@ -33,7 +33,7 @@ nav:
       - 'Multi device queue' : 'multi-device-queue.md'
       - 'Scoped parallelism' : 'scoped-parallelism.md'
 
-  - 'Installing Acpp' : 'installing.md'
+  - 'Installing AdaptiveCpp' : 'installing.md'
   - 'Installation doc' :
       - 'LLVM' : 'install-llvm.md'
       - 'CUDA' : 'install-cuda.md'

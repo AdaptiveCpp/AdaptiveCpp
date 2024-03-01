@@ -44,7 +44,7 @@ In other words, while the SYCL interface calls into the runtime, the inverse is 
 The AdaptiveCpp runtime follows a [specification](runtime-spec.md) that expands on the Khronos SYCL specification.
 
 The following image illustrates the runtime architecture:
-![Runtime architecture](/doc/img/runtime.png)
+![Runtime architecture](img/runtime.png)
 
 ## Compiler
 

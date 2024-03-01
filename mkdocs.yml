@@ -1,0 +1,62 @@
+site_name: AdaptiveCpp Documentation
+
+repo_url: https://github.com/AdaptiveCpp/AdaptiveCpp
+repo_name: AdaptiveCpp
+
+copyright: Copyright(C) 2021-2023 Timothée David--Cléris
+
+docs_dir: doc
+
+nav:
+  - 'Acpp documentation': 'index.md'
+
+
+  - 'Usage' :
+      - 'Using Acpp' : 'using-hipsycl.md'
+      - 'Compilation' : 'compilation.md'
+      - 'Env variables' : 'env_variables.md'
+      - 'Macros' : 'macros.md'
+      - 'SYCL interoperability' : 'hip-source-interop.md'
+      - 'Std par' : 'stdpar.md'
+
+  - 'Acpp design' : 
+      - 'Architecture' : 'architecture.md'
+      - 'Runtime Specification' : 'runtime-spec.md'
+      - 'HCF' : 'hcf.md'
+
+  - 'Extensions' : 'extensions.md'
+  - 'Compiler Extensions doc' :
+      - 'Accessor variants' : 'accessor-variants.md'
+      - 'Buffer USM interop' : 'buffer-usm-interop.md'
+      - 'Enqueue custom operation' : 'enqueue-custom-operation.md'
+      - 'Explicit buffer policies' : 'explicit-buffer-policies.md'
+      - 'Multi device queue' : 'multi-device-queue.md'
+      - 'Scoped parallelism' : 'scoped-parallelism.md'
+
+  - 'Installing Acpp' : 'installing.md'
+  - 'Installation doc' :
+      - 'LLVM' : 'install-llvm.md'
+      - 'CUDA' : 'install-cuda.md'
+      - 'ROCM' : 'install-rocm.md'
+      - 'OpenCL' : 'install-ocl.md'
+      - 'SPIR-V' : 'install-spirv.md'
+
+  - 'Limitations' : 'limitations.md'
+  - 'History' : 'history.md'
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+
+
+plugins:
+  - git-authors
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      use_pygments: true
+  - pymdownx.superfences

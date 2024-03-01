@@ -25,7 +25,7 @@ nav:
       - 'HCF' : 'hcf.md'
 
   - 'Extensions overview' : 'extensions.md'
-  - 'Compiler Extensions doc' :
+  - 'Extensions in detail' :
       - 'Accessor variants' : 'accessor-variants.md'
       - 'Buffer USM interop' : 'buffer-usm-interop.md'
       - 'Enqueue custom operation' : 'enqueue-custom-operation.md'

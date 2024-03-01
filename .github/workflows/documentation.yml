@@ -9,7 +9,6 @@ on:
 
 jobs:
 
-  #make shamrock documentation
   make_documentation:
     name: "Build : Documentation"
 

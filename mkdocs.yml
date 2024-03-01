@@ -8,7 +8,7 @@ copyright: Copyright(C) 2021-2023 Timothée David--Cléris
 docs_dir: doc
 
 nav:
-  - 'Acpp documentation': 'index.md'
+  - 'AdaptiveCpp documentation': 'index.md'
 
 
   - 'Usage' :

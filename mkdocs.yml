@@ -19,7 +19,7 @@ nav:
       - 'SYCL interoperability' : 'hip-source-interop.md'
       - 'Std par' : 'stdpar.md'
 
-  - 'Acpp design' : 
+  - 'AdaptiveCpp design' : 
       - 'Architecture' : 'architecture.md'
       - 'Runtime Specification' : 'runtime-spec.md'
       - 'HCF' : 'hcf.md'

@@ -24,7 +24,7 @@ nav:
       - 'Runtime Specification' : 'runtime-spec.md'
       - 'HCF' : 'hcf.md'
 
-  - 'Extensions' : 'extensions.md'
+  - 'Extensions overview' : 'extensions.md'
   - 'Compiler Extensions doc' :
       - 'Accessor variants' : 'accessor-variants.md'
       - 'Buffer USM interop' : 'buffer-usm-interop.md'

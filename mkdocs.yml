@@ -12,7 +12,7 @@ nav:
 
 
   - 'Usage' :
-      - 'Using Acpp' : 'using-hipsycl.md'
+      - 'Using AdaptiveCpp' : 'using-hipsycl.md'
       - 'Compilation' : 'compilation.md'
       - 'Env variables' : 'env_variables.md'
       - 'Macros' : 'macros.md'

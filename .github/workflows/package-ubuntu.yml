@@ -23,14 +23,14 @@ jobs:
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh ${{matrix.clang}}
-          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
+          ./llvm.sh ${{matrix.clang}}
+          apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
       - name: install dependencies
         run: |
-          sudo apt install libboost-all-dev libtbb-dev cmake python3
+          apt install libboost-all-dev libtbb-dev cmake python3
       - name: install OpenCL develpment files and loader
         run: |
-          sudo apt install libopencl-clang-dev ocl-icd-opencl-dev
+          apt install libopencl-clang-dev ocl-icd-opencl-dev
       - name: setup build environment
         run: |
           export CXXFLAGS="$CXXFLAGS"
@@ -44,9 +44,9 @@ jobs:
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
       - name: install packaging helpers
         run: |
-          sudo  apt install build-essential
-          sudo  apt install devscripts
-          sudo  apt install debhelper
+          apt install build-essential
+          apt install devscripts
+          apt install debhelper
       - name: package AdaptiveCpp
         run: |
           export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
@@ -61,7 +61,7 @@ jobs:
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          sudo dpkg -i acpp_23.10.0-1_amd64.deb
+          dpkg -i acpp_23.10.0-1_amd64.deb
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:

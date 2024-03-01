@@ -39,7 +39,7 @@ nav:
       - 'CUDA' : 'install-cuda.md'
       - 'ROCM' : 'install-rocm.md'
       - 'OpenCL' : 'install-ocl.md'
-      - 'SPIR-V' : 'install-spirv.md'
+      - 'Level Zero' : 'install-spirv.md'
 
   - 'Limitations' : 'limitations.md'
   - 'History' : 'history.md'

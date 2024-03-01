@@ -17,7 +17,7 @@ nav:
       - 'Env variables' : 'env_variables.md'
       - 'Macros' : 'macros.md'
       - 'SYCL interoperability' : 'hip-source-interop.md'
-      - 'Std par' : 'stdpar.md'
+      - 'C++ standard parallelism offloading (stdpar)' : 'stdpar.md'
 
   - 'AdaptiveCpp design' : 
       - 'Architecture' : 'architecture.md'

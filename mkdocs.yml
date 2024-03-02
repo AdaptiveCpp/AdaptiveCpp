@@ -3,8 +3,6 @@ site_name: AdaptiveCpp Documentation
 repo_url: https://github.com/AdaptiveCpp/AdaptiveCpp
 repo_name: AdaptiveCpp
 
-copyright: Copyright(C) 2021-2023 Timothée David--Cléris
-
 docs_dir: doc
 
 nav:
@@ -41,8 +39,6 @@ nav:
       - 'OpenCL' : 'install-ocl.md'
       - 'Level Zero' : 'install-spirv.md'
 
-  - 'Limitations' : 'limitations.md'
-  - 'History' : 'history.md'
 
 theme:
   name: material
@@ -57,6 +53,19 @@ plugins:
       enable_creation_date: true
 
 markdown_extensions:
+  # for the grid in index.md
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+  # code blocks
   - pymdownx.highlight:
       use_pygments: true
+  - pymdownx.superfences
+
+
+  - admonition
+  - pymdownx.details
   - pymdownx.superfences

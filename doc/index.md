@@ -1,17 +1,30 @@
-# Welcome to MkDocs
+#
+![The Rust Logo](img/logo/logo-color.png)
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+Welcome to the documentation of the AdaptiveCpp !
 
-## Commands
+<div class="grid cards" markdown>
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+-   :material-clock-fast:{ .lg .middle } __Installation__
 
-## Project layout
+    ---
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+    Configure and install AdaptiveCpp
+
+    [:octicons-arrow-right-24: Installation](./installing.md)
+
+-   :fontawesome-solid-gears:{ .lg .middle } __Can run on any hardware__
+
+    ---
+
+    We support CPUs, GPUs, from all vendors, either through multipass compilation.
+    Or through our single pass SSCP compiler
+
+    [:octicons-arrow-right-24: Usage](./using-hipsycl.md)
+
+
+</div>
+
+!!! note
+
+    This documentation webpage is WIP.

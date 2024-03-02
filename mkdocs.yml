@@ -13,7 +13,7 @@ nav:
 
   - 'Usage' :
       - 'Using AdaptiveCpp' : 'using-hipsycl.md'
-      - 'Compilation' : 'compilation.md'
+      - 'Compilation model' : 'compilation.md'
       - 'Env variables' : 'env_variables.md'
       - 'Macros' : 'macros.md'
       - 'SYCL interoperability' : 'hip-source-interop.md'

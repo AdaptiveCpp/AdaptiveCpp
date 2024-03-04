@@ -228,7 +228,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   for(const auto& option : config.build_options()) {
     std::string option_name = glue::to_string(option.first);
     std::string option_value =
-        option.second.int_value
+        option.second.int_value.has_value()
             ? std::to_string(option.second.int_value.value())
             : option.second.string_value.value();
     

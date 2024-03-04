@@ -114,14 +114,14 @@ hcf_kernel_info::hcf_kernel_info(
   if(const auto* flags_node = kernel_node->get_subnode("compile-flags")) {
     for(const auto& flag : flags_node->key_value_pairs) {
       auto f = glue::to_build_flag(flag.first);
-      if(f)
+      if(f.has_value())
         _compilation_flags.push_back(f.value());
     }
   }
   if(const auto* options_node = kernel_node->get_subnode("compile-options")) {
     for(const auto& option : options_node->key_value_pairs) {
       auto o = glue::to_build_option(option.first);
-      if(o)
+      if(o.has_value())
         _compilation_options.push_back(
             std::make_pair(o.value(), option.second));
     }

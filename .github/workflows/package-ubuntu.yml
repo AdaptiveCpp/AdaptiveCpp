@@ -77,14 +77,15 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/build-tests-cpu
           LD_LIBRARY_PATH=/usr/lib ./sycl_tests
-  packaging-acpp-cuda-backend:
-    name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
+  packaging-acpp-all-backends:
+    name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}, ROCm ${{matrix.rocm}}
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
         clang: ['17']
         os: [ubuntu-22.04]
         cuda: [11.0.2]
+        rocm: [5.6.1]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -116,6 +117,18 @@ jobs:
           sudo sh cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/AdaptiveCpp/cuda || true
           echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/AdaptiveCpp/cuda/version.txt
           rm cuda.sh
+      - name: install ROCm
+        run: |
+          [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy
+          sudo apt install libnuma-dev cmake unzip
+          wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
+          echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | sudo tee /etc/apt/sources.list.d/rocm.list
+          printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
+          sudo apt update
+          sudo apt install rocm-dev
+      - name: install OpenCL develpment files and loader
+        run: |
+          sudo apt install -y libopencl-clang-dev ocl-icd-opencl-dev
       - name: install packaging helpers
         run: |
           sudo  apt install build-essential
@@ -131,8 +144,12 @@ jobs:
           cp -R AdaptiveCpp acpp-23.10.0
           tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
           cd acpp-23.10.0/
-          sed -i "s/-DDEFAULT.*/-DDEFAULT_TARGETS=\"cuda:sm_60\" \\\/" debian/rules
+          sed -i "/-DDEFAULT.*/d" debian/rules
           sed -i "s/-DWITH_CUDA_BACKEND=.*/-DWITH_CUDA_BACKEND=ON \\\/" debian/rules
+          sed -i "s/-DWITH_ROCM_BACKEND=.*/-DWITH_ROCM_BACKEND=ON \\\/" debian/rules
+          sed -i "s/-DWITH_LEVEL_ZERO_BACKEND=.*/-DWITH_LEVEL_ZERO_BACKEND=ON \\\/" debian/rules
+          sed -i "s/-DWITH_OPENCL_BACKEND=.*/-DWITH_OPENCL_BACKEND=ON \\\/" debian/rules
+          sed -i "/-DCUDA_CUDA_LIBRARY=.*/d" debian/rules
           debuild -us -uc
       - name: Install the package
         run: |

@@ -42,7 +42,7 @@
 #include <unordered_map>
 
 #include "hipSYCL/common/stable_running_hash.hpp"
-#include "hipSYCL/common/small_vector.hpp"
+
 
 namespace hipsycl {
 namespace glue {
@@ -306,7 +306,7 @@ public:
 
     for(const auto& entry : _build_options) {
       uint64_t numeric_option_id = static_cast<uint64_t>(entry.first) | (1ull << 32);
-      if(entry.second.int_value) {
+      if(entry.second.int_value.has_value()) {
         auto numeric_value = entry.second.int_value.value();
         add_entry_to_hash(result, &numeric_option_id, sizeof(numeric_option_id),
                         &numeric_value, sizeof(numeric_value));
@@ -386,9 +386,9 @@ private:
   }
 
 
-  common::small_vector<s2_ir_configuration_entry, 2> _s2_ir_configurations;
-  common::small_vector<kernel_build_flag, 8> _build_flags;
-  common::small_vector<std::pair<kernel_build_option, int_or_string>, 4> _build_options;
+  std::vector<s2_ir_configuration_entry> _s2_ir_configurations;
+  std::vector<kernel_build_flag> _build_flags;
+  std::vector<std::pair<kernel_build_option, int_or_string>> _build_options;
 
   id_type _base_configuration_result = {};
 };

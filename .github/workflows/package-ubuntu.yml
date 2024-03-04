@@ -24,13 +24,13 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           ./llvm.sh ${{matrix.clang}}
-          apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
+          apt install -y libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
       - name: install dependencies
         run: |
-          apt install libboost-all-dev libtbb-dev cmake python3
+          apt install -y libboost-all-dev libtbb-dev cmake python3
       - name: install OpenCL develpment files and loader
         run: |
-          apt install libopencl-clang-dev ocl-icd-opencl-dev
+          apt install -y libopencl-clang-dev ocl-icd-opencl-dev
       - name: setup build environment
         run: |
           export CXXFLAGS="$CXXFLAGS"

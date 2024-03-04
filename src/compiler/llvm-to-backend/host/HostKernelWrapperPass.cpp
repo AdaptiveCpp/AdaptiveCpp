@@ -32,6 +32,7 @@
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 
 #include <algorithm>
 #include <iterator>
@@ -157,16 +158,21 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
   auto ArgArray = Wrapper->arg_begin() + 1;
   for (int I = 0; I < F.arg_size(); ++I) {
 
-    if (ArgArray->getType()->isOpaquePointerTy()) {
+    if IS_OPAQUE(ArgArray->getType()) {
       auto GEP = Bld.CreateInBoundsGEP(UserArgsT, ArgArray,
                                        llvm::ArrayRef<llvm::Value *>{Bld.getInt32(I)});
       Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), Bld.CreateLoad(VoidPtrT, GEP)));
     } else {
+#if HAS_TYPED_PTR // otherwise, IS_OPAQUE is always true
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
       auto GEP = Bld.CreateInBoundsGEP(UserArgsT->getNonOpaquePointerElementType(), ArgArray,
                                        llvm::ArrayRef<llvm::Value *>{Bld.getInt32(I)});
+#pragma GCC diagnostic pop
       auto CastedPtr = Bld.CreatePointerCast(Bld.CreateLoad(VoidPtrT, GEP),
                                              llvm::PointerType::getUnqual(F.getArg(I)->getType()));
       Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), CastedPtr));
+#endif
     }
   }
   auto FCall = Bld.CreateCall(&F, Args);

@@ -129,7 +129,7 @@ void setPrecSqrt(llvm::Module& M, int Mode) {
 }
 
 LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::ptx, KN}, KernelNames{KN} {}
+    : LLVMToBackendTranslator{sycl::jit::backend::ptx, KN}, KernelNames{KN} {}
 
 
 bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {

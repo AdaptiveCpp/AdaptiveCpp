@@ -127,7 +127,7 @@ bool removeDynamicLocalMemorySupport(llvm::Module& M) {
 }
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::spirv, KN}, KernelNames{KN} {}
+    : LLVMToBackendTranslator{sycl::jit::backend::spirv, KN}, KernelNames{KN} {}
 
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {

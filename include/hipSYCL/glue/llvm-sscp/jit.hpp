@@ -219,7 +219,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   runtime_linker configure_linker {translator, imported_symbol_names};
 
   // Apply configuration
-  translator->setS2IRConstant<sycl::sscp::current_backend, int>(
+  translator->setS2IRConstant<sycl::jit::current_backend, int>(
       translator->getBackendId());
   for(const auto& entry : config.s2_ir_entries()) {
     translator->setS2IRConstant(entry.get_name(), entry.get_data_buffer());

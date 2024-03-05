@@ -614,7 +614,8 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
   
-  glue::kernel_configuration config = initial_config;
+  static thread_local glue::kernel_configuration config;
+  config = initial_config;
   config.append_base_configuration(
       glue::kernel_base_config_parameter::backend_id, backend_id::hip);
   config.append_base_configuration(
@@ -627,9 +628,10 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
     config.set_build_option(opt.first, opt.second);
-  
-  config.set_build_option("amdgpu-target-device", target_arch_name);
-  
+
+  config.set_build_option(glue::kernel_build_option::amdgpu_target_device,
+                          target_arch_name);
+
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
   glue::kernel_configuration::extend_hash(

@@ -226,11 +226,17 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   }
 
   for(const auto& option : config.build_options()) {
-    translator->setBuildOption(option.first, option.second);
+    std::string option_name = glue::to_string(option.first);
+    std::string option_value =
+        option.second.int_value.has_value()
+            ? std::to_string(option.second.int_value.value())
+            : option.second.string_value.value();
+    
+    translator->setBuildOption(option_name, option_value);
   }
 
   for(const auto& flag : config.build_flags()) {
-    translator->setBuildFlag(flag);
+    translator->setBuildFlag(glue::to_string(flag));
   }
 
   // Transform code

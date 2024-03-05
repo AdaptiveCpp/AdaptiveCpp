@@ -609,7 +609,8 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  glue::kernel_configuration config = initial_config;
+  static thread_local glue::kernel_configuration config;
+  config = initial_config;
   config.append_base_configuration(
       glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
   config.append_base_configuration(
@@ -624,9 +625,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     config.set_build_option(opt.first, opt.second);
   // TODO This is incorrect, we should attempt to find a better way to determine
   // the right ptx version
-  config.set_build_option("ptx-version", compute_capability);
-  config.set_build_option("ptx-target-device", compute_capability);
-  
+  config.set_build_option(glue::kernel_build_option::ptx_version,
+                          compute_capability);
+  config.set_build_option(glue::kernel_build_option::ptx_target_device,
+                          compute_capability);
+
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
   glue::kernel_configuration::extend_hash(

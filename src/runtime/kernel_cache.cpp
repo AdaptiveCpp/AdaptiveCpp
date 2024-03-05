@@ -113,12 +113,17 @@ hcf_kernel_info::hcf_kernel_info(
 
   if(const auto* flags_node = kernel_node->get_subnode("compile-flags")) {
     for(const auto& flag : flags_node->key_value_pairs) {
-      _compilation_flags.push_back(flag.first);
+      auto f = glue::to_build_flag(flag.first);
+      if(f.has_value())
+        _compilation_flags.push_back(f.value());
     }
   }
   if(const auto* options_node = kernel_node->get_subnode("compile-options")) {
-    for(const auto& flag : options_node->key_value_pairs) {
-      _compilation_flags.push_back(flag.first);
+    for(const auto& option : options_node->key_value_pairs) {
+      auto o = glue::to_build_option(option.first);
+      if(o.has_value())
+        _compilation_options.push_back(
+            std::make_pair(o.value(), option.second));
     }
   }
 
@@ -159,11 +164,12 @@ hcf_object_id hcf_kernel_info::get_hcf_object_id() const {
   return _id;
 }
 
-const std::vector<std::string> &hcf_kernel_info::get_compilation_flags() const {
+const std::vector<glue::kernel_build_flag> &
+hcf_kernel_info::get_compilation_flags() const {
   return _compilation_flags;
 }
 
-const std::vector<std::pair<std::string, std::string>> &
+const std::vector<std::pair<glue::kernel_build_option, std::string>> &
 hcf_kernel_info::get_compilation_options() const {
   return _compilation_options;
 }

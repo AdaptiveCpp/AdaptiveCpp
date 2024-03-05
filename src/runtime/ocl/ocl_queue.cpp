@@ -434,7 +434,8 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
-  glue::kernel_configuration config = initial_config;
+  static thread_local glue::kernel_configuration config;
+  config = initial_config;
   
   config.append_base_configuration(
       glue::kernel_base_config_parameter::backend_id, backend_id::ocl);
@@ -443,16 +444,18 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       compilation_flow::sscp);
   config.append_base_configuration(
       glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
-
+  
   for(const auto& flag : kernel_info->get_compilation_flags())
     config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
     config.set_build_option(opt.first, opt.second);
 
-  config.set_build_option("spirv-dynamic-local-mem-allocation-size", local_mem_size);
+  config.set_build_option(
+      glue::kernel_build_option::spirv_dynamic_local_mem_allocation_size,
+      local_mem_size);
 
   // TODO: Enable this if we are on Intel
-  // config.set_build_flag("enable-intel-llvm-spirv-options");
+  // config.set_build_flag(glue::kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;

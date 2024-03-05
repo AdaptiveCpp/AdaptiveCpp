@@ -609,7 +609,8 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  glue::kernel_configuration config = initial_config;
+  static thread_local glue::kernel_configuration config;
+  config = initial_config;
   config.append_base_configuration(
       glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
   config.append_base_configuration(

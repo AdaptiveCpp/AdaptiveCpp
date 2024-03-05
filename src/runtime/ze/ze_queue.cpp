@@ -578,7 +578,9 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
-  glue::kernel_configuration config = initial_config;
+  static thread_local glue::kernel_configuration config;
+  config = initial_config;
+  
   config.append_base_configuration(
       glue::kernel_base_config_parameter::backend_id, backend_id::level_zero);
   config.append_base_configuration(

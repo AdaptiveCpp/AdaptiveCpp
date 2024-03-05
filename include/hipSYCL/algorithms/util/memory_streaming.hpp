@@ -74,9 +74,6 @@ public:
   template <class F>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,
                   F &&f) noexcept {
-    
-    // TODO: This actually should be something like if_device_cpu, which
-    //  we cannot express yet.
     __hipsycl_if_target_sscp(
       if(sycl::jit::introspect<sycl::jit::current_backend, int>() == sycl::jit::backend::host) {
         run_host(problem_size, idx, f);

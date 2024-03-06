@@ -41,6 +41,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
+#include <llvm/IR/GlobalValue.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
@@ -283,6 +284,13 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   // getOutlinigEntrypoints() returns both kernels as well as non-kernel (i.e. SYCL_EXTERNAL)
   // entrypoints
+
+  S2IRConstant::forEachS2IRConstant(*DeviceModule, [](S2IRConstant IRC){
+    // This is important to avoid GlobalOpt during Kernel outlining from removing these
+    // unitialized variables.
+    IRC.getGlobalVariable()->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
+  });
+
   KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
   KP.run(*DeviceModule, DeviceMAM);
 

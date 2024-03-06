@@ -50,7 +50,7 @@ namespace hipsycl::glue::sscp {
   struct ir_constant_name {};
 }
 
-namespace hipsycl::sycl::sscp {
+namespace hipsycl::sycl::jit {
 
 namespace backend {
 

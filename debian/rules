@@ -26,9 +26,11 @@ override_dh_auto_configure:
 	          -DCUDA_TOOLKIT_ROOT_DIR=/opt/AdaptiveCpp/cuda \
 	          -DOpenCL_LIBRARY=/usr/lib/x86_64-linux-gnu/libOpenCL.so \
 	          -DOpenCL_INCLUDE_DIR=/usr/include/CL \
-	          -DROCM_PATH=/opt/rocm \
-	          -DCMAKE_INSTALL_PREFIX=/opt/AdaptiveCpp
+	          -DOpenCLICDLoader_DIR=/etc/OpenCL/ \
+	          -DROCM_PATH=/opt/rocm
+
+#	          -DCMAKE_INSTALL_PREFIX=/opt/AdaptiveCpp
 override_dh_auto_build:
 	dh_auto_build -- -j2
 override_dh_auto_install:
-#	dh_auto_install -- prefix=`pwd`/install
+	dh_auto_install -- prefix=/opt/AdaptiveCpp/install

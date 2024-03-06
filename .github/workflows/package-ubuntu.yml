@@ -44,9 +44,7 @@ jobs:
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
       - name: install packaging helpers
         run: |
-          apt install build-essential
-          apt install devscripts
-          apt install debhelper
+          apt install -y build-essential devscripts debhelper
       - name: package AdaptiveCpp
         run: |
           export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"

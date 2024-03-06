@@ -15,7 +15,7 @@ jobs:
       - name: install git and other dependencies in container
         run: |
           apt update
-          apt install -y git lsb-release software-properties-common wget curl gpg unzip
+          apt install -y git lsb-release software-properties-common wget curl gpg unzip g++-11
       - uses: actions/checkout@v4
         with:
           submodules: recursive

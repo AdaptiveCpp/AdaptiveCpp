@@ -126,7 +126,7 @@ jobs:
           sudo apt install rocm-dev
       - name: install OpenCL develpment files and loader
         run: |
-          sudo apt install -y libopencl-clang-dev ocl-icd-opencl-dev
+          sudo apt install -y ocl-icd-opencl-dev
       - name: install Level Zero
         run : |
           wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero-devel_1.2.3+u18.04_amd64.deb

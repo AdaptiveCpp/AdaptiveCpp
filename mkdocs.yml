@@ -48,6 +48,9 @@ theme:
     repo: fontawesome/brands/github
 
 
+extra_css:
+  - stylesheets/extra.css
+
 plugins:
   - git-authors
   - search

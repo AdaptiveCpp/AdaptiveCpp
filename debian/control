@@ -10,6 +10,6 @@ Rules-Requires-Root: no
 
 Package: acpp
 Architecture: any
-Depends: ${shlibs:Depends}, ${perl:Depends}, ${misc:Depends}, python3
+Depends: python3
 Description: Implementation of SYCL and C++ standard parallelism 
  Implementation of SYCL and C++ standard parallelism for CPUs and GPUs from all vendors. The independent, community-driven compiler for C++-based heterogeneous programming models.

@@ -77,7 +77,7 @@ Clearing the cache can be accomplished by simply clearing the cache directory, e
 * Don't use `nd_range` parallel for unless you absolutely have to, as it is difficult to map efficiently to CPUs. 
 * If you don't need barriers or local memory, use `parallel_for` with `range` argument.
 * If you need local memory or barriers, scoped parallelism or hierarchical parallelism models may perform better on CPU than `parallel_for` kernels using `nd_range` argument and should be preferred. Especially scoped parallelism also works well on GPUs.
-* If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated`  or `generic` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](doc/compilation.md) for details.
+* If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated`  or `generic` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](compilation.md) for details.
 
 
 ## Strong-scaling/latency-bound problems

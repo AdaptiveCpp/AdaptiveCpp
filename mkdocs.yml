@@ -13,6 +13,7 @@ nav:
       - 'Using AdaptiveCpp' : 'using-hipsycl.md'
       - 'Compilation model' : 'compilation.md'
       - 'Env variables' : 'env_variables.md'
+      - 'Performance guide' : 'performance.md'
       - 'Macros' : 'macros.md'
       - 'SYCL interoperability' : 'hip-source-interop.md'
       - 'C++ standard parallelism offloading (stdpar)' : 'stdpar.md'
@@ -21,6 +22,7 @@ nav:
       - 'Architecture' : 'architecture.md'
       - 'Runtime Specification' : 'runtime-spec.md'
       - 'HCF' : 'hcf.md'
+      - 'SSCP implementation' : 'generic-sscp.md'
 
   - 'Extensions overview' : 'extensions.md'
   - 'Extensions in detail' :

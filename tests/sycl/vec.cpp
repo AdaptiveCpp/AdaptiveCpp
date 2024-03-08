@@ -149,5 +149,13 @@ BOOST_AUTO_TEST_CASE(vec_convert) {
   BOOST_TEST(floats_in.w() == floats_out.w());
 }
 
+BOOST_AUTO_TEST_CASE(vec_constexpr_construction) {
+  constexpr cl::sycl::vec<int, 3> v1 = {1, 2, 3};
+  constexpr cl::sycl::vec<int, 4> v2 = {5,6,7,8};
+  constexpr cl::sycl::vec<int, 8> v3 = {v1, 4, v2};
+
+  for (int i = 0; i < v3.size(); ++i)
+    BOOST_CHECK_EQUAL(v3[i], i+1);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

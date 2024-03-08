@@ -49,21 +49,23 @@ public:
   using interop_type = vec_storage<T,N>;
   using value_type = T;
 
-  HIPSYCL_UNIVERSAL_TARGET
-  T& operator[](int i) { return _storage[i]; }
+  HIPSYCL_UNIVERSAL_TARGET constexpr vec_storage() = default;
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[](int i) const { return _storage[i]; }
+  constexpr T& operator[](int i) { return _storage[i]; }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  constexpr const T& operator[](int i) const { return _storage[i]; }
 
   template<int Index>
   HIPSYCL_UNIVERSAL_TARGET
-  T& get() {
+  constexpr T& get() {
     return _storage[Index];
   }
 
   template<int Index>
   HIPSYCL_UNIVERSAL_TARGET
-  const T& get() const {
+  constexpr const T& get() const {
     return _storage[Index];
   }
 
@@ -87,7 +89,7 @@ public:
   }
 
 private:
-  alignas(alignment) T _storage [effective_size];
+  alignas(alignment) T _storage [effective_size] = {0};
 };
 
 // An alternative implementation of the vec_storage concept
@@ -291,7 +293,7 @@ public:
   template <class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET explicit vec(const T &value) {
+  HIPSYCL_UNIVERSAL_TARGET explicit constexpr vec(const T &value) {
     for(int i = 0; i < N; ++i)
       _data[i] = value;
   }
@@ -302,7 +304,7 @@ public:
                              bool> = true,
             std::enable_if_t<(detail::count_num_elements<Args, T> + ...) == N,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET vec(const Args &...args) {
+  HIPSYCL_UNIVERSAL_TARGET constexpr vec(const Args &...args) {
     int current_init_index = 0;
     (partial_initialization(current_init_index, args), ...);
   }
@@ -310,7 +312,7 @@ public:
   template <class OtherStorage, class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET vec(const vec<T, N, OtherStorage> &other)
+  HIPSYCL_UNIVERSAL_TARGET constexpr vec(const vec<T, N, OtherStorage> &other)
   {
     for(int i = 0; i < N; ++i)
       _data[i] = other[i];
@@ -469,12 +471,12 @@ public:
 
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[](int index) {
+  constexpr T& operator[](int index) {
     return _data[index];
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[](int index) const {
+  constexpr const T& operator[](int index) const {
     return _data[index];
   }
 
@@ -878,7 +880,7 @@ public:
 private:
   template<typename Arg>
   HIPSYCL_UNIVERSAL_TARGET
-  void partial_initialization(int& current_init_index, const Arg& x) {
+  constexpr void partial_initialization(int& current_init_index, const Arg& x) {
     if constexpr(std::is_scalar_v<Arg>) {
       _data[current_init_index] = x;
       ++current_init_index;

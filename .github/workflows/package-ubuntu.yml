@@ -48,25 +48,21 @@ jobs:
           apt install -y build-essential devscripts debhelper
       - name: package AdaptiveCpp
         run: |
-          export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
-          export DEBFULLNAME="Sanchi Vaishnavi"
-          echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
-          echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
           cd ..
-          cp -R AdaptiveCpp acpp-23.10.0
-          tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
-          cd acpp-23.10.0/
+          cp -R AdaptiveCpp acpp-24.02.0
+          tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
+          cd acpp-24.02.0/
           echo $(cat  /var/lib/dpkg/info/libllvm17\:amd64.shlibs) > debian/shlibs.local
           debuild -us -uc
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          dpkg -i acpp_23.10.0-1_amd64.deb
+          dpkg -i acpp_24.02.0-1_amd64.deb
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
           name: cpu-backend-generic
-          path: /home/runner/work/AdaptiveCpp/acpp_23.10.0-1_amd64.deb
+          path: /home/runner/work/AdaptiveCpp/acpp_24.02.0-1_amd64.deb
       - name: build generic SSCP tests
         if: matrix.clang >= 14
         run: |
@@ -103,7 +99,7 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.clang}}
           sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
-          apt install -y libstdc++-12-dev
+          sudo apt install -y libstdc++-12-dev
       - name: install dependencies
         run: |
           sudo apt install cmake python3 libboost-all-dev libtbb-dev wget gpg curl
@@ -153,14 +149,10 @@ jobs:
           sudo  apt install debhelper
       - name: package AdaptiveCpp
         run: |
-          export DEBEMAIL="sanchi.vaishnavi@stud.uni-heidelberg.de"
-          export DEBFULLNAME="Sanchi Vaishnavi"
-          echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
-          echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
           cd ..
-          cp -R AdaptiveCpp acpp-23.10.0
-          tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
-          cd acpp-23.10.0/
+          cp -R AdaptiveCpp acpp-24.02.0
+          tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
+          cd acpp-24.02.0/
           sed -i "s/-DWITH_CUDA_BACKEND=.*/-DWITH_CUDA_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_ROCM_BACKEND=.*/-DWITH_ROCM_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_LEVEL_ZERO_BACKEND=.*/-DWITH_LEVEL_ZERO_BACKEND=ON \\\/" debian/rules
@@ -176,12 +168,12 @@ jobs:
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          sudo dpkg -i acpp_23.10.0-1_amd64.deb
+          sudo dpkg -i acpp_24.02.0-1_amd64.deb
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
           name: all-backends
-          path: /home/runner/work/AdaptiveCpp/acpp_23.10.0-1_amd64.deb
+          path: /home/runner/work/AdaptiveCpp/acpp_24.02.0-1_amd64.deb
       - name: build generic SSCP tests
         if: matrix.clang >= 14
         run: |

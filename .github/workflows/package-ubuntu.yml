@@ -160,6 +160,7 @@ jobs:
           sed -i "/-DCUDA_CUDA_LIBRARY=.*/d" debian/rules
           echo $(cat  /var/lib/dpkg/info/libllvm17\:amd64.shlibs) > debian/shlibs.local
           echo "libhiprtc 5 hip-runtime-amd" >> debian/shlibs.local
+          echo $(cat /var/lib/dpkg/info/ocl-icd-libopencl1\:amd64.shlibs) >> debian/shlibs.local
           debuild -us -uc
       - name: Install the package
         run: |

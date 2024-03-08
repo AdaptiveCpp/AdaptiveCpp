@@ -25,6 +25,7 @@ jobs:
           chmod +x llvm.sh
           ./llvm.sh ${{matrix.clang}}
           apt install -y libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
+          apt install -y libstdc++-12-dev
       - name: install dependencies
         run: |
           apt install -y libboost-all-dev libtbb-dev cmake python3

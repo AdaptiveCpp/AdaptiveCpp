@@ -12,6 +12,8 @@ export DEB_BUILD_OPTIONS = nocheck, nostrip
 override_dh_auto_configure:
 	dh_auto_configure  -- \
 	          -Scmake \
+	          -DCMAKE_CXX_COMPILER=/usr/bin/clang++-17 \
+	          -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-17 \
 	          -DWITH_ACCELERATED_CPU=ON \
 	          -DWITH_CUDA_BACKEND=OFF \
 	          -DWITH_ROCM_BACKEND=OFF \

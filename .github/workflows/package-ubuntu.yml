@@ -55,6 +55,7 @@ jobs:
           cp -R AdaptiveCpp acpp-23.10.0
           tar -cf acpp_23.10.0.orig.tar.gz acpp-23.10.0/
           cd acpp-23.10.0/
+          echo $(cat  /var/lib/dpkg/info/libllvm17\:amd64.shlibs) > debian/shlibs.local
           debuild -us -uc
       - name: Install the package
         run: |
@@ -156,6 +157,7 @@ jobs:
           sed -i "s/-DWITH_LEVEL_ZERO_BACKEND=.*/-DWITH_LEVEL_ZERO_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_OPENCL_BACKEND=.*/-DWITH_OPENCL_BACKEND=ON \\\/" debian/rules
           sed -i "/-DCUDA_CUDA_LIBRARY=.*/d" debian/rules
+          echo $(cat  /var/lib/dpkg/info/libllvm17\:amd64.shlibs) > debian/shlibs.local
           debuild -us -uc
       - name: Install the package
         run: |

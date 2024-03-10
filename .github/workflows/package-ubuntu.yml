@@ -52,7 +52,7 @@ jobs:
           cp -R AdaptiveCpp acpp-24.02.0
           tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
           cd acpp-24.02.0/
-          echo $(cat  /var/lib/dpkg/info/libllvm17\:amd64.shlibs) > debian/shlibs.local
+          echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
           debuild -us -uc
       - name: Install the package
         run: |
@@ -156,7 +156,7 @@ jobs:
           sed -i "s/-DWITH_ROCM_BACKEND=.*/-DWITH_ROCM_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_LEVEL_ZERO_BACKEND=.*/-DWITH_LEVEL_ZERO_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_OPENCL_BACKEND=.*/-DWITH_OPENCL_BACKEND=ON \\\/" debian/rules
-          echo $(cat  /var/lib/dpkg/info/libllvm17\:amd64.shlibs) > debian/shlibs.local
+          echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
           echo "libhiprtc 5 hip-runtime-amd" >> debian/shlibs.local
           echo $(cat /var/lib/dpkg/info/ocl-icd-libopencl1\:amd64.shlibs) >> debian/shlibs.local
           echo "libcudart 12 cuda-cudart-12-4" >> debian/shlibs.local

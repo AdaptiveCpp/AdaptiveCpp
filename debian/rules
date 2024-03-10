@@ -20,7 +20,7 @@ override_dh_auto_configure:
 	          -DWITH_LEVEL_ZERO_BACKEND=OFF \
 	          -DWITH_OPENCL_BACKEND=OFF \
 	          -DWITH_SSCP_COMPILER=ON \
-	          -DLLVM_DIR=/usr/lib/llvm-17/cmake/ \
+	          -DLLVM_DIR=/usr/lib/llvm-16/cmake/ \
 	          -DCUDA_TOOLKIT_ROOT_DIR=/opt/AdaptiveCpp/cuda \
 	          -DROCM_PATH=/opt/rocm \
 	          -DCMAKE_INSTALL_PREFIX=/opt/AdaptiveCpp

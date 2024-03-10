@@ -81,6 +81,9 @@ Clearing the cache can be accomplished by simply clearing the cache directory, e
 * If you need local memory or barriers, scoped parallelism or hierarchical parallelism models may perform better on CPU than `parallel_for` kernels using `nd_range` argument and should be preferred. Especially scoped parallelism also works well on GPUs.
 * If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated`  or `generic` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](compilation.md) for details.
 
+## AMD GPUs
+
+* When comparing to DPC++: AdaptiveCpp (both with `generic` and `hip` target) by default correctly rounds `sqrt` builtin calls and divisions. This behavior also aligns with the defaults of `hipcc`. DPC++   on AMD GPUs however does not, **even when using `-fno-fast-math`**.  Ensure that compilers use comparable precision!
 
 ## Strong-scaling/latency-bound problems
 

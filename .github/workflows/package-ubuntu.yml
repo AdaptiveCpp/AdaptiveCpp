@@ -182,7 +182,7 @@ jobs:
           echo "libcudart 12 cuda-cudart-12-4" >> debian/shlibs.local
           echo "libze_loader 1 level-zero" >> debian/shlibs.local
           echo "libamdhip64 5 hip-runtime-amd" >> debian/shlibs.local
-          echo $(sed -n 1p /var/lib/dpkg/info/libnvidia-compute-*\:amd64.shlibs) >> debian/shlibs.local
+          echo "libcuda 12 cuda-driver-dev-12-4" >> debian/shlibs.local
           debuild -us -uc
       - name: Install the package
         run: |

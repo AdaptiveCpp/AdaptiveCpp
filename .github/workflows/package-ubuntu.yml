@@ -9,7 +9,7 @@ jobs:
       image: ubuntu:jammy-20240212
     strategy:
       matrix:
-        clang: ['17']
+        clang: ['16']
         os: [ubuntu-22.04]
     steps:
       - name: install git and other dependencies in container
@@ -85,7 +85,7 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        clang: ['17']
+        clang: ['16']
         os: [ubuntu-22.04]
         cuda: [11.0.2]
         rocm: [5.6.1]

@@ -97,7 +97,7 @@ jobs:
       matrix:
         clang: ['16']
         os: [ubuntu-22.04]
-        cuda: [12.4.0]
+        cuda: [12.4]
         rocm: [5.6.1]
     steps:
       - uses: actions/checkout@v4

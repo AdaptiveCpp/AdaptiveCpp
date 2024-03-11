@@ -141,6 +141,7 @@ jobs:
           sudo sh cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/AdaptiveCpp/cuda || true
           echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/AdaptiveCpp/cuda/version.txt
           rm cuda.sh
+          echo "$(dpkg -S libcuda)"
       - name: install ROCm
         run: |
           [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy

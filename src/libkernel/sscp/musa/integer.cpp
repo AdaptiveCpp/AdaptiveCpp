@@ -54,3 +54,17 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_clz_u8(__hipsycl_uint8 a){
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_clz_u16(__hipsycl_uint16 a){
   return __hipsycl_sscp_clz_u32(a)-16;
 }
+
+
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_popcount_u8(__hipsycl_uint8 a){
+  return __builtin_popcount(a & 0xff);
+}
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_popcount_u16(__hipsycl_uint16 a){
+  return __builtin_popcount(a & 0xffff);
+}
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_popcount_u32(__hipsycl_uint32 a){
+  return __builtin_popcount(a);
+}	
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_popcount_u64(__hipsycl_uint64 a){
+  return __builtin_popcountll(a);
+}

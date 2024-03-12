@@ -28,6 +28,7 @@ The other compilation flows `omp`, `cuda`, `hip` should mainly be used when *int
 * Some other compilers like `nvcc` or `hipcc` compile with `-O3` by default. AdaptiveCpp, like regular g++ or clang++ compilers, does not do this and instead expects optimization flags to be provided by the user.
 * The oneAPI SYCL compiler `icpx` compiles with `-ffast-math -ffp-contract=fast` by default. AdaptiveCpp does not use `-ffast-math` by default. Make sure to align these flags to obtain fair comparisons.
 * AdaptiveCpp's clang-based compilation flows (`omp`, `generic`, `hip`, `cuda`) compile with `-ffp-contract=fast` by default. Non-clang based flows do not use that flag. If you use compilation flows that do not rely on clang (e.g. `cuda-nvcxx` or `omp.library-only`), it is your own responsibility to apply comparable compilation flags!
+* The oneAPI SYCL compiler by default does not correctly round `sqrt` calls, using approximate builtins instead **even when using `-fno-fast-math`**. AdaptiveCpp (both with `generic` and `hip`/`cuda` targets) by default correctly rounds `sqrt` builtin calls and divisions. This behavior also aligns with the defaults of e.g. `hipcc`. You may use the `-fsycl-fp32-prec-sqrt` to force DPC++ to correctly round `sqrt`.
 * If you are unsure, the compilation flags used by clang-based compilers under the hood can be inspected using `<clang invocation> -###`. This also works for AdaptiveCpp's clang-based compilation flows. When in doubt, use this mechanism to align compilation flags between compilers.
 * The compiler invocation that `acpp` generates can be printed and its flags inspected with `--acpp-dryrun`.
 
@@ -80,10 +81,6 @@ Clearing the cache can be accomplished by simply clearing the cache directory, e
 * If you don't need barriers or local memory, use `parallel_for` with `range` argument.
 * If you need local memory or barriers, scoped parallelism or hierarchical parallelism models may perform better on CPU than `parallel_for` kernels using `nd_range` argument and should be preferred. Especially scoped parallelism also works well on GPUs.
 * If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated`  or `generic` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](compilation.md) for details.
-
-## AMD GPUs
-
-* When comparing to DPC++: AdaptiveCpp (both with `generic` and `hip` target) by default correctly rounds `sqrt` builtin calls and divisions. This behavior also aligns with the defaults of `hipcc`. DPC++   on AMD GPUs however does not, **even when using `-fno-fast-math`**.  Ensure that compilers use comparable precision!
 
 ## Strong-scaling/latency-bound problems
 

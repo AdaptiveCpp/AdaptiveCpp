@@ -70,7 +70,9 @@ enum class kernel_build_option : int {
   amdgpu_rocm_device_libs_path,
   amdgpu_rocm_path,
 
-  spirv_dynamic_local_mem_allocation_size
+  spirv_dynamic_local_mem_allocation_size,
+
+  musa_target_device
 };
 
 enum class kernel_build_flag : int {
@@ -97,7 +99,8 @@ public:
       {"amdgpu-target-device", kernel_build_option::amdgpu_target_device},
       {"rocm-device-libs-path", kernel_build_option::amdgpu_rocm_device_libs_path},
       {"rocm-path", kernel_build_option::amdgpu_rocm_path},
-      {"spirv-dynamic-local-mem-allocation-size", kernel_build_option::spirv_dynamic_local_mem_allocation_size}
+      {"spirv-dynamic-local-mem-allocation-size", kernel_build_option::spirv_dynamic_local_mem_allocation_size},
+      {"musa-target-device", kernel_build_option::musa_target_device}
     };
 
     _flags = {

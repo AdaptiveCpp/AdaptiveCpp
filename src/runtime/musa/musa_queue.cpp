@@ -624,6 +624,9 @@ result musa_queue::submit_sscp_kernel_from_code_object(
   for(const auto& opt : kernel_info->get_compilation_options())
     config.set_build_option(opt.first, opt.second);
 
+  config.set_build_option(glue::kernel_build_option::musa_target_device,
+                          compute_capability);
+
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
   glue::kernel_configuration::extend_hash(

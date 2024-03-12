@@ -56,7 +56,7 @@ VectorShape VectorShapeTransformer::getObservedShape(const BasicBlock &observerB
   return vecInfo.getObservedShape(LI, observerBlock, val);
 }
 
-static Type *getElementType(Type *Ty) {
+[[maybe_unused]] static Type *getElementType(Type *Ty) {
   if (auto VecTy = dyn_cast<VectorType>(Ty)) {
     return VecTy->getElementType();
   }
@@ -155,7 +155,7 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
       // These coincide because a >= b is equivalent to !(a < b)
       {
         const int vectorWidth = (int)vecInfo.getVectorWidth();
-        const int stride = diffShape.getStride();
+        const stride_t stride = diffShape.getStride();
         const int alignment = diffShape.getAlignmentFirst();
 
         if (stride >= 0 && alignment >= stride * vectorWidth)
@@ -504,7 +504,7 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
   const auto &BB = *castI.getParent();
   const Value *castOp = castI.getOperand(0);
   const VectorShape &castOpShape = getObservedShape(BB, *castOp);
-  const int castOpStride = castOpShape.getStride();
+  const stride_t castOpStride = castOpShape.getStride();
 
   const int aligned = !returnsVoidPtr(castI) ? castOpShape.getAlignmentFirst() : 1;
 

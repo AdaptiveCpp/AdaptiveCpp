@@ -27,6 +27,8 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/GlobalSizesFitInI32OptPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/KnownGroupSizeOptPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
@@ -34,6 +36,12 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
+#include <llvm/IR/Attributes.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/DiagnosticInfo.h>
+#include <llvm/IR/DiagnosticPrinter.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
@@ -50,19 +58,42 @@ namespace {
 
 bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
                    const std::string &ForcedTriple = "",
-                   const std::string &ForcedDataLayout = "") {
+                   const std::string &ForcedDataLayout = "",
+                   llvm::Linker::Flags Flags = llvm::Linker::Flags::LinkOnlyNeeded) {
   if(!ForcedTriple.empty())
     OtherM->setTargetTriple(ForcedTriple);
   if(!ForcedDataLayout.empty())
     OtherM->setDataLayout(ForcedDataLayout);
 
   // Returns true on error
-  if (llvm::Linker::linkModules(M, std::move(OtherM),
-                                llvm::Linker::Flags::LinkOnlyNeeded)) {
+  if (llvm::Linker::linkModules(M, std::move(OtherM), Flags)) {
     return false;
   }
   return true;
 }
+
+void setFastMathFunctionAttribs(llvm::Module& M) {
+  auto forceAttr = [&](llvm::Function& F, llvm::StringRef Key, llvm::StringRef Value) {
+    if(F.hasFnAttribute(Key)) {
+      if(!F.getFnAttribute(Key).getValueAsString().equals(Value))
+        F.removeFnAttr(Key);
+    }
+    F.addFnAttr(Key, Value);
+  };
+
+  for(auto& F : M) {
+    if(!F.isIntrinsic()) {
+      forceAttr(F, "approx-func-fp-math","true");
+      forceAttr(F, "denormal-fp-math","preserve-sign,preserve-sign");
+      forceAttr(F, "no-infs-fp-math","true");
+      forceAttr(F, "no-nans-fp-math","true");
+      forceAttr(F, "no-signed-zeros-fp-math","true");
+      forceAttr(F, "no-trapping-math","true");
+      forceAttr(F, "unsafe-fp-math","true");
+    }
+  }
+}
+
 
 }
 
@@ -70,13 +101,36 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
   const std::vector<std::string>& OutliningEPs)
 : S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {}
 
-bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
+bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) {
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
+
+  if(Flag == "global-sizes-fit-in-int") {
+    GlobalSizesFitInInt = true;
+    return true;
+  } else if(Flag == "fast-math") {
+    IsFastMath = true;
+    return true;
+  }
+
   return applyBuildFlag(Flag);
 }
 
 bool LLVMToBackendTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build option: " << Option << "=" << Value << "\n";
+
+  if(Option == "known-group-size-x") {
+    KnownGroupSizeX = std::stoi(Value);
+    return true;
+  } else if (Option == "known-group-size-y") {
+    KnownGroupSizeY = std::stoi(Value);
+    return true;
+  } else if (Option == "known-group-size-z") {
+    KnownGroupSizeZ = std::stoi(Value);
+    return true;
+  } else if (Option == "known-local-mem-size") {
+    KnownLocalMemSize = std::stoi(Value);
+  }
+
   return applyBuildOption(Option, Value);
 }
 bool LLVMToBackendTranslator::setBuildToolArguments(const std::string &ToolName,
@@ -106,7 +160,7 @@ bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, s
     setFailedIR(*M);
     return false;
   }
-  
+
   llvm::raw_string_ostream OutputStream{Out};
   llvm::WriteBitcodeToFile(*M, OutputStream);
 
@@ -144,7 +198,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
 
   if(!this->prepareBackendFlavor(M))
     return false;
-  
+
   // We need to resolve symbols now instead of after optimization, because we
   // may have to reuotline if the code that is linked in after symbol resolution
   // depends on IR constants.
@@ -174,7 +228,17 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     KernelOutliningPass KP{OutliningEntrypoints};
     KP.run(M, MAM);
 
+    // These optimizations should be run before __hipsycl_sscp_* builtins
+    // are resolved, so before backend bitcode libraries are linked. We thus
+    // run them prior to flavoring.
+    KnownGroupSizeOptPass GroupSizeOptPass{KnownGroupSizeX, KnownGroupSizeY, KnownGroupSizeZ};
+    GlobalSizesFitInI32OptPass SizesAsIntOptPass{GlobalSizesFitInInt, KnownGroupSizeX,
+                                                 KnownGroupSizeY, KnownGroupSizeZ};
+    GroupSizeOptPass.run(M, MAM);
+    SizesAsIntOptPass.run(M, MAM);
+
     HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
+
     FlavoringSuccessful = this->toBackendFlavor(M, PH);
 
     // Before optimizing, make sure everything has internal linkage to
@@ -197,8 +261,11 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     if(FlavoringSuccessful) {
       // Run optimizations
       HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing flavored IR...\n";
-      
+
+      if(IsFastMath)
+        setFastMathFunctionAttribs(M);
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
+
       if(!OptimizationSuccessful) {
         this->registerError("LLVMToBackend: Optimization failed");
       }
@@ -229,15 +296,28 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
   assert(PH.PassBuilder);
   assert(PH.ModuleAnalysisManager);
 
+  // silence optimization remarks,..
+  M.getContext().setDiagnosticHandlerCallBack(
+      [](const llvm::DiagnosticInfo &DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI.getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI.print(DP);
+          llvm::errs() << "\n";
+        }
+      });
+
   llvm::ModulePassManager MPM =
       PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
   MPM.run(M, *PH.ModuleAnalysisManager);
+
   return true;
 }
 
 bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::string &Bitcode,
                                                 const std::string &ForcedTriple,
-                                                const std::string &ForcedDataLayout) {
+                                                const std::string &ForcedDataLayout,
+                                                bool LinkOnlyNeeded) {
   std::unique_ptr<llvm::Module> OtherModule;
   auto err = loadModuleFromString(Bitcode, M.getContext(), OtherModule);
 
@@ -249,7 +329,11 @@ bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::stri
     return false;
   }
 
-  if(!linkBitcode(M, std::move(OtherModule), ForcedTriple, ForcedDataLayout)) {
+  llvm::Linker::Flags F = llvm::Linker::None;
+  if(LinkOnlyNeeded)
+    F = llvm::Linker::LinkOnlyNeeded;
+
+  if(!linkBitcode(M, std::move(OtherModule), ForcedTriple, ForcedDataLayout, F)) {
     this->registerError("LLVMToBackend: Linking module failed");
     return false;
   }
@@ -259,14 +343,16 @@ bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::stri
 
 bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
                                               const std::string &ForcedTriple,
-                                              const std::string &ForcedDataLayout) {
+                                              const std::string &ForcedDataLayout,
+                                              bool LinkOnlyNeeded) {
   auto F = llvm::MemoryBuffer::getFile(BitcodeFile);
   if(auto Err = F.getError()) {
     this->registerError("LLVMToBackend: Could not open file " + BitcodeFile);
     return false;
   }
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Linking with bitcode file: " << BitcodeFile << "\n";
-  return linkBitcodeString(M, std::string{F.get()->getBuffer()}, ForcedTriple, ForcedDataLayout);
+  return linkBitcodeString(M, std::string{F.get()->getBuffer()}, ForcedTriple, ForcedDataLayout,
+                           LinkOnlyNeeded);
 }
 
 void LLVMToBackendTranslator::setS2IRConstant(const std::string &name, const void *ValueBuffer) {
@@ -284,7 +370,7 @@ void LLVMToBackendTranslator::provideExternalSymbolResolver(ExternalSymbolResolv
 void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
 
   if(HasExternalSymbolResolver) {
-    
+
     // TODO We can not rely on LinkedIRIds being reliable, since
     // we only link needed symbols. Therefore, just because we have linked one module once
     // we may have to do it again.
@@ -314,11 +400,11 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
       // symbol definitions to work. So we need to try to resolve the new
       // stuff in the next iteration.
       llvm::SmallSet<std::string, 16> NewUnresolvedSymbolsSet;
-      
+
       for(const auto& IRID : IRs) {
 
         SymbolListType NewUndefinedSymbolsFromIR;
-        
+
         if (!this->linkBitcodeString(
                 M, SymbolResolver.retrieveBitcode(IRID, NewUndefinedSymbolsFromIR))) {
           HIPSYCL_DEBUG_WARNING
@@ -332,7 +418,7 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
                                 << " as a dependency\n";
           }
         }
-        
+
       }
 
       if(NewUnresolvedSymbolsSet.empty()) {

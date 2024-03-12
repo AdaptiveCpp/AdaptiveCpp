@@ -36,6 +36,7 @@
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
+#include "hipSYCL/sycl/interop_handle.hpp"
 #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
@@ -138,6 +139,7 @@ public:
   single_task(const UserKernel& k)
   : _k{k} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", 0)]]
   void operator()() const {
     _k();
   }
@@ -152,6 +154,7 @@ public:
                      sycl::range<Dimensions> execution_range)
       : _k{k}, _range{execution_range} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     auto this_item = sycl::detail::make_item<Dimensions>(
       sycl::detail::get_global_id<Dimensions>(), _range
@@ -171,6 +174,7 @@ public:
                             sycl::range<Dimensions> execution_range)
       : _k{k}, _range{execution_range}, _offset{offset} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     auto this_item = sycl::detail::make_item<Dimensions>(
         sycl::detail::get_global_id<Dimensions>() + _offset, _range, _offset);
@@ -191,6 +195,7 @@ public:
   ndrange_parallel_for(const UserKernel& k)
   : _k{k} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     const sycl::id<Dimensions> zero_offset{};
     sycl::nd_item<Dimensions> this_item{
@@ -211,6 +216,7 @@ public:
   ndrange_parallel_for_offset(const UserKernel& k, sycl::id<Dimensions> offset)
   : _k{k}, _offset{offset} {}
 
+  [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     sycl::nd_item<Dimensions> this_item{
         &_offset, sycl::detail::get_group_id<Dimensions>(),
@@ -234,7 +240,9 @@ public:
   sscp_kernel_launcher() {}
   virtual ~sscp_kernel_launcher(){}
 
-  virtual void set_params(void*) override {}
+  virtual void set_params(void* params) override {
+    _params = params;
+  }
 
   template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
             typename... Reductions>
@@ -298,7 +306,11 @@ public:
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
         
       } else if constexpr (type == rt::kernel_type::custom) {
-        // TODO
+        assert(_params);
+        sycl::interop_handle handle{node->get_assigned_device(),
+                                    _params};
+
+        k(handle);
       }
       else {
         assert(false && "Unsupported kernel type");
@@ -326,6 +338,17 @@ public:
   }
 
 private:
+  template <int Dim>
+  rt::range<3> flip_range(const sycl::range<Dim> &r) {
+      rt::range<3> rt_range{1,1,1};
+
+      for (int i = 0; i < Dim; ++i) {
+        rt_range[i] = r[Dim - i - 1];
+      }
+
+      return rt_range;
+  }
+
   template <class Kernel, int Dim>
   void launch_kernel_with_global_range(const Kernel &k,
                                        rt::kernel_operation *op,
@@ -333,23 +356,26 @@ private:
                                        const sycl::range<Dim> &group_size,
                                        unsigned local_mem_size) {
 
-    sycl::range<Dim> selected_group_size = group_size;
-    if(group_size.size() == 0) {
-      if constexpr(Dim == 1) {
-        selected_group_size = sycl::range{128};
-      } else if constexpr(Dim == 2) {
-        selected_group_size = sycl::range{16,16};
-      } else if constexpr(Dim == 3) {
-        selected_group_size = sycl::range{4,8,8};
-      }
+    auto sscp_invoker = this->get_launch_capabilities().get_sscp_invoker();
+    if(!sscp_invoker) {
+      rt::register_error(
+          __hipsycl_here(),
+          rt::error_info{"Attempted to prepare to launch SSCP kernel, but the backend "
+                         "did not configure the kernel launcher for SSCP."});
     }
 
-    sycl::range<Dim> num_groups;
-    for(int i = 0; i < Dim; ++i) {
-      num_groups[i] = (global_range[i] + selected_group_size[i] - 1) /
+    auto* invoker = sscp_invoker.value();
+
+    const auto rt_global_range = flip_range(global_range);
+    auto selected_group_size = flip_range(group_size);
+    if (group_size.size() == 0)
+      selected_group_size = invoker->select_group_size(rt_global_range, selected_group_size);
+    
+    rt::range<3> num_groups;
+    for(int i = 0; i < 3; ++i) {
+      num_groups[i] = (rt_global_range[i] + selected_group_size[i] - 1) /
                       selected_group_size[i];
     }
-
     launch_kernel(k, op, num_groups, selected_group_size, local_mem_size);
   }
 
@@ -358,17 +384,6 @@ private:
                      const sycl::range<Dim> &num_groups,
                      const sycl::range<Dim> &group_size,
                      unsigned local_mem_size) {
-
-    auto flip_range = [](const sycl::range<Dim> &r) {
-      rt::range<3> rt_range{1,1,1};
-
-      for (int i = 0; i < Dim; ++i) {
-        rt_range[i] = r[Dim - i - 1];
-      }
-
-      return rt_range;
-    };
-
     launch_kernel(k, op, flip_range(num_groups), flip_range(group_size),
                   local_mem_size);
   }
@@ -427,6 +442,7 @@ private:
   std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
   const kernel_configuration* _configuration = nullptr;
+  void* _params = nullptr;
 };
 
 

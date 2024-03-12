@@ -64,7 +64,7 @@ public:
   hip_event_pool* get_event_pool(device_id dev) const;
 private:
   mutable hip_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
+  mutable lazily_constructed_executor<multi_queue_executor> _executor;
 };
 
 }

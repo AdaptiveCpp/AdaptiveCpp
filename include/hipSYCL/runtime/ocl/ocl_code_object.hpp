@@ -64,8 +64,9 @@ private:
 
 class ocl_executable_object : public code_object {
 public:
-  ocl_executable_object(const cl::Context& ctx, cl::Device& dev,
-    hcf_object_id source, const std::string& code_image, const glue::kernel_configuration &config);
+  ocl_executable_object(const cl::Context &ctx, cl::Device &dev,
+                        hcf_object_id source, const std::string &code_image,
+                        const glue::kernel_configuration &config);
   virtual ~ocl_executable_object();
 
   result get_build_result() const;

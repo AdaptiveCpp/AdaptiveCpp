@@ -119,7 +119,9 @@ enum class setting {
   sscp_failed_ir_dump_directory,
   gc_trigger_batch_size,
   ocl_no_shared_context,
-  ocl_show_all_devices
+  ocl_show_all_devices,
+  no_jit_cache_population,
+  adaptivity_level,
 };
 
 template <setting S> struct setting_trait {};
@@ -151,6 +153,8 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::sscp_failed_ir_dump_directory,
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::gc_trigger_batch_size, "rt_gc_trigger_batch_size", std::size_t)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_no_shared_context, "rt_ocl_no_shared_context", bool)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_show_all_devices, "rt_ocl_show_all_devices", bool)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::no_jit_cache_population, "rt_no_jit_cache_population", bool)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::adaptivity_level, "adaptivity_level", int)
 
 class settings
 {
@@ -185,6 +189,10 @@ public:
       return _ocl_no_shared_context;
     } else if constexpr(S == setting::ocl_show_all_devices) {
       return _ocl_show_all_devices;
+    } else if constexpr(S == setting::no_jit_cache_population) {
+      return _no_jit_cache_population;
+    } else if constexpr(S == setting::adaptivity_level) {
+      return _adaptivity_level;
     }
     return typename setting_trait<S>::type{};
   }
@@ -226,6 +234,10 @@ public:
         get_environment_variable_or_default<setting::ocl_no_shared_context>(false);
     _ocl_show_all_devices =
         get_environment_variable_or_default<setting::ocl_show_all_devices>(false);
+    _no_jit_cache_population =
+        get_environment_variable_or_default<setting::no_jit_cache_population>(false);
+    _adaptivity_level =
+        get_environment_variable_or_default<setting::adaptivity_level>(1);
   }
 
 private:
@@ -252,6 +264,8 @@ private:
   visibility_mask_t _visibility_mask;
   bool _ocl_no_shared_context;
   bool _ocl_show_all_devices;
+  bool _no_jit_cache_population;
+  int _adaptivity_level;
 };
 
 }

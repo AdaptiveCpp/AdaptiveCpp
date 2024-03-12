@@ -104,7 +104,6 @@ class device_id
 {
 public:
   device_id() = default;
-  device_id(const device_id&) = default;
   device_id(backend_descriptor b, int id);
   
   bool is_host() const;

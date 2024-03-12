@@ -27,6 +27,7 @@
 
 
 #include "hipSYCL/runtime/data.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
@@ -34,6 +35,7 @@
 #include "hipSYCL/sycl/access.hpp"
 
 #include <mutex>
+#include <utility>
 
 // TODO: Implement the following optimization:
 // - Reorder requirements such that larger accesses come first. This will cause
@@ -45,6 +47,24 @@ namespace rt {
 
 namespace {
 
+// Attempts to find x in node's dependency graph
+bool find_dependency(const dag_node_ptr &node, const dag_node_ptr& x,
+                                    int max_num_levels = 2) {
+  if(max_num_levels <= 0)
+    return false;
+
+  for(auto& req : node->get_requirements()) {
+    if(auto req_locked = req.lock()) {
+      if(req_locked == x)
+        return true;
+    
+      if(find_dependency(req_locked, x, max_num_levels - 1))
+        return true;
+    }
+  }
+
+  return false;
+}
 
 // Add this node to the data users of the memory region of the specified
 // requirement
@@ -79,12 +99,21 @@ void add_to_data_users(dag_node_ptr node, memory_requirement *mem_req) {
 
       // Write accesses always create strong dependencies, so we can
       // safely replace the old user in any case
-      if(new_user_writes)
+      if(new_user_writes) {
         return true;
+      }
       // A read-only access is weaker than a write-access, so we can
       // only replace if the other user is also a read-only access.
       else if(!old_user_writes){
-        return true;
+        auto user_locked = user.user.lock();
+        // If user does not exist anymore, it can be replaced.
+        if(!user_locked)
+          return true;
+        // Replacement is only correct if the old user is part of the dependency chain
+        // of the new user, since two read accesses otherwise might not have a dependency.
+        if(find_dependency(node, user_locked)) {
+          return true;
+        }
       }
 
       return false;
@@ -228,8 +257,7 @@ dag dag_builder::finish_and_reset()
 {
   std::lock_guard<std::mutex> lock{_mutex};
 
-  dag final_dag = _current_dag;
-  _current_dag = dag{};
+  dag final_dag = std::exchange(_current_dag, {});
 
   HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operations: " << std::endl;
   int operation_index = 0;

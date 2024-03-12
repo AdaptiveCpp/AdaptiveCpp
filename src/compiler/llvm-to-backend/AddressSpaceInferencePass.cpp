@@ -26,6 +26,8 @@
  */
 
 #include <cassert>
+
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/BasicBlock.h>
@@ -148,9 +150,17 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
               if(auto* CB = llvm::dyn_cast<llvm::CallBase>(U)) {
                 llvm::StringRef CalleeName = CB->getCalledFunction()->getName();
                 if(CalleeName.startswith("llvm.lifetime")) {
-                  // TODO: We should not just discard these intrinsic calls,
-                  // but rewrite them to the new address space.
                   InstsToRemove.push_back(CB);
+
+                  llvm::Intrinsic::ID Id = CalleeName.startswith("llvm.lifetime.start")
+                                               ? llvm::Intrinsic::lifetime_start
+                                               : llvm::Intrinsic::lifetime_end;
+
+                  llvm::SmallVector<llvm::Type*> IntrinsicType {NewAI->getType()};
+                  llvm::Function *LifetimeIntrinsic =
+                      llvm::Intrinsic::getDeclaration(&M, Id, IntrinsicType);
+                  llvm::SmallVector<llvm::Value*> CallArgs{CB->getArgOperand(0), NewAI};
+                  llvm::CallInst::Create(llvm::FunctionCallee(LifetimeIntrinsic), CallArgs, "", CB);
                 }
               }
             });

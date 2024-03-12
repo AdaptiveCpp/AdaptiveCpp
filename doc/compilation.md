@@ -1,58 +1,28 @@
-# AdaptiveCpp compilation model
+# AdaptiveCpp compilation flows
+
+AdaptiveCpp supports multiple types of compilation flows:
+
+1. **A generic, single-pass compiler infrastructure that compiles kernels to a unified code representation** that is then lowered at runtime to target devices, providing a high degree of portability, low compilation times, flexibility and extensibility. **AdaptiveCpp is the only major SYCL implementation that supports a single-pass compiler design, where the code is only parsed once for both host and target devices**. Support includes:
+   1. NVIDIA CUDA GPUs through PTX;
+   2. AMD ROCm GPUs through amdgcn code;
+   3. Intel GPUs through SPIR-V (Level Zero);
+   4. SPIR-V compatible OpenCL devices supporting Intel USM extensions or fine-grained system SVM (such as Intel's OpenCL implementation for CPUs or GPUs);
+   5. The host CPU through LLVM
+2. Interoperability-focused multipass compilation flows. **AdaptiveCpp can aggregate existing clang toolchains and augment them with support for SYCL constructs**. This allows for a high degree of interoperability between SYCL and other models such as CUDA or HIP. For example, in this mode, the AdaptiveCpp CUDA and ROCm backends rely on the clang CUDA/HIP frontends that have been augmented by AdaptiveCpp to *additionally* also understand other models like SYCL. This means that the AdaptiveCpp compiler can not only compile SYCL code, but also CUDA/HIP code *even if they are mixed in the same source file*, making all CUDA/HIP features - such as the latest device intrinsics - also available from SYCL code ([details](hip-source-interop.md)). Additionally, vendor-optimized template libraries such as rocPRIM or CUB can also be used with AdaptiveCpp. This allows for highly optimized code paths in SYCL code for specific devices. Support includes:
+   1. Any LLVM-supported CPU (including e.g. x86, arm, power etc) through the regular clang host toolchain with dedicated compiler transformation to accelerate SYCL constructs;
+   2. NVIDIA CUDA GPUs through the clang CUDA toolchain;
+   3. AMD ROCm GPUs through the clang HIP toolchain
+3. Or **AdaptiveCpp can be used in library-only compilation flows**. In these compilation flows, AdaptiveCpp acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support for:
+   1. Any CPU supported by any OpenMP compilers;
+   2. NVIDIA GPUs through CUDA and the NVIDIA nvc++ compiler, bringing NVIDIA vendor support and day 1 hardware support to the SYCL ecosystem
+
+The following illustration shows the complete stack and its capabilities to target hardware:
+![Compiler stack](img/stack.png)
 
 
-AdaptiveCpp relies on the fact that many existing programming models as well as SYCL are single-source programming models based on C++. This means that it is possible to extend existing toolchains, such as the CUDA and the HIP toolchains, to also support SYCL code. AdaptiveCpp does that by using clang's CUDA and HIP toolchains with a custom clang plugin. Additionally, AdaptiveCpp can utilize the clang SYCL frontend to generate SPIR-V code.
-AdaptiveCpp contains mechanisms to embed and aggregate compilation results from multiple toolchains into a single binary, allowing it to effectively combine multiple toolchains into one. This is illustrated here:
+## Generic SSCP compilation flow (`--acpp-targets=generic`)
 
-![acpp design](/doc/img/acpp.png)
-
-
-AdaptiveCpp distinguishes and supports several compilation models:
-
-1. Compilation flows focused on interoperability with other programming models
-   1. *library-only*, where AdaptiveCpp acts as a library for a third-party compiler
-   2. *SMCP* (single-source, multiple compiler pass) models, where AdaptiveCpp extends existing heterogeneous toolchains to also understand SYCL constructs. These toolchains rely on performing multiple compiler passes for host and device code. Here, we distinguish two flavors:
-      1. *integrated multipass*, where host and device compilation passes are handled by clang's CUDA and HIP drivers. This mode allows for the most interoperability with backends because backend-specific language extensions are also available in the host pass. For example, kernels can be launched using the `<<<>>>` syntax. However, limitations in clang's compilation drivers also affect AdaptiveCpp in this mode. In particular, CUDA and HIP cannot be targeted simultaneously because host code cannot support language extensions from *both* at the same time.
-      2. *explicit multipass*, where host and device compilation passes are handled by AdaptiveCpp's `acpp` compiler driver. Here, `acpp` invokes backend-specific device passes, which then result in a compiled kernel image for the target device. `acpp` then embeds the compiled kernel image into the host binary. At runtime, the kernel is extracted from the image and invoked using runtime functions instead of language extensions. As a consequence, explicit multipass compilation for one backend can be combined with arbitrary other backends simultaneously, allowing AdaptiveCpp to target multiple device backends at the same time. Note that in explicit multipass, different guarantees might be made regarding the availability of backend-specific language extensions in the host pass compared to integrated multipass. See the section on language extension guarantees below for more details.
-2. *Generic SSCP* (Single-source, single compiler pass), where AdaptiveCpp compiles kernels to a generic representation in LLVM IR, which is then lowered at runtime to backend-specific formats such as PTX or SPIR-V as needed. Unlike the SMCP flows, there is only a single compiler invocation, and the code is only parsed once, no matter how many devices or backends are utilized. This flow can potentially provide *the most portability with the lowest compile times*, although it is still experimental work-in-progress, and support levels may vary for the different backends.
-3. *Compiler-accelerated host pass*, where a regular C++ host pass is augmented with additional compiler transformations to increase performance of certain SYCL constructs when running on CPU.
-
-Not all backends support all models. The following compilation flows are currently supported, and can be requested as backend targets in `acpp`. Note that some are available in both explicit multipass and integrated multipass flavor:
-
-| Compilation flow | Target hardware | Model | Short description |
-|------------------|-------------------|-------------------|-------------------|
-| `omp.library-only` | Any CPU | Library-only | CPU backend (OpenMP library) |
-| `omp.accelerated` | Any CPU supported by LLVM | Accelerated host pass | CPU backend (OpenMP library with additional clang acceleration) |
-| `cuda.integrated-multipass` | NVIDIA GPUs | Integrated SMCP | CUDA backend|
-| `cuda.explicit-multipass` | NVIDIA GPUs | Explicit SMCP | CUDA backend |
-| `cuda-nvcxx` | NVIDIA GPUs | Library-only | CUDA backend using nvc++ |
-| `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | Integrated SMCP | HIP backend |
-| `hip.explicit-multipass` | AMD GPUs (supported by ROCm) | Explicit SMCP | HIP backend |
-| `spirv` | Intel GPUs | Explicit SMCP | SPIR-V/Level Zero backend |
-| `generic` | (see below) | Generic SSCP | Generic single-pass flow |
-
-**Note:** 
-* Explicit multipass requires building AdaptiveCpp against a clang that supports `__builtin_unique_stable_name()` (available in clang 11), or clang 13 or newer as described in the [installation documentation](installing.md). `hip.explicit-multipass` requires clang 13 or newer.
-* Generic SSCP requires clang 14 or newer.
-
-## Language extension guarantees
-
-AdaptiveCpp allows using backend-specific language extensions (e.g. CUDA/HIP C++). The precise guarantees about the availability of these extensions are as follows:
-
-* If a backend runs on a compiler that provides a unified, single compilation pass for both host and device, backend-specific language extensions are always available. Currently this only affects the CUDA-nvc++ backend.
-* If the compiler relies on separate compilation passes for host and device:
-  * In device compilation passes, backend-specific language extensions are always available.
-  * In host compilation passes, the following applies:
-    * If the backend runs in integrated multipass mode, backend-specific language extensions are available.
-    * If the backend runs in explicit multipass mode:
-      * For SPIR-V, language extensions are always available
-      * For CUDA and HIP: Language extensions from *one* of them are available in the host pass.
-        * If one of them runs in integrated multipass and one in explicit multipass, language extensions from the one in integrated multipass are available
-        * If both are in explicit multipass, `acpp` will currently automatically pick one that will have language extensions enabled in the host pass.
-
-## Generic SSCP compilation flow
-
-**Note:** This flow is work-in-progress and support level may vary quickly.
+**Note:** This flow is AdaptiveCpp's default compilation flow, and for good reason: It compiles faster, typically generates faster code, and creates portable binaries. It is one of the focal points of our work, and development is thus moving quickly.
 
 AdaptiveCpp supports a generic single-pass compiler flow, where a single compiler invocation generates both host and device code. The SSCP compilation consists of two stages:
 1. Stage 1 happens at compile time: During the regular C++ host compilation, AdaptiveCpp extracts LLVM IR for kernels with backend-independent representations of builtins, kernel annotations etc. This LLVM IR is embedded in the host code. During stage 1, it is not yet known on which device(s) the code will ultimately run.
@@ -67,47 +37,66 @@ The generic SSCP flow can potentially provide very fast compile times, very good
 
 ### Implementation status
 
-Currently, the SSCP flow is implemented for
-* CUDA devices
-* SPIR-V devices through oneAPI Level Zero
-* AMD ROCm devices
+The SSCP flow is supported for all backends.
 
 Some features (e.g. SYCL 2020 reductions or group algorithms) are not yet implemented.
 
 ### How it works
 
-#### IR constants
+Details on the implementation of the generic SSCP compiler can be found [here](generic-sscp.md)
 
-The SSCP kernel extraction relies on the concept of what we refer to as IR constants. IR constants are global variables, that are non-const and without defined value when parsing the code, but will be turned into constants later during the processing of LLVM IR. This is a similar idea to e.g. SYCL 2020 specialization constants, and indeed specialization constants could be implemented on top of IR constants.
+## Compilation flows focused on interoperability and deployment simplicity (`--acpp-targets=omp;cuda;hip`)
 
-Stage 1 IR constants are hard-wired. The following important S1 IR constants exist:
-* A string containing the device LLVM IR bitcode
-* Whether the LLVM module contains the host code
-* Whether the LLVM module contains the device code.
+*Note:* If your primary concern is not interoperability or deployment simplicity but instead e.g. performance or portability, you should probably use the generic SSCP compiler (`--acpp-targets=generic`) instead.
 
-Stage 2 IR constants are intended to provide information that requires knowledge of the target device, such as backend, device, and so on. Stage 2 IR constants can also be programmatically added by the user.
+AdaptiveCpp's interoperability compilation flows rely on the fact that many existing programming models as well as SYCL are single-source programming models based on C++. This means that it is possible to extend existing toolchains, such as the CUDA and the HIP toolchains, to also support SYCL code. AdaptiveCpp does that by using clang's CUDA and HIP toolchains with a custom clang plugin.
+AdaptiveCpp contains mechanisms to embed and aggregate compilation results from multiple toolchains into a single binary, allowing it to effectively combine multiple toolchains into one.
 
-After AdaptiveCpp sets the value of an IR constant, it runs constant propagation and dead code elimination passes. This causes if statements depending entirely on IR constants to be trivially optimized away - causing either removal of the code contained in the if brach, or hardwiring the code.
+AdaptiveCpp distinguishes multiple kinds of compilation models focused on interoperability and deployment simplicity:
 
-#### Stage 1: Kernel extraction
+1. *SMCP* (single-source, multiple compiler pass) models, where AdaptiveCpp extends existing heterogeneous toolchains to also understand SYCL constructs. These toolchains rely on performing multiple compiler passes for host and device code. Here, we distinguish two flavors:
+    1. `cuda.integrated-multipass`, `hip.integrated-multipass`: *Integrated multipass* compilation flows, where host and device compilation passes are handled by clang's CUDA and HIP drivers. This mode allows for the most interoperability with backends because backend-specific language extensions are also available in the host pass. For example, kernels can be launched using the `<<<>>>` syntax. However, limitations in clang's compilation drivers also affect AdaptiveCpp in this mode. In particular, CUDA and HIP cannot be targeted simultaneously because host code cannot support language extensions from *both* at the same time.
+    2. `cuda.explicit-multipass`, `hip.explicit-multipass`: *Explicit multipass* compilation flows, where host and device compilation passes are handled by AdaptiveCpp's `acpp` compiler driver. Here, `acpp` invokes backend-specific device passes, which then result in a compiled kernel image for the target device. `acpp` then embeds the compiled kernel image into the host binary. At runtime, the kernel is extracted from the image and invoked using runtime functions instead of language extensions. As a consequence, explicit multipass compilation for one backend can be combined with arbitrary other backends simultaneously, allowing AdaptiveCpp to target multiple device backends at the same time. Note that in explicit multipass, different guarantees might be made regarding the availability of backend-specific language extensions in the host pass compared to integrated multipass. See the section on language extension guarantees below for more details.
+2. *library-only*, where AdaptiveCpp acts as a library for a third-party compiler. This approach mostly is beneficial for deployment simplicity, but may not be optimal for functionality of performance. This approach is taken by the `omp.library-only` and `cuda-nvcxx` compilation flows.
+    1. `omp.library-only` allows using AdaptiveCpp as a library for third-party OpenMP compilers, and can execute kernels on the host CPU.
+    2. `cuda-nvcxx` allows using AdaptiveCpp as a library for NVIDIA's nvc++ compiler, and can execute kernels on NVIDIA GPUs.   
+3. `omp.accelerated`: *Compiler-accelerated host pass*, where a regular C++ host pass is augmented with additional compiler transformations to increase performance of certain SYCL constructs when running on CPU.
 
-During stage 1, AdaptiveCpp clones the module containing the regular host IR, and sets the IR constants such that one is identified as host code, and one is identified as device code.
-The kernel function calls are guarded inside the AdaptiveCpp headers by an if-statement depending on the IR constant signifying device compilation. This causes kernel code only to end up in the device module, and host code to end up only in the host module. To be sure that no host code remains in the device module, AdaptiveCpp runs additional passes in the device module to remove all code not reachable from kernel entry points.
+### Language extension guarantees
 
-The implementation of SYCL builtins contains an if/else branch depending on the IR constant signifying device compilation. One branch invokes the externally defined SSCP builtins following the naming scheme `__hipsycl_sscp_*`, while the other branch invokes regular host builtins.
-This allows SYCL kernels to simultaneously run correctly both on the host as well as on SSCP-supported devices.
+AdaptiveCpp allows using backend-specific language extensions (e.g. CUDA/HIP C++) in the interoperability-focused compilation flows. The precise guarantees about the availability of these extensions are as follows:
 
-The final LLVM IR device bitcode is then embedded into a stage 1 IR constant string in the host module.
+* If a backend runs on a compiler that provides a unified, single compilation pass for both host and device, backend-specific language extensions are always available. Currently this only affects the CUDA-nvc++ backend.
+* If the compiler relies on separate compilation passes for host and device:
+  * In device compilation passes, backend-specific language extensions are always available.
+  * In host compilation passes, the following applies:
+    * If the backend runs in integrated multipass mode, backend-specific language extensions are available.
+    * If the backend runs in explicit multipass mode:
+      * For SPIR-V, language extensions are always available
+      * For CUDA and HIP: Language extensions from *one* of them are available in the host pass.
+        * If one of them runs in integrated multipass and one in explicit multipass, language extensions from the one in integrated multipass are available
+        * If both are in explicit multipass, `acpp` will currently automatically pick one that will have language extensions enabled in the host pass.
 
-#### Stage 2: llvm-to-backend
 
-During stage 2, the `llvm-to-backend` infrastructure is responsible for turning the generic LLVM IR into something that a backend can actually execute. This means in particular:
-- Flavoring the LLVM IR such that the appropriate LLVM backend can handle the code; e.g. by correctly mapping address spaces, attaching information to mark kernels as entry points, correctly setting target triple, data layout, and function calling conventions etc.
-- Mapping `__hipsycl_sscp_*` builtins to backend builtins. This typically happens by linking backend-specific bitcode libraries.
-- Running optimization passes on the finalized IR
-- Lowering the flavored, optimized IR to backend-specific formats, such as ptx or SPIR-V.
+## Summary of supported compilation targets
 
-For debugging, development, or advanced use cases, each `llvm-to-backend` implementation provides a tool (called `llvm-to-ptx-tool`, `llvm-to-spirv-tool`, ....) that can be invoked to perform the stage 2 compilation step manually.
+Not all backends necessarily support all models. The following compilation flows are currently supported, and can be requested as backend targets in `acpp`. Note that some are available in both explicit multipass and integrated multipass flavor:
+
+| Compilation flow | Target hardware | Model | Short description |
+|------------------|-------------------|-------------------|-------------------|
+| `omp.library-only` | Any CPU | Library-only | CPU backend (OpenMP library) |
+| `omp.accelerated` | Any CPU supported by LLVM | Accelerated host pass | CPU backend (OpenMP library with additional clang acceleration) |
+| `cuda.integrated-multipass` | NVIDIA GPUs | Integrated SMCP | CUDA backend|
+| `cuda.explicit-multipass` | NVIDIA GPUs | Explicit SMCP | CUDA backend |
+| `cuda-nvcxx` | NVIDIA GPUs | Library-only | CUDA backend using nvc++ |
+| `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | Integrated SMCP | HIP backend |
+| `hip.explicit-multipass` | AMD GPUs (supported by ROCm) | Explicit SMCP | HIP backend |
+| `generic` | (see below) | Generic SSCP | Generic single-pass flow |
+
+**Note:** 
+* Explicit multipass requires building AdaptiveCpp against a clang that supports `__builtin_unique_stable_name()` (available in clang 11), or clang 13 or newer as described in the [installation documentation](installing.md). `hip.explicit-multipass` requires clang 13 or newer.
+* Generic SSCP requires clang 14 or newer.
+
 
 ## Compiler support to accelerate nd_range parallel_for on CPUs (omp.accelerated)
 
@@ -127,6 +116,13 @@ A deep dive into how the implementation works and why this approach was chosen
 can be found in Joachim Meyer's [master thesis](https://joameyer.de/hipsycl/Thesis_JoachimMeyer.pdf).
 
 For more details, see the [installation instructions](installing.md) and the documentation [using AdaptiveCpp](using-hipsycl.md).
+
+## acpp compilation driver
+
+The `acpp` compilation driver is responsible for controlling the active compilation flows.
+The following image illustrates the different flows that AdaptiveCpp supports through `acpp`.
+
+![acpp design](img/acpp.png)
 
 ## File format for embedded device code
 

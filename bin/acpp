@@ -40,6 +40,12 @@ import uuid
 import binascii
 import shutil
 
+def print_warning(*args):
+  print("acpp warning:", *args, file=sys.stderr)
+
+def print_error(*args):
+  print("acpp error:", *args, file=sys.stderr)
+
 class OptionNotSet(Exception):
   def __init__(self, msg):
     super().__init__(msg)
@@ -164,25 +170,31 @@ HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_ob
     with open(filename, 'w') as f:
       f.write(str(self))
 
-class config_file:
-  def __init__(self, filepath):
-    self._location = filepath
-    try:
-      with open(filepath, 'r') as config_file:
-        self._data = json.load(config_file)
-        self._is_loaded = True
-    except:
-      print("Could not open config",filepath)
-      self._data = {}
-      self._is_loaded = False
+class config_db:
+  # Scans the provided directory for json files
+  def __init__(self, config_file_dirs):
+    
+    self._data = {}
+    self._locations = {}
+    self._config_dirs = config_file_dirs
+
+    for current_dir in config_file_dirs:
+      files = os.listdir(current_dir)
+      for f in files:
+        if f.lower().endswith(".json"):
+          with open(os.path.join(current_dir, f), 'r') as config_file:
+            data = json.load(config_file)
+            for d in data:
+              self._data[d] = data[d]
+            self._is_loaded = True
 
   @property
   def is_loaded(self):
     return self._is_loaded
 
   @property
-  def location(self):
-    return self._location
+  def config_dirs(self):
+    return self._config_dirs
 
   @property
   def keys(self):
@@ -199,7 +211,7 @@ class config_file:
 
   def get(self, key):
     if not self.contains_key(key):
-      raise RuntimeError("Accessed missing key in config file: "+key)
+      raise RuntimeError("Accessed missing key in config files: "+key)
 
     return self._data[key]
 
@@ -209,10 +221,10 @@ class config_file:
     return default_value
 
 class option:
-  def __init__(self, commandline, environment, configfile, description):
+  def __init__(self, commandline, environment, config_db, description):
     self._commandline = commandline
     self._environment = environment
-    self._configfile = configfile
+    self._config_db = config_db
     self._description = description
 
   @property
@@ -224,8 +236,8 @@ class option:
     return self._environment
 
   @property
-  def configfile(self):
-    return self._configfile
+  def config_db(self):
+    return self._config_db
 
   @property
   def description(self):
@@ -233,19 +245,6 @@ class option:
 
 class acpp_config:
   def __init__(self, args):
-    config_file_path = os.path.abspath(
-      os.path.join(self.acpp_installation_path,
-                  "etc/hipSYCL/syclcc.json"))
-    
-    self._config_file = None
-    # First check silently if we can open the default config file.
-    # If that fails, we try later on after argument parsing if a
-    # custom location for the config file has been supplied.
-    # (This happens when compiling hipSYCL)
-    if os.path.exists(config_file_path):
-      self._config_file = config_file(config_file_path)
-      
-    self._args = args
 
     # Describes different representations of options:
     # 1.) the corresponding command line argument
@@ -308,8 +307,8 @@ class acpp_config:
       'cuda-cxx-flags' : option("--acpp-cuda-cxx-flags", "ACPP_CUDA_CXX_FLAGS", "default-cuda-cxx-flags",
 """ The arguments passed to the compiler to compile for the CUDA backend"""),
 
-      'config-file' : option("--acpp-config-file", "ACPP_CONFIG_FILE", "default-config-file",
-"""  Select an alternative path for the config file containing the default hipSYCL settings.
+      'config-file-dir' : option("--acpp-config-file-dir", "ACPP_CONFIG_FILE_DIR", "default-config-file-dir",
+"""  Select an alternative path for the config files containing the default AdaptiveCpp settings.
     It is normally not necessary for the user to change this setting. """),
     
       'targets': option("--acpp-targets", "ACPP_TARGETS", "default-targets",
@@ -339,7 +338,6 @@ class acpp_config:
                                          (see --acpp-explicit-multipass)
                - hip.integrated-multipass: Force HIP backend to operate in integrated
                                            multipass mode.
-      * spirv - use clang SYCL driver to generate spirv
       * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device"""),
 
       'stdpar-prefetch-mode' : option("--acpp-stdpar-prefetch-mode", "ACPP_STDPAR_PREFETCH_MODE", "default-stdpar-prefetch-mode", 
@@ -383,6 +381,9 @@ class acpp_config:
   This particularly affects small problem sizes. If this flag is set, supported parallel STL
   algorithms will be offloaded unconditionally.""")
     }
+
+
+    self._args = args
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._acpp_args = []
     self._acpp_environment_args = {}
@@ -404,23 +405,24 @@ class acpp_config:
         self._acpp_environment_args[envvar] = os.environ[envvar]
       elif self._is_acpp_envvar(self._upgrade_legacy_environ_var(envvar)):
         self._acpp_environment_args[self._upgrade_legacy_environ_var(envvar)] = os.environ[envvar]
-        
-    if self._is_option_set_to_non_default_value("config-file"):
-      self._config_file = config_file(self._retrieve_option("config-file"))
-      
-    if self._config_file == None:
-      # If the config file is still None at this point, probably no alternative
-      # config file was supplied and the default one doesn't exist.
-      # As a last resort, we check if there is a global config file
-      # TODO try using some more portable path here
-      global_config_file = '/etc/hipSYCL/syclcc.json'
-      if os.path.exists(global_config_file):
-        self._config_file = config_file(global_config_file)
-      else:
-        # The main purpose of opening the default config file explicitly 
-        # here is that it will print a warning for the user
-        # if it doesn't exist and set the config file content to {}.
-        self._config_file = config_file(config_file_path)
+    
+    config_file_directories = []
+
+    install_config_dir = os.path.abspath(
+      os.path.join(self.acpp_installation_path,
+                  "etc/AdaptiveCpp"))
+    
+    # TODO try using some more portable path here
+    global_config_dir = '/etc/AdaptiveCpp'
+    
+    if self._is_option_set_to_non_default_value("config-file-dir"):
+      config_file_directories.append(self._retrieve_option("config-file-dir"))
+    elif os.path.exists(install_config_dir):
+      config_file_directories.append(install_config_dir)
+    elif os.path.exists(global_config_dir):
+      config_file_directories.append(global_config_dir)
+    self._config_db = config_db(config_file_directories)
+
     
     self._common_compiler_args = self._get_std_compiler_args()
 
@@ -459,7 +461,7 @@ class acpp_config:
       opt = self._options[option_name]
       print(opt.commandline + "=<value>")
       print("  [can also be set with environment variable: {}=<value>]".format(opt.environment))
-      print("  [default value provided by field '{}' in {}.]".format(opt.configfile, self._config_file.location))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(opt.config_db, self._config_db.config_dirs))
       try:
         print("  [current value: {}]".format(self._retrieve_option(option_name)))
       except OptionNotSet:
@@ -474,7 +476,7 @@ class acpp_config:
       print("  [can also be set by setting environment variable {} to any value other than false|off|0 ]".format(
         flag.environment
       ))
-      print("  [default value provided by field '{}' in {}.]".format(flag.configfile, self._config_file.location))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(flag.config_db, self._config_db.config_dirs))
       try:
         print("  [current value: {}]".format(self._is_flag_set(flag_name)))
       except OptionNotSet:
@@ -503,8 +505,8 @@ class acpp_config:
       env_value = self._acpp_environment_args[flag.environment]
       return self._interpret_flag(env_value)
 
-    if self._config_file.contains_key(flag.configfile):
-      return self._interpret_flag(self._config_file.get(flag.configfile))
+    if self._config_db.contains_key(flag.config_db):
+      return self._interpret_flag(self._config_db.get(flag.config_db))
 
     raise OptionNotSet(
       "Could not infer value of required flag from command line argument {}, "
@@ -584,9 +586,9 @@ class acpp_config:
     if opt.environment in self._acpp_environment_args:
       return self._acpp_environment_args[opt.environment]
 
-    # Try config file
-    if self._config_file.contains_key(opt.configfile):
-      return self._config_file.get(opt.configfile)
+    # Try config db
+    if self._config_db.contains_key(opt.config_db):
+      return self._config_db.get(opt.config_db)
   
     if not allow_unset:
       raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
@@ -643,29 +645,29 @@ class acpp_config:
   @property
   def version(self):
   
-    if not self._config_file.contains_key("version-major"):
+    if not self._config_db.contains_key("version-major"):
       raise OptionNotSet("Could not retrieve major version from config file")
-    if not self._config_file.contains_key("version-minor"):
+    if not self._config_db.contains_key("version-minor"):
       raise OptionNotSet("Could not retrieve major version from config file")
-    if not self._config_file.contains_key("version-patch"):
+    if not self._config_db.contains_key("version-patch"):
       raise OptionNotSet("Could not retrieve major version from config file")
     
     # version suffix may be empty if git queries fail
     suffix = ""
-    if self._config_file.contains_key("version-suffix"):
-      suffix = self._config_file.get("version-suffix")
+    if self._config_db.contains_key("version-suffix"):
+      suffix = self._config_db.get("version-suffix")
 
     return (
-      self._config_file.get("version-major"), 
-      self._config_file.get("version-minor"),
-      self._config_file.get("version-patch"),
+      self._config_db.get("version-major"), 
+      self._config_db.get("version-minor"),
+      self._config_db.get("version-patch"),
       suffix)
 
   @property
   def plugin_llvm_version(self):
-    if not self._config_file.contains_key("plugin-llvm-version-major"):
+    if not self._config_db.contains_key("plugin-llvm-version-major"):
       raise OptionNotSet("Could not retrieve plugin LLVM version from config file")
-    return int(self._config_file.get("plugin-llvm-version-major"))
+    return int(self._config_db.get("plugin-llvm-version-major"))
 
   @property
   def has_plugin(self):
@@ -673,9 +675,9 @@ class acpp_config:
 
   @property
   def has_plugin_cpu_acceleration(self):
-    if not self._config_file.contains_key("plugin-with-cpu-acceleration"):
+    if not self._config_db.contains_key("plugin-with-cpu-acceleration"):
       raise OptionNotSet("Could not retrieve plugin cpu acceleration capability from config file")
-    return self._interpret_flag(self._config_file.get("plugin-with-cpu-acceleration"))
+    return self._interpret_flag(self._config_db.get("plugin-with-cpu-acceleration"))
 
   @property
   def runtime_backends(self):
@@ -862,6 +864,34 @@ class acpp_config:
   def common_compiler_args(self):
     return self._common_compiler_args
 
+
+  @property
+  def default_clang_optimization_args(self):
+    has_ffp_contract = False
+    has_fast_math = False
+    opt_level = 0
+    opt_args = []
+
+    for arg in self._args:
+      if arg == "-ffast-math":
+        has_fast_math = True
+      elif arg.startswith("-ffp-contract="):
+        has_ffp_contract = True
+      elif arg.startswith("-O"):
+        ending = arg.replace("-O", "", 1)
+        if ending.isnumeric():
+          opt_level = int(ending)
+        elif ending == "fast":
+          opt_level = 3
+        else:
+          opt_level = 1
+
+    if opt_level > 1:
+      if not has_fast_math and not has_ffp_contract:
+        opt_args.append("-ffp-contract=fast")
+
+    return opt_args
+
   @property
   def acpp_include_path(self):
     return os.path.join(self.acpp_installation_path, "include", "AdaptiveCpp")
@@ -895,8 +925,8 @@ class acpp_config:
     return source_files
 
   @property
-  def configfile(self):
-    return self._config_file
+  def config_db(self):
+    return self._config_db
 
   def is_pure_linking_stage(self):
     return len(self.source_file_arguments) == 0
@@ -1162,101 +1192,6 @@ class hip_multipass_invocation:
       header.hcf_object.attach_binary_content(target_node, hipfb)
     
     header.write_header(self._integration_header)
-
-class spirv_multipass_invocation:
-  @property
-  def unique_name(self):
-    return "spirv"
-
-  @property
-  def is_integrated_multipass(self):
-    return False
-
-  @property
-  def is_explicit_multipass(self):
-    return not self.is_integrated_multipass
-
-
-  def __init__(self, config):
-    self._config = config
-    self._acpp_lib_path = os.path.join(
-      config.acpp_installation_path, "lib/")
-    self.set_temp_dir("/tmp")
-
-  def set_temp_dir(self, temp_dir):
-    self._temp_dir = temp_dir
-    self._integration_header = os.path.join(
-      self._temp_dir,"__acpp_embedded_spirv_kernels.hpp")
-
-  def get_requested_targets(self):
-    return ["spirv"]
-
-  def get_device_compiler(self):
-    return self._config.clang_path
-
-  def get_compiler_preference(self):
-    return (self._config.clang_path, 100)
-
-  def set_host_compiler(self, host_compiler):
-    pass
-
-  def enable_extended_host_pass(self):
-    pass
-
-  @property
-  def is_extended_host_pass_enabled(self):
-    return False
-
-  def get_host_pass_requirements(self):
-    return {
-      'requires-extended-host-pass' : False,
-      'extended-host-pass-providers' : [],
-      'conflicts' : ['cuda-nvcxx'],
-      'caveats' : []
-    }
-
-  def get_flags(self, target):
-    flags = self._config.cuda_cxx_flags
-    
-    flags += [
-        "-fsycl-device-only",
-        "-fsycl-unnamed-lambda",
-        "-fno-sycl-use-bitcode",
-        "-D__HIPSYCL_ENABLE_SPIRV_TARGET__",
-        "-D__HIPSYCL_SPIRV__",
-        "-o",self._explicit_pass_output_file(target)
-      ]
-
-    return flags
-
-  # CXX flags for main pass
-  def get_cxx_flags(self):
-    return [
-      "-Xclang", "-fsycl-is-host",
-      "-D__HIPSYCL_MULTIPASS_SPIRV_HEADER__=\"{}\"".format(
-            self._integration_header),
-      "-D__HIPSYCL_ENABLE_SPIRV_TARGET__"
-    ]
-
-  # Linker flags for main pass
-  def get_linker_flags(self):
-    return []
-
-  def _explicit_pass_output_file(self, target):
-    return os.path.join(self._temp_dir, "acpp-kernels.spv")
-
-  def create_code_objects(self, targets):
-
-    if len(targets) != 1 or targets[0] != "spirv":
-      raise RuntimeError("SPIR-V multipass invocation: Invalid target")
-
-    with open(self._explicit_pass_output_file(targets[0]), "rb") as f:
-      data = f.read()
-
-      header = integration_header("spirv")
-      header.hcf_object.attach_binary_content(header.hcf_object.root, data)
-    
-      header.write_header(self._integration_header)
 
 
 class cuda_invocation:
@@ -1584,6 +1519,7 @@ class llvm_sscp_invocation:
   def __init__(self, config, targets):
     self._linker_args = []
     self._cxx_flags = []
+    self._config = config
 
     if len(targets) != 0:
       raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")
@@ -1605,10 +1541,18 @@ class llvm_sscp_invocation:
     flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
             "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
 
+    sscp_compile_opts = []
+    if ("-Ofast" in self._config.forwarded_compiler_arguments or 
+      "-ffast-math" in self._config.forwarded_compiler_arguments):
+      sscp_compile_opts.append("fast-math")
+
+    if len(sscp_compile_opts) > 0:
+      flags += ["-mllvm", "-hipsycl-sscp-kernel-opts="+ ",".join(sscp_compile_opts)]
+
     if not sys.platform.startswith("win32"):
       flags += [
-        "-fplugin=" + config.acpp_plugin_path
-        , "-fpass-plugin=" + config.acpp_plugin_path
+        "-fplugin=" + self._config.acpp_plugin_path
+        , "-fpass-plugin=" + self._config.acpp_plugin_path
       ]
     flags += self._cxx_flags
 
@@ -1636,6 +1580,12 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    self._clang_opt_args = config.default_clang_optimization_args
+    try:
+      self._clang_path = config.clang_path
+    except OptionNotSet:
+      self._clang_path = None
+
     try:
       self._stdpar_prefetch_mode = config.stdpar_prefetch_mode
     except OptionNotSet:
@@ -1643,7 +1593,7 @@ class compiler:
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
-          print("acpp warning: CUDA and HIP cannot be targeted "
+          print_warning("CUDA and HIP cannot be targeted "
               "simultaneously in non-explicit multipass; enabling explicit "
               "multipass compilation.")
           self._is_explicit_multipass = True
@@ -1697,12 +1647,6 @@ class compiler:
       elif backend == "hip.explicit-multipass":
         self._multipass_backends.append(
           hip_multipass_invocation(config, config.targets["hip.explicit-multipass"]))
-      elif backend == 'spirv':
-        print("acpp warning: 'spirv' target is deprecated, incomplete and may not work. It should not be "
-              "used outside of experiments and will be removed in a future version. Production "
-              "use cases should use 'generic' target instead to target SPIR-V devices.")
-        self._multipass_backends.append(
-          spirv_multipass_invocation(config))
       elif backend == 'sscp' or backend == 'generic':
         self._backends.append(llvm_sscp_invocation(config, config.targets[backend]))
       else:
@@ -1715,7 +1659,7 @@ class compiler:
       mb.set_host_compiler(self._host_compiler)
 
     if not "omp" in self._targets and not "omp.accelerated" in self._targets and\
-            not "omp.library-only" in self._targets:
+            not "omp.library-only" in self._targets and not "generic" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
      self._backends.append(omp_sequential_invocation(config))
@@ -1743,21 +1687,18 @@ class compiler:
     fatal_error = False
     for b in self._backends:
       if selected_backends.count(b) > 1:
-        print("Error: backend",b,
-          "appears multiple times in processed target specification")
+        print_error("backend",b, "appears multiple times in processed target specification")
 
       reqs = b.get_host_pass_requirements()
       
       conflicts = reqs['conflicts']
       caveats = reqs['caveats']
       for c in caveats:
-        print("Warning: caveat in backend",b.unique_name,
-                  "detected:",c)
+        print_warning("caveat in backend",b.unique_name, "detected:",c)
 
       for c in conflicts:
         if c in selected_backends:
-          print("Error: requested backends",b.unique_name,
-                "and",c,"are incompatible.")
+          print_error("requested backends",b.unique_name, "and",c,"are incompatible.")
           fatal_error = True
     
     if fatal_error:
@@ -1821,6 +1762,10 @@ class compiler:
       "-isystem", self._acpp_include_path,
       "-D__OPENSYCL__","-D__HIPSYCL__", "-D__ADAPTIVECPP__", "-D__ACPP__"
     ]
+
+    # MSVC only defines constants like M_PI if _USE_MATH_DEFINES is set
+    if sys.platform.startswith("win32"):
+      args += ["-D_USE_MATH_DEFINES"]
 
     if self._is_stdpar:
       stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
@@ -1938,6 +1883,9 @@ class compiler:
     ld_flags = self.common_linker_flags
     compiler_executable = self._host_compiler
 
+    if compiler_executable == self._clang_path:
+      cxx_flags += self._clang_opt_args
+
     for backend_args in self._backends:
       cxx_flags += backend_args.get_cxx_flags()
       ld_flags += backend_args.get_linker_flags()
@@ -1967,12 +1915,12 @@ class compiler:
       return self._run(temp_dir)
 
 def print_config(config):
-  config_file = config.configfile
-  print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
-  for k in config_file.keys:
+  config_db = config.config_db
+  print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")
+  for k in config_db.keys:
     v = "(unconfigured)"
     try:
-      v = config_file.get(k)
+      v = config_db.get(k)
     except Exception as e:
       pass
     print("    {}: {}".format(k, v))
@@ -2003,9 +1951,15 @@ def print_usage(config):
 
 if __name__ == '__main__':
   if sys.version_info[0] < 3:
-    print("acpp requires python 3.")
+    print_error("acpp requires python 3.")
     sys.exit(-1)
   
+  filename = os.path.basename(os.path.realpath(__file__))
+  if filename == "syclcc":
+    print_warning("syclcc is deprecated; please use acpp instead.")
+  if filename == "syclcc-clang":
+    print_warning("syclcc-clang is deprecated; please use acpp instead.")
+
   args = sys.argv[1:]
 
   try:
@@ -2030,12 +1984,12 @@ if __name__ == '__main__':
 
     if not config.is_pure_linking_stage():
       if not config.has_optimization_flag():
-        print("acpp warning: No optimization flag was given, optimizations are "
+        print_warning("No optimization flag was given, optimizations are "
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
               "enable optimizations.")
     
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
-    print("acpp fatal error: "+str(e))
+    print_error("fatal: "+str(e))
     sys.exit(-1)

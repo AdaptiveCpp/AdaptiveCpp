@@ -30,10 +30,8 @@
 #include <complex>
 
 #define BOOST_TEST_MODULE device compilation tests
-#if !defined(_WIN32) || defined(__MINGW32__)
 #define BOOST_TEST_DYN_LINK
-#endif // _WIN32
-#include <boost/test/unit_test.hpp>
+#include <boost/test/included/unit_test.hpp>
 
 #include <initializer_list>
 
@@ -382,6 +380,34 @@ BOOST_AUTO_TEST_CASE(generic_lambda_outlining) {
     };
     invoke(x);
   });
+}
+
+BOOST_AUTO_TEST_CASE(nd_range) {
+  cl::sycl::queue q;
+  cl::sycl::buffer<size_t, 1> buf(1);
+
+  {
+    q.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for(cl::sycl::nd_range<1>{{1},{1}}, [=](cl::sycl::nd_item<1> item) {
+        acc[0] = 300 + item.get_global_linear_id();
+      });
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 300);
+  }
+
+  {
+    q.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for(cl::sycl::nd_range<2>{{1,1},{1,1}}, [=](cl::sycl::nd_item<2> item) {
+        acc[0] = 300 + item.get_global_linear_id();
+      });
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 300);
+  }
+
 }
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

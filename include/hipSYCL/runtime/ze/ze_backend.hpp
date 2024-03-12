@@ -64,7 +64,7 @@ public:
 
 private:
   std::unique_ptr<ze_hardware_manager> _hardware_manager;
-  std::unique_ptr<multi_queue_executor> _executor;
+  std::unique_ptr<lazily_constructed_executor<multi_queue_executor>> _executor;
   mutable std::vector<ze_allocator> _allocators;
 };
 

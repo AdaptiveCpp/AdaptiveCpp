@@ -52,9 +52,20 @@ const char *hipsycl_backend_plugin_get_name() {
 namespace hipsycl {
 namespace rt {
 
+namespace {
+
+std::unique_ptr<multi_queue_executor>
+create_multi_queue_executor(ocl_backend *b, ocl_hardware_manager* mgr) {
+  return std::make_unique<multi_queue_executor>(*b, [b, mgr](device_id dev) {
+    return std::make_unique<ocl_queue>(mgr, static_cast<std::size_t>(dev.get_id()));
+  });
+}
+
+}
+
 ocl_backend::ocl_backend()
-: _executor(*this, [this](device_id dev){
-  return std::make_unique<ocl_queue>(&(this->_hw_manager), dev.get_id());
+: _executor([this](){
+  return create_multi_queue_executor(this, &_hw_manager);
 }) {}
 
 ocl_backend::~ocl_backend(){}
@@ -84,7 +95,7 @@ backend_executor *ocl_backend::get_executor(device_id dev) const {
     return nullptr;
   }
 
-  return &_executor;
+  return _executor.get();
 }
 
 backend_allocator *ocl_backend::get_allocator(device_id dev) const {

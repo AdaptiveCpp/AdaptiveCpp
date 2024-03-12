@@ -74,14 +74,16 @@ public:
   template <class F>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,
                   F &&f) noexcept {
-    
-    // TODO: This actually should be something like if_device_cpu, which
-    //  we cannot express yet.
-    __hipsycl_if_target_device(
-      const std::size_t gid = idx.get_global_id(0);
-      for (std::size_t i = gid; i < problem_size; i += idx.get_global_range(0)) {
-        f(sycl::id<1>{i});
+    __hipsycl_if_target_sscp(
+      if(sycl::jit::introspect<sycl::jit::current_backend, int>() == sycl::jit::backend::host) {
+        run_host(problem_size, idx, f);
+      } else {
+        run_device(problem_size, idx, f);
       }
+      return;
+    );
+    __hipsycl_if_target_device(
+      run_device(problem_size, idx, f);
     );
     __hipsycl_if_target_host(
       run_host(problem_size, idx, f);
@@ -90,6 +92,14 @@ public:
 
 private:
   static constexpr int cpu_work_per_item = 8;
+
+  template<class F>
+  static void run_device(std::size_t problem_size, sycl::nd_item<1> idx, F&& f) noexcept {
+    const std::size_t gid = idx.get_global_id(0);
+    for (std::size_t i = gid; i < problem_size; i += idx.get_global_range(0)) {
+      f(sycl::id<1>{i});
+    }
+  }
 
   template<class F>
   static void run_host(std::size_t problem_size, sycl::nd_item<1> idx, F&& f) noexcept {

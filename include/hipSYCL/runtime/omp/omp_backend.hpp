@@ -59,8 +59,8 @@ public:
 private:
   mutable omp_allocator _allocator;
   mutable omp_hardware_manager _hw;
-  mutable multi_queue_executor _executor;
-}; 
+  mutable lazily_constructed_executor<multi_queue_executor> _executor;
+};
 
 }
 }

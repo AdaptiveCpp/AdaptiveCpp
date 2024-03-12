@@ -59,14 +59,21 @@ std::unique_ptr<inorder_queue> make_omp_queue(device_id dev) {
   return std::make_unique<omp_queue>(dev.get_backend());
 }
 
+std::unique_ptr<multi_queue_executor>
+create_multi_queue_executor(omp_backend *b) {
+  return std::make_unique<multi_queue_executor>(*b, [](device_id dev) {
+    return make_omp_queue(dev);
+  });
+}
+
 }
 
 omp_backend::omp_backend()
     : _allocator{device_id{
           backend_descriptor{omp_backend::get_hardware_platform(), omp_backend::get_api_platform()}, 0}},
       _hw{},
-      _executor(*this, [](device_id dev) -> std::unique_ptr<inorder_queue> {
-        return make_omp_queue(dev);
+      _executor([this](){
+        return create_multi_queue_executor(this);
       }) {}
 
 api_platform omp_backend::get_api_platform() const {
@@ -93,7 +100,7 @@ backend_executor* omp_backend::get_executor(device_id dev) const {
     return nullptr;
   }
 
-  return &_executor;
+  return _executor.get();
 }
 
 backend_allocator* omp_backend::get_allocator(device_id dev) const {

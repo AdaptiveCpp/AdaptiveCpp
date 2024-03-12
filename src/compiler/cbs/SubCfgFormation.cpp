@@ -36,11 +36,17 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constant.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/Dominators.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Regex.h>
@@ -57,6 +63,7 @@
 
 namespace {
 using namespace hipsycl::compiler;
+using namespace hipsycl::compiler::cbs;
 
 static const std::array<char, 3> DimName{'x', 'y', 'z'};
 
@@ -64,16 +71,42 @@ static const std::array<char, 3> DimName{'x', 'y', 'z'};
 llvm::Instruction *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName) {
   auto SizeT = F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext());
   auto *GV = F.getParent()->getOrInsertGlobal(VarName, SizeT);
-  for (auto &BB : F) {
-    for (auto &I : BB) {
-      if (auto *LoadI = llvm::dyn_cast<llvm::LoadInst>(&I)) {
-        if (LoadI->getPointerOperand() == GV)
-          return &I;
-      }
-    }
+  for (auto U : GV->users()) {
+    if (auto *LI = llvm::dyn_cast<llvm::LoadInst>(U); LI && LI->getFunction() == &F)
+      return LI;
   }
+
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
   return Builder.CreateLoad(SizeT, GV);
+}
+
+llvm::LoadInst *mergeGVLoadsInEntry(llvm::Function &F, llvm::StringRef VarName) {
+  auto SizeT = F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext());
+  auto *GV = F.getParent()->getOrInsertGlobal(VarName, SizeT);
+
+  llvm::LoadInst *FirstLoad = nullptr;
+  llvm::SmallVector<llvm::LoadInst *, 4> Loads;
+  for (auto U : GV->users()) {
+    if (auto *LI = llvm::dyn_cast<llvm::LoadInst>(U); LI && LI->getFunction() == &F) {
+      if (!FirstLoad)
+        FirstLoad = LI;
+      else
+        Loads.push_back(LI);
+    }
+  }
+
+  if (FirstLoad) {
+    FirstLoad->moveBefore(&F.getEntryBlock().front());
+    for (auto *LI : Loads) {
+      LI->replaceAllUsesWith(FirstLoad);
+      LI->eraseFromParent();
+    }
+    return FirstLoad;
+  }
+
+  llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
+  auto *Load = Builder.CreateLoad(GV->getType(), GV, "cbs.load." + GV->getName());
+  return Load;
 }
 
 // parses the range dimensionality from the mangled kernel name
@@ -84,6 +117,24 @@ std::size_t getRangeDim(llvm::Function &F) {
   llvm::SmallVector<llvm::StringRef, 4> Matches;
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));
+
+  if (auto MD = F.getParent()->getNamedMetadata(SscpAnnotationsName)) {
+    for (auto OP : MD->operands()) {
+      if (OP->getNumOperands() == 3 &&
+          llvm::cast<llvm::MDString>(OP->getOperand(1))->getString() == SscpKernelDimensionName) {
+        if (&F == llvm::dyn_cast<llvm::Function>(
+                      llvm::cast<llvm::ValueAsMetadata>(OP->getOperand(0))->getValue())) {
+          auto ConstMD = llvm::cast<llvm::ConstantAsMetadata>(OP->getOperand(2))->getValue();
+          if (auto CI = llvm::dyn_cast<llvm::ConstantInt>(ConstMD))
+            return CI->getZExtValue();
+          if (auto ZI = llvm::dyn_cast<llvm::ConstantAggregateZero>(ConstMD))
+            return 0;
+          if (auto CS = llvm::dyn_cast<llvm::ConstantStruct>(ConstMD))
+            return llvm::cast<llvm::ConstantInt>(CS->getOperand(0))->getZExtValue();
+        }
+      }
+    }
+  }
   llvm_unreachable("[SubCFG] Could not deduce kernel dimensionality!");
 }
 
@@ -142,7 +193,7 @@ void fillStores(llvm::Value *V, int Idx, llvm::SmallVector<llvm::Value *, 3> &Lo
 // reinterpret single argument as array if neccessary and load scalar size values into LocalSize
 void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSizeArg,
                                 const llvm::DataLayout &DL,
-                                llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
+                                llvm::SmallVector<llvm::Value *, 3> &LocalSize, bool IsSscp) {
   // local_size is just an array of size_t's..
   auto SizeTSize = DL.getLargestLegalIntTypeSizeInBits();
   auto *SizeT = DL.getLargestLegalIntType(F.getContext());
@@ -158,23 +209,35 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
     LocalSizePtr = Builder.CreatePointerCast(LocalSizeArg, PtrTy, "local_size.cast");
   }
   for (unsigned int I = 0; I < Dim; ++I) {
+    auto CurDimName = DimName[IsSscp ? Dim - I - 1 : I];
     if (LocalSizeArg->getType()->isArrayTy()) {
       LocalSize[I] =
-          Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{DimName[I]});
+          Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{CurDimName});
     } else {
       auto *LocalSizeGep =
           Builder.CreateInBoundsGEP(SizeT, LocalSizePtr, Builder.getIntN(SizeTSize, I),
-                                    "local_size.gep." + llvm::Twine{DimName[I]});
+                                    "local_size.gep." + llvm::Twine{CurDimName});
       HIPSYCL_DEBUG_INFO << *LocalSizeGep << "\n";
 
       LocalSize[I] =
-          Builder.CreateLoad(SizeT, LocalSizeGep, "local_size." + llvm::Twine{DimName[I]});
+          Builder.CreateLoad(SizeT, LocalSizeGep, "local_size." + llvm::Twine{CurDimName});
     }
   }
 }
 
 // get the wg size values for the loop bounds
-llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Dim) {
+llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Dim,
+                                                       bool isSscpKernel) {
+  if (isSscpKernel) {
+    llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
+    for (int I = 0; I < Dim; ++I) {
+      auto Load = getLoadForGlobalVariable(F, LocalSizeGlobalNames[Dim - I - 1]);
+      Load->moveBefore(F.getEntryBlock().getTerminator());
+      LocalSize[I] = Load;
+    }
+    return LocalSize;
+  }
+
   auto &DL = F.getParent()->getDataLayout();
   auto [LocalSizeArg, Annotation] = getLocalSizeArgumentFromAnnotation(F);
 
@@ -185,7 +248,7 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
     for (auto *U : LocalSizeArg->users())
       fillStores(U, 0, LocalSize);
   else
-    loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize);
+    loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize, false);
 
   Annotation->eraseFromParent();
   return LocalSize;
@@ -204,10 +267,10 @@ getVectorizationInfo(llvm::Function &F, hipsycl::compiler::Region &R, llvm::Loop
   hipsycl::compiler::VectorizationInfo VecInfo{F, R};
   // seed varyingness
   for (size_t D = 0; D < Dim - 1; ++D) {
-    VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[D]),
+    VecInfo.setPinnedShape(*mergeGVLoadsInEntry(F, LocalIdGlobalNames[D]),
                            hipsycl::compiler::VectorShape::cont());
   }
-  VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]),
+  VecInfo.setPinnedShape(*mergeGVLoadsInEntry(F, LocalIdGlobalNames[Dim - 1]),
                          hipsycl::compiler::VectorShape::cont());
 
   hipsycl::compiler::VectorizationAnalysis VecAna{VecInfo, LI, DT, PDT};
@@ -221,18 +284,32 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB,
                        const llvm::ArrayRef<llvm::Value *> &LocalSize, int EntryId,
                        llvm::ValueToValueMapTy &VMap,
                        llvm::SmallVector<llvm::BasicBlock *, 3> &Latches,
-                       llvm::BasicBlock *&LastHeader, llvm::Value *&ContiguousIdx) {
+                       llvm::BasicBlock *&LastHeader, llvm::Value *&ContiguousIdx, bool IsSscp) {
   const auto &DL = F.getParent()->getDataLayout();
   auto *LoadBB = LastHeader;
   llvm::IRBuilder Builder{LoadBB, LoadBB->getFirstInsertionPt()};
 
   const size_t Dim = LocalSize.size();
 
+  std::array<llvm::StringRef, 3> LocalIdGlobalNamesRotated;
+  std::array<char, 3> DimNameRotated;
+  if (IsSscp)
+    for (size_t D = 0; D < Dim; ++D) {
+      LocalIdGlobalNamesRotated[D] = LocalIdGlobalNames[Dim - D - 1];
+      DimNameRotated[D] = DimName[Dim - D - 1];
+    }
+  else
+    for (size_t D = 0; D < Dim; ++D) {
+      LocalIdGlobalNamesRotated[D] = LocalIdGlobalNames[D];
+      DimNameRotated[D] = DimName[D];
+    }
+
   // from innermost to outermost: create loops around the LastHeader and use AfterBB as dummy exit
   // to be replaced by the outer latch later
   llvm::SmallVector<llvm::PHINode *, 3> IndVars;
   for (int D = Dim - 1; D >= 0; --D) {
-    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
+    const std::string Suffix =
+        (llvm::Twine{DimNameRotated[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
 
     auto *Header = llvm::BasicBlock::Create(LastHeader->getContext(), "header." + Suffix + "b",
                                             LastHeader->getParent(), LastHeader);
@@ -278,17 +355,18 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB,
   Builder.SetInsertPoint(IndVars[Dim - 1]->getParent(), ++IndVars[Dim - 1]->getIterator());
   llvm::Value *Idx = IndVars[0];
   for (size_t D = 1; D < Dim; ++D) {
-    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
+    const std::string Suffix =
+        (llvm::Twine{DimNameRotated[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
 
     Idx = Builder.CreateMul(Idx, LocalSize[D], "idx.mul." + Suffix, true);
     Idx = Builder.CreateAdd(IndVars[D], Idx, "idx.add." + Suffix, true);
 
-    VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[D])] = IndVars[D];
+    VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNamesRotated[D])] = IndVars[D];
   }
 
   // todo: replace `ret` with branch to innermost latch
 
-  VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[0])] = IndVars[0];
+  VMap[mergeGVLoadsInEntry(F, LocalIdGlobalNamesRotated[0])] = IndVars[0];
 
   VMap[ContiguousIdx] = Idx;
   ContiguousIdx = Idx;
@@ -358,7 +436,7 @@ public:
                  llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
                      &ContInstReplicaMap,
                  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-                 llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize);
+                 llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize, bool IsSscp);
 
   void arrayifyMultiSubCfgValues(
       llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
@@ -404,10 +482,11 @@ SubCFG::createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, size_t> 
 SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
                const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds,
                const SplitterAnnotationInfo &SAA, llvm::Value *IndVar, size_t Dim)
-    : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)),
-      EntryBarrier_(EntryBarrier), EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr),
-      ContIdx_(IndVar), PreHeader_(nullptr), Dim(Dim) {
-  assert(ContIdx_ && "Must have found __hipsycl_local_id_{x,y,z}");
+    : EntryId_(BarrierIds.lookup(EntryBarrier)), EntryBarrier_(EntryBarrier),
+      LastBarrierIdStorage_(LastBarrierIdStorage), ContIdx_(IndVar),
+      EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr), PreHeader_(nullptr),
+      Dim(Dim) {
+  assert(ContIdx_ && "Must have found __hipsycl_cbs_local_id_{x,y,z}");
 
   llvm::SmallVector<llvm::BasicBlock *, 4> WL{EntryBarrier};
   while (!WL.empty()) {
@@ -467,7 +546,7 @@ void SubCFG::replicate(
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
         &ContInstReplicaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-    llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize) {
+    llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize, bool IsSscp) {
   llvm::ValueToValueMapTy VMap;
 
   // clone blocks
@@ -490,7 +569,7 @@ void SubCFG::replicate(
   llvm::BasicBlock *LastHeader = LoadBB_;
   llvm::Value *Idx = ContIdx_;
 
-  createLoopsAround(F, AfterBB, LocalSize, EntryId_, VMap, Latches, LastHeader, Idx);
+  createLoopsAround(F, AfterBB, LocalSize, EntryId_, VMap, Latches, LastHeader, Idx, IsSscp);
 
   PreHeader_ = createUniformLoadBB(LastHeader);
   LastHeader->replacePhiUsesWith(&F.getEntryBlock(), PreHeader_);
@@ -552,7 +631,7 @@ bool dontArrayifyContiguousValues(
   llvm::SmallPtrSet<llvm::Instruction *, 8> UniformValues;
   llvm::SmallVector<llvm::Instruction *, 8> ContiguousInsts;
   llvm::SmallPtrSet<llvm::Value *, 8> LookedAt;
-  HIPSYCL_DEBUG_INFO << "[SubCFG] IndVar: " << *IndVar << "\n";
+  HIPSYCL_DEBUG_INFO << "[SubCFG] Cont value? " << I << " IndVar: " << *IndVar << "\n";
   WL.push_back(&I);
   while (!WL.empty()) {
     auto *WLValue = WL.pop_back_val();
@@ -560,7 +639,7 @@ bool dontArrayifyContiguousValues(
       for (auto *V : WLI->operand_values()) {
         HIPSYCL_DEBUG_INFO << "[SubCFG] Considering: " << *V << "\n";
 
-        if (V == IndVar || VecInfo.isPinned(*V))
+        if (V == IndVar || VecInfo.isPinned(*V) || llvm::isa<llvm::Constant>(V))
           continue;
         // todo: fix PHIs
         if (LookedAt.contains(V))
@@ -569,7 +648,7 @@ bool dontArrayifyContiguousValues(
 
         // collect cont and uniform source values
         if (auto *OpI = llvm::dyn_cast<llvm::Instruction>(V)) {
-          if (VecInfo.getVectorShape(*OpI).isContiguous()) {
+          if (VecInfo.getVectorShape(*OpI).isContiguousOrStrided()) {
             WL.push_back(OpI);
             ContiguousInsts.push_back(OpI);
           } else if (!UniformValues.contains(OpI))
@@ -612,8 +691,10 @@ void SubCFG::arrayifyMultiSubCfgValues(
       if (InstAllocaMap.lookup(&I))
         continue;
       // if any use is in another subcfg
-      if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, this, &I](auto *UI) {
-            return UI->getParent() != I.getParent() && OtherCFGBlocks.contains(UI->getParent());
+      if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, &I](auto *UI) {
+            return (UI->getParent() != I.getParent() ||
+                    UI->getParent() == I.getParent() && UI->comesBefore(&I)) &&
+                   OtherCFGBlocks.contains(UI->getParent());
           })) {
         // load from an alloca, just widen alloca
         if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(&I))
@@ -642,7 +723,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
 #endif
         // if contiguous, and can be recalculated, don't arrayify but store
         // uniform values and insts required for recalculation
-        if (Shape.isContiguous()) {
+        if (Shape.isContiguousOrStrided()) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP,
                                            ReqdArrayElements, ContIdx_, VecInfo)) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying " << I << "\n";
@@ -667,8 +748,8 @@ void remapInstruction(llvm::Instruction *I, llvm::ValueToValueMapTy &VMap) {
   HIPSYCL_DEBUG_INFO << "[SubCFG] remapped Inst " << *I << "\n";
 }
 
-// inserts loads from the loop state allocas for varying values that were identified as multi-subcfg
-// values
+// inserts loads from the loop state allocas for varying values that were identified as
+// multi-subcfg values
 void SubCFG::loadMultiSubCfgValues(
     const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
@@ -849,8 +930,8 @@ void SubCFG::fixSingleSubCfgValues(
         // check if all operands dominate the instruction -> otherwise we have to fix it
         if (auto *OPI = llvm::dyn_cast<llvm::Instruction>(OPV); OPI && !DT.dominates(OPI, &I)) {
           if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(Inst)) {
-            // if a PHI node, we have to check that the incoming values dominate the terminators of
-            // the incoming block..
+            // if a PHI node, we have to check that the incoming values dominate the terminators
+            // of the incoming block..
             bool FoundIncoming = false;
             for (auto &Incoming : Phi->incoming_values()) {
               if (OPV == Incoming.get()) {
@@ -890,13 +971,16 @@ void SubCFG::fixSingleSubCfgValues(
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] No alloca, yet for " << *OPI << "\n";
-            Alloca = utils::arrayifyInstruction(AllocaIP, OPI, ContIdx_, ReqdArrayElements);
+            Alloca = utils::arrayifyInstruction(
+                AllocaIP, OPI, ContIdx_,
+                VecInfo.getVectorShape(I).isUniform() ? nullptr : ReqdArrayElements);
             VecInfo.setVectorShape(*Alloca, VecInfo.getVectorShape(I));
           }
 
+          auto Idx = ContIdx_;
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT
-          // in split loop, OPI might be used multiple times, get the user, dominating this user and
-          // insert load there
+          // in split loop, OPI might be used multiple times, get the user, dominating this user
+          // and insert load there
           llvm::Instruction *NewIP = &I;
           for (auto *U : OPI->users()) {
             if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U); UI && DT.dominates(UI, NewIP)) {
@@ -906,11 +990,13 @@ void SubCFG::fixSingleSubCfgValues(
 #else
           // doesn't happen if we keep the PHIs
           auto *NewIP = LoadIP;
-          if (!Alloca->isArrayAllocation())
+          if (!Alloca->isArrayAllocation()) {
             NewIP = UniLoadIP;
+            Idx = llvm::ConstantInt::get(ContIdx_->getType(), 0);
+          }
 #endif
 
-          auto *Load = utils::loadFromAlloca(Alloca, ContIdx_, NewIP, OPI->getName());
+          auto *Load = utils::loadFromAlloca(Alloca, Idx, NewIP, OPI->getName());
           utils::copyDgbValues(OPI, Load, NewIP);
 
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT
@@ -1133,14 +1219,15 @@ getBarrierIds(llvm::BasicBlock *Entry, llvm::SmallPtrSetImpl<llvm::BasicBlock *>
       Barriers.insert({BB, BarrierId++});
   return Barriers;
 }
+
 void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
-                 llvm::PostDominatorTree &PDT, const SplitterAnnotationInfo &SAA) {
+                 llvm::PostDominatorTree &PDT, const SplitterAnnotationInfo &SAA, bool IsSscp) {
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
 
   const std::size_t Dim = getRangeDim(F);
   HIPSYCL_DEBUG_INFO << "[SubCFG] Kernel is " << Dim << "-dimensional\n";
 
-  const auto LocalSize = getLocalSizeValues(F, Dim);
+  const auto LocalSize = getLocalSizeValues(F, Dim, IsSscp);
 
   auto *Entry = &F.getEntryBlock();
 
@@ -1203,7 +1290,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   for (auto &Cfg : SubCFGs) {
     Cfg.print();
     Cfg.replicate(F, InstAllocaMap, BaseInstAllocaMap, InstContReplicaMap, RemappedInstAllocaMap,
-                  *ExitingBlocks.begin(), LocalSize);
+                  *ExitingBlocks.begin(), LocalSize, IsSscp);
     purgeLifetime(Cfg);
   }
 
@@ -1233,7 +1320,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 }
 
 void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::LoopInfo &LI,
-                             llvm::PostDominatorTree &PDT) {
+                             llvm::PostDominatorTree &PDT, bool IsSscp) {
 #if LLVM_VERSION_MAJOR >= 13
 #define HIPSYCL_LLVM_BEFORE , true
 #else
@@ -1250,12 +1337,14 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
 
   llvm::SmallVector<llvm::BasicBlock *, 4> ExitBBs;
   llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(F.getContext(), "exit", &F);
-  llvm::ReturnInst::Create(F.getContext(), ExitBB);
+  llvm::IRBuilder<> Bld{ExitBB};
+  Bld.CreateRetVoid();
   for (auto &BB : F) {
     if (BB.getTerminator()->getNumSuccessors() == 0 &&
         !llvm::isa<llvm::UnreachableInst>(BB.getTerminator()) && &BB != ExitBB) {
       auto *oldTerm = BB.getTerminator();
-      llvm::BranchInst::Create(ExitBB, &BB);
+      Bld.SetInsertPoint(oldTerm);
+      Bld.CreateBr(ExitBB);
       oldTerm->eraseFromParent();
     }
   }
@@ -1274,13 +1363,13 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
   llvm::Value *Idx =
       Builder.CreateLoad(IndVarT, llvm::UndefValue::get(llvm::PointerType::get(IndVarT, 0)));
 
-  auto LocalSize = getLocalSizeValues(F, Dim);
+  auto LocalSize = getLocalSizeValues(F, Dim, IsSscp);
 
   llvm::ValueToValueMapTy VMap;
   llvm::SmallVector<llvm::BasicBlock *, 3> Latches;
   auto *LastHeader = Body;
 
-  createLoopsAround(F, ExitBB, LocalSize, 0, VMap, Latches, LastHeader, Idx);
+  createLoopsAround(F, ExitBB, LocalSize, 0, VMap, Latches, LastHeader, Idx, IsSscp);
 
   F.getEntryBlock().getTerminator()->setSuccessor(0, LastHeader);
   llvm::remapInstructionsInBlocks(Blocks, VMap);
@@ -1307,7 +1396,7 @@ void SubCfgFormationPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const 
 bool SubCfgFormationPassLegacy::runOnFunction(llvm::Function &F) {
   auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  if (!SAA.isKernelFunc(&F))
+  if (!SAA.isKernelFunc(&F) || getRangeDim(F) == 0)
     return false;
 
   HIPSYCL_DEBUG_INFO << "[SubCFG] Form SubCFGs in " << F.getName() << "\n";
@@ -1317,9 +1406,9 @@ bool SubCfgFormationPassLegacy::runOnFunction(llvm::Function &F) {
   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
 
   if (utils::hasBarriers(F, SAA))
-    formSubCfgs(F, LI, DT, PDT, SAA);
+    formSubCfgs(F, LI, DT, PDT, SAA, false);
   else
-    createLoopsAroundKernel(F, DT, LI, PDT);
+    createLoopsAroundKernel(F, DT, LI, PDT, false);
 
   return true;
 }
@@ -1330,7 +1419,8 @@ llvm::PreservedAnalyses SubCfgFormationPass::run(llvm::Function &F,
                                                  llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   auto *SAA = MAM.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
-  if (!SAA || !SAA->isKernelFunc(&F))
+
+  if (!SAA || !SAA->isKernelFunc(&F) || getRangeDim(F) == 0)
     return llvm::PreservedAnalyses::all();
 
   HIPSYCL_DEBUG_INFO << "[SubCFG] Form SubCFGs in " << F.getName() << "\n";
@@ -1340,9 +1430,9 @@ llvm::PreservedAnalyses SubCfgFormationPass::run(llvm::Function &F,
   auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
 
   if (utils::hasBarriers(F, *SAA))
-    formSubCfgs(F, LI, DT, PDT, *SAA);
+    formSubCfgs(F, LI, DT, PDT, *SAA, IsSscp_);
   else
-    createLoopsAroundKernel(F, DT, LI, PDT);
+    createLoopsAroundKernel(F, DT, LI, PDT, IsSscp_);
 
   llvm::PreservedAnalyses PA;
   PA.preserve<SplitterAnnotationAnalysis>();

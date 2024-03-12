@@ -7,38 +7,57 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+
+#include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/instrumentation.hpp"
-#include "hipSYCL/runtime/omp/omp_event.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
+#include "hipSYCL/runtime/omp/omp_event.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
 #include "hipSYCL/runtime/signal_channel.hpp"
+#include "hipSYCL/runtime/util.hpp"
+
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+#include "hipSYCL/compiler/llvm-to-backend/host/LLVMToHostFactory.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
+#include "hipSYCL/runtime/adaptivity_engine.hpp"
+#include "hipSYCL/runtime/omp/omp_code_object.hpp"
+
+#ifndef WIN32
+#include <unistd.h>
+#else
+#include <Windows.h>
+#endif
+#endif
+
+#include <omp.h>
 
 #include <memory>
 
@@ -50,7 +69,7 @@ namespace {
 bool is_contigous(id<3> offset, range<3> r, range<3> allocation_shape) {
   if (r.size() == 0)
     return true;
-  
+
   int dim = 3;
   if (r.get(0) == 1)
     dim = 2;
@@ -110,15 +129,16 @@ using omp_execution_finish_timestamp =
 
 class instrumentation_task_guard {
 public:
-  instrumentation_task_guard(std::shared_ptr<omp_execution_start_timestamp> start,
-             std::shared_ptr<omp_execution_finish_timestamp> finish)
+  instrumentation_task_guard(
+      std::shared_ptr<omp_execution_start_timestamp> start,
+      std::shared_ptr<omp_execution_finish_timestamp> finish)
       : _finish{finish} {
-    if(start)
+    if (start)
       start->record_time();
   }
 
   ~instrumentation_task_guard() {
-    if(_finish)
+    if (_finish)
       _finish->record_time();
   }
 
@@ -129,7 +149,7 @@ private:
 class omp_instrumentation_setup {
 public:
   omp_instrumentation_setup(operation &op, dag_node_ptr node) {
-    if(!node)
+    if (!node)
       return;
 
     if (node->get_execution_hints()
@@ -138,25 +158,26 @@ public:
 
       op.get_instrumentations()
           .add_instrumentation<instrumentations::submission_timestamp>(
-            std::make_shared<omp_submission_timestamp>(profiler_clock::now()));
+              std::make_shared<omp_submission_timestamp>(
+                  profiler_clock::now()));
     }
-    if (node->get_execution_hints().has_hint<
-                rt::hints::request_instrumentation_start_timestamp>()) {
+    if (node->get_execution_hints()
+            .has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
 
       _start = std::make_shared<omp_execution_start_timestamp>();
 
       op.get_instrumentations()
           .add_instrumentation<instrumentations::execution_start_timestamp>(
-            _start);
+              _start);
     }
-    if (node->get_execution_hints().has_hint<
-                rt::hints::request_instrumentation_finish_timestamp>()) {
+    if (node->get_execution_hints()
+            .has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
 
       _finish = std::make_shared<omp_execution_finish_timestamp>();
 
       op.get_instrumentations()
           .add_instrumentation<instrumentations::execution_finish_timestamp>(
-            _finish);
+              _finish);
     }
   }
 
@@ -169,25 +190,78 @@ private:
   std::shared_ptr<omp_execution_finish_timestamp> _finish;
 };
 
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+
+std::size_t get_page_size() {
+#ifndef WIN32
+  return static_cast<std::size_t>(sysconf(_SC_PAGESIZE));
+#else
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwPageSize;
+#endif
 }
 
+result
+launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
+                      const rt::range<3> &num_groups,
+                      const rt::range<3> &local_size, unsigned shared_memory,
+                      void **kernel_args) {
+  if (num_groups.size() == 1 && shared_memory == 0) {
+    omp_sscp_executable_object::work_group_info info{
+        num_groups, rt::id<3>{0, 0, 0}, local_size, nullptr};
+    kernel(&info, kernel_args);
+    return make_success();
+  }
+
+#ifndef _OPENMP
+  HIPSYCL_DEBUG_WARNING << "omp_queue: SSCP kernel launching was built without OpenMP "
+                          "support, the kernel will execute sequentially!"
+                        << std::endl;
+#endif
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+  {
+    // get page aligned local memory from heap
+    static thread_local std::vector<char> local_memory;
+
+    const auto page_size = get_page_size();
+    local_memory.resize(shared_memory + page_size);
+    auto aligned_local_memory = reinterpret_cast<void*>(next_multiple_of(reinterpret_cast<std::uint64_t>(local_memory.data()), page_size));
+
+#ifdef _OPENMP
+#pragma omp for collapse(3)
+#endif
+    for (std::size_t k = 0; k < num_groups.get(2); ++k) {
+      for (std::size_t j = 0; j < num_groups.get(1); ++j) {
+        for (std::size_t i = 0; i < num_groups.get(0); ++i) {
+          omp_sscp_executable_object::work_group_info info{
+              num_groups, rt::id<3>{i, j, k}, local_size, aligned_local_memory};
+          kernel(&info, kernel_args);
+        }
+      }
+    }
+  }
+  return make_success();
+}
+#endif
+} // namespace
 
 omp_queue::omp_queue(backend_id id)
-: _backend_id(id) {}
+    : _backend_id(id), _sscp_code_object_invoker{this},
+      _kernel_cache{kernel_cache::get()} {}
 
-omp_queue::~omp_queue() {
-  _worker.halt();
-}
+omp_queue::~omp_queue() { _worker.halt(); }
 
 std::shared_ptr<dag_node_event> omp_queue::insert_event() {
   HIPSYCL_DEBUG_INFO << "omp_queue: Inserting event into queue..." << std::endl;
-  
+
   auto evt = std::make_shared<omp_node_event>();
   auto signal_channel = evt->get_signal_channel();
 
-  _worker([signal_channel]{
-    signal_channel->signal();
-  });
+  _worker([signal_channel] { signal_channel->signal(); });
 
   return evt;
 }
@@ -198,15 +272,15 @@ std::shared_ptr<dag_node_event> omp_queue::create_queue_completion_event() {
       this);
 }
 
-
 result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
-  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..." << std::endl;
+  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..."
+                     << std::endl;
 
   if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
 
-    void* base_src = op.source().get_base_ptr();
+    void *base_src = op.source().get_base_ptr();
     void *base_dest = op.dest().get_base_ptr();
-    
+
     assert(base_src);
     assert(base_dest);
 
@@ -238,12 +312,11 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
       if (is_src_contiguous && is_dest_contiguous) {
         char *current_src = reinterpret_cast<char *>(base_src);
         char *current_dest = reinterpret_cast<char *>(base_dest);
-        
+
         current_src +=
             linear_index(src_offset, src_allocation_shape) * src_element_size;
-        current_dest +=
-            linear_index(dest_offset, dest_allocation_shape) *
-                dest_element_size;
+        current_dest += linear_index(dest_offset, dest_allocation_shape) *
+                        dest_element_size;
 
         memcpy(current_dest, current_src, total_num_bytes);
       } else {
@@ -251,7 +324,8 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
         id<3> current_dest_offset = dest_offset;
         std::size_t row_size = transferred_range[2] * src_element_size;
 
-        for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
+        for (std::size_t surface = 0; surface < transferred_range[0];
+             ++surface) {
           for (std::size_t row = 0; row < transferred_range[1]; ++row) {
 
             char *current_src = reinterpret_cast<char *>(base_src);
@@ -271,7 +345,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
             assert(current_dest + row_size <=
                    reinterpret_cast<char *>(base_dest) +
                        dest_allocation_shape.size() * dest_element_size);
-            
+
             memcpy(current_dest, current_src, row_size);
 
             ++current_src_offset[1];
@@ -299,18 +373,21 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
 result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
-  rt::backend_kernel_launcher *launcher = 
+  rt::backend_kernel_launcher *launcher =
       op.get_launcher().find_launcher(_backend_id);
 
-  if(!launcher) {
+  if (!launcher) {
     return register_error(
         __hipsycl_here(),
         error_info{"omp_queue: Could not find required kernel launcher",
-        error_type::runtime_error});
+                   error_type::runtime_error});
   }
 
-  
-  rt::dag_node* node_ptr = node.get();
+  rt::backend_kernel_launch_capabilities cap;
+  cap.provide_sscp_invoker(&_sscp_code_object_invoker);
+  launcher->set_backend_capabilities(cap);
+
+  rt::dag_node *node_ptr = node.get();
   const glue::kernel_configuration *config =
       &(op.get_launcher().get_kernel_configuration());
 
@@ -325,6 +402,123 @@ result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
+result omp_queue::submit_sscp_kernel_from_code_object(
+    const kernel_operation &op, hcf_object_id hcf_object,
+    const std::string &kernel_name, const rt::range<3> &num_groups,
+    const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+    std::size_t *arg_sizes, std::size_t num_args,
+    const glue::kernel_configuration &initial_config) {
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+
+  const hcf_kernel_info *kernel_info =
+      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
+  if (!kernel_info) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"omp_queue: Could not obtain hcf kernel info for kernel " +
+                   kernel_name});
+  }
+
+  kernel_adaptivity_engine adaptivity_engine{
+      hcf_object, kernel_name, kernel_info, num_groups,
+      group_size, args,        arg_sizes,   num_args, local_mem_size};
+
+  static thread_local glue::kernel_configuration config;
+  config = initial_config;
+  
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::backend_id, backend_id::omp);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::compilation_flow,
+      compilation_flow::sscp);
+  config.append_base_configuration(
+      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+
+  auto binary_configuration_id =
+      adaptivity_engine.finalize_binary_configuration(config);
+  auto code_object_configuration_id = binary_configuration_id;
+
+  auto get_image_and_kernel_names =
+      [&](std::vector<std::string> &contained_kernels) -> std::string {
+    return adaptivity_engine.select_image_and_kernels(&contained_kernels);
+  };
+
+  auto jit_compiler = [&](std::string &compiled_image) -> bool {
+    const common::hcf_container *hcf = rt::hcf_cache::get().get_hcf(hcf_object);
+
+    std::vector<std::string> kernel_names;
+    std::string selected_image_name = get_image_and_kernel_names(kernel_names);
+
+    // Construct Host translator to compile the specified kernels
+    std::unique_ptr<compiler::LLVMToBackendTranslator> translator =
+        compiler::createLLVMToHostTranslator(kernel_names);
+
+    // Lower kernels to binary
+    auto err = glue::jit::compile(translator.get(), hcf, selected_image_name,
+                                  config, compiled_image);
+
+    if (!err.is_success()) {
+      register_error(err);
+      return false;
+    }
+    return true;
+  };
+
+  auto code_object_constructor =
+      [&](const std::string &binary_image) -> code_object * {
+    std::vector<std::string> kernel_names;
+    get_image_and_kernel_names(kernel_names);
+
+    omp_sscp_executable_object *exec_obj = new omp_sscp_executable_object{
+        binary_image, hcf_object, kernel_names, config};
+    result r = exec_obj->get_build_result();
+
+    if (!r.is_success()) {
+      register_error(r);
+      delete exec_obj;
+      return nullptr;
+    }
+
+    HIPSYCL_DEBUG_INFO
+        << "omp_queue: Successfully compiled SSCP kernels to module "
+        << exec_obj->get_module() << std::endl;
+
+    return exec_obj;
+  };
+
+  const code_object *obj = _kernel_cache->get_or_construct_jit_code_object(
+      code_object_configuration_id, binary_configuration_id, jit_compiler,
+      code_object_constructor);
+
+  if (!obj) {
+    return make_error(__hipsycl_here(),
+                      error_info{"omp_queue: Code object construction failed"});
+  }
+
+  auto kernel =
+      static_cast<const omp_sscp_executable_object *>(obj)->get_kernel(
+          kernel_name);
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if (!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "omp_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
+  return launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
+                               arg_mapper.get_mapped_args());
+
+#else
+  return make_error(
+      __hipsycl_here(),
+      error_info{"omp_queue: SSCP kernel launch was requested, but hipSYCL was "
+                 "not built with CPU SSCP support."});
+#endif
+}
+
 result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO
       << "omp_queue: Received prefetch submission request, ignoring"
@@ -332,7 +526,7 @@ result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr node) {
   // Yeah, what are you going to do? Prefetching CPU memory on CPU? Go home!
   // (TODO: maybe we should handle the case that we have USM memory from another
   // backend here)
-  
+
   omp_instrumentation_setup instrumentation_setup{op, node};
   {
     auto instrumentation_guard = instrumentation_setup.instrument_task();
@@ -341,18 +535,17 @@ result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result omp_queue::submit_memset(memset_operation & op, dag_node_ptr node) {
+result omp_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
   int pattern = op.get_pattern();
-  
+
   if (!ptr) {
     return register_error(
         __hipsycl_here(),
         error_info{
             "omp_queue: submit_memset(): Invalid argument, pointer is null."});
   }
-
 
   omp_instrumentation_setup instrumentation_setup{op, node};
   _worker([=]() {
@@ -362,24 +555,22 @@ result omp_queue::submit_memset(memset_operation & op, dag_node_ptr node) {
   });
 
   return make_success();
-    
 }
 
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
+/// Causes the queue to wait until an event on another queue has occured.
+/// the other queue must be from the same backend
 result omp_queue::submit_queue_wait_for(dag_node_ptr node) {
-  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for other queue..." << std::endl;
+  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for other queue..."
+                     << std::endl;
   auto evt = node->get_event();
-  if(!evt) {
+  if (!evt) {
     return register_error(
         __hipsycl_here(),
         error_info{"omp_queue: event for synchronization is null.",
                    error_type::invalid_parameter_error});
   }
 
-  _worker([=](){
-    evt->wait();
-  });
+  _worker([=]() { evt->wait(); });
 
   return make_success();
 }
@@ -394,21 +585,18 @@ result omp_queue::query_status(inorder_queue_status &status) {
   return make_success();
 }
 
-
 result omp_queue::submit_external_wait_for(dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for external node..."
                      << std::endl;
-  
-  if(!node) {
+
+  if (!node) {
     return register_error(
         __hipsycl_here(),
         error_info{"omp_queue: node for synchronization is null.",
                    error_type::invalid_parameter_error});
   }
-  
-  _worker([=](){
-    node->wait();
-  });
+
+  _worker([=]() { node->wait(); });
 
   return make_success();
 }
@@ -420,9 +608,35 @@ device_id omp_queue::get_device() const {
       backend_descriptor{hardware_platform::cpu, api_platform::omp}, 0};
 }
 
-void *omp_queue::get_native_type() const {
-  return nullptr;
+void *omp_queue::get_native_type() const { return nullptr; }
+
+result omp_sscp_code_object_invoker::submit_kernel(
+    const kernel_operation &op, hcf_object_id hcf_object,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const std::string &kernel_name,
+    const glue::kernel_configuration &config) {
+
+  return _queue->submit_sscp_kernel_from_code_object(
+      op, hcf_object, kernel_name, num_groups, group_size,
+      local_mem_size, args, arg_sizes, num_args, config);
 }
 
+rt::range<3> omp_sscp_code_object_invoker::select_group_size(
+    const rt::range<3> &global_range, const rt::range<3> &group_size) const {
+  rt::range<3> selected_group_size = group_size;
+#ifdef _OPENMP
+  const int max_threads = omp_get_max_threads();
+#else
+  const int max_threads = 1;
+#endif
+  constexpr auto divisor = 1;
+  auto z = std::min(
+      std::max<std::size_t>(global_range.get(0) / (max_threads * divisor), 16),
+      std::min<std::size_t>(global_range.get(0), 1024));
+  selected_group_size = rt::range<3>{z, 1, 1};
+  return selected_group_size;
 }
-}
+
+} // namespace rt
+} // namespace hipsycl

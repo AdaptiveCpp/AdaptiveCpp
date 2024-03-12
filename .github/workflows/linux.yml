@@ -34,11 +34,12 @@ jobs:
             cuda: 11.0.2
             rocm: 5.6.1
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install OpenCL development files
       run : |
+        sudo apt update
         sudo apt install ocl-icd-opencl-dev
     - name: Install TBB for PSTL tests
       run : |
@@ -118,7 +119,17 @@ jobs:
     - name: run CPU tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+    - name: run CPU SSCP tests
+      if: matrix.clang >= 14
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests -t '!group_functions_tests/*' -t '!extension_tests/*' -t '!kernel_invocation_tests/hierarchical*'
+    - name: run PSTL tests on CPU
+      if: matrix.clang >= 14
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./pstl_tests
   test-nvcxx-based:
     name: nvcxx ${{matrix.nvhpc}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}
@@ -128,7 +139,7 @@ jobs:
         nvhpc: [23.9]
         cuda: [12.2]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Free Disk Space (Ubuntu)

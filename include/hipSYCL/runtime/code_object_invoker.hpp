@@ -61,6 +61,20 @@ public:
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name,
                                const glue::kernel_configuration& config) = 0;
+
+  virtual rt::range<3> select_group_size(const rt::range<3> &global_range,
+                                         const rt::range<3> &group_size) const {
+    rt::range<3> selected_group_size = group_size;
+    if(global_range[1] == 1 && global_range[2] == 1) {
+      selected_group_size = rt::range<3>{128,1,1};
+    } else if(global_range[2] == 1) {
+      selected_group_size = rt::range<3>{16,16,1};
+    } else {
+      selected_group_size = rt::range<3>{8,8,4};
+    }
+    return selected_group_size;
+  }
+  
   virtual ~sscp_code_object_invoker(){}
 };
 

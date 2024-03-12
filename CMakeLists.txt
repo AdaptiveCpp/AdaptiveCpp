@@ -4,60 +4,72 @@ if(NOT CMAKE_VERSION VERSION_LESS 3.12)
 endif()
 
 
-set(ACPP_VERSION_MAJOR 23)
-set(ACPP_VERSION_MINOR 10)
+set(ACPP_VERSION_MAJOR 24)
+set(ACPP_VERSION_MINOR 02)
 set(ACPP_VERSION_PATCH 0)
+
+execute_process(
+        COMMAND git status
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE GIT_STATUS
+)
+
 if(NOT ACPP_VERSION_SUFFIX)
-  # Get the latest abbreviated commit hash of the working branch
-  execute_process(
-    COMMAND git log -1 --format=%h
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
-    RESULT_VARIABLE GIT_HASH_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # git branch
-  execute_process(
-    COMMAND git rev-parse --abbrev-ref HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_BRANCH
-    RESULT_VARIABLE GIT_BRANCH_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # date of commit
-  execute_process(COMMAND git show -s --format=%cd --date=short HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_DATE
-    RESULT_VARIABLE GIT_DATE_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # Convert YYYY-MM-DD to YYYYMMDD
-  # We can't use --date=format:%Y%m%d to be compatible with git pre-2.6
-  string(REPLACE "-" "" ACPP_GIT_DATE ${ACPP_GIT_DATE})
-  # check whether there are local changes
-  execute_process(COMMAND git diff-index --name-only HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_LOCAL_CHANGES
-    RESULT_VARIABLE GIT_LOCAL_CHANGES_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
+  # With a release tarball, "git status" will fail (return non zero)
+  if(GIT_STATUS)
+    set(ACPP_VERSION_SUFFIX "")
+  else()
+    # Get the latest abbreviated commit hash of the working branch
+    execute_process(
+      COMMAND git log -1 --format=%h
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
+      RESULT_VARIABLE GIT_HASH_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # git branch
+    execute_process(
+      COMMAND git rev-parse --abbrev-ref HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_BRANCH
+      RESULT_VARIABLE GIT_BRANCH_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # date of commit
+    execute_process(COMMAND git show -s --format=%cd --date=short HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_DATE
+      RESULT_VARIABLE GIT_DATE_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # Convert YYYY-MM-DD to YYYYMMDD
+    # We can't use --date=format:%Y%m%d to be compatible with git pre-2.6
+    string(REPLACE "-" "" ACPP_GIT_DATE ${ACPP_GIT_DATE})
+    # check whether there are local changes
+    execute_process(COMMAND git diff-index --name-only HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_LOCAL_CHANGES
+      RESULT_VARIABLE GIT_LOCAL_CHANGES_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
   
-  if (GIT_HASH_RETURN_CODE EQUAL 0 AND GIT_BRANCH_RETURN_CODE EQUAL 0 AND 
-      GIT_DATE_RETURN_CODE EQUAL 0 AND GIT_LOCAL_CHANGES_RETURN_CODE EQUAL 0)
+    if (GIT_HASH_RETURN_CODE EQUAL 0 AND GIT_BRANCH_RETURN_CODE EQUAL 0 AND 
+        GIT_DATE_RETURN_CODE EQUAL 0 AND GIT_LOCAL_CHANGES_RETURN_CODE EQUAL 0)
     
-    if(NOT "${ACPP_LOCAL_CHANGES}" STREQUAL "")
-      set(DIRTY_STR ".dirty")
-    else()
-      set(DIRTY_STR "")
-    endif()
+      if(NOT "${ACPP_LOCAL_CHANGES}" STREQUAL "")
+        set(DIRTY_STR ".dirty")
+      else()
+        set(DIRTY_STR "")
+      endif()
   
-    set(ACPP_VERSION_SUFFIX "+git.${ACPP_GIT_COMMIT_HASH}.${ACPP_GIT_DATE}.branch.${ACPP_GIT_BRANCH}${DIRTY_STR}")
+      set(ACPP_VERSION_SUFFIX "+git.${ACPP_GIT_COMMIT_HASH}.${ACPP_GIT_DATE}.branch.${ACPP_GIT_BRANCH}${DIRTY_STR}")
+    endif()
   endif()
 endif()
 
 project(hipSYCL VERSION ${ACPP_VERSION_MAJOR}.${ACPP_VERSION_MINOR}.${ACPP_VERSION_PATCH})
 
-set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
+
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -92,13 +104,20 @@ find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
 list(APPEND CMAKE_MODULE_PATH /usr/local/musa/cmake)
 find_package(MUSA QUIET)
-# Check for OpenCL
-find_package(OpenCL QUIET)
+
+# Check for OpenCL unless user has explicitly set WITH_SSCP_COMPILER to False
+if (DEFINED WITH_SSCP_COMPILER)
+  if (WITH_SSCP_COMPILER)
+    find_package(OpenCL QUIET)
+  endif()
+else()
+  find_package(OpenCL QUIET)
+endif()
 
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)
   message(STATUS "Could not find HIP cmake integration, falling back to finding hipcc")
-  find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH})
+  find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH} ${ROCM_PATH}/bin)
   set(ROCM_PATH /opt/rocm CACHE PATH "Path to ROCm installation")
   if(HIPCC_COMPILER MATCHES "-NOTFOUND")
     message(STATUS "Could not find ROCm installation by looking for hipcc. ROCm support unavailable.")
@@ -158,13 +177,7 @@ endif()
 set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
-  set(DEFAULT_PLATFORM "cuda")
-
   find_program(NVCXX_COMPILER NAMES nvc++)
-elseif(WITH_ROCM_BACKEND)
-  set(DEFAULT_PLATFORM "rocm")
-else()
-  set(DEFAULT_PLATFORM "cpu")
 endif()
 
 if(WITH_CUDA_NVCXX_ONLY)
@@ -234,7 +247,7 @@ if(BUILD_CLANG_PLUGIN)
   get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
   get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
   # The path to the internal clang includes is currently required on ROCm
-  # to let syclcc-clang fix a wrong order of system includes (clang's internal 
+  # to let acpp fix a wrong order of system includes (clang's internal 
   # includes are not of high enough priority in the include path search order).
   # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
   # which is a clang-specific header file.
@@ -292,6 +305,11 @@ if(BUILD_CLANG_PLUGIN)
     set(WITH_REFLECTION_BUILTINS OFF)
   endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
+  
+# Check if building on Windows and LLVM_LIBS is set, if not, use LLVM_AVAILABLE_LIBS 
+  if(WIN32 AND NOT LLVM_LIBS AND LLVM_AVAILABLE_LIBS)
+    llvm_map_components_to_libnames(LLVM_LIBS analysis core support passes)
+  endif()
 endif()
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
@@ -304,16 +322,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_subdirectory(src)
+set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
+set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
+  "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
 
-set(SYCLCC_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc.json")
-set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
-  "Whether to install the syclcc configuration file into a global directory (typically, /etc/hipSYCL). This is generally not recommended.")
-
-if(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION)
-  set(SYCLCC_CONFIG_FILE_INSTALL_DIR /etc/hipSYCL/)
+if(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION)
+  set(ACPP_CONFIG_FILE_INSTALL_DIR /etc/AdaptiveCpp/)
 else()
-  set(SYCLCC_CONFIG_FILE_INSTALL_DIR etc/hipSYCL)
+  set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
 endif()
 
 if(Boost_FIBER_LIBRARY_DEBUG)
@@ -341,8 +357,15 @@ else()
   set(DEFAULT_OMP_FLAG "-fopenmp")
 endif()
 
-set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
+
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
+set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Which filesystem libraries should be searched for")
+
+##########################################################
+## Do not define any variables that might be used by build
+## targets below this line.
+##########################################################
+add_subdirectory(src)
 
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")
@@ -437,7 +460,50 @@ else()
   set(PLUGIN_LLVM_VERSION_MAJOR 0)
 endif()
 
-set(SYCLCC_CONFIG_FILE "{
+set(DEFAULT_GPU_ARCH "" CACHE STRING "(Deprecated, use DEFAULT_TARGETS instead) Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
+set(DEFAULT_TARGETS "" CACHE STRING "Default targets to compile for")
+
+if(NOT DEFAULT_TARGETS)
+  if(DEFAULT_PLATFORM)  
+    message(DEPRECATION "DEFAULT_PLATFORM is deprecated; use DEFAULT_TARGETS instead.")
+    
+    if(DEFAULT_PLATFORM STREQUAL "cpu")
+      set(DEFAULT_TARGETS "omp")
+    endif()
+    
+    if(DEFAULT_GPU_ARCH)
+      message(DEPRECATION "DEFAULT_GPU_ARCH is deprecated; use DEFAULT_TARGETS instead.")
+
+      if(DEFAULT_PLATFORM STREQUAL "cuda")
+        set(DEFAULT_TARGETS "cuda:${DEFAULT_GPU_ARCH}")
+      elseif(DEFAULT_PLATFORM STREQUAL "rocm")
+        set(DEFAULT_TARGETS "hip:${DEFAULT_GPU_ARCH}")
+      else()
+        message(SEND_ERROR "Invalid value for DEFAULT_PLATFORM: \"${DEFAULT_PLATFORM}\". When DEFAULT_GPU_ARCH is specified, only \"cuda\" and \"rocm\" are supported.")
+      endif()
+      
+    endif()
+  elseif(DEFAULT_GPU_ARCH)
+    message(DEPRECATION "DEFAULT_GPU_ARCH is deprecated; use DEFAULT_TARGETS instead.")
+    message(SEND_ERROR "DEFAULT_GPU_ARCH cannot be used without specifying DEFAULT_PLATFORM.")
+  endif()
+endif()
+
+if(NOT DEFAULT_TARGETS)
+  if(WITH_SSCP_COMPILER)
+    set(DEFAULT_TARGETS "generic")
+  else()
+    message(WARNING "The generic SSCP compiler is disabled; without it, offloading code to accelerators requires explicitly specifying --acpp-targets when invoking acpp."
+" A binary generated by invoking acpp without --acpp-targets will only be able to run on the host. Set -DDEFAULT_TARGETS to your desired default targets during cmake "
+" configuration to avoid this warning. In the future, configurations without the SSCP compiler enabled might potentially be only supported if -DDEFAULT_TARGETS is provided explicitly.")
+    set(DEFAULT_TARGETS "omp")
+  endif()
+endif()
+
+message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
+
+
+set(ACPP_CORE_CONFIG_FILE "{
   \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
   \"version-minor\" : \"${ACPP_VERSION_MINOR}\",
   \"version-patch\" : \"${ACPP_VERSION_PATCH}\",
@@ -445,10 +511,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
-  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
-  \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
-  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
-  \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
+  \"default-targets\"  : \"${DEFAULT_TARGETS}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
@@ -459,17 +522,35 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",
   \"default-omp-link-line\" : \"${OMP_LINK_LINE}\",
   \"default-omp-cxx-flags\" : \"${OMP_CXX_FLAGS}\",
-  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
-  \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\",
-  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
-  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\",
   \"default-is-explicit-multipass\" : \"false\",
   \"default-save-temps\" : \"false\"
 }
 ")
 
-file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 
+set(ACPP_CUDA_CONFIG_FILE "{
+  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
+  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
+  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
+  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\"
+}
+")
+
+
+set(ACPP_ROCM_CONFIG_FILE "{
+  \"default-rocm-path\" : \"${ROCM_PATH}\",
+  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
+  \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\"
+}
+")
+
+file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-core.json ${ACPP_CORE_CONFIG_FILE})
+if(WITH_CUDA_BACKEND)
+  file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-cuda.json ${ACPP_CUDA_CONFIG_FILE})
+endif()
+if(WITH_ROCM_BACKEND)
+  file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
+endif()
 
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
@@ -494,7 +575,13 @@ install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
 install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
 
-install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})
+install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+if(WITH_CUDA_BACKEND)
+  install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
+if(WITH_ROCM_BACKEND)
+  install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)

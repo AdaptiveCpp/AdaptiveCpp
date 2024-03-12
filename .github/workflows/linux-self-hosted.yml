@@ -12,7 +12,7 @@ jobs:
         cuda: ['11.0']
         nvhpc_version: ['22.11']
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: build
       run : |
         mkdir build && cd build
@@ -77,6 +77,14 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
         ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+    - name: run CPU tests (SSCP)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests -t '!group_functions_tests/*' -t '!extension_tests/*' -t '!kernel_invocation_tests/hierarchical*'
+    - name: run PSTL CPU tests (SSCP)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./pstl_tests
   test-gpu-amd:
     if: github.repository_id == '140986400'
     name: AMD with clang ${{ matrix.clang_version }}
@@ -86,7 +94,7 @@ jobs:
         clang_version: ['15']
         cuda: ['11.0'] # Just to be able to build the backend for explicit multipass
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: build
       run : |
         mkdir build && cd build
@@ -133,7 +141,7 @@ jobs:
       matrix:
         clang_version: ['15']
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: build
       run : |
         mkdir build && cd build

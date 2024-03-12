@@ -41,31 +41,6 @@ struct MUmod_st;
 namespace hipsycl {
 namespace rt {
 
-class musa_source_object : public code_object {
-public:
-  virtual ~musa_source_object(){}
-  musa_source_object(hcf_object_id origin, const std::string &target,
-                     const std::string &source);
-
-  virtual code_object_state state() const override;
-  virtual code_format format() const override;
-  virtual backend_id managing_backend() const override;
-  virtual hcf_object_id hcf_source() const override;
-  virtual std::string target_arch() const override;
-  virtual compilation_flow source_compilation_flow() const override;
-
-  virtual std::vector<std::string>
-  supported_backend_kernel_names() const override;
-
-  virtual bool contains(const std::string &backend_kernel_name) const override;
-  const std::string& get_source() const;
-
-private:
-  hcf_object_id _origin;
-  std::vector<std::string> _kernel_names;
-  std::string _target_arch;
-  std::string _source;
-};
 
 class musa_executable_object : public code_object {
 public:
@@ -78,8 +53,9 @@ public:
 class musa_multipass_executable_object : public musa_executable_object {
 public:
   virtual ~musa_multipass_executable_object();
-  musa_multipass_executable_object(const musa_source_object *source,
-                                   int device);
+  musa_multipass_executable_object(hcf_object_id origin,
+                                   const std::string &target,
+                                   const std::string &source, int device);
 
   virtual result get_build_result() const override;
 
@@ -97,12 +73,15 @@ public:
   virtual MUmod_st* get_module() const override;
   virtual int get_device() const override;
 private:
-  result build();
+  hcf_object_id _origin;
+  std::string _target;
+
+  result build(const std::string& source);
 
   result _build_result;
-  const musa_source_object* _source;
   int _device;
   MUmod_st* _module;
+  std::vector<std::string> _kernel_names;
 };
 
 class musa_sscp_executable_object : public musa_executable_object {

@@ -110,7 +110,7 @@ private:
 }
 
 LLVMToMusaTranslator::LLVMToMusaTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::musa, KN}, KernelNames{KN} {}
+    : LLVMToBackendTranslator{sycl::jit::backend::musa, KN}, KernelNames{KN} {}
 
 
 bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {

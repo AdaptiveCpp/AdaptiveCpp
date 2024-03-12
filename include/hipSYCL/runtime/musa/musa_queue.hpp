@@ -138,12 +138,14 @@ public:
 private:
   void activate_device() const;
 
-  device_id _dev;
+  const device_id _dev;
   MUstream_st *_stream;
   musa_multipass_code_object_invoker _multipass_code_object_invoker;
   musa_sscp_code_object_invoker _sscp_code_object_invoker;
   host_timestamped_event _reference_event;
   musa_backend* _backend;
+
+  std::shared_ptr<kernel_cache> _kernel_cache;
 };
 
 }

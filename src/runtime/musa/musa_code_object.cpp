@@ -105,75 +105,15 @@ result build_musa_module(MUmod_st *&module, int device,
 
   return make_success();
 }
+
 }
 
-musa_source_object::musa_source_object(hcf_object_id origin,
-                                       const std::string &target,
-                                       const std::string &source)
-    : _origin{origin}, _target_arch{target}, _source{source} {
+musa_multipass_executable_object::musa_multipass_executable_object(hcf_object_id origin,
+                                   const std::string &target,
+                                   const std::string &source, int device)
+    : _origin{origin}, _target{target}, _device{device}, _module{nullptr} {
 
-  std::istringstream code_stream(source);
-  std::string line;
-
-  while (std::getline(code_stream, line)) {
-
-    const std::string kernel_identifier = ".visible .entry";
-    auto pos = line.find(kernel_identifier);
-
-    if (pos != std::string::npos) {
-      line = line.substr(pos + kernel_identifier.size());
-      trim_left(line);
-      trim_right_space_and_parenthesis(line);
-      HIPSYCL_DEBUG_INFO << "Detected kernel in code object: " << line
-                         << std::endl;
-      _kernel_names.push_back(line);
-    }
-  }
-}
-
-code_object_state musa_source_object::state() const {
-  return code_object_state::source;
-}
-
-code_format musa_source_object::format() const { return code_format::ptx; }
-
-backend_id musa_source_object::managing_backend() const {
-  return backend_id::musa;
-}
-
-hcf_object_id musa_source_object::hcf_source() const { return _origin; }
-
-std::string musa_source_object::target_arch() const { return _target_arch; }
-
-compilation_flow musa_source_object::source_compilation_flow() const {
-  return compilation_flow::explicit_multipass;
-}
-
-std::vector<std::string>
-musa_source_object::supported_backend_kernel_names() const {
-  return _kernel_names;
-}
-
-bool musa_source_object::contains(
-    const std::string &backend_kernel_name) const {
-  // TODO We cannot use proper equality checks because the kernel prefix
-  // might vary depending on the clang version
-  for (const auto &name : _kernel_names) {
-    if (name.find(backend_kernel_name) != std::string::npos)
-      return true;
-  }
-  return false;
-}
-
-const std::string &musa_source_object::get_source() const { return _source; }
-
-musa_multipass_executable_object::musa_multipass_executable_object(
-    const musa_source_object *source, int device)
-    : _source{source}, _device{device}, _module{nullptr} {
-
-  assert(source);
-
-  this->_build_result = build();
+  this->_build_result = build(source);
 }
 
 result musa_multipass_executable_object::get_build_result() const {
@@ -197,11 +137,11 @@ backend_id musa_multipass_executable_object::managing_backend() const {
 }
 
 hcf_object_id musa_multipass_executable_object::hcf_source() const {
-  return _source->hcf_source();
+  return _origin;
 }
 
 std::string musa_multipass_executable_object::target_arch() const {
-  return _source->target_arch();
+  return _target;
 }
 
 compilation_flow
@@ -211,23 +151,26 @@ musa_multipass_executable_object::source_compilation_flow() const {
 
 std::vector<std::string>
 musa_multipass_executable_object::supported_backend_kernel_names() const {
-  return _source->supported_backend_kernel_names();
+  return _kernel_names;
 }
 
 bool musa_multipass_executable_object::contains(
     const std::string &backend_kernel_name) const {
-  return _source->contains(backend_kernel_name);
+  for(const auto& k : _kernel_names)
+    if(k == backend_kernel_name)
+      return true;
+  return false;
 }
 
 MUmod_st* musa_multipass_executable_object::get_module() const {
   return _module;
 }
 
-result musa_multipass_executable_object::build() {
+result musa_multipass_executable_object::build(const std::string& source) {
   if (_module != nullptr)
     return make_success();
 
-  return build_musa_module(_module, _device, _source->get_source());
+  return build_musa_module(_module, _device, source);
 }
 
 int musa_multipass_executable_object::get_device() const {
@@ -239,7 +182,7 @@ musa_sscp_executable_object::musa_sscp_executable_object(
     hcf_object_id hcf_source, const std::vector<std::string> &kernel_names,
     int device, const glue::kernel_configuration &config)
     : _target_arch{target_arch}, _hcf{hcf_source}, _kernel_names{kernel_names},
-      _device{device}, _id{config.generate_id()}, _module{nullptr} {
+      _id{config.generate_id()}, _device{device}, _module{nullptr} {
   _build_result = build(ptx_source);
 }
 

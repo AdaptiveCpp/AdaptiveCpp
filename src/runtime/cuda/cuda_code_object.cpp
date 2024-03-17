@@ -87,14 +87,30 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
   // context on that device. This is important for the subsequent driver
   // API calls which assume that CUDA context has been created.
   cudaFree(0);
-  
+
+  static constexpr std::size_t num_options = 2;
+  std::array<CUjit_option, num_options> option_names{};
+  std::array<void*, num_options> option_vals{};
+
+  // set up size of compilation log buffer
+  option_names[0] = CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES;
+  static constexpr std::size_t error_log_buffer_size = 1024*1024;
+  option_vals[0] = reinterpret_cast<void*>(error_log_buffer_size);
+
+  // set up pointer to the compilation log buffer
+  option_names[1] = CU_JIT_ERROR_LOG_BUFFER;
+  std::string error_log_buffer(error_log_buffer_size, '\0');
+  option_vals[1] = error_log_buffer.data();
+
   auto err = cuModuleLoadDataEx(
-      &module, static_cast<void *>(const_cast<char *>(source.c_str())),
-      0, nullptr, nullptr);
+      &module, source.data(),
+      num_options, option_names.data(), option_vals.data());
 
   if (err != CUDA_SUCCESS) {
+    const auto error_log_size = reinterpret_cast<std::size_t>(option_vals[0]);
+    error_log_buffer.resize(error_log_size);
     return make_error(__hipsycl_here(),
-                      error_info{"cuda_executable_object: could not load module",
+                      error_info{error_log_buffer,
                                 error_code{"CU", static_cast<int>(err)}});
   }
   

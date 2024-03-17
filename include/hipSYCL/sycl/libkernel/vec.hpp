@@ -545,9 +545,9 @@ public:
   auto name() const \
   {return swizzle<i0,i1,i2>(); }
 
-#define HIPSYCL_DEFINE_VECTOR_SWIZZLE4(name, i0, i1, i2, i3) \
+#define HIPSYCL_DEFINE_VECTOR_SWIZZLE4(name, Dim, i0, i1, i2, i3) \
   template<int n = N, \
-           std::enable_if_t<(n == 4)>* = nullptr> \
+           std::enable_if_t<(n >= Dim && n <= 4), bool> = true> \
   HIPSYCL_UNIVERSAL_TARGET \
   auto name() const \
   {return swizzle<i0,i1,i2,i3>(); }

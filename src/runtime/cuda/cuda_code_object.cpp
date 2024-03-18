@@ -94,7 +94,7 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
 
   // set up size of compilation log buffer
   option_names[0] = CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES;
-  static constexpr std::size_t error_log_buffer_size = 1024*1024;
+  static constexpr std::size_t error_log_buffer_size = 10*1024;
   option_vals[0] = reinterpret_cast<void*>(error_log_buffer_size);
 
   // set up pointer to the compilation log buffer

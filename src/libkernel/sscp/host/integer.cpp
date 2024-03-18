@@ -26,7 +26,7 @@
  */
 
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/integer.hpp"
 
 #include <limits.h>
 

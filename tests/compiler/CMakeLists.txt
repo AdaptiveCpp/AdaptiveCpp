@@ -4,7 +4,7 @@ add_custom_target(check-cbs
 add_custom_target(check-sscp
         COMMAND lit "${CMAKE_CURRENT_BINARY_DIR}/sscp" -v)
 add_custom_target(check-reflection
-        COMMAND lit "${CMAKE_CURRENT_BINARY_DIR}/reflection" -v)
+        COMMAND lit "${CMAKE_CURRENT_BINARY_DIR}/reflection" -a)
 add_custom_target(check-stdpar
         COMMAND lit "${CMAKE_CURRENT_BINARY_DIR}/stdpar" -v)
 

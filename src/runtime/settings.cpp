@@ -177,6 +177,8 @@ std::istream &operator>>(std::istream &istr, visibility_mask_t &out) {
       backend = rt::backend_id::hip;
     } else if (name == "ze") {
       backend = rt::backend_id::level_zero;
+    } else if (name == "musa") {
+      backend = rt::backend_id::musa;
     } else if (name == "omp") {
       // looking for this, even though we have to allow it always.
       backend = rt::backend_id::omp;

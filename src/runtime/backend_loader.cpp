@@ -125,6 +125,8 @@ bool is_plugin_active(const std::string& name)
     id = hipsycl::rt::backend_id::hip;
   } else if(name == "ze") {
     id = hipsycl::rt::backend_id::level_zero;
+  } else if(name == "musa") {
+    id = hipsycl::rt::backend_id::musa;
   } else if(name == "ocl") {
     id = hipsycl::rt::backend_id::ocl;
   }

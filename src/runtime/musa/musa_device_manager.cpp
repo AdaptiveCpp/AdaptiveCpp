@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,53 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <musa_runtime_api.h>
 
-#ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
-#define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
-
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/executor.hpp"
-#include "hipSYCL/runtime/multi_queue_executor.hpp"
-
-#include "hipSYCL/sycl/backend.hpp"
+#include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/musa/musa_device_manager.hpp"
+#include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-template <sycl::backend b> struct backend_interop {
-  // Specializations should define for interop with a sycl type T:
-  //
-  // using native_T_type = <native-backend-type>
-  // static native_T_type get_native_T(const T&)
-  // T make_T(const native_T_type&, <potentially additional args>)
-  //
-  // For interop_handle, the following is required:
-  // native_queue_type get_native_queue(rt::backend_kernel_launcher*)
-  // native_queue_type get_native_queue(rt::device_id, rt::backend_executor*)
-  // 
-  // In any case, the following should be defined:
-  // static constexpr bool can_make_T = <whether make_T exists>
-  // static constexpr bool can_extract_native_T = <whether get_native_T exists>
-};
+musa_device_manager::musa_device_manager() {
+  auto err = musaGetDevice(&_device);
+
+  if (err != musaSuccess){
+    register_error(
+        __hipsycl_here(),
+        error_info{
+            "musa_device_manager: Could not obtain currently active MUSA device",
+            error_code{"MUSA", err}});
+  }
+}
+
+void musa_device_manager::activate_device(int device_id)
+{
+  if (_device != device_id) {
+
+    HIPSYCL_DEBUG_INFO << "musa_device_manager: Switchting to device "
+                       << device_id << std::endl;
+
+    auto err = musaSetDevice(device_id);
+
+    if (err != musaSuccess){
+    register_error(
+        __hipsycl_here(),
+        error_info{
+            "musa_device_manager: Could not set active MUSA device",
+            error_code{"MUSA", err}});
+    }
+    else {
+      _device = device_id;
+    }
+  }
+}
+
+int musa_device_manager::get_active_device() const
+{
+  return _device;
+}
 
 }
-} // namespace hipsycl
-
-#include "cuda/cuda_interop.hpp"
-#include "hip/hip_interop.hpp"
-#include "ze/ze_interop.hpp"
-#include "omp/omp_interop.hpp"
-#include "musa/musa_interop.hpp"
-
-#endif
+}

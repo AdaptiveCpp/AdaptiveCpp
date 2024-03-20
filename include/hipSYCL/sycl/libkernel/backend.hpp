@@ -32,6 +32,7 @@
 #include "cuda/cuda_backend.hpp"
 #include "hip/hip_backend.hpp"
 #include "spirv/spirv_backend.hpp"
+#include "musa/musa_backend.hpp"
 // These need to be included last, since they need to
 // know if we are in any device pass of the other backends.
 #include "sscp/sscp_backend.hpp"

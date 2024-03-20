@@ -60,6 +60,10 @@ using backend = hipsycl::rt::backend_id;
  #define SYCL_EXT_HIPSYCL_BACKEND_SPIRV
 #endif
 
+#if defined(HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_MUSA) || defined(__HIPSYCL_ENABLE_MUSA_TARGET__)
+ #define SYCL_EXT_HIPSYCL_BACKEND_MUSA
+#endif
+
 }
 } // namespace hipsycl
 

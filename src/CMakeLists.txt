@@ -20,6 +20,7 @@ set(WITH_LLVM_TO_AMDGPU_AMDHSA false)
 set(WITH_LLVM_TO_PTX false)
 set(WITH_LLVM_TO_SPIRV false)
 set(WITH_LLVM_TO_HOST false)
+set(WITH_LLVM_TO_MUSA false)
 
 if(WITH_SSCP_COMPILER)
   if(WITH_LEVEL_ZERO_BACKEND OR WITH_OPENCL_BACKEND)
@@ -35,6 +36,10 @@ if(WITH_SSCP_COMPILER)
   endif()
 
   set(WITH_LLVM_TO_HOST true)
+
+  if(WITH_MUSA_BACKEND)
+    set(WITH_LLVM_TO_MUSA true)
+  endif()
 endif()
 
 if(BUILD_CLANG_PLUGIN)

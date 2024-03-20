@@ -316,6 +316,7 @@ public:
   // Assignment and access operators
   multi_ptr &operator=(const multi_ptr &) = default;
   multi_ptr &operator=(multi_ptr &&) = default;
+
   HIPSYCL_UNIVERSAL_TARGET multi_ptr &operator=(std::nullptr_t) {
     _ptr = nullptr;
     return *this;
@@ -331,6 +332,7 @@ public:
                              bool> = true>
   multi_ptr &operator=(const multi_ptr<value_type, AS, IsDecorated> &other) {
     _ptr = other._ptr;
+    return *this;
   }
 
   // Available only when:
@@ -343,6 +345,7 @@ public:
                              bool> = true>
   multi_ptr &operator=(multi_ptr<value_type, AS, IsDecorated> &&other) {
     _ptr = other._ptr;
+    return *this;
   }
 
   HIPSYCL_UNIVERSAL_TARGET reference operator[](std::ptrdiff_t index) const {
@@ -778,17 +781,8 @@ public:
   multi_ptr(std::nullptr_t) : _ptr{nullptr} {}
 
   // Assignment and access operators
-  HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(const multi_ptr &other) {
-    _ptr = other._ptr;
-    return *this;
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(multi_ptr &&other) {
-    _ptr = other._ptr;
-    return *this;
-  }
+  multi_ptr &operator=(const multi_ptr &) = default;
+  multi_ptr &operator=(multi_ptr &&) = default;
 
   HIPSYCL_UNIVERSAL_TARGET
   multi_ptr &operator=(ElementType *ptr) {
@@ -943,17 +937,20 @@ public:
 
   // Assignment operators
 
-  HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(const multi_ptr &other) { _ptr = other._ptr; }
+  multi_ptr &operator=(const multi_ptr &) = default;
+  multi_ptr &operator=(multi_ptr &&) = default;
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(multi_ptr &&other) { _ptr = other._ptr; }
+  multi_ptr &operator=(void *ptr) {
+    _ptr = ptr;
+    return *this;
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(void *ptr) { _ptr = ptr; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(std::nullptr_t) { _ptr = nullptr; }
+  multi_ptr &operator=(std::nullptr_t) {
+    _ptr = nullptr;
+    return *this;
+  }
 
   // Only if Space == global_space
   template <typename ElementType, int dimensions, access::mode Mode,
@@ -1037,18 +1034,20 @@ public:
   multi_ptr(std::nullptr_t) : _ptr{nullptr} {}
 
   // Assignment operators
+  multi_ptr &operator=(const multi_ptr &) = default;
+  multi_ptr &operator=(multi_ptr &&) = default;
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(const multi_ptr &other) { _ptr = other._ptr; }
+  multi_ptr &operator=(void *ptr) {
+    _ptr = ptr;
+    return *this;
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(multi_ptr &&other) { _ptr = other._ptr; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(void *ptr) { _ptr = ptr; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr &operator=(std::nullptr_t) { _ptr = nullptr; }
+  multi_ptr &operator=(std::nullptr_t) {
+    _ptr = nullptr;
+    return *this;
+  }
 
   // Only if Space == global_space
   template <typename ElementType, int dimensions, access::mode Mode,

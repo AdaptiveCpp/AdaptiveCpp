@@ -36,18 +36,141 @@
 #include <cstddef>
 #include <type_traits>
 
+#define ACPP_MULTIPTR_ARITHMETIC_OPS                                           \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr &operator++(multi_ptr &mp) {                                \
+    ++(mp._ptr);                                                               \
+    return mp;                                                                 \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr operator++(multi_ptr &mp, int) {                            \
+    multi_ptr old = mp;                                                        \
+    ++(mp._ptr);                                                               \
+    return old;                                                                \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr &operator--(multi_ptr &mp) {                                \
+    --(mp._ptr);                                                               \
+    return mp;                                                                 \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr operator--(multi_ptr &mp, int) {                            \
+    multi_ptr old = mp;                                                        \
+    --(mp._ptr);                                                               \
+    return old;                                                                \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr &operator+=(multi_ptr &lhs, difference_type r) {            \
+    lhs._ptr += r;                                                             \
+    return lhs;                                                                \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr &operator-=(multi_ptr &lhs, difference_type r) {            \
+    lhs._ptr -= r;                                                             \
+    return lhs;                                                                \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr operator+(const multi_ptr &lhs, difference_type r) {        \
+    return multi_ptr{lhs._ptr + r};                                            \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend multi_ptr operator-(const multi_ptr &lhs, difference_type r) {        \
+    return multi_ptr{lhs._ptr - r};                                            \
+  }
+
+#define ACPP_MULTIPTR_NULLPTR_COMP                                             \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator==(std::nullptr_t,              \
+                                                  multi_ptr rhs) {             \
+    return rhs.get() == nullptr;                                               \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator==(multi_ptr lhs,               \
+                                                  std::nullptr_t) {            \
+    return lhs.get() == nullptr;                                               \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator!=(std::nullptr_t,              \
+                                                  multi_ptr rhs) {             \
+    return rhs.get() != nullptr;                                               \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator!=(multi_ptr lhs,               \
+                                                  std::nullptr_t) {            \
+    return lhs.get() != nullptr;                                               \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator<(std::nullptr_t,               \
+                                                 multi_ptr rhs) {              \
+    return rhs.get() != nullptr;                                               \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator<(multi_ptr lhs,                \
+                                                 std::nullptr_t) {             \
+    return false;                                                              \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator>(std::nullptr_t,               \
+                                                 multi_ptr rhs) {              \
+    return false;                                                              \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator>(multi_ptr lhs,                \
+                                                 std::nullptr_t) {             \
+    return lhs.get() != nullptr;                                               \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator<=(std::nullptr_t,              \
+                                                  multi_ptr rhs) {             \
+    return true;                                                               \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator<=(multi_ptr lhs,               \
+                                                  std::nullptr_t) {            \
+    return lhs._ptr == nullptr;                                                \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator>=(std::nullptr_t,              \
+                                                  multi_ptr rhs) {             \
+    return rhs._ptr == nullptr;                                                \
+  }                                                                            \
+                                                                               \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator>=(multi_ptr lhs,               \
+                                                  std::nullptr_t) {            \
+    return true;                                                               \
+  }
+
+#define ACPP_DEFINE_COMP_OP_MULTIPTR_MULTIPTR(op)                              \
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator op(multi_ptr lhs,              \
+                                                   multi_ptr rhs) {            \
+    return lhs._ptr op rhs._ptr;                                               \
+  }
+
+#define ACPP_MULTIPTR_MULTIPTR_COMP                                            \
+  ACPP_DEFINE_COMP_OP_MULTIPTR_MULTIPTR(==)                                    \
+  ACPP_DEFINE_COMP_OP_MULTIPTR_MULTIPTR(!=)                                    \
+  ACPP_DEFINE_COMP_OP_MULTIPTR_MULTIPTR(<)                                     \
+  ACPP_DEFINE_COMP_OP_MULTIPTR_MULTIPTR(>)                                     \
+  ACPP_DEFINE_COMP_OP_MULTIPTR_MULTIPTR(<=)                                    \
+  ACPP_DEFINE_COMP_OP_MULTIPTR_MULTIPTR(>=)
+
 namespace hipsycl {
 namespace sycl {
 
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget,
-         access::placeholder isPlaceholder>
+template <typename dataT, int dimensions, access::mode accessmode,
+          access::target accessTarget, access::placeholder isPlaceholder>
 class accessor;
 
 template <typename dataT, int dimensions = 1>
-using local_accessor = accessor<dataT, dimensions, access::mode::read_write,
-  access::target::local, access::placeholder::false_t>;
+using local_accessor =
+    accessor<dataT, dimensions, access::mode::read_write, access::target::local,
+             access::placeholder::false_t>;
 
 template <typename T> struct remove_decoration {
   using type = T;

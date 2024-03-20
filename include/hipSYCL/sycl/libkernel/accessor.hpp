@@ -1193,13 +1193,16 @@ public:
     };
   }
 
-  // /* Available only when: accessTarget == access::target::host_buffer */
-  // template<access::target T = accessTarget,
-  //          typename = std::enable_if_t<T==access::target::host_buffer>>
-  // dataT *get_pointer() const noexcept
-  // {
-  //   return const_cast<dataT*>(this->_ptr.get());
-  // }
+  /* Available only when: accessTarget == access::target::host_buffer */
+  // TODO: T == host_buffer is deprecated in SYCL2020
+  template<access::target T = accessTarget,
+           typename = std::enable_if_t<
+	     T == access::target::host_buffer ||
+	     T == access::target::host_task>>
+  dataT *get_pointer() const noexcept
+  {
+    return const_cast<dataT*>(this->_ptr.get());
+  }
 
   /* Available only when: accessTarget == access::target::global_buffer */
   template<access::target T = accessTarget,
@@ -1217,15 +1220,6 @@ public:
   constant_ptr<dataT> get_pointer() const noexcept
   {
     return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
-  }
-
-  /* Available only when: accessTarget == access::target::host_task */
-  template<access::target T = accessTarget,
-           typename = std::enable_if_t<T == access::target::host_task>>
-  HIPSYCL_UNIVERSAL_TARGET
-  std::add_pointer_t<value_type> get_pointer() const noexcept
-  {
-    return const_cast<std::add_pointer_t<value_type>>(this->_ptr.get());
   }
 
   /* Available only when: accessTarget == access::target::device */

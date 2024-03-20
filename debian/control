@@ -3,7 +3,7 @@ Maintainer: Sanchi Vaishnavi <sanchi.vaishnavi@stud.uni-heidelberg.de>
 Section: devel
 Priority: optional
 Standards-Version: 4.6.2
-Build-Depends: debhelper-compat (= 13), cmake
+Build-Depends: debhelper-compat (= 13), cmake, python3
 Homepage: https://adaptivecpp.github.io/
 Rules-Requires-Root: no
 

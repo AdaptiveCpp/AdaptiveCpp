@@ -134,12 +134,13 @@ jobs:
           echo "CC=${CC}" >> $GITHUB_ENV
           echo "CXX=${CXX}" >> $GITHUB_ENV
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
-      - name: install CUDA Toolkit
+      - name: install CUDA Toolkit and driver
         run : |
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt update
           sudo apt install -y cuda-toolkit-$(echo ${{matrix.cuda}} | sed 's/\..*//')-$(echo ${{matrix.cuda}} | sed 's/.*\.//')
+          sudo apt install -y cuda-drivers-550
           echo "$(dpkg -S libcuda)"
       - name: install ROCm
         run: |

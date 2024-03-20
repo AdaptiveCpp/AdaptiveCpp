@@ -2,7 +2,7 @@
 export DH_VERBOSE = 1
 export DH_OPTIONS=-v
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
+export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic -fPIC
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 export DEB_BUILD_OPTIONS = nocheck, nostrip
 

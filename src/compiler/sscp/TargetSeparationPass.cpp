@@ -148,6 +148,7 @@ struct KernelParam {
   std::size_t ArgByteOffset;
   std::size_t OriginalArgIndex;
   ParamType Type;
+  llvm::SmallVector<std::string> Annotations;
 };
 
 struct KernelInfo {
@@ -190,6 +191,7 @@ struct KernelInfo {
         KP.Type = PT;
         KP.ArgByteOffset = OriginalParamInfos[i].OffsetInOriginalParam;
         KP.OriginalArgIndex = OriginalParamInfos[i].OriginalParamIndex;
+        KP.Annotations = OriginalParamInfos[i].Annotations;
         this->Parameters.push_back(KP);
       }
     }
@@ -396,6 +398,11 @@ generateHCF(llvm::Module &DeviceModule, std::size_t HcfObjectId,
         TypeDescription = "other-by-value";
       }
       P->set("type", TypeDescription);
+
+      auto* AnnotationsNode = P->add_subnode("annotations");
+      for(const auto& A : ParamInfo.Annotations) {
+        AnnotationsNode->set(A, "1");
+      }
     }
   }
   

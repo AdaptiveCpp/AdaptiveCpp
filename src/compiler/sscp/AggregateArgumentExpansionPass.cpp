@@ -74,12 +74,35 @@ struct ExpandedArgumentInfo {
   // arg
   llvm::SmallVector<llvm::SmallVector<int, 16>> GEPIndices;
   llvm::SmallVector<llvm::Type*> ExpandedTypes;
+  llvm::SmallVector<llvm::SmallVector<std::string>> TypeAnnotations;
   // original argument index
   int OriginalIndex = 0;
   // Number of arguments the original arg was expanded into
   int NumExpandedArguments = 1;
   bool IsExpanded = false;
 };
+
+static const char* TypeAnnotationIdentifier = "__hipsycl_sscp_emit_type_annotation";
+
+std::string ExtractAnnotationFromType(llvm::Type* T) {
+  if(!T)
+    return {};
+  
+  std::string StructName = T->getStructName().str();
+
+  std::size_t pos = StructName.find(TypeAnnotationIdentifier);
+  if(pos == std::string::npos)
+    return {};
+
+  std::string Substr = StructName.substr(pos);
+  std::string AnnotationType = Substr.substr(0, Substr.find_first_of(":."));
+
+  std::string Prefix = TypeAnnotationIdentifier;
+  Prefix += "_";
+  auto Result = AnnotationType.substr(Prefix.size());
+
+  return Result;
+}
 
 void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
                               std::vector<OriginalParamInfo> &OriginalParamInfos) {
@@ -96,13 +119,34 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
     if (needsExpansion(F, i)) {
       Info.IsExpanded = true;
 
-      auto OnContainedType = [&](llvm::Type *T, llvm::SmallVector<int, 16> Indices) {
+      auto OnContainedType = [&](llvm::Type *T, llvm::SmallVector<int, 16> Indices,
+                                 llvm::SmallVector<llvm::Type *, 16> MatchedParentTypes) {
         Info.ExpandedTypes.push_back(T);
         Info.GEPIndices.push_back(Indices);
+        
+        llvm::SmallVector<std::string> Annotations;
+        for(llvm::Type* MatchedType : MatchedParentTypes) {
+          std::string Annotation = ExtractAnnotationFromType(MatchedType);
+          if(!Annotation.empty()) {
+            if (std::find(Annotations.begin(), Annotations.end(), Annotation) == Annotations.end()) {
+              Annotations.push_back(Annotation);
+            }
+          }
+        }
+
+        Info.TypeAnnotations.push_back(Annotations);
+      };
+
+      auto ParentTypeMatcher = [&](llvm::Type* T) {
+        if(T && T->isStructTy())
+          if(T->getStructName().find(TypeAnnotationIdentifier))
+            return true;
+        return false;
       };
 
       auto* ValueT = getValueType(F, i);
-      utils::ForEachNonAggregateContainedType(ValueT, OnContainedType, {});
+      utils::ForEachNonAggregateContainedTypeWithParentTypeMatcher(ValueT, OnContainedType, {}, {},
+                                                                   ParentTypeMatcher);
       Info.OriginalByValType = ValueT;
       Info.NumExpandedArguments = Info.GEPIndices.size();
     } else {
@@ -182,14 +226,14 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
           // when invoking the function.
           std::size_t IndexedOffset = M.getDataLayout().getIndexedOffsetInType(
               EI.OriginalByValType, GEPIndicesRef);
-          OriginalParamInfos.push_back(
-              OriginalParamInfo{IndexedOffset, static_cast<std::size_t>(EI.OriginalIndex)});
+          OriginalParamInfos.push_back(OriginalParamInfo{
+              IndexedOffset, static_cast<std::size_t>(EI.OriginalIndex), EI.TypeAnnotations[j]});
         }
         CallArgs.push_back(Alloca);
       } else {
         CallArgs.push_back(NewF->getArg(CurrentNewIndex));
-        OriginalParamInfos.push_back(
-            OriginalParamInfo{0, static_cast<std::size_t>(EI.OriginalIndex)});
+        OriginalParamInfos.push_back(OriginalParamInfo{
+            0, static_cast<std::size_t>(EI.OriginalIndex), EI.TypeAnnotations[0]});
       }
 
       CurrentNewIndex += EI.NumExpandedArguments;

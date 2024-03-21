@@ -66,7 +66,7 @@ void unload_cuda_module(CUmod_st* module, int device) {
 
     auto err = cuModuleUnload(module);
 
-    if (err != CUDA_SUCCESS && 
+    if (err != CUDA_SUCCESS &&
         // It can happen that during shutdown of the CUDA
         // driver we cannot unload anymore.
         // TODO: Find a better solution
@@ -81,7 +81,7 @@ void unload_cuda_module(CUmod_st* module, int device) {
 
 result build_cuda_module_from_ptx(CUmod_st *&module, int device,
                                   const std::string &source) {
-  
+
   cuda_device_manager::get().activate_device(device);
   // This guarantees that the CUDA runtime API initializes the CUDA
   // context on that device. This is important for the subsequent driver
@@ -109,18 +109,21 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
   if (err != CUDA_SUCCESS) {
     const auto error_log_size = reinterpret_cast<std::size_t>(option_vals[0]);
     error_log_buffer.resize(error_log_size);
-    return make_error(__hipsycl_here(),
-                      error_info{error_log_buffer,
-                                error_code{"CU", static_cast<int>(err)}});
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "cuda_executable_object: Could not load module, CUDA JIT log: " +
+                error_log_buffer,
+            error_code{"CU", static_cast<int>(err)}});
   }
-  
+
   assert(module);
 
   return make_success();
 }
 
 std::vector<std::string> extract_kernel_names_from_ptx(const std::string& source) {
-  
+
   std::vector<std::string> kernel_names;
   std::istringstream code_stream(source);
   std::string line;

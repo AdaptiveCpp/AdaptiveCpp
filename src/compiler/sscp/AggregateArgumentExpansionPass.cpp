@@ -82,7 +82,7 @@ struct ExpandedArgumentInfo {
   bool IsExpanded = false;
 };
 
-static const char* TypeAnnotationIdentifier = "__hipsycl_sscp_emit_type_annotation";
+static const char* TypeAnnotationIdentifier = "__hipsycl_sscp_emit_param_type_annotation";
 
 std::string ExtractAnnotationFromType(llvm::Type* T) {
   if(!T)

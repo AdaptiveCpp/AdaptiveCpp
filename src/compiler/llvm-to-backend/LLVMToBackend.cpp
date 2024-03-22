@@ -98,8 +98,10 @@ void setFastMathFunctionAttribs(llvm::Module& M) {
 }
 
 LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
-  const std::vector<std::string>& OutliningEPs)
-: S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {}
+                                                 const std::vector<std::string> &OutliningEPs,
+                                                 const std::vector<std::string> &KernelNames)
+    : S2IRConstantBackendId(S2IRConstantCurrentBackendId),
+      OutliningEntrypoints{OutliningEPs}, Kernels{KernelNames} {}
 
 bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) {
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
@@ -360,6 +362,11 @@ void LLVMToBackendTranslator::setS2IRConstant(const std::string &name, const voi
     S2IRConstant C = S2IRConstant::getFromConstantName(M, name);
     C.set(ValueBuffer);
   };
+}
+
+void LLVMToBackendTranslator::specializeKernelArgument(const std::string &KernelName, int ParamIndex,
+                                const void *ValueBuffer) {
+  
 }
 
 void LLVMToBackendTranslator::provideExternalSymbolResolver(ExternalSymbolResolver Resolver) {

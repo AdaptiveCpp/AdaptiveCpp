@@ -571,8 +571,18 @@ result ze_queue::submit_sscp_kernel_from_code_object(
             kernel_name});
   }
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "ze_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, num_groups,
+      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
 
@@ -668,16 +678,6 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   HIPSYCL_DEBUG_INFO << "ze_queue: Attempting to submit SSCP kernel"
                      << std::endl;
-
-
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{
-            "ze_queue: Could not map C++ arguments to kernel arguments"});
-  }
 
   auto submission_err = submit_ze_kernel(
       kernel, get_ze_command_list(),

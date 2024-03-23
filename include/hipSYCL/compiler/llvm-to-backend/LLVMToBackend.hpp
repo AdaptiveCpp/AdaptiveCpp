@@ -234,7 +234,7 @@ private:
   std::vector<std::string> Kernels;
 
   std::vector<std::string> Errors;
-  std::unordered_map<std::string, std::function<void(llvm::Module &)>> S2IRConstantApplicators;
+  std::unordered_map<std::string, std::function<void(llvm::Module &)>> SpecializationApplicators;
   ExternalSymbolResolver SymbolResolver;
   bool HasExternalSymbolResolver = false;
 

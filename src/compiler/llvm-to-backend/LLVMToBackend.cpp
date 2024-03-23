@@ -36,6 +36,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
+#include <llvm/ADT/APFloat.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/DiagnosticInfo.h>
@@ -207,9 +208,9 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
   // This also means that we cannot error yet if we cannot resolve all symbols :(
   resolveExternalSymbols(M);
 
-  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Applying S2 IR constants...\n";
-  for(auto& A : S2IRConstantApplicators) {
-    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Setting S2 IR constant " << A.first << "\n";
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Applying specializations and S2 IR constants...\n";
+  for(auto& A : SpecializationApplicators) {
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Processing specialization " << A.first << "\n";
     A.second(M);
   }
 
@@ -276,7 +277,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
         if (C.isValid()) {
           if (!C.isInitialized()) {
             ContainsUnsetIRConstants = true;
-            this->registerError("LLVMToBackend: hipSYCL S2IR constant was not set: " +
+            this->registerError("LLVMToBackend: AdaptiveCpp S2IR constant was not set: " +
                                 C.getGlobalVariable()->getName().str());
           }
         }
@@ -358,7 +359,7 @@ bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module &M, const std::string
 }
 
 void LLVMToBackendTranslator::setS2IRConstant(const std::string &name, const void *ValueBuffer) {
-  S2IRConstantApplicators[name] = [=](llvm::Module& M){
+  SpecializationApplicators[name] = [=](llvm::Module& M){
     S2IRConstant C = S2IRConstant::getFromConstantName(M, name);
     C.set(ValueBuffer);
   };
@@ -366,7 +367,64 @@ void LLVMToBackendTranslator::setS2IRConstant(const std::string &name, const voi
 
 void LLVMToBackendTranslator::specializeKernelArgument(const std::string &KernelName, int ParamIndex,
                                 const void *ValueBuffer) {
-  
+  std::string Id = KernelName+"__specialized_kernel_argument_"+std::to_string(ParamIndex);
+  SpecializationApplicators[Id] = [=](llvm::Module& M) {
+    if(auto* F = M.getFunction(KernelName)) {
+      if(F->getFunctionType()->getNumParams() > ParamIndex && !F->isDeclaration()) {
+        
+        llvm::Type* ParamType = F->getFunctionType()->getParamType(ParamIndex);
+        if (ParamType->isIntegerTy() || ParamType->isPointerTy() || ParamType->isFloatTy() ||
+            ParamType->isDoubleTy()) {
+          std::string GetterName = "__specialization_getter_"+Id;
+          llvm::Function *GetConstant = llvm::dyn_cast<llvm::Function>(
+              M.getOrInsertFunction(GetterName, ParamType).getCallee());
+          
+          if(!GetConstant)
+            return;
+          GetConstant->addFnAttr(llvm::Attribute::AlwaysInline);
+
+          llvm::Constant *ReturnedValue = nullptr;
+          std::size_t ParamByteSize = M.getDataLayout().getTypeSizeInBits(ParamType) / CHAR_BIT;
+          
+          if(ParamType->isIntegerTy()) {
+            uint64_t Value = 0;
+            std::memcpy(&Value, ValueBuffer, ParamByteSize);
+            ReturnedValue = llvm::ConstantInt::get(
+              M.getContext(), llvm::APInt(ParamType->getIntegerBitWidth(), Value));
+          } else if(ParamType->isFloatTy()) {
+            float Value = 0.0f;
+            std::memcpy(&Value, ValueBuffer, ParamByteSize);
+            ReturnedValue = llvm::ConstantFP::get(M.getContext(), llvm::APFloat(Value));
+          } else if(ParamType->isDoubleTy()) {
+            double Value = 0.0;
+            std::memcpy(&Value, ValueBuffer, ParamByteSize);
+            ReturnedValue = llvm::ConstantFP::get(M.getContext(), llvm::APFloat(Value));
+          } else if(ParamType->isPointerTy()) {
+            uint64_t Value = 0;
+            std::memcpy(&Value, ValueBuffer, ParamByteSize);
+            auto* IntPtr = llvm::ConstantInt::get(
+              M.getContext(), llvm::APInt(ParamType->getIntegerBitWidth(), Value));
+            ReturnedValue = llvm::ConstantExpr::getIntToPtr(
+                IntPtr, ParamType);
+          }
+          if(!ReturnedValue) {
+            HIPSYCL_DEBUG_WARNING << "LLVMToBackend: Could not specialize kernel argument " << Id
+                                  << " due to unsupported parameter type\n";
+            return;
+          }
+
+          llvm::BasicBlock *BB =
+              llvm::BasicBlock::Create(M.getContext(), "", GetConstant);
+          llvm::ReturnInst::Create(M.getContext(), ReturnedValue, BB);
+
+          llvm::Instruction* InsertionPt = &(*F->getEntryBlock().getFirstInsertionPt());
+          auto* FnCall = llvm::CallInst::Create(llvm::FunctionCallee(GetConstant),
+                                  llvm::ArrayRef<llvm::Value *>{}, "", InsertionPt);
+          F->getArg(ParamIndex)->replaceNonMetadataUsesWith(FnCall);
+        }
+      }
+    }
+  };
 }
 
 void LLVMToBackendTranslator::provideExternalSymbolResolver(ExternalSymbolResolver Resolver) {

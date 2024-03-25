@@ -385,7 +385,7 @@ void LLVMToBackendTranslator::specializeKernelArgument(const std::string &Kernel
 
           llvm::Constant *ReturnedValue = nullptr;
           std::size_t ParamByteSize = M.getDataLayout().getTypeSizeInBits(ParamType) / CHAR_BIT;
-          
+
           if(ParamType->isIntegerTy()) {
             uint64_t Value = 0;
             std::memcpy(&Value, ValueBuffer, ParamByteSize);
@@ -403,7 +403,7 @@ void LLVMToBackendTranslator::specializeKernelArgument(const std::string &Kernel
             uint64_t Value = 0;
             std::memcpy(&Value, ValueBuffer, ParamByteSize);
             auto* IntPtr = llvm::ConstantInt::get(
-              M.getContext(), llvm::APInt(ParamType->getIntegerBitWidth(), Value));
+              M.getContext(), llvm::APInt(ParamByteSize * CHAR_BIT, Value));
             ReturnedValue = llvm::ConstantExpr::getIntToPtr(
                 IntPtr, ParamType);
           }
@@ -415,6 +415,7 @@ void LLVMToBackendTranslator::specializeKernelArgument(const std::string &Kernel
 
           llvm::BasicBlock *BB =
               llvm::BasicBlock::Create(M.getContext(), "", GetConstant);
+
           llvm::ReturnInst::Create(M.getContext(), ReturnedValue, BB);
 
           llvm::Instruction* InsertionPt = &(*F->getEntryBlock().getFirstInsertionPt());

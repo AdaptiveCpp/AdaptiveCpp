@@ -610,8 +610,18 @@ result hip_queue::submit_sscp_kernel_from_code_object(
             kernel_name});
   }
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "hip_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, num_groups,
+      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
   
   static thread_local glue::kernel_configuration config;
@@ -701,15 +711,6 @@ result hip_queue::submit_sscp_kernel_from_code_object(
   ihipModule_t *module =
       static_cast<const hip_executable_object *>(obj)->get_module();
   assert(module);
-
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{
-            "hip_queue: Could not map C++ arguments to kernel arguments"});
-  }
 
   return launch_kernel_from_module(
       module, kernel_name, num_groups, group_size, local_mem_size, _stream,

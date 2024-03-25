@@ -62,7 +62,8 @@ struct TranslationHints {
 class LLVMToBackendTranslator {
 public:
   LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
-    const std::vector<std::string>& OutliningEntrypoints);
+    const std::vector<std::string>& OutliningEntrypoints,
+    const std::vector<std::string>& KernelNames);
 
   virtual ~LLVMToBackendTranslator() {}
 
@@ -83,6 +84,8 @@ public:
   }
 
   void setS2IRConstant(const std::string& name, const void* ValueBuffer);
+  void specializeKernelArgument(const std::string &KernelName, int ParamIndex,
+                                const void *ValueBuffer);
 
   bool setBuildFlag(const std::string &Flag);
   bool setBuildOption(const std::string &Option, const std::string &Value);
@@ -109,6 +112,14 @@ public:
   // Returns IR that caused the error in case an error occurs
   const std::string& getFailedIR() const {
     return ErroringCode;
+  }
+
+  const std::vector<std::string>& getOutliningEntrypoints() const {
+    return OutliningEntrypoints;
+  }
+
+  const std::vector<std::string>& getKernels () const {
+    return Kernels;
   }
 
   std::string getErrorLogAsString() const {
@@ -218,9 +229,12 @@ private:
   void setFailedIR(llvm::Module& M);
 
   int S2IRConstantBackendId;
+  
   std::vector<std::string> OutliningEntrypoints;
+  std::vector<std::string> Kernels;
+
   std::vector<std::string> Errors;
-  std::unordered_map<std::string, std::function<void(llvm::Module &)>> S2IRConstantApplicators;
+  std::unordered_map<std::string, std::function<void(llvm::Module &)>> SpecializationApplicators;
   ExternalSymbolResolver SymbolResolver;
   bool HasExternalSymbolResolver = false;
 

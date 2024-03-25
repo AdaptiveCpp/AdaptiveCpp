@@ -605,8 +605,18 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
             kernel_name});
   }
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "cuda_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, num_groups,
+      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
   static thread_local glue::kernel_configuration config;
@@ -696,14 +706,6 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   CUmodule cumodule = static_cast<const cuda_executable_object*>(obj)->get_module();
   assert(cumodule);
 
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{
-            "cuda_queue: Could not map C++ arguments to kernel arguments"});
-  }
   return launch_kernel_from_module(cumodule, kernel_name, num_groups,
                                    group_size, local_mem_size, _stream,
                                    arg_mapper.get_mapped_args());

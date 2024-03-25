@@ -423,8 +423,18 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
             kernel_name});
   }
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "ocl_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, num_groups,
+      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
   ocl_hardware_context *hw_ctx = static_cast<ocl_hardware_context *>(
@@ -523,16 +533,6 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: Attempting to submit SSCP kernel"
                      << std::endl;
-
-
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{
-            "ocl_queue: Could not map C++ arguments to kernel arguments"});
-  }
 
   cl::Event completion_evt;
   auto submission_err = submit_ocl_kernel(

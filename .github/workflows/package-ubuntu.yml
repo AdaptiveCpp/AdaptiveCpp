@@ -93,6 +93,8 @@ jobs:
   packaging-acpp-all-backends:
     name: Packaging AdaptiveCpp, clang ${{matrix.clang}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}, ROCm ${{matrix.rocm}}
     runs-on: ${{matrix.os}}
+    container:
+      image: ubuntu:jammy-20240212
     strategy:
       matrix:
         clang: ['16']
@@ -100,6 +102,10 @@ jobs:
         cuda: [12.4]
         rocm: [5.6.1]
     steps:
+      - name: install git and other dependencies in container
+        run: |
+          apt update
+          apt install -y git lsb-release software-properties-common wget curl gpg unzip g++-11
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -117,12 +123,12 @@ jobs:
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh ${{matrix.clang}}
-          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
-          sudo apt install -y libstdc++-12-dev
+          ./llvm.sh ${{matrix.clang}}
+          apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
+          apt install -y libstdc++-12-dev
       - name: install dependencies
         run: |
-          sudo apt install cmake python3 libboost-all-dev libtbb-dev wget gpg curl
+           apt install cmake python3 libboost-all-dev libtbb-dev
       - name: setup build environment
         run: |
           export CXXFLAGS="$CXXFLAGS"
@@ -137,36 +143,36 @@ jobs:
       - name: install CUDA Toolkit and driver
         run : |
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
-          sudo apt update
-          sudo apt install -y cuda-toolkit-$(echo ${{matrix.cuda}} | sed 's/\..*//')-$(echo ${{matrix.cuda}} | sed 's/.*\.//')
-          sudo apt install -y cuda-drivers-550
+          dpkg -i cuda-keyring_1.1-1_all.deb
+          apt update
+          apt install -y cuda-toolkit-$(echo ${{matrix.cuda}} | sed 's/\..*//')-$(echo ${{matrix.cuda}} | sed 's/.*\.//')
+          apt install -y cuda-drivers-550
           echo "$(dpkg -S libcuda)"
       - name: install ROCm
         run: |
           [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy
-          sudo apt install libnuma-dev cmake unzip
-          wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
-          echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | sudo tee /etc/apt/sources.list.d/rocm.list
-          printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
-          sudo apt update
-          sudo apt install rocm-dev
+          apt install libnuma-dev cmake unzip
+          wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -
+          echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | tee /etc/apt/sources.list.d/rocm.list
+          printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | tee /etc/apt/preferences.d/rocm-pin-600
+          apt update
+          apt install rocm-dev
       - name: install OpenCL development files and loader
         run: |
-          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-          sudo apt update
-          sudo apt install -y intel-oneapi-runtime-opencl-2024 intel-oneapi-runtime-compilers-2024 ocl-icd-libopencl1 ocl-icd-opencl-dev
+          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list
+          apt update
+          apt install -y intel-oneapi-runtime-opencl-2024 intel-oneapi-runtime-compilers-2024 ocl-icd-libopencl1 ocl-icd-opencl-dev
       - name: install Level Zero
         run : |
           wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero-devel_1.2.3+u18.04_amd64.deb
           wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero_1.2.3+u18.04_amd64.deb
-          sudo dpkg -i ./level-zero*
+          dpkg -i ./level-zero*
       - name: install packaging helpers
         run: |
-          sudo  apt install build-essential
-          sudo  apt install devscripts
-          sudo  apt install debhelper
+          apt install build-essential
+          apt install devscripts
+          apt install debhelper
       - name: package AdaptiveCpp
         run: |
           cd ..
@@ -188,7 +194,7 @@ jobs:
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          sudo dpkg -i acpp_24.02.0-1_amd64.deb
+          dpkg -i acpp_24.02.0-1_amd64.deb
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:

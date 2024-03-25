@@ -105,10 +105,16 @@ public:
     other
   };
 
+  enum annotation_type {
+    specialized
+  };
+
   std::size_t get_argument_offset(std::size_t i) const;
   std::size_t get_argument_size(std::size_t i) const;
   std::size_t get_original_argument_index(std::size_t i) const;
   argument_type get_argument_type(std::size_t i) const;
+  const std::vector<std::string>& get_string_annotations(std::size_t i) const;
+  const std::vector<annotation_type>& get_known_annotations(std::size_t i) const;
 
   bool is_valid() const;
 
@@ -120,10 +126,14 @@ public:
   get_compilation_options() const;
 
 private:
+  // We have one entry per kernel parameter for these
   std::vector<std::size_t> _arg_offsets;
   std::vector<std::size_t> _arg_sizes;
   std::vector<std::size_t> _original_arg_indices;
   std::vector<argument_type> _arg_types;
+  std::vector<std::vector<std::string>> _string_annotations;
+  std::vector<std::vector<annotation_type>> _known_annotations;
+
   std::vector<std::string> _image_providers;
   
   std::vector<glue::kernel_build_flag> _compilation_flags;

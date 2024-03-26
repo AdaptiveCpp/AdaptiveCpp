@@ -105,7 +105,7 @@ jobs:
       - name: install git and other dependencies in container
         run: |
           apt update
-          apt install -y git lsb-release software-properties-common wget curl gpg unzip g++-11
+          apt install -y git lsb-release software-properties-common wget curl gpg unzip g++-11 apt-utils
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -146,7 +146,7 @@ jobs:
           dpkg -i cuda-keyring_1.1-1_all.deb
           apt update
           apt install -y cuda-toolkit-$(echo ${{matrix.cuda}} | sed 's/\..*//')-$(echo ${{matrix.cuda}} | sed 's/.*\.//')
-          apt install -y cuda-drivers-550
+          DEBIAN_FRONTEND=noninteractive apt install -y cuda-drivers-550
           echo "$(dpkg -S libcuda)"
       - name: install ROCm
         run: |

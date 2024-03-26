@@ -45,7 +45,7 @@ BOOST_FIXTURE_TEST_SUITE(extension_tests, reset_device_fixture)
 
 #ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
 BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   s::queue q;
   s::buffer<int, 1> buff{1};
@@ -104,41 +104,41 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
 #endif
 #ifdef HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
 BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
-  namespace sync = cl::sycl::vendor::hipsycl::synchronization;
+  namespace sync = sycl::vendor::hipsycl::synchronization;
 
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;
 
-  cl::sycl::queue queue;
+  sycl::queue queue;
   std::vector<int> host_buf;
   for(size_t i = 0; i < global_size; ++i) {
     host_buf.push_back(static_cast<int>(i));
   }
 
   {
-    cl::sycl::buffer<int, 1> buf{host_buf.data(), host_buf.size()};
+    sycl::buffer<int, 1> buf{host_buf.data(), host_buf.size()};
 
-    queue.submit([&](cl::sycl::handler& cgh) {
+    queue.submit([&](sycl::handler& cgh) {
 
-      auto acc = buf.get_access<cl::sycl::access::mode::read_write>(cgh);
+      auto acc = buf.get_access<sycl::access::mode::read_write>(cgh);
       auto scratch =
-          cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write,
-                             cl::sycl::access::target::local>{local_size,
+          sycl::accessor<int, 1, sycl::access::mode::read_write,
+                             sycl::access::target::local>{local_size,
                                                                     cgh};
 
       cgh.parallel_for_work_group<class pfwi_dispatch>(
-        cl::sycl::range<1>{global_size / local_size},
-        cl::sycl::range<1>{local_size},
-        [=](cl::sycl::group<1> wg) {
+        sycl::range<1>{global_size / local_size},
+        sycl::range<1>{local_size},
+        [=](sycl::group<1> wg) {
 
           wg.parallel_for_work_item<sync::local_barrier>(
-            [&](cl::sycl::h_item<1> item) {
+            [&](sycl::h_item<1> item) {
             scratch[item.get_local_id()[0]] = acc[item.get_global_id()];
           });
 
           // By default, a barrier is used
           wg.parallel_for_work_item(
-            [&](cl::sycl::h_item<1> item) {
+            [&](sycl::h_item<1> item) {
             scratch[item.get_local_id()[0]] *= 2;
           });
 
@@ -146,20 +146,20 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
           // that there is no synchronization is difficult,
           // so let's just test that things compile for now.
           wg.parallel_for_work_item<sync::none>(
-            [&](cl::sycl::h_item<1> item) {
+            [&](sycl::h_item<1> item) {
             acc[item.get_global_id()] = scratch[item.get_local_id()[0]];
           });
 
           wg.parallel_for_work_item<sync::local_mem_fence>(
-            [&](cl::sycl::h_item<1> item) {
+            [&](sycl::h_item<1> item) {
           });
 
           wg.parallel_for_work_item<sync::global_mem_fence>(
-            [&](cl::sycl::h_item<1> item) {
+            [&](sycl::h_item<1> item) {
           });
 
           wg.parallel_for_work_item<sync::global_and_local_mem_fence>(
-            [&](cl::sycl::h_item<1> item) {
+            [&](sycl::h_item<1> item) {
           });
         });
     });
@@ -178,7 +178,7 @@ class enumerated_kernel_name;
 
 template<class KernelName, int Dim>
 void test_distribute_groups(){
-  namespace s = cl::sycl;
+  namespace s = sycl;
   s::queue q;
 
   s::range<Dim> input_size;
@@ -259,7 +259,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(scoped_parallelism_api, _dimensions,
 }
 
 BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   s::queue q;
   
   std::size_t input_size = 256;
@@ -318,7 +318,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
 } 
 
 BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   s::queue q;
   std::size_t input_size = 1024;
@@ -402,7 +402,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
 
 }
 BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
-  using namespace cl;
+  
   sycl::queue q;
   const size_t test_size = 1000;
   sycl::buffer<int> buff{sycl::range{test_size}};
@@ -430,9 +430,9 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
 #endif
 #ifdef HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
 
-template<cl::sycl::backend B>
-void test_interop(cl::sycl::queue& q) {
-  using namespace cl;
+template<sycl::backend B>
+void test_interop(sycl::queue& q) {
+  
 
   const std::size_t test_size = 1024;
 
@@ -493,7 +493,7 @@ void test_interop(cl::sycl::queue& q) {
 }
 
 BOOST_AUTO_TEST_CASE(custom_enqueue) {
-  using namespace cl;
+  
 
   sycl::queue q;
   sycl::backend b = q.get_device().get_backend();
@@ -510,7 +510,7 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
 #endif
 #ifdef HIPSYCL_EXT_CG_PROPERTY_RETARGET
 BOOST_AUTO_TEST_CASE(cg_property_retarget) {
-  using namespace cl;
+  
 
   auto all_devices = sycl::device::get_devices();
 
@@ -563,7 +563,7 @@ int get_total_group_size() {
 
 #ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
 BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
-  using namespace cl;
+  
 
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
 
@@ -666,13 +666,13 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 
 BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
 
-  cl::sycl::queue q;
+  sycl::queue q;
 
   // Only compile testing for now
   for(std::size_t i = 0; i < 100; ++i) {
     q.submit(
-        {cl::sycl::property::command_group::hipSYCL_prefer_execution_lane{i}},
-        [&](cl::sycl::handler &cgh) {
+        {sycl::property::command_group::hipSYCL_prefer_execution_lane{i}},
+        [&](sycl::handler &cgh) {
           cgh.single_task<class prefer_execution_lane_test>([=]() {});
         });
   }
@@ -683,7 +683,7 @@ BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
 
 #ifdef HIPSYCL_EXT_PREFETCH_HOST
 BOOST_AUTO_TEST_CASE(prefetch_host) {
-  using namespace cl;
+  
 
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
 
@@ -707,7 +707,7 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
 #endif
 #ifdef HIPSYCL_EXT_BUFFER_USM_INTEROP
 BOOST_AUTO_TEST_CASE(buffer_introspection) {
-  using namespace cl;
+  
 
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
   sycl::range size{1024};
@@ -784,7 +784,7 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
 }
 
 BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
-  using namespace cl;
+  
 
   sycl::queue q;
   sycl::range size{1024};
@@ -847,7 +847,7 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
 #ifdef HIPSYCL_EXT_BUFFER_PAGE_SIZE
 
 BOOST_AUTO_TEST_CASE(buffer_page_size) {
-  using namespace cl;
+  
 
   sycl::queue q;
 
@@ -901,7 +901,7 @@ BOOST_AUTO_TEST_CASE(buffer_page_size) {
 #endif
 #ifdef HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
 BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
-  using namespace cl;
+  
   sycl::queue q;
   sycl::range size{1024};
 
@@ -987,15 +987,15 @@ BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
 #ifdef HIPSYCL_EXT_ACCESSOR_VARIANTS
 #ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
 
-template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
-          cl::sycl::accessor_variant V>
-constexpr cl::sycl::accessor_variant
-get_accessor_variant(cl::sycl::accessor<T, Dim, M, Tgt, V>) {
+template <class T, int Dim, sycl::access_mode M, sycl::target Tgt,
+          sycl::accessor_variant V>
+constexpr sycl::accessor_variant
+get_accessor_variant(sycl::accessor<T, Dim, M, Tgt, V>) {
   return V;
 }
 
 BOOST_AUTO_TEST_CASE(accessor_variants) {
-  using namespace cl;
+  
   sycl::queue q;
   sycl::range size{1024};
   sycl::range subrange{512};
@@ -1063,7 +1063,7 @@ BOOST_AUTO_TEST_CASE(accessor_variants) {
 #if defined(HIPSYCL_EXT_UPDATE_DEVICE) &&                                      \
     defined(HIPSYCL_EXT_BUFFER_USM_INTEROP)
 BOOST_AUTO_TEST_CASE(update_device) {
-  using namespace cl;
+  
   sycl::queue q;
   sycl::range size{1024};
   sycl::buffer<int> buff{size};
@@ -1098,7 +1098,7 @@ BOOST_AUTO_TEST_CASE(update_device) {
 #ifdef HIPSYCL_EXT_QUEUE_WAIT_LIST
 
 BOOST_AUTO_TEST_CASE(queue_wait_list) {
-  using namespace cl;
+  
   sycl::queue out_of_order_q;
   sycl::queue in_order_q{
       sycl::property_list{sycl::property::queue::in_order{}}};
@@ -1124,7 +1124,7 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
 #ifdef HIPSYCL_EXT_MULTI_DEVICE_QUEUE
 
 BOOST_AUTO_TEST_CASE(multi_device_queue) {
-  using namespace cl;
+  
   sycl::queue q{sycl::system_selector_v};
 
   sycl::buffer<int> buff{sycl::range{1}};
@@ -1154,7 +1154,7 @@ BOOST_AUTO_TEST_CASE(multi_device_queue) {
 #endif
 #ifdef HIPSYCL_EXT_COARSE_GRAINED_EVENTS
 BOOST_AUTO_TEST_CASE(coarse_grained_events) {
-  using namespace cl;
+  
   sycl::queue q{sycl::property::queue::hipSYCL_coarse_grained_events{}};
   
   auto e1 = q.single_task([=](){});

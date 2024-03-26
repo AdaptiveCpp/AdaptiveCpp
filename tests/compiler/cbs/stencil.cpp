@@ -6,19 +6,19 @@
 #include <array>
 #include <iostream>
 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 int main()
 {
   constexpr size_t local_size = 8;
   constexpr size_t global_size = 16;
 
-  cl::sycl::range global_range{global_size, global_size, global_size};
-  cl::sycl::range local_range{local_size, local_size, local_size};
+  sycl::range global_range{global_size, global_size, global_size};
+  sycl::range local_range{local_size, local_size, local_size};
 
-  cl::sycl::range data_range{global_size + 2, global_size + 2, global_size + 2};
+  sycl::range data_range{global_size + 2, global_size + 2, global_size + 2};
 
-  cl::sycl::queue queue;
+  sycl::queue queue;
   std::vector<int> host_buf;
   host_buf.reserve(data_range.size());
   for(size_t i = 0; i < data_range.size(); ++i)
@@ -28,27 +28,27 @@ int main()
 
   std::vector<int> host_result(global_range.size());
   {
-    cl::sycl::buffer<int, 3> buf{host_buf.data(), data_range};
-    cl::sycl::buffer<int, 3> bufOut{host_result.data(), global_range};
+    sycl::buffer<int, 3> buf{host_buf.data(), data_range};
+    sycl::buffer<int, 3> bufOut{host_result.data(), global_range};
 
-    queue.submit([&](cl::sycl::handler &cgh) {
-      using namespace cl::sycl::access;
+    queue.submit([&](sycl::handler &cgh) {
+      using namespace sycl::access;
       auto acc = buf.get_access<mode::read>(cgh);
       auto out = bufOut.get_access<mode::discard_write>(cgh);
-      auto scratch = cl::sycl::accessor<int, 3, mode::read_write, target::local>{local_range + cl::sycl::range{2, 2, 2}, cgh};
+      auto scratch = sycl::accessor<int, 3, mode::read_write, target::local>{local_range + sycl::range{2, 2, 2}, cgh};
 
       cgh.parallel_for<class local_mem_stencil>(
-        cl::sycl::nd_range<3>{global_range, local_range},
-        [=](cl::sycl::nd_item<3> item) noexcept {
+        sycl::nd_range<3>{global_range, local_range},
+        [=](sycl::nd_item<3> item) noexcept {
           const auto lid = item.get_local_id();
           const auto group_size = item.get_local_range();
-          const auto offset = cl::sycl::id{1, 1, 1};
+          const auto offset = sycl::id{1, 1, 1};
 
           scratch[lid + offset] = acc[item.get_global_id() + offset];
           auto loadBorder = [&](int dim) {
             if(lid.get(dim) == 0)
             {
-              cl::sycl::id<3> innerOffset{};
+              sycl::id<3> innerOffset{};
               innerOffset[dim] = 1;
               scratch[lid + innerOffset] = acc[item.get_global_id() + innerOffset];
               innerOffset[dim] = 1 + group_size.get(0);
@@ -63,13 +63,13 @@ int main()
 
           auto accumulator = scratch[lid + offset];
 
-          accumulator += scratch[lid + offset - cl::sycl::id{1, 0, 0}];
-          accumulator += scratch[lid + offset - cl::sycl::id{0, 1, 0}];
-          accumulator += scratch[lid + offset - cl::sycl::id{0, 0, 1}];
+          accumulator += scratch[lid + offset - sycl::id{1, 0, 0}];
+          accumulator += scratch[lid + offset - sycl::id{0, 1, 0}];
+          accumulator += scratch[lid + offset - sycl::id{0, 0, 1}];
 
-          accumulator += scratch[lid + offset + cl::sycl::id{1, 0, 0}];
-          accumulator += scratch[lid + offset + cl::sycl::id{0, 1, 0}];
-          accumulator += scratch[lid + offset + cl::sycl::id{0, 0, 1}];
+          accumulator += scratch[lid + offset + sycl::id{1, 0, 0}];
+          accumulator += scratch[lid + offset + sycl::id{0, 1, 0}];
+          accumulator += scratch[lid + offset + sycl::id{0, 0, 1}];
 
           out[item.get_global_id()] = accumulator;
         });

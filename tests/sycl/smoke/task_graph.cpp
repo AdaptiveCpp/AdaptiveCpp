@@ -33,40 +33,40 @@ BOOST_FIXTURE_TEST_SUITE(smoke_task_graph_tests, reset_device_fixture)
 
 
 BOOST_AUTO_TEST_CASE(task_graph_synchronization) {
-  using namespace cl::sycl::access;
+  using namespace sycl::access;
   constexpr size_t num_elements = 4096 * 1024;
 
-  cl::sycl::queue q1;
-  cl::sycl::queue q2;
-  cl::sycl::queue q3;
+  sycl::queue q1;
+  sycl::queue q2;
+  sycl::queue q3;
 
-  cl::sycl::buffer<int, 1> buf_a{num_elements};
-  cl::sycl::buffer<int, 1> buf_b{num_elements};
-  cl::sycl::buffer<int, 1> buf_c{num_elements};
+  sycl::buffer<int, 1> buf_a{num_elements};
+  sycl::buffer<int, 1> buf_b{num_elements};
+  sycl::buffer<int, 1> buf_c{num_elements};
 
-  q1.submit([&](cl::sycl::handler& cgh) {
+  q1.submit([&](sycl::handler& cgh) {
     auto acc_a = buf_a.get_access<mode::discard_write>(cgh);
-    cgh.parallel_for<class tdag_sync_init_a>(cl::sycl::range<1>{num_elements},
-      [=](cl::sycl::id<1> tid) {
+    cgh.parallel_for<class tdag_sync_init_a>(sycl::range<1>{num_elements},
+      [=](sycl::id<1> tid) {
         acc_a[tid] = static_cast<int>(tid.get(0));
       });
   });
 
-  q2.submit([&](cl::sycl::handler& cgh) {
+  q2.submit([&](sycl::handler& cgh) {
     auto acc_a = buf_a.get_access<mode::read>(cgh);
     auto acc_b = buf_b.get_access<mode::discard_write>(cgh);
-    cgh.parallel_for<class tdag_sync_init_b>(cl::sycl::range<1>{num_elements},
-      [=](cl::sycl::id<1> tid) {
+    cgh.parallel_for<class tdag_sync_init_b>(sycl::range<1>{num_elements},
+      [=](sycl::id<1> tid) {
         acc_b[tid] = acc_a[tid];
       });
   });
 
-  q3.submit([&](cl::sycl::handler& cgh) {
+  q3.submit([&](sycl::handler& cgh) {
     auto acc_a = buf_a.get_access<mode::read>(cgh);
     auto acc_b = buf_b.get_access<mode::read>(cgh);
     auto acc_c = buf_c.get_access<mode::discard_write>(cgh);
-    cgh.parallel_for<class tdag_sync_add_a_b>(cl::sycl::range<1>{num_elements},
-      [=](cl::sycl::id<1> tid) {
+    cgh.parallel_for<class tdag_sync_add_a_b>(sycl::range<1>{num_elements},
+      [=](sycl::id<1> tid) {
         acc_c[tid] = acc_a[tid] + acc_b[tid];
       });
   });

@@ -39,7 +39,7 @@ using explicit_copy_test_dimensions = boost::mpl::list_c<int, 1, 2>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
     explicit_copy_test_dimensions::type) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   // Specify type explicitly to workaround Clang bug #45538
   constexpr int d = _dimensions::value;
 
@@ -92,23 +92,23 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
     }
   }
 
-  cl::sycl::queue queue;
+  sycl::queue queue;
 
   // copy full buffer without strides
-  cl::sycl::buffer<size_t, d> device_buf_full{buf_size};
-  queue.submit([&](cl::sycl::handler& cgh) {
-      auto acc = device_buf_full.template get_access<cl::sycl::access::mode::discard_write>(cgh);
+  sycl::buffer<size_t, d> device_buf_full{buf_size};
+  queue.submit([&](sycl::handler& cgh) {
+      auto acc = device_buf_full.template get_access<sycl::access::mode::discard_write>(cgh);
       cgh.copy(host_buf_full.data(), acc);
   });
 
   // copy contiguous buffer into window on the device buffer
-  cl::sycl::buffer<size_t, d> device_buf_window{buf_size};
-  queue.submit([&](cl::sycl::handler& cgh) {
-      auto acc = device_buf_window.template get_access<cl::sycl::access::mode::discard_write>(cgh);
+  sycl::buffer<size_t, d> device_buf_window{buf_size};
+  queue.submit([&](sycl::handler& cgh) {
+      auto acc = device_buf_window.template get_access<sycl::access::mode::discard_write>(cgh);
       cgh.fill(acc, canary);
   });
-  queue.submit([&](cl::sycl::handler& cgh) {
-      auto acc = device_buf_window.template get_access<cl::sycl::access::mode::discard_write>(cgh,
+  queue.submit([&](sycl::handler& cgh) {
+      auto acc = device_buf_window.template get_access<sycl::access::mode::discard_write>(cgh,
           window_range, window_offset);
       const auto fake_shared_ptr = std::shared_ptr<size_t>(host_buf_contiguous.data(), [](size_t *){});
       cgh.copy(fake_shared_ptr, acc);
@@ -119,18 +119,18 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
   std::vector<size_t> result_window(buf_size.size(), canary);
 
   // copy back full buffer without strides
-  queue.submit([&](cl::sycl::handler &cgh) {
-      auto acc = device_buf_full.template get_access<cl::sycl::access::mode::read>(cgh);
+  queue.submit([&](sycl::handler &cgh) {
+      auto acc = device_buf_full.template get_access<sycl::access::mode::read>(cgh);
       cgh.copy(acc, result_full.data());
   });
   // copy full buffer from device in strides to obtain contiguous buffer
-  queue.submit([&](cl::sycl::handler &cgh) {
-      auto acc = device_buf_full.template get_access<cl::sycl::access::mode::read>(cgh, window_range, window_offset);
+  queue.submit([&](sycl::handler &cgh) {
+      auto acc = device_buf_full.template get_access<sycl::access::mode::read>(cgh, window_range, window_offset);
       cgh.copy(acc, result_contiguous.data());
   });
   /// copy window buffer without strides
-  queue.submit([&](cl::sycl::handler &cgh) {
-      auto acc = device_buf_window.template get_access<cl::sycl::access::mode::read>(cgh);
+  queue.submit([&](sycl::handler &cgh) {
+      auto acc = device_buf_window.template get_access<sycl::access::mode::read>(cgh);
       const auto fake_shared_ptr = std::shared_ptr<size_t>(result_window.data(), [](size_t *){});
       cgh.copy(acc, fake_shared_ptr);
   });
@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
 
 template<int d, typename callback>
 void run_two_accessors_copy_test(const callback& copy_cb) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   const auto src_buf_size = make_test_value<s::range, d>(
     { 64 }, { 64, 96 }, { 64, 96, 48 });
@@ -201,7 +201,7 @@ void run_two_accessors_copy_test(const callback& copy_cb) {
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_d2d,
   _dimensions, explicit_copy_test_dimensions::type) {
   constexpr auto d = _dimensions::value;
-  namespace s = cl::sycl;
+  namespace s = sycl;
   run_two_accessors_copy_test<d>([](s::handler& cgh, s::range<d> copy_range,
     s::buffer<s::id<d>, d>& src_buf, s::id<d> src_offset,
     s::buffer<s::id<d>, d>& dst_buf, s::id<d> dst_offset) {

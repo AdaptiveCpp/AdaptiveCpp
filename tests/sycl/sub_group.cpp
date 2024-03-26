@@ -34,7 +34,7 @@ BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
 
 
 BOOST_AUTO_TEST_CASE(sub_group) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   s::queue q;
   s::range<1> size1d{1024};
   s::range<2> size2d{32, 32};
@@ -82,10 +82,10 @@ BOOST_AUTO_TEST_CASE(sub_group) {
 
   const s::device dev = q.get_device();
   const std::vector<size_t> supported_subgroup_sizes =
-      dev.get_info<cl::sycl::info::device::sub_group_sizes>();
+      dev.get_info<sycl::info::device::sub_group_sizes>();
   BOOST_CHECK(supported_subgroup_sizes.size() >= 1);
   const unsigned int max_num_subgroups =
-      dev.get_info<cl::sycl::info::device::max_num_sub_groups>();
+      dev.get_info<sycl::info::device::max_num_sub_groups>();
   BOOST_CHECK(max_num_subgroups >= 1U);
 
   uint32_t subgroup_size = supported_subgroup_sizes[0];

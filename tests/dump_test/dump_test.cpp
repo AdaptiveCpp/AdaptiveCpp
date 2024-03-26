@@ -29,8 +29,8 @@ int main()
   hipsycl::rt::range<3> range(100, 0, 0);
   std::size_t size = 30;
   buffer_memory_requirement test_buffer(data_region_ptr, offset, range, 
-      hipsycl::sycl::access::mode::read_write,
-      hipsycl::sycl::access::target::global_buffer);
+      hipsycl::access::mode::read_write,
+      hipsycl::access::target::global_buffer);
   test_buffer.dump(std::cout);
 
   auto data_region_ptr_2 = std::make_shared<buffer_data_region>(c, 10, 10);
@@ -38,8 +38,8 @@ int main()
   hipsycl::rt::range<3> range_2(100, 0, 0);
   std::size_t size_2 = 14;
   buffer_memory_requirement test_buffer_2(data_region_ptr_2, offset_2, range_2, 
-      hipsycl::sycl::access::mode::read,
-      hipsycl::sycl::access::target::global_buffer);
+      hipsycl::access::mode::read,
+      hipsycl::access::target::global_buffer);
   test_buffer_2.dump(std::cout);
   
   // Kernel Operation

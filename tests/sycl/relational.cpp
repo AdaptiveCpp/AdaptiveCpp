@@ -38,26 +38,26 @@ using rel_test_genfloats = boost::mpl::list<
   float,
   // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
   // if this is an oversight or intentional.
-  //cl::sycl::vec<float, 1>
-  cl::sycl::vec<float, 2>,
-  cl::sycl::vec<float, 3>,
-  cl::sycl::vec<float, 4>,
-  cl::sycl::vec<float, 8>,
-  cl::sycl::vec<float, 16>,
+  //sycl::vec<float, 1>
+  sycl::vec<float, 2>,
+  sycl::vec<float, 3>,
+  sycl::vec<float, 4>,
+  sycl::vec<float, 8>,
+  sycl::vec<float, 16>,
   double,
-  //cl::sycl::vec<double, 1>,
-  cl::sycl::vec<double, 2>,
-  cl::sycl::vec<double, 3>,
-  cl::sycl::vec<double, 4>,
-  cl::sycl::vec<double, 8>,
-  cl::sycl::vec<double, 16>>;
+  //sycl::vec<double, 1>,
+  sycl::vec<double, 2>,
+  sycl::vec<double, 3>,
+  sycl::vec<double, 4>,
+  sycl::vec<double, 8>,
+  sycl::vec<double, 16>>;
 
 
 
 namespace {
 
   template<typename DT, int D>
-  using vec = cl::sycl::vec<DT, D>;
+  using vec = sycl::vec<DT, D>;
 
   // utility type traits for generic testing
 
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   using IntType = typename std::conditional_t<std::is_same_v<DT, float>, int32_t, int64_t>;
   using OutType = typename s::detail::builtin_type_traits<T>::template alternative_data_type<IntType>;

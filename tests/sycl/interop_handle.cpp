@@ -32,7 +32,7 @@
 BOOST_FIXTURE_TEST_SUITE(interop_handle_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(interop_handle_api) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   using namespace hipsycl;
 
   rt::device_id assigned_device{rt::backend_descriptor{rt::hardware_platform::cpu,

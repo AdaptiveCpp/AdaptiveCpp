@@ -42,23 +42,23 @@ BOOST_AUTO_TEST_CASE(local_accessors) {
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;
 
-  cl::sycl::queue queue;
+  sycl::queue queue;
   std::vector<int> host_buf;
   for(size_t i = 0; i < global_size; ++i) {
     host_buf.push_back(static_cast<int>(i));
   }
 
   {
-    cl::sycl::buffer<int, 1> buf{host_buf.data(), host_buf.size()};
-    queue.submit([&](cl::sycl::handler& cgh) {
-      using namespace cl::sycl::access;
+    sycl::buffer<int, 1> buf{host_buf.data(), host_buf.size()};
+    queue.submit([&](sycl::handler& cgh) {
+      using namespace sycl::access;
       auto acc = buf.get_access<mode::read_write>(cgh);
-      auto scratch = cl::sycl::accessor<int, 1, mode::read_write, target::local>
+      auto scratch = sycl::accessor<int, 1, mode::read_write, target::local>
         {local_size, cgh};
 
       cgh.parallel_for<class dynamic_local_memory_reduction>(
-        cl::sycl::nd_range<1>{global_size, local_size},
-        [=](cl::sycl::nd_item<1> item) {
+        sycl::nd_range<1>{global_size, local_size},
+        [=](sycl::nd_item<1> item) {
           const auto lid = item.get_local_id(0);
           scratch[lid] = acc[item.get_global_id()];
           item.barrier();
@@ -80,34 +80,34 @@ BOOST_AUTO_TEST_CASE(local_accessors) {
 }
 
 BOOST_AUTO_TEST_CASE(placeholder_accessors) {
-  using namespace cl::sycl::access;
+  using namespace sycl::access;
   constexpr size_t num_elements = 4096 * 1024;
 
-  cl::sycl::queue queue;
-  cl::sycl::buffer<int, 1> buf{num_elements};
+  sycl::queue queue;
+  sycl::buffer<int, 1> buf{num_elements};
 
   {
     auto acc = buf.get_access<mode::discard_write>();
     for(size_t i = 0; i < num_elements; ++i) acc[i] = static_cast<int>(i);
   }
 
-  cl::sycl::accessor<int, 1, mode::read_write, target::global_buffer,
+  sycl::accessor<int, 1, mode::read_write, target::global_buffer,
                      placeholder::true_t>
       ph_acc{buf};
 
-  queue.submit([&](cl::sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     cgh.require(ph_acc);
-    cgh.parallel_for<class placeholder_accessors1>(cl::sycl::range<1>{num_elements},
-      [=](cl::sycl::id<1> tid) {
+    cgh.parallel_for<class placeholder_accessors1>(sycl::range<1>{num_elements},
+      [=](sycl::id<1> tid) {
         ph_acc[tid] *= 2;
       });
   });
 
-  queue.submit([&](cl::sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto ph_acc_copy = ph_acc; // Test that placeholder accessors can be copied
     cgh.require(ph_acc_copy);
-    cgh.parallel_for<class placeholder_accessors2>(cl::sycl::range<1>{num_elements},
-      [=](cl::sycl::id<1> tid) {
+    cgh.parallel_for<class placeholder_accessors2>(sycl::range<1>{num_elements},
+      [=](sycl::id<1> tid) {
         ph_acc_copy[tid] *= 2;
       });
   });
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(placeholder_accessors) {
 
 // TODO: Extend this
 BOOST_AUTO_TEST_CASE(accessor_api) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   s::buffer<int, 1> buf_a(32);
   s::buffer<int, 1> buf_b(32);
@@ -197,8 +197,8 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     auto localAtomic = s::accessor<int, 1, s::access::mode::atomic, s::access::target::local>{s::range<1>{2}, cgh};
     auto localAtomic3D = s::accessor<int, 3, s::access::mode::atomic, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
     cgh.parallel_for<class accessor_api_atomic_device_accessors>(
-        cl::sycl::nd_range<1>{2, 2},
-        [=](cl::sycl::nd_item<1> item) {
+        sycl::nd_range<1>{2, 2},
+        [=](sycl::nd_item<1> item) {
           atomicAcc[0].exchange(0);
           atomicAcc3D[0][1][0].exchange(0);
           localAtomic[0].exchange(0);
@@ -241,7 +241,7 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 }
 
 BOOST_AUTO_TEST_CASE(nested_subscript) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   s::queue q;
   
   s::range<2> buff_size2d{64,64};
@@ -299,41 +299,41 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
     }
 }
 
-template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
-          cl::sycl::access::placeholder P>
-constexpr cl::sycl::access_mode
-get_access_mode(cl::sycl::accessor<T, Dim, M, Tgt, P>) {
+template <class T, int Dim, sycl::access_mode M, sycl::target Tgt,
+          sycl::access::placeholder P>
+constexpr sycl::access_mode
+get_access_mode(sycl::accessor<T, Dim, M, Tgt, P>) {
   return M;
 }
 
-template <class T, int Dim, cl::sycl::access_mode M>
-constexpr cl::sycl::access_mode
-get_access_mode(cl::sycl::host_accessor<T, Dim, M>) {
+template <class T, int Dim, sycl::access_mode M>
+constexpr sycl::access_mode
+get_access_mode(sycl::host_accessor<T, Dim, M>) {
   return M;
 }
 
-template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
-          cl::sycl::access::placeholder P>
-constexpr cl::sycl::target
-get_access_target(cl::sycl::accessor<T, Dim, M, Tgt, P>) {
+template <class T, int Dim, sycl::access_mode M, sycl::target Tgt,
+          sycl::access::placeholder P>
+constexpr sycl::target
+get_access_target(sycl::accessor<T, Dim, M, Tgt, P>) {
   return Tgt;
 }
 
 template <class Acc>
-void validate_accessor_deduction(Acc acc, cl::sycl::access_mode expected_mode,
-                                 cl::sycl::target expected_target) {
+void validate_accessor_deduction(Acc acc, sycl::access_mode expected_mode,
+                                 sycl::target expected_target) {
   BOOST_CHECK(get_access_mode(acc) == expected_mode);
   BOOST_CHECK(get_access_target(acc) == expected_target);
 }
 
 template <class Acc>
 void validate_host_accessor_deduction(Acc acc,
-                                      cl::sycl::access_mode expected_mode) {
+                                      sycl::access_mode expected_mode) {
   BOOST_CHECK(get_access_mode(acc) == expected_mode);
 }
 
 BOOST_AUTO_TEST_CASE(accessor_simplifications) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   s::queue q;
 
   s::range size{1024};
@@ -433,7 +433,7 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
 }
 
 BOOST_AUTO_TEST_CASE(unranged_accessor_1d_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   std::array<int, 1024> host_data;
   std::iota(std::begin(host_data), std::end(host_data), 0);
@@ -456,7 +456,7 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_1d_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(unranged_accessor_2d_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 32;
   std::array<int, N*N> host_data;
@@ -480,7 +480,7 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_2d_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 3;
   std::array<int, N*N*N> host_data;
@@ -512,7 +512,7 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 1024;
   const s::range range(512);
@@ -543,7 +543,7 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(ranged_accessor_2d_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N1 = 32;
   constexpr int N2 = 64;
@@ -580,7 +580,7 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_2d_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(ranged_accessor_3d_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N1 = 8;
   constexpr int N2 = 16;
@@ -623,7 +623,7 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_3d_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(reverse_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   std::array<int, 1024> host_data;
   std::iota(std::begin(host_data), std::end(host_data), 0);
@@ -646,7 +646,7 @@ BOOST_AUTO_TEST_CASE(reverse_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(host_accessor_iterator) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 1024;
   std::array<int, N> data;
@@ -665,7 +665,7 @@ BOOST_AUTO_TEST_CASE(host_accessor_iterator) {
 }
 
 BOOST_AUTO_TEST_CASE(accessor_iterator_api) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 1024;
   std::array<int, N> data;
@@ -741,7 +741,7 @@ BOOST_AUTO_TEST_CASE(accessor_iterator_api) {
 }
 
 BOOST_AUTO_TEST_CASE(offset_1d) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 1024;
   std::vector<int> data(N, 1);
@@ -770,7 +770,7 @@ BOOST_AUTO_TEST_CASE(offset_1d) {
 }
 
 BOOST_AUTO_TEST_CASE(offset_2d) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 8;
   std::array<int, N*N> data;
@@ -811,7 +811,7 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
 }
 
 BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int N = 8;
   std::array<int, N*N> data;

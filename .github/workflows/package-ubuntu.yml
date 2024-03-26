@@ -124,11 +124,11 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           ./llvm.sh ${{matrix.clang}}
-          apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
+          apt install -y libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev liblld-${{matrix.clang}}-dev
           apt install -y libstdc++-12-dev
       - name: install dependencies
         run: |
-           apt install cmake python3 libboost-all-dev libtbb-dev
+           apt install -y cmake python3 libboost-all-dev libtbb-dev
       - name: setup build environment
         run: |
           export CXXFLAGS="$CXXFLAGS"
@@ -151,12 +151,12 @@ jobs:
       - name: install ROCm
         run: |
           [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy
-          apt install libnuma-dev cmake unzip
+          apt install -y libnuma-dev cmake unzip
           wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -
           echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | tee /etc/apt/sources.list.d/rocm.list
           printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | tee /etc/apt/preferences.d/rocm-pin-600
           apt update
-          apt install rocm-dev
+          apt install -y rocm-dev
       - name: install OpenCL development files and loader
         run: |
           wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null

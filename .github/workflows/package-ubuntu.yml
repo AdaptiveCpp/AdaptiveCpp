@@ -44,7 +44,7 @@ jobs:
           apt install -y libopencl-clang-dev ocl-icd-opencl-dev
       - name: setup build environment
         run: |
-          ln -sf /usr/bin/bash /usr/bin/sh
+          ln -sf /usr/bin/bash /bin/sh
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
@@ -132,6 +132,7 @@ jobs:
            apt install -y cmake python3 libboost-all-dev libtbb-dev
       - name: setup build environment
         run: |
+          ln -sf /usr/bin/bash /bin/sh
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"

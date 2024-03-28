@@ -37,18 +37,25 @@ namespace hipsycl {
 namespace compiler {
 namespace utils {
 
-template <class F>
-void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
-                                      llvm::SmallVector<int, 16> CurrentIndices = {}) {
+
+template <class F, class H>
+void ForEachNonAggregateContainedTypeWithParentTypeMatcher(llvm::Type *T, F &&Handler,
+                                      llvm::SmallVector<int, 16> CurrentIndices,
+                                      llvm::SmallVector<llvm::Type*, 16> MatchedParentTypes,
+                                      H&& ParentTypeMatcher) {
   if(!T)
     return;
+  
+  if(ParentTypeMatcher(T))
+    MatchedParentTypes.push_back(T);
   
   if(T->isArrayTy()) {
     llvm::Type* ArrayElementT = T->getArrayElementType();
     for(int i = 0; i < T->getArrayNumElements(); ++i) {
       auto NextIndices = CurrentIndices;
       NextIndices.push_back(i);
-      ForEachNonAggregateContainedType(ArrayElementT, Handler, NextIndices);
+      ForEachNonAggregateContainedTypeWithParentTypeMatcher(ArrayElementT, Handler, NextIndices,
+                                                            MatchedParentTypes, ParentTypeMatcher);
     }
   } else if(T->isAggregateType()) {
     for(int i = 0; i < T->getNumContainedTypes(); ++i) {
@@ -56,11 +63,22 @@ void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
       NextIndices.push_back(i);
       llvm::Type* SubType = T->getContainedType(i);
 
-      ForEachNonAggregateContainedType(SubType, Handler, NextIndices);   
+      ForEachNonAggregateContainedTypeWithParentTypeMatcher(SubType, Handler, NextIndices,
+                                                            MatchedParentTypes, ParentTypeMatcher);
     }
   } else {
-    Handler(T, CurrentIndices);
+    Handler(T, CurrentIndices, MatchedParentTypes);
   }
+}
+
+template <class F>
+void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
+                                      llvm::SmallVector<int, 16> CurrentIndices = {}) {
+  auto HandlerAdapter = [&](llvm::Type *T, auto Indices, auto MatchedParentTypes) {
+    Handler(T, Indices);
+  };
+  ForEachNonAggregateContainedTypeWithParentTypeMatcher(T, HandlerAdapter, CurrentIndices, {},
+                                                        [](auto *Type) { return false; });
 }
 
 }

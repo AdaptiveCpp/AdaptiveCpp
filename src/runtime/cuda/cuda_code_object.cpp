@@ -66,7 +66,7 @@ void unload_cuda_module(CUmod_st* module, int device) {
 
     auto err = cuModuleUnload(module);
 
-    if (err != CUDA_SUCCESS && 
+    if (err != CUDA_SUCCESS &&
         // It can happen that during shutdown of the CUDA
         // driver we cannot unload anymore.
         // TODO: Find a better solution
@@ -81,30 +81,49 @@ void unload_cuda_module(CUmod_st* module, int device) {
 
 result build_cuda_module_from_ptx(CUmod_st *&module, int device,
                                   const std::string &source) {
-  
+
   cuda_device_manager::get().activate_device(device);
   // This guarantees that the CUDA runtime API initializes the CUDA
   // context on that device. This is important for the subsequent driver
   // API calls which assume that CUDA context has been created.
   cudaFree(0);
-  
+
+  static constexpr std::size_t num_options = 2;
+  std::array<CUjit_option, num_options> option_names{};
+  std::array<void*, num_options> option_vals{};
+
+  // set up size of compilation log buffer
+  option_names[0] = CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES;
+  static constexpr std::size_t error_log_buffer_size = 10*1024;
+  option_vals[0] = reinterpret_cast<void*>(error_log_buffer_size);
+
+  // set up pointer to the compilation log buffer
+  option_names[1] = CU_JIT_ERROR_LOG_BUFFER;
+  std::string error_log_buffer(error_log_buffer_size, '\0');
+  option_vals[1] = error_log_buffer.data();
+
   auto err = cuModuleLoadDataEx(
-      &module, static_cast<void *>(const_cast<char *>(source.c_str())),
-      0, nullptr, nullptr);
+      &module, source.data(),
+      num_options, option_names.data(), option_vals.data());
 
   if (err != CUDA_SUCCESS) {
-    return make_error(__hipsycl_here(),
-                      error_info{"cuda_executable_object: could not load module",
-                                error_code{"CU", static_cast<int>(err)}});
+    const auto error_log_size = reinterpret_cast<std::size_t>(option_vals[0]);
+    error_log_buffer.resize(error_log_size);
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "cuda_executable_object: Could not load module, CUDA JIT log: " +
+                error_log_buffer,
+            error_code{"CU", static_cast<int>(err)}});
   }
-  
+
   assert(module);
 
   return make_success();
 }
 
 std::vector<std::string> extract_kernel_names_from_ptx(const std::string& source) {
-  
+
   std::vector<std::string> kernel_names;
   std::istringstream code_stream(source);
   std::string line;

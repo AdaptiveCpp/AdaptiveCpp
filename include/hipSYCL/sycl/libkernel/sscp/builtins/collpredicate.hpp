@@ -27,15 +27,28 @@
 
 #include "builtin_config.hpp"
 
-#ifndef HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
-#define HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
+#ifndef HIPSYCL_SSCP_COLLECTIVE_PREDICATE_BUILTINS_HPP
+#define HIPSYCL_SSCP_COLLECTIVE_PREDICATE_BUILTINS_HPP
 
 
-HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                  __hipsycl_sscp_memory_order);
-HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                 __hipsycl_sscp_memory_order);
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+bool __hipsycl_sscp_work_group_any(bool pred);
+
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+bool __hipsycl_sscp_sub_group_any(bool pred);
+
+
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+bool __hipsycl_sscp_work_group_all(bool pred);
+
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+bool __hipsycl_sscp_sub_group_all(bool pred);
+
+
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+bool __hipsycl_sscp_work_group_none(bool pred);
+
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+bool __hipsycl_sscp_sub_group_none(bool pred);
 
 #endif

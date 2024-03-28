@@ -362,6 +362,8 @@ add_subdirectory(src)
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 
+set(DEFAULT_WIN32_HIP_LINK_LINE "-L$HIPSYCL_ROCM_PATH/lib -lamdhip64")
+
 if(MINGW)
   set(DEFAULT_LINK_PREFIX "-l:")
 else()
@@ -385,8 +387,14 @@ set(DEFAULT_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber 
 set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR}")
 
 # If no link lines given, set to default.
-if(NOT ROCM_LINK_LINE)
-  set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+if(WIN32)
+  if(NOT ROCM_LINK_LINE)
+    set(ROCM_LINK_LINE ${DEFAULT_WIN32_HIP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+  endif()
+else()
+  if(NOT ROCM_LINK_LINE)
+    set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+  endif()
 endif()
 
 if(WIN32)

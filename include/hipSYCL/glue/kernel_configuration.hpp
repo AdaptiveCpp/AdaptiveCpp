@@ -256,6 +256,11 @@ public:
     _s2_ir_configurations.push_back(entry);
   }
 
+  void set_specialized_kernel_argument(int param_index, uint64_t buffer_value) {
+    _specialized_kernel_args.push_back(
+        std::make_pair(param_index, buffer_value));
+  }
+
   void set_build_option(kernel_build_option option, const std::string& value) {
     int_or_string ios;
     ios.string_value = value;
@@ -323,6 +328,12 @@ public:
                         "", 0);
     }
 
+    for(const auto& entry : _specialized_kernel_args) {
+      uint64_t numeric_option_id = static_cast<uint64_t>(entry.first) | (1ull << 34);
+      add_entry_to_hash(result, &numeric_option_id, sizeof(numeric_option_id),
+                        &entry.second, sizeof(entry.second));
+    }
+
     return result;
   }
 
@@ -336,6 +347,10 @@ public:
 
   const auto& build_flags() const {
     return _build_flags;
+  }
+
+  const auto& specialized_arguments() const {
+    return _specialized_kernel_args;
   }
 
 private:
@@ -389,6 +404,7 @@ private:
   std::vector<s2_ir_configuration_entry> _s2_ir_configurations;
   std::vector<kernel_build_flag> _build_flags;
   std::vector<std::pair<kernel_build_option, int_or_string>> _build_options;
+  std::vector<std::pair<int, uint64_t>> _specialized_kernel_args;
 
   id_type _base_configuration_result = {};
 };

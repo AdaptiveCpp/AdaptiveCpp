@@ -34,17 +34,17 @@
 namespace hipsycl {
 namespace rt {
 
-kernel_adaptivity_engine::kernel_adaptivity_engine(hcf_object_id hcf_object,
-                                     const std::string &backend_kernel_name,
-                                     const hcf_kernel_info* kernel_info,
-                                     const range<3> &num_groups,
-                                     const range<3> &block_size, void **args,
-                                     std::size_t *arg_sizes,
-                                     std::size_t num_args,
-                                     std::size_t local_mem_size)
-    : _hcf{hcf_object}, _kernel_name{backend_kernel_name}, _kernel_info{kernel_info},
+kernel_adaptivity_engine::kernel_adaptivity_engine(
+    hcf_object_id hcf_object, const std::string &backend_kernel_name,
+    const hcf_kernel_info *kernel_info,
+    const glue::jit::cxx_argument_mapper &arg_mapper,
+    const range<3> &num_groups, const range<3> &block_size, void **args,
+    std::size_t *arg_sizes, std::size_t num_args, std::size_t local_mem_size)
+    : _hcf{hcf_object}, _kernel_name{backend_kernel_name},
+      _kernel_info{kernel_info}, _arg_mapper{arg_mapper},
       _num_groups{num_groups}, _block_size{block_size}, _args{args},
-      _arg_sizes{arg_sizes}, _num_args{num_args}, _local_mem_size(local_mem_size) {
+      _arg_sizes{arg_sizes}, _num_args{num_args},
+      _local_mem_size(local_mem_size) {
 
   _adaptivity_level = application::get_settings().get<setting::adaptivity_level>();
 }
@@ -75,6 +75,20 @@ kernel_adaptivity_engine::finalize_binary_configuration(
     // Hard-code local memory size into the JIT binary
     config.set_build_option(glue::kernel_build_option::known_local_mem_size,
                             _local_mem_size);
+
+    // Handle kernel parameter optimization hints
+    for(int i = 0; i < _kernel_info->get_num_parameters(); ++i) {
+      auto& annotations = _kernel_info->get_known_annotations(i);
+      std::size_t arg_size = _kernel_info->get_argument_size(i);
+      for(auto annotation : annotations) {
+        if (annotation == hcf_kernel_info::annotation_type::specialized &&
+            arg_size <= sizeof(uint64_t)) {
+          uint64_t buffer_value = 0;
+          std::memcpy(&buffer_value, _arg_mapper.get_mapped_args()[i], arg_size);
+          config.set_specialized_kernel_argument(i, buffer_value);
+        }
+      }
+    }
   }
 
   return config.generate_id();

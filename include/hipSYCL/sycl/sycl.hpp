@@ -99,6 +99,7 @@
 #include "backend_interop.hpp"
 #include "interop_handle.hpp"
 #include "buffer_explicit_behavior.hpp"
+#include "specialized.hpp"
 
 // Support SYCL_EXTERNAL for SSCP - we cannot have SYCL_EXTERNAL if accelerated CPU
 // is active at the same time :(

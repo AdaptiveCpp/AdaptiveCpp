@@ -86,6 +86,10 @@ public:
     return _mapped_data.data();
   }
 
+  void* const* get_mapped_args() const {
+    return _mapped_data.data();
+  }
+
   const std::size_t* get_mapped_arg_sizes() const {
     return _mapped_sizes.data();
   }
@@ -223,6 +227,14 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
       translator->getBackendId());
   for(const auto& entry : config.s2_ir_entries()) {
     translator->setS2IRConstant(entry.get_name(), entry.get_data_buffer());
+  }
+  if(translator->getKernels().size() == 1) {
+    // Currently we only can specialize kernel arguments for the 
+    // single-kernel code object model
+    for(const auto& entry : config.specialized_arguments()) {
+      translator->specializeKernelArgument(translator->getKernels().front(),
+                                          entry.first, &entry.second);
+    }
   }
 
   for(const auto& option : config.build_options()) {

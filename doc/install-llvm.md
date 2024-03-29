@@ -84,3 +84,31 @@ If AdaptiveCpp does not select the right clang++ or include directories, use the
 
 * `-DCLANG_EXECUTABLE_PATH=/path/to/clang++` must be pointed to the `clang++` executable from this LLVM installation.
 * `-DCLANG_INCLUDE_PATH=/path/to/clang-includes` must be pointed to the clang internal header directory. Typically, this is something like `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include`. Newer ROCm versions will require the parent directory instead, i.e. `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>`. This is only important for the ROCm backend.
+
+## If clang/LLVM does not find C++ standard library headers
+
+AdaptiveCpp relies on a working clang installation. clang in turn does not come with its own C++ standard library, but instead assumes that it can use the one from the system.
+
+### Missing packages
+
+If it does not find C++ standard library headers, it might be because you are missing a `libstdc++-dev` package or similar.
+
+If you have multiple gcc versions installed on your system, it is also possible that clang wants a specific libstdc++ version to match a gcc version that it has selected. You can use `clang++ -v /dev/null` to find out which gcc and libstdc++ version clang wants to use.
+*Note: This command is expected to fail with a linker error. It should print something like "Selected GCC installation: ..." which is the information you are looking for.*
+
+### GCC toolchain/C++ standard library is in a non-standard location
+
+If the C++ standard library is in a non-standard location (this might typically be the case on a cluster), it is also possible that clang does not find it.
+
+In that case, clang can be informed about the location of the GCC toolchain using the `--gcc-toolchain=...` flag.
+*Note:* This flag is very picky about the directory!. It needs to be provided with the parent directory that contains the `lib/gcc/<arch>/<version>` subdirectories. On a Cray system, this might e.g. be `--gcc-toolchain=/opt/cray/pe/gcc/12.2.0/snos`. If an incorrect path is provided, clang may silently ignore the argument. Use `clang++ -v /dev/null` as described above to check that it has accepted the GCC installation.
+
+While in theory AdaptiveCpp can be made to use that flag when compiling, a simpler solution to make that change permanent is to use clang configuration files ([details in the clang documentation](https://clang.llvm.org/docs/UsersManual.html#id25)):
+1. In the directory where `clang++` lives (e.g. some `bin` directory), create a new file `<name>.cfg`, replacing `<name>` with something of your choice.
+2. Put any flags that you want clang to use by default into this file, such as the `--gcc-toolchain=...` flag.
+3. Create a symlink to clang in the same directory that `clang++` and the config file exist in: `ln -s clang++ <name>-clang++`, again replacing `<name>` with the name of your config file.
+4. When invoking clang with the symlink, clang will automatically apply the configuration file. Now use `<name>-clang++` in the build process of AdaptiveCpp instead of clang++, e.g. use the cmake flags `-DCMAKE_CXX_COMPILER=<name>-clang++ -DCLANG_EXECUTABLE_PATH=/path/to/<name>-clang++`.
+
+
+
+

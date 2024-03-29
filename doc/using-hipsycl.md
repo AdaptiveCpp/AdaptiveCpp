@@ -64,7 +64,7 @@ Of course, the desired flows can also always be specified explicitly.
 * `generic` - creates a binary that can run on all backends. This also typically creates the fastest binaries.
 * `"omp.library-only;cuda.explicit-multipass:sm_61;sm_70"`  - compiles for the CPU backend and Pascal and Volta era GPUs
 * `"omp;cuda:sm_70;hip:gfx906"`  - compiles for the CPU backend (library or accelerated), NVIDIA Volta era GPUs via explicit multipass, AMD Vega 20 GPUs
-* `"omp.accelerated;cuda:sm_70;spirv`" - compiles for the CPU backend (compiler accelerated), NVIDIA Volta era GPUs, and SPIR-V devices
+* `"omp.accelerated;cuda:sm_70`" - compiles for the CPU backend (compiler accelerated) and NVIDIA Volta era GPUs.
 * `"omp;cuda-nvcxx"` - compiles for the CPU backend and NVIDIA GPUs using nvc++
 
 ### Offloading C++ standard parallelism

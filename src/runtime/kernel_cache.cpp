@@ -109,6 +109,21 @@ hcf_kernel_info::hcf_kernel_info(
     _arg_offsets.push_back(arg_offset);
     _arg_sizes.push_back(arg_size);
     _original_arg_indices.push_back(arg_original_index);
+    // Let's accept annotation nodes not being provided
+    _string_annotations.push_back({});
+    _known_annotations.push_back({});
+    if(auto* annotation_node = param_info_node->get_subnode("annotations")){
+      for(const auto& entry : annotation_node->key_value_pairs) {
+        // Ignore entries that are not set to "1" for now
+        if(entry.second == "1") {
+          if(entry.first == "specialized") {
+            _known_annotations.back().push_back(annotation_type::specialized);
+          } else {
+            _string_annotations.back().push_back(entry.first);
+          }
+        }
+      }
+    }
   }
 
   if(const auto* flags_node = kernel_node->get_subnode("compile-flags")) {
@@ -153,6 +168,16 @@ std::size_t hcf_kernel_info::get_original_argument_index(std::size_t i) const {
 
 hcf_kernel_info::argument_type hcf_kernel_info::get_argument_type(std::size_t i) const {
   return _arg_types[i];
+}
+
+const std::vector<std::string> &
+hcf_kernel_info::get_string_annotations(std::size_t i) const {
+  return _string_annotations[i];
+}
+
+const std::vector<hcf_kernel_info::annotation_type> &
+hcf_kernel_info::get_known_annotations(std::size_t i) const {
+  return _known_annotations[i];
 }
 
 const std::vector<std::string> &

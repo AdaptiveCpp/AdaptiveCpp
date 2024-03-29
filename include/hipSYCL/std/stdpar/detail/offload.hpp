@@ -201,7 +201,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
-  
+#ifndef __HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__
   // Use "first" mode in case of automatic prefetch decision for now
   const auto prefetch_mode =
       (get_prefetch_mode() == prefetch_mode::automatic) ? prefetch_mode::first
@@ -251,6 +251,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
   } else if (prefetch_mode == prefetch_mode::never) {
     /* nothing to do */
   }
+#endif
 }
 
 struct pair_hash{

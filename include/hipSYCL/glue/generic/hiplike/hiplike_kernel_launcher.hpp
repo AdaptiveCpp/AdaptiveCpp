@@ -418,10 +418,26 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
   stages.push_back(reduction_stage<Dimensions>{
       local_size, num_groups, global_size});
 
+  // Reduce ranges of the form (N,M,L) to (1,1,N*M*L)
+  global_size[Dimensions - 1] = global_size.size();
+  for (int i=0; i<Dimensions-1; ++i)
+    global_size[i] = 1;
+
+  local_size[Dimensions - 1] = local_size.size();
+  for (int i=0; i<Dimensions-1; ++i)
+    local_size[i] = 1;
+  // Check if local_size == 1, this would cause an infinite loop
+  if (local_size[Dimensions - 1] == 1)
+    local_size[Dimensions - 1] = 128;
+
+  num_groups[Dimensions - 1] = num_groups.size();
+  for (int i=0; i<Dimensions-1; ++i)
+    num_groups[i] = 1;
+
   sycl::range<Dimensions> current_num_groups = num_groups;
   sycl::range<Dimensions> current_num_work_items = global_size;
-
-  while(current_num_groups.size() > 1) {
+  
+  while(current_num_groups[Dimensions - 1] > 1) {
 
     current_num_work_items = current_num_groups;
     current_num_groups =
@@ -689,7 +705,6 @@ public:
         k(handle);
 
       } else {
-
         sycl::range<Dim> grid_range =
             hiplike_dispatch::determine_grid_configuration(
                 global_range, effective_local_range);

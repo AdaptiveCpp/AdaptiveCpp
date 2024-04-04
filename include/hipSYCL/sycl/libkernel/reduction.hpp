@@ -31,6 +31,8 @@
 #include <type_traits>
 #include "backend.hpp"
 #include "functional.hpp"
+#include "accessor.hpp"
+#include "hipSYCL/sycl/property.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -44,12 +46,15 @@ struct pointer_reduction_descriptor {
 
   HIPSYCL_UNIVERSAL_TARGET
   pointer_reduction_descriptor(value_type *output_data, value_type op_identity,
-                               BinaryOperation op)
-      : data{output_data}, identity{op_identity}, combiner{op} {}
+                               BinaryOperation op,
+                               bool init_to_identity = false)
+      : data{output_data}, identity{op_identity}, combiner{op},
+        initialize_to_identity{init_to_identity} {}
 
   value_type* data;
   value_type identity;
   BinaryOperation combiner;
+  bool initialize_to_identity;
 
   HIPSYCL_UNIVERSAL_TARGET
   value_type *get_pointer() const {
@@ -64,12 +69,15 @@ struct accessor_reduction_descriptor {
 
   HIPSYCL_UNIVERSAL_TARGET
   accessor_reduction_descriptor(AccessorT output_data, value_type op_identity,
-                                BinaryOperation op)
-      : acc{output_data}, identity{op_identity}, combiner{op} {}
+                                BinaryOperation op,
+                                bool init_to_identity = false)
+      : acc{output_data}, identity{op_identity}, combiner{op},
+        initialize_to_identity{init_to_identity} {}
 
   AccessorT acc;
   value_type identity;
   BinaryOperation combiner;
+  bool initialize_to_identity;
 
   HIPSYCL_UNIVERSAL_TARGET
   value_type *get_pointer() const {
@@ -78,6 +86,14 @@ struct accessor_reduction_descriptor {
 };
 
 } // namespace detail
+
+
+namespace property::reduction {
+
+class initialize_to_identity : public detail::reduction_property
+{};
+
+}
 
 /// Reducer implementation, builds on \c BackendReducerImpl concept.
 /// \c BackendReducerImpl concept:
@@ -176,9 +192,11 @@ void operator++(reducer<BackendReducerImpl> &r) {
 }
 
 
+class handler;
+
 template <typename AccessorT, typename BinaryOperation>
 detail::accessor_reduction_descriptor<AccessorT, BinaryOperation>
-reduction(AccessorT vars, BinaryOperation combiner) {
+reduction(AccessorT vars, BinaryOperation combiner, const property_list& propList = {}) {
 
   auto identity = typename AccessorT::value_type{};
   return detail::accessor_reduction_descriptor{vars, identity, combiner};
@@ -187,21 +205,39 @@ reduction(AccessorT vars, BinaryOperation combiner) {
 template <typename AccessorT, typename BinaryOperation>
 detail::accessor_reduction_descriptor<AccessorT, BinaryOperation>
 reduction(AccessorT vars, const typename AccessorT::value_type &identity,
-          BinaryOperation combiner) {
+          BinaryOperation combiner, const property_list& propList = {}) {
 
   return detail::accessor_reduction_descriptor{vars, identity, combiner};
 }
 
+template <typename BufferT, typename BinaryOperation>
+auto reduction(BufferT vars, handler &cgh, BinaryOperation combiner,
+               const property_list &propList = {}) {
+  sycl::accessor acc{vars, cgh};
+  return reduction(acc, combiner, propList);
+}
+
+template <typename BufferT, typename BinaryOperation>
+auto reduction(BufferT vars, handler& cgh,
+                const typename BufferT::value_type& identity,
+                BinaryOperation combiner,
+                const property_list& propList = {}) {
+  sycl::accessor acc{vars, cgh};
+  return reduction(acc, identity, combiner, propList);
+}
+
 template <typename T, typename BinaryOperation>
 detail::pointer_reduction_descriptor<T, BinaryOperation>
-reduction(T *var, BinaryOperation combiner) {
+reduction(T *var, BinaryOperation combiner,
+          const property_list &propList = {}) {
 
   return detail::pointer_reduction_descriptor{var, T{}, combiner};
 }
 
 template <typename T, typename BinaryOperation>
 detail::pointer_reduction_descriptor<T, BinaryOperation>
-reduction(T *var, const T &identity, BinaryOperation combiner) {
+reduction(T *var, const T &identity, BinaryOperation combiner,
+          const property_list &propList = {}) {
   return detail::pointer_reduction_descriptor{var, identity, combiner};
 }
 

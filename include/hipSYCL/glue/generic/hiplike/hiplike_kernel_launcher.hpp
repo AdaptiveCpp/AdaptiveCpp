@@ -384,11 +384,10 @@ public:
     return _queue;
   }
 
-  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
-            typename... Reductions>
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+            Kernel k) {
     
     this->_type = type;
 
@@ -415,10 +414,8 @@ public:
       assert(_queue != nullptr);
       
       static_cast<rt::kernel_operation *>(node->get_operation())
-          ->initialize_embedded_pointers(k, reductions...);
+          ->initialize_embedded_pointers(k);
 
-      // Simple cases first: Kernel types that don't support
-      // reductions
       if constexpr (type == rt::kernel_type::single_task) {
 
         __hipsycl_invoke_kernel(

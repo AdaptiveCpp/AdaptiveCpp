@@ -789,29 +789,54 @@ private:
     _command_group_nodes.push_back(node);
   }
 
+#include "detail/reduction_engines.hpp"
+
   template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
             int Dim, typename... Reductions>
   void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
                      sycl::range<Dim> local_range, KernelFuncType f,
                      Reductions... reductions) {
-    std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
-
-    if(sizeof...(reductions) > 0)
+    
+    if(sizeof...(reductions) == 0) {
+      submit_kernel<KernelName, KernelType>(offset, global_range, local_range,
+                                            f);
+    } else {
       this->_operation_uses_reductions = true;
+
+      
+    }
+  }
+
+  template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
+            int Dim, typename... Reductions>
+  void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
+                     sycl::range<Dim> local_range, KernelFuncType f) {
+
+    rt::dag_node_ptr node = submit_kernel_impl<KernelName, KernelType>(
+        offset, global_range, local_range, f);
+    _command_group_nodes.push_back(node);
+  }
+
+  template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
+            int Dim>
+  rt::dag_node_ptr submit_kernel_impl(sycl::id<Dim> offset, sycl::range<Dim> global_range,
+                     sycl::range<Dim> local_range, KernelFuncType f) {
+
+    std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(KernelFuncType).name(),
         glue::make_kernel_launchers<KernelName, KernelType>(
-            offset, local_range, global_range, shared_mem_size, f,
-            reductions...),
+            offset, local_range, global_range, shared_mem_size, f),
         _requirements);
 
     rt::dag_node_ptr node = create_task(std::move(kernel_op), _execution_hints);
-    _command_group_nodes.push_back(node);
 
     // This registers the kernel with the runtime when the application
     // launches, and allows us to introspect available kernels.
     HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelFuncType);
+
+    return node;
   }
 
   template<class T>

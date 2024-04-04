@@ -339,6 +339,10 @@ endif()
 
 if(APPLE)
   set(DEFAULT_OMP_FLAG "-Xclang -fopenmp")
+  execute_process(COMMAND brew --prefix
+                OUTPUT_VARIABLE BREW_PREFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE)              
+  set(OpenMP_ROOT "${BREW_PREFIX}/opt/libomp")
   
   if(Boost_FIBER_LIBRARY_DEBUG)
     set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_DEBUG} ${Boost_FIBER_LIBRARY_DEBUG} -Wl,-rpath ${Boost_LIBRARY_DIR}")

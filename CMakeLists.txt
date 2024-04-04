@@ -339,10 +339,20 @@ endif()
 
 if(APPLE)
   set(DEFAULT_OMP_FLAG "-Xclang -fopenmp")
-  execute_process(COMMAND brew --prefix
-                OUTPUT_VARIABLE BREW_PREFIX
-                OUTPUT_STRIP_TRAILING_WHITESPACE)              
-  set(OpenMP_ROOT "${BREW_PREFIX}/opt/libomp")
+  
+  if (NOT DEFINED OpenMP_ROOT) 
+    # Workflow provided by
+    # AdaptiveCpp/.github/workflows/macos.yml       
+    execute_process(COMMAND brew list libomp
+                    COMMAND grep libomp.a 
+                    COMMAND sed -E "s/\\/lib\\/.*//"
+                    OUTPUT_VARIABLE DefaultOMP_ROOT
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)   
+    # If not found, we are still able to set 
+    # since CMake will error out if no other platform is found
+    # but will not error out if another platform is found.
+    set(OpenMP_ROOT ${DefaultOMP_ROOT})
+  endif()
   
   if(Boost_FIBER_LIBRARY_DEBUG)
     set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_DEBUG} ${Boost_FIBER_LIBRARY_DEBUG} -Wl,-rpath ${Boost_LIBRARY_DIR}")

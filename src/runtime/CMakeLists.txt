@@ -278,15 +278,19 @@ if(WITH_CPU_BACKEND)
     omp/omp_queue.cpp)
 
     # OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
-    if (APPLE AND NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
-      execute_process(COMMAND brew list libomp
-      COMMAND grep libomp.a 
-      COMMAND sed -E "s/\\/lib\\/.*//"
-      OUTPUT_VARIABLE DefaultOMP_ROOT
-      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if (APPLE)
+      if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
+        execute_process(COMMAND brew list libomp
+        COMMAND grep libomp.a 
+        COMMAND sed -E "s/\\/lib\\/.*//"
+        OUTPUT_VARIABLE DefaultOMP_ROOT
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-      # Later linkage will error out if it is not found
-      set(OpenMP_ROOT ${DefaultOMP_ROOT})
+        # Later linkage will error out if it is not found
+        set(OMP_ROOT ${DefaultOMP_ROOT})
+      endif()
+
+      string(APPEND OMP_CXX_FLAGS " " -I${OMP_ROOT}/include)
     endif()
 
     find_package(OpenMP REQUIRED)

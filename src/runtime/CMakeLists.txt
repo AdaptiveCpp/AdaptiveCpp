@@ -280,7 +280,6 @@ if(WITH_CPU_BACKEND)
     # OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
     if (APPLE)
       if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
-        message("Cannot find OpenMP_ROOT or OMP_ROOT")
         execute_process(COMMAND brew list libomp
         COMMAND grep libomp.a 
         COMMAND sed -E "s/\\/lib\\/.*//"

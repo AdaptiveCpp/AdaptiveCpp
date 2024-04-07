@@ -50,9 +50,29 @@ if(WIN32)
 add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_USE_MATH_DEFINES)
 endif()
 
+# OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
+if (APPLE)
+  if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
+    message("Cannot find OpenMP_ROOT or OMP_ROOT")
+    execute_process(COMMAND brew list libomp
+    COMMAND grep libomp.a 
+    COMMAND sed -E "s/\\/lib\\/.*//"
+    OUTPUT_VARIABLE DefaultOMP_ROOT
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    # fater linkage will error out if it is not found
+    set(OpenMP_ROOT ${DefaultOMP_ROOT})
+    set(OMP_ROOT ${DefaultOMP_ROOT})
+  endif()
+
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${OpenMP_ROOT}/include")
+endif()
+
 add_subdirectory(platform_api)
 
 add_subdirectory(dump_test)
+
+
 add_executable(device_compilation_tests device_compilation_tests.cpp)
 target_include_directories(device_compilation_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 add_sycl_to_target(TARGET device_compilation_tests)

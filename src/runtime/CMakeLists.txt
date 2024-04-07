@@ -280,21 +280,21 @@ if(WITH_CPU_BACKEND)
     # OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
     if (APPLE)
       if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
+        message("Cannot find OpenMP_ROOT or OMP_ROOT")
         execute_process(COMMAND brew list libomp
         COMMAND grep libomp.a 
         COMMAND sed -E "s/\\/lib\\/.*//"
         OUTPUT_VARIABLE DefaultOMP_ROOT
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-        # Later linkage will error out if it is not found
+        # fater linkage will error out if it is not found
+        set(OpenMP_ROOT ${DefaultOMP_ROOT})
         set(OMP_ROOT ${DefaultOMP_ROOT})
       endif()
-
-      string(APPEND OMP_CXX_FLAGS " " -I${OMP_ROOT}/include)
     endif()
 
     find_package(OpenMP REQUIRED)
-
+    
     target_include_directories(rt-backend-omp PRIVATE
       ${HIPSYCL_SOURCE_DIR}/include 
       ${PROJECT_BINARY_DIR}/include)

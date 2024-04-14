@@ -158,7 +158,7 @@ T initialize_type(T init) {
 template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T initialize_type(elementType<T> init) {
-  constexpr size_t N = T::get_count();
+  constexpr size_t N = T::size();
 
   if constexpr (std::is_same_v<elementType<T>, bool>)
     return T{init};

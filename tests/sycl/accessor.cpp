@@ -191,18 +191,25 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     run_test([&](auto buf, auto... args) {
       return buf.template get_access<s::access::mode::atomic>(cgh, args...);
     });
+
     // mostly compilation test
-    auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
-    auto atomicAcc3D = buf_d.template get_access<s::access::mode::atomic>(cgh);
-    auto localAtomic = s::accessor<int, 1, s::access::mode::atomic, s::access::target::local>{s::range<1>{2}, cgh};
-    auto localAtomic3D = s::accessor<int, 3, s::access::mode::atomic, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
+    auto acc = buf_a.template get_access<s::access::mode::read_write>(cgh);
+    auto acc3D = buf_d.template get_access<s::access::mode::read_write>(cgh);
+    auto localAcc = s::accessor<int, 1, s::access::mode::read_write, s::access::target::local>{s::range<1>{2}, cgh};
+    auto localAcc3D = s::accessor<int, 3, s::access::mode::read_write, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
+
     cgh.parallel_for<class accessor_api_atomic_device_accessors>(
         cl::sycl::nd_range<1>{2, 2},
         [=](cl::sycl::nd_item<1> item) {
-          atomicAcc[0].exchange(0);
-          atomicAcc3D[0][1][0].exchange(0);
-          localAtomic[0].exchange(0);
-          localAtomic3D[0][1][0].exchange(0);
+          auto atomicAcc = s::atomic_ref<int, s::memory_order::relaxed, s::memory_scope::device, s::access::address_space::global_space>(acc[0]);
+          auto atomicAcc3D = s::atomic_ref<int, s::memory_order::relaxed, s::memory_scope::device, s::access::address_space::global_space>(acc3D[0][1][0]);
+          auto localAtomic = s::atomic_ref<int, s::memory_order::relaxed, s::memory_scope::work_group, s::access::address_space::local_space>(localAcc[0]);
+          auto localAtomic3D = s::atomic_ref<int, s::memory_order::relaxed, s::memory_scope::work_group, s::access::address_space::local_space>(localAcc3D[0][1][0]);
+
+          atomicAcc.exchange(0);
+          atomicAcc3D.exchange(0);
+          localAtomic.exchange(0);
+          localAtomic3D.exchange(0);
     });
   });
 

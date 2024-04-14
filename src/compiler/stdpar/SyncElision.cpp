@@ -101,7 +101,7 @@ void identifyStoresPotentiallyForStdparArgHandling(
                 if (StdparFunctions.contains(CB->getCalledFunction())) {
                   Users.push_back(Current);
                   return true;
-                } else if(CB->getCalledFunction()->getName().startswith("llvm.lifetime")) {
+                } else if(CB->getCalledFunction()->getName().starts_with("llvm.lifetime")) {
                   return true;
                 }
               }
@@ -153,7 +153,7 @@ bool functionDoesNotAccessMemory(llvm::Function* F){
   if(!F)
     return true;
   if(F->isIntrinsic()) {
-    if(F->getName().startswith("llvm.lifetime")){
+    if(F->getName().starts_with("llvm.lifetime")){
       return true;
     }
   }

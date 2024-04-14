@@ -212,8 +212,8 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     for(auto& BB : F) {
       for(auto& I : BB) {
         if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
-          if (CB->getCalledFunction()->getName().startswith("llvm.lifetime.start") ||
-              CB->getCalledFunction()->getName().startswith("llvm.lifetime.end")) {
+          if (CB->getCalledFunction()->getName().starts_with("llvm.lifetime.start") ||
+              CB->getCalledFunction()->getName().starts_with("llvm.lifetime.end")) {
             Calls.push_back(CB);
           }
         }

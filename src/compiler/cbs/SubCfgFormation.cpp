@@ -145,7 +145,7 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
   for (auto &BB : F)
     for (auto &I : BB)
       if (auto *UI = llvm::dyn_cast<llvm::CallInst>(&I))
-        if (UI->getCalledFunction()->getName().startswith("llvm.var.annotation")) {
+        if (UI->getCalledFunction()->getName().starts_with("llvm.var.annotation")) {
           HIPSYCL_DEBUG_INFO << *UI << '\n';
           llvm::GlobalVariable *AnnotateStr = nullptr;
           if (auto *CE = llvm::dyn_cast<llvm::ConstantExpr>(UI->getOperand(1));
@@ -160,7 +160,7 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
             if (auto *Data =
                     llvm::dyn_cast<llvm::ConstantDataSequential>(AnnotateStr->getInitializer())) {
               if (Data->isString() &&
-                  Data->getAsString().startswith("hipsycl_nd_kernel_local_size_arg")) {
+                  Data->getAsString().starts_with("hipsycl_nd_kernel_local_size_arg")) {
                 if (auto *BC = llvm::dyn_cast<llvm::BitCastInst>(UI->getOperand(0)))
                   return {BC->getOperand(0), UI};
                 return {UI->getOperand(0), UI};

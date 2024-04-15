@@ -35,7 +35,7 @@ acpp            acpp-hcf-tool   acpp-info       syclcc          syclcc-clang
 ```
 ${GITHUB_WORKSPACE}/build/install/bin/acpp
  
-the output will show something resembling this :
+the output will  resembling this :
 acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the AdaptiveCpp project
   AdaptiveCpp version: 24.02.0+git.b61a1868.20240408.branch.develop
   Installation root: /Users/adithyalbhat/github/adaptive_cpp/AdaptiveCpp/build/install

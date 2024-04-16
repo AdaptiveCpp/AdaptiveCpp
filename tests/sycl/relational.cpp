@@ -86,7 +86,7 @@ namespace {
   // utility functions for generic testing
 
   template<typename DT, int D>
-  auto get_subvector(vec<DT, 16> v) {
+  auto get_subvector(const vec<DT, 16> &v) {
     if constexpr(D==0) {
       return v.template swizzle<0>();
     } else if constexpr(D==2) {

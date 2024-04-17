@@ -1,5 +1,0 @@
-/opt/AdaptiveCpp/bin/acpp /usr/bin/acpp
-/opt/AdaptiveCpp/bin/syclcc /usr/bin/syclcc
-/opt/AdaptiveCpp/bin/syclcc-clang /usr/bin/syclcc-clang
-/opt/AdaptiveCpp/bin/acpp-info /usr/bin/acpp-info
-/opt/AdaptiveCpp/bin/acpp-hcf-tool /usr/bin/acpp-hcf-tool

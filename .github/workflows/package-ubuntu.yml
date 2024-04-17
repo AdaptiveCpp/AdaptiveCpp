@@ -63,17 +63,24 @@ jobs:
           cp -R AdaptiveCpp acpp-24.02.0
           tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
           cd acpp-24.02.0/
+          dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 --package acpp
+          cp LICENSE debian/copyright
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
+          echo '/opt/AdaptiveCpp/bin/acpp /usr/bin/acpp' > debian/links
+          echo '/opt/AdaptiveCpp/bin/syclcc /usr/bin/syclcc' >> debian/links
+          echo '/opt/AdaptiveCpp/bin/syclcc-clang /usr/bin/syclcc-clang' >> debian/links
+          echo '/opt/AdaptiveCpp/bin/acpp-info /usr/bin/acpp-info' >> debian/links
+          echo '/opt/AdaptiveCpp/bin/acpp-hcf-tool /usr/bin/acpp-hcf-tool' >> debian/links
           debuild -us -uc
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          dpkg -i acpp_24.02.0-1_amd64.deb
+          dpkg -i acpp_2*-1_amd64.deb
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
           name: cpu-backend-generic
-          path: /home/runner/work/AdaptiveCpp/acpp_24.02.0-1_amd64.deb
+          path: /home/runner/work/AdaptiveCpp/acpp_2*-1_amd64.deb
       - name: build generic SSCP tests
         if: matrix.clang >= 14
         run: |

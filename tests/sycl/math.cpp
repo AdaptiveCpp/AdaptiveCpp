@@ -709,7 +709,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
     s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
     s::vec<int, 16> v2{17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1};
     float_inputs[0] = get_math_input<DT, D>(v1);
-    int_inputs[1] = get_math_input<int, D>(v2);
+    int_inputs[0] = get_math_input<int, D>(v2);
     for(int i = 0; i < FUN_COUNT; ++i) {
       outputs[i] = T{DT{0}};
     }

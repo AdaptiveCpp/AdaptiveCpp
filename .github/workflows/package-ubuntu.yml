@@ -171,9 +171,7 @@ jobs:
           dpkg -i ./level-zero*
       - name: install packaging helpers
         run: |
-          apt install build-essential
-          apt install devscripts
-          apt install debhelper
+          apt install -y build-essential devscripts debhelper
       - name: package AdaptiveCpp
         run: |
           cd ..

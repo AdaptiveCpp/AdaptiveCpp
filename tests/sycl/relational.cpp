@@ -135,13 +135,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   {
     auto inputs  = in.get_host_access();
     auto outputs = out.get_host_access();
-    inputs[0] = get_subvector<DT, D>({NAN, INFINITY, INFINITY - INFINITY,
-                                      0.0, 0.0/0.0, 1.0/0.0, sqrt(-1),
-                                      std::numeric_limits<float>::min(),
-                                      std::numeric_limits<float>::denorm_min(),
-                                      std::numeric_limits<double>::min(),
-                                      std::numeric_limits<double>::denorm_min(),
-                                      -1.0, 17.0, -4.0, -2.0, 3.0});
+    s::vec<DT, 16> v{NAN, INFINITY, INFINITY - INFINITY,
+		     0.0, 0.0/0.0, 1.0/0.0, sqrt(-1),
+		     std::numeric_limits<float>::min(),
+		     std::numeric_limits<float>::denorm_min(),
+		     std::numeric_limits<double>::min(),
+		     std::numeric_limits<double>::denorm_min(),
+		     -1.0, 17.0, -4.0, -2.0, 3.0};
+    inputs[0] = get_subvector<DT, D>(v);
     for(int i = 0; i < FUN_COUNT; ++i) {
       outputs[i] = OutType{IntType{0}};
     }

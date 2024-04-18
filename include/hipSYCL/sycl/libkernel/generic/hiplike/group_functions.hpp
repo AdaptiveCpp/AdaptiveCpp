@@ -351,11 +351,14 @@ __device__ T __hipsycl_inclusive_scan_over_group(group<Dim> g, T x,
     scratch[wid] = local_x;
   __hipsycl_group_barrier(g);
 
+  T tmp;
   if (lid < __hipsycl_warp_size) {
     size_t  scratch_index = (lid < (lrange + __hipsycl_warp_size - 1) / __hipsycl_warp_size) ? lid : 0;
-    const T tmp =
+    tmp =
         __hipsycl_inclusive_scan_over_group(sg, scratch[scratch_index], binary_op);
-
+  }
+  __hipsycl_group_barrier(g);
+  if (lid < __hipsycl_warp_size) {
     if (lid < detail::max_group_size / __hipsycl_warp_size) {
       scratch[lid] = tmp;
     }
@@ -523,10 +526,11 @@ __device__ OutPtr __hipsycl_joint_exclusive_scan(Group g, InPtr first,
                                                  T init,
                                                  BinaryOperation binary_op) {
   auto lid = g.get_local_linear_id();
+  auto result_end = __hipsycl_joint_inclusive_scan(g, first, last - 1, result + 1,
+                                        binary_op, init);
   if (lid == 0 && last - first > 0)
     result[0] = init;
-  return __hipsycl_joint_inclusive_scan(g, first, last - 1, result + 1,
-                                        binary_op, init);
+  return result_end;
 }
 
 template <typename Group, typename InPtr, typename OutPtr,

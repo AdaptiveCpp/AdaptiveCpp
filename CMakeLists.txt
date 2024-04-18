@@ -732,6 +732,8 @@ mark_as_advanced(
 )
 
 # New module
+set(CPACK_PACKAGE_CONTACT aksel.alpay@uni-heidelberg.de)
+include(CPack)
 
 
 set(ADAPTIVECPP_INSTALL_CMAKE_DIR
@@ -775,7 +777,11 @@ install(EXPORT install_exports
   DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
 )
 
+if(UNIX AND ACPP_INSTALL_LDCONF)
+  file(WRITE ${PROJECT_BINARY_DIR}/30-adaptivecpp.conf "${CMAKE_INSTALL_PREFIX}/lib/hipSYCL\n")
+  install(FILES ${PROJECT_BINARY_DIR}/30-adaptivecpp.conf COMPONENT ACPP DESTINATION /etc/ld.so.conf.d)
+endif()
+
 mark_as_advanced(
   ADAPTIVECPP_INSTALL_CMAKE_DIR
 )
-

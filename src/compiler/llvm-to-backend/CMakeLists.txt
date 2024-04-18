@@ -28,7 +28,7 @@ function(create_llvm_based_library)
   target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
+  find_library(LLVM_LIBRARY NAMES LLVM LLVMCore HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
   if(NOT LLVM_LIBRARY)
     message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
   endif()
@@ -142,11 +142,16 @@ if(WITH_SSCP_COMPILER)
     if(NOT LLVMSpirvTranslator_POPULATED)
       FetchContent_Populate(LLVMSpirvTranslator)
       execute_process(COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch ${llvmspirvtranslator_SOURCE_DIR}/lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch)
-      execute_process(COMMAND ${CMAKE_COMMAND} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DLLVM_SPIRV_BUILD_EXTERNAL=ON -DLLVM_DIR=${LLVM_DIR} -DCMAKE_INSTALL_PREFIX=${LLVMSPIRV_INSTALLDIR} -DCMAKE_BUILD_TYPE=Release -S ${llvmspirvtranslator_SOURCE_DIR} -B ${llvmspirvtranslator_BINARY_DIR})
+      execute_process(COMMAND patch -d ${llvmspirvtranslator_SOURCE_DIR} --ignore-whitespace -i ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv-cpack.patch)
     endif()
     
-    add_custom_target(llvm-spirv-translator ALL COMMAND ${CMAKE_COMMAND} --build ${llvmspirvtranslator_BINARY_DIR} --config Release)
-    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --install ${llvmspirvtranslator_BINARY_DIR})")
+    set(LLVM_SPIRV_BUILD_EXTERNAL ON)
+    set(llvm-spirv_TOOLS_INSTALL_DIR {LLVMSPIRV_RELATIVE_INSTALLDIR}/bin)
+    add_subdirectory(${llvmspirvtranslator_SOURCE_DIR} ${llvmspirvtranslator_BINARY_DIR})
+
+    # Install them to the desired relative path
+    install(TARGETS LLVMSPIRVLib COMPONENT ACPP DESTINATION ${LLVMSPIRV_RELATIVE_INSTALLDIR}/lib)
+    install(TARGETS llvm-spirv COMPONENT ACPP DESTINATION ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin)
 
     target_compile_definitions(llvm-to-spirv PRIVATE
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")

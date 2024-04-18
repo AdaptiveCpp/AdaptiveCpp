@@ -121,10 +121,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   s::host_accessor hacc_T{buff_T};
   for(int i = 0; i < num_ops; ++i){
     float current_reference_half = reference_half[i];
-    T current_reference_T = reference_T[i];
+    float current_reference_T = reference_T[i];
     
     float current_computed_half = hacc_half[i];
-    T current_computed_T = hacc_T[i];
+    float current_computed_T = hacc_T[i];
     
     BOOST_TEST(current_reference_half == current_computed_half, tolerance);
     BOOST_TEST(current_reference_T == current_computed_T, tolerance);

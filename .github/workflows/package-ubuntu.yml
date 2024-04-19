@@ -63,7 +63,7 @@ jobs:
           cp -R AdaptiveCpp acpp-24.02.0
           tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
           cd acpp-24.02.0/
-          mkdir -p debian/source && echo "3.0 (native)" > source/format
+          mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
           export DEBFULLNAME=$(git config --global user.name)
           echo $(echo $DEBFULLNAME)
           export DEBEMAIL=$(git config --global user.email)

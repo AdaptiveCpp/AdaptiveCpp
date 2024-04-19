@@ -63,16 +63,19 @@ jobs:
           cp -R AdaptiveCpp acpp-24.02.0
           tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
           cd acpp-24.02.0/
+          mkdir -p debian/source && echo "3.0 (native)" > source/format
           export DEBFULLNAME=$(git config --global user.name)
+          echo $(echo $DEBFULLNAME)
           export DEBEMAIL=$(git config --global user.email)
+          echo $(echo $DEBEMAIL)
+          export DEBFULLNAME="Sanchi Vaishnavi"
+          export DEBEMAIL=sanchi.vaishnavi@stud.uni-heidelberg.de
           dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 "CI's Nightly Release." --package acpp
           cp LICENSE debian/copyright
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
-          echo '/opt/AdaptiveCpp/bin/acpp /usr/bin/acpp' > debian/links
-          echo '/opt/AdaptiveCpp/bin/syclcc /usr/bin/syclcc' >> debian/links
-          echo '/opt/AdaptiveCpp/bin/syclcc-clang /usr/bin/syclcc-clang' >> debian/links
-          echo '/opt/AdaptiveCpp/bin/acpp-info /usr/bin/acpp-info' >> debian/links
-          echo '/opt/AdaptiveCpp/bin/acpp-hcf-tool /usr/bin/acpp-hcf-tool' >> debian/links
+          FILES="acpp acpp-info acpp-hcf-tool scylcc scylcc-clang"
+          for name in $FILES; do echo "/opt/AdaptiveCpp/bin/$name /usr/bin/$name" >> debian/links
+          done
           debuild -us -uc
       - name: Install the package
         run: |

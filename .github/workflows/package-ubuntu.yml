@@ -63,7 +63,9 @@ jobs:
           cp -R AdaptiveCpp acpp-24.02.0
           tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
           cd acpp-24.02.0/
-          dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 --package acpp
+          export DEBFULLNAME=$(git config --global user.name)
+          export DEBEMAIL=$(git config --global user.email)
+          dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 "CI's Nightly Release." --package acpp
           cp LICENSE debian/copyright
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
           echo '/opt/AdaptiveCpp/bin/acpp /usr/bin/acpp' > debian/links

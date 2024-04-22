@@ -19,6 +19,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Get tags
+        run: git fetch --tags origin
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
@@ -59,12 +61,13 @@ jobs:
           apt install -y build-essential devscripts debhelper
       - name: package AdaptiveCpp
         run: |
-          echo $(ls -lart)
+          echo $(ls -la)
           cd ..
-          echo $(ls -lart)
+          echo $(ls -la)
           cp -R AdaptiveCpp acpp-24.02.0
           tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
           cd acpp-24.02.0/
+          echo $(ls -la)
           mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
           export DEBFULLNAME=$(git config --global user.name)
           echo $(echo $DEBFULLNAME)

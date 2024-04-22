@@ -20,7 +20,9 @@ jobs:
         with:
           submodules: recursive
       - name: Get tags
-        run: git fetch --tags origin
+        run: |
+          git config --global --add safe.directory /__w/AdaptiveCpp/AdaptiveCpp
+          git fetch --tags origin
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:

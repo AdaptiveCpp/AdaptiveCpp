@@ -59,7 +59,9 @@ jobs:
           apt install -y build-essential devscripts debhelper
       - name: package AdaptiveCpp
         run: |
+          echo $(ls -lart)
           cd ..
+          echo $(ls -lart)
           cp -R AdaptiveCpp acpp-24.02.0
           tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
           cd acpp-24.02.0/

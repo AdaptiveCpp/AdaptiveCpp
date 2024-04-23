@@ -61,13 +61,12 @@ jobs:
           apt install -y build-essential devscripts debhelper
       - name: package AdaptiveCpp
         run: |
-          echo $(ls -la)
+          export PKGNAME=$(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')
+          echo "PKGNAME=${PKGNAME}" >> $GITHUB_ENV
           cd ..
-          echo $(ls -la)
-          cp -R AdaptiveCpp acpp-24.02.0
-          tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
-          cd acpp-24.02.0/
-          echo $(ls -la)
+          cp -R AdaptiveCpp acpp-$PKGNAME
+          tar -cf acpp-$PKGNAME.orig.tar.gz acpp-$PKGNAME/
+          cd acpp-$PKGNAME/
           mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
           export DEBFULLNAME=$(git config --global user.name)
           echo $(echo $DEBFULLNAME)
@@ -85,12 +84,12 @@ jobs:
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          dpkg -i acpp_2*-1_amd64.deb
+          dpkg -i acpp_$PKGNAME-1_amd64.deb
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
           name: cpu-backend-generic
-          path: /home/runner/work/AdaptiveCpp/acpp_2*-1_amd64.deb
+          path: /home/runner/work/AdaptiveCpp/acpp_$PKGNAME-1_amd64.deb
       - name: build generic SSCP tests
         if: matrix.clang >= 14
         run: |

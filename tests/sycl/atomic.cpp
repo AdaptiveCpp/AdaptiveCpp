@@ -29,6 +29,7 @@
 
 #include "sycl_test_suite.hpp"
 #include <cstddef>
+#include <limits>
 #include <type_traits>
 
 using namespace cl;
@@ -97,7 +98,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
 
 template <class T, class AtomicTester,
           class Verifier>
-void atomic_device_reduction_test(AtomicTester t, Verifier v) {
+void atomic_device_reduction_test(AtomicTester t, Verifier v,
+				  std::function<int(int)> init = [](int t) { return t; }) {
   
   sycl::queue q;
 
@@ -106,7 +108,7 @@ void atomic_device_reduction_test(AtomicTester t, Verifier v) {
   {
     sycl::host_accessor hacc{b};
     for(std::size_t i = 0; i < size; ++i) {
-      hacc[i] = int_to_t<T>(i);
+      hacc[i] = int_to_t<T>(init(i));
     }
   }
   q.submit([&](sycl::handler& cgh){
@@ -125,12 +127,12 @@ void atomic_device_reduction_test(AtomicTester t, Verifier v) {
   });
   {
     sycl::host_accessor hacc{b};
-    T expected = int_to_t<T>(0);
+    T expected = int_to_t<T>(init(0));
     for(std::size_t i = 1; i < size; ++i) {
       if constexpr(std::is_pointer_v<T>) {
-        v(expected, static_cast<std::ptrdiff_t>(i));
+        v(expected, static_cast<std::ptrdiff_t>(init(i)));
       } else {
-        v(expected, int_to_t<T>(i));
+        v(expected, int_to_t<T>(init(i)));
       }
     }
     BOOST_CHECK(expected == hacc[0]);
@@ -208,8 +210,8 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
   atomic_device_reduction_test<float>(Tester, Verifier);                       \
   atomic_device_reduction_test<double>(Tester, Verifier);
 
-#define HIPSYCL_ATOMIC_REF_PTR_TEST(Tester, Verifier)                          \
-  atomic_device_reduction_test<int *>(Tester, Verifier);
+#define HIPSYCL_ATOMIC_REF_PTR_TEST(Tester, Verifier, Initializer)       	\
+  atomic_device_reduction_test<int *>(Tester, Verifier, Initializer);
 
 #ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
 
@@ -226,8 +228,16 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
   HIPSYCL_ATOMIC_REF_FP_TEST(fetch_min, fetch_min_verifier);
   HIPSYCL_ATOMIC_REF_FP_TEST(fetch_max, fetch_max_verifier);
 
-  HIPSYCL_ATOMIC_REF_PTR_TEST(fetch_add, fetch_add_verifier);
-  HIPSYCL_ATOMIC_REF_PTR_TEST(fetch_sub, fetch_sub_verifier);
+  HIPSYCL_ATOMIC_REF_PTR_TEST(fetch_add, fetch_add_verifier, [](auto t) {
+    return t+1;
+  });
+
+  HIPSYCL_ATOMIC_REF_PTR_TEST(fetch_sub, fetch_sub_verifier, [](auto t) {
+    if (t == 0)
+      return std::numeric_limits<int>::max();
+    else
+      return t;
+  });
 
 #endif
 }

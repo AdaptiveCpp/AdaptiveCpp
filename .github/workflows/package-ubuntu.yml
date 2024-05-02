@@ -66,9 +66,12 @@ jobs:
         run: |
           export PKGNAME=$(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')
           echo "PKGNAME=${PKGNAME}" >> $GITHUB_ENV
+          echo $GITHUB_ENV
           cd ..
           cp -R AdaptiveCpp acpp-$PKGNAME
           tar -cf acpp-$PKGNAME.orig.tar.gz acpp-$PKGNAME/
+          ls
+          echo $(ls)
           cd acpp-$PKGNAME/
           mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
           export DEBFULLNAME=$(git config --global user.name)

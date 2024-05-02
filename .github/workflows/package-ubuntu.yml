@@ -69,9 +69,7 @@ jobs:
           echo $GITHUB_ENV
           cd ..
           cp -R AdaptiveCpp acpp-$PKGNAME
-          tar -cf acpp-$PKGNAME.orig.tar.gz acpp-$PKGNAME/
-          ls
-          echo $(ls)
+          tar -cf acpp_$PKGNAME.orig.tar.gz acpp-$PKGNAME/
           cd acpp-$PKGNAME/
           mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
           export DEBFULLNAME=$(git config --global user.name)

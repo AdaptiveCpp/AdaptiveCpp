@@ -16,6 +16,7 @@ jobs:
         run: |
           apt update
           apt install -y git lsb-release software-properties-common wget curl gpg unzip g++-11 bash
+          chsh -s /usr/bin/bash
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -49,7 +50,6 @@ jobs:
           apt install -y libopencl-clang-dev ocl-icd-opencl-dev
       - name: setup build environment
         run: |
-          ln -sf /usr/bin/bash /bin/sh
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
@@ -126,6 +126,7 @@ jobs:
         run: |
           apt update
           apt install -y git lsb-release software-properties-common wget curl gpg unzip g++-11 apt-utils bash
+          chsh -s /usr/bin/bash
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -151,7 +152,6 @@ jobs:
            apt install -y cmake python3 libboost-all-dev libtbb-dev
       - name: setup build environment
         run: |
-          ln -sf /usr/bin/bash /bin/sh
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"

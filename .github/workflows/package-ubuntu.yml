@@ -73,9 +73,9 @@ jobs:
           cd acpp-$PKGNAME/
           mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
           export DEBFULLNAME=$(git config --global user.name)
-          echo $(echo $DEBFULLNAME)
+          echo $DEBFULLNAME
           export DEBEMAIL=$(git config --global user.email)
-          echo $(echo $DEBEMAIL)
+          echo $DEBEMAIL
           export DEBFULLNAME="Sanchi Vaishnavi"
           export DEBEMAIL=sanchi.vaishnavi@stud.uni-heidelberg.de
           dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 "CI's Nightly Release." --package acpp
@@ -93,7 +93,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cpu-backend-generic
-          path: /home/runner/work/AdaptiveCpp/acpp_$PKGNAME-1_amd64.deb
+          path: /home/runner/work/AdaptiveCpp/acpp_${{ env.PKGNAME }}-1_amd64.deb
       - name: build generic SSCP tests
         if: matrix.clang >= 14
         run: |

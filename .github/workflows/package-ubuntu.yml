@@ -21,6 +21,9 @@ jobs:
           submodules: recursive
           fetch-depth: 0
           fetch-tags: true
+      - name: Get Credentials
+        run: |
+          git config --global --add safe.directory /__w/AdaptiveCpp/AdaptiveCpp
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:

@@ -81,7 +81,7 @@ jobs:
           dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 "CI's Nightly Release." --package acpp
           cp LICENSE debian/copyright
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
-          FILES="acpp acpp-info acpp-hcf-tool scylcc scylcc-clang"
+          FILES="acpp acpp-info acpp-hcf-tool"
           for name in $FILES; do echo "/opt/AdaptiveCpp/bin/$name /usr/bin/$name" >> debian/links
           done
           debuild -us -uc

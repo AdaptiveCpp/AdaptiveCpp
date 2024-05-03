@@ -76,7 +76,7 @@ jobs:
           tar -cf acpp_$PKGNAME.orig.tar.gz acpp-$PKGNAME/
           cd acpp-$PKGNAME/
           mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
-          dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 "CI's Nightly Release." --package acpp
+          dch --create -v ${{ env.PKGNAME }}-1 "CI's Nightly Release." --package acpp
           cp LICENSE debian/copyright
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
           FILES="acpp acpp-info acpp-hcf-tool"
@@ -90,7 +90,7 @@ jobs:
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
-          name: cpu-backend-generic
+          name: cpu-backend-generic-${{ env.PKGNAME }}
           path: /home/runner/work/AdaptiveCpp/acpp_${{ env.PKGNAME }}-1_amd64.deb
       - name: build generic SSCP tests
         if: matrix.clang >= 14
@@ -151,6 +151,13 @@ jobs:
            apt install -y cmake python3 libboost-all-dev libtbb-dev
       - name: setup build environment
         run: |
+          export PKGNAME=$(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')
+          export DEBFULLNAME=$(git config user.name)
+          export DEBEMAIL=$(git config user.email)
+          echo "PKGNAME=${PKGNAME}" >> $GITHUB_ENV
+          echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
+          echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
+          echo $GITHUB_ENV
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
@@ -194,9 +201,12 @@ jobs:
       - name: package AdaptiveCpp
         run: |
           cd ..
-          cp -R AdaptiveCpp acpp-24.02.0
-          tar -cf acpp_24.02.0.orig.tar.gz acpp-24.02.0/
-          cd acpp-24.02.0/
+          cp -R AdaptiveCpp acpp-${{ env.PKGNAME }}
+          tar -cf acpp_${{ env.PKGNAME }}.orig.tar.gz acpp-${{ env.PKGNAME }}/
+          cd acpp-${{ env.PKGNAME }}/
+          mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
+          dch --create -v ${{ env.PKGNAME }}-1 "CI's Nightly Release." --package acpp
+          cp LICENSE debian/copyright
           sed -i "s/-DWITH_CUDA_BACKEND=.*/-DWITH_CUDA_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_ROCM_BACKEND=.*/-DWITH_ROCM_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_LEVEL_ZERO_BACKEND=.*/-DWITH_LEVEL_ZERO_BACKEND=ON \\\/" debian/rules
@@ -208,16 +218,19 @@ jobs:
           echo "libze_loader 1 level-zero" >> debian/shlibs.local
           echo "libamdhip64 5 hip-runtime-amd" >> debian/shlibs.local
           echo $(sed -n 1p /var/lib/dpkg/info/libnvidia-compute-*\:amd64.shlibs) >> debian/shlibs.local
+          FILES="acpp acpp-info acpp-hcf-tool"
+          for name in $FILES; do echo "/opt/AdaptiveCpp/bin/$name /usr/bin/$name" >> debian/links
+          done
           debuild -us -uc
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/../
-          dpkg -i acpp_24.02.0-1_amd64.deb
+          dpkg -i acpp_${{ env.PKGNAME }}-1_amd64.deb
       - name: Release Packages
         uses: actions/upload-artifact@v4
         with:
-          name: all-backends
-          path: /home/runner/work/AdaptiveCpp/acpp_24.02.0-1_amd64.deb
+          name: all-backends-${{ env.PKGNAME }}
+          path: /home/runner/work/AdaptiveCpp/acpp_${{ env.PKGNAME }}-1_amd64.deb
       - name: build generic SSCP tests
         if: matrix.clang >= 14
         run: |

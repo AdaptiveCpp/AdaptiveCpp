@@ -50,6 +50,13 @@ jobs:
           apt install -y libopencl-clang-dev ocl-icd-opencl-dev
       - name: setup build environment
         run: |
+          export PKGNAME=$(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')
+          export DEBFULLNAME=$(git config --global user.name)
+          export DEBEMAIL=$(git config --global user.email)
+          echo "PKGNAME=${PKGNAME}" >> $GITHUB_ENV
+          echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
+          echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
+          echo $GITHUB_ENV
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
@@ -64,20 +71,11 @@ jobs:
           apt install -y build-essential devscripts debhelper
       - name: package AdaptiveCpp
         run: |
-          export PKGNAME=$(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')
-          echo "PKGNAME=${PKGNAME}" >> $GITHUB_ENV
-          echo $GITHUB_ENV
           cd ..
           cp -R AdaptiveCpp acpp-$PKGNAME
           tar -cf acpp_$PKGNAME.orig.tar.gz acpp-$PKGNAME/
           cd acpp-$PKGNAME/
           mkdir -p debian/source && echo "3.0 (native)" > debian/source/format
-          export DEBFULLNAME=$(git config --global user.name)
-          echo $DEBFULLNAME
-          export DEBEMAIL=$(git config --global user.email)
-          echo $DEBEMAIL
-          export DEBFULLNAME="Sanchi Vaishnavi"
-          export DEBEMAIL=sanchi.vaishnavi@stud.uni-heidelberg.de
           dch --create -v $(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')-1 "CI's Nightly Release." --package acpp
           cp LICENSE debian/copyright
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local

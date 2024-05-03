@@ -51,8 +51,8 @@ jobs:
       - name: setup build environment
         run: |
           export PKGNAME=$(git describe --tags | sed 's,^v,,;s,-,+,;s,-,~,;')
-          export DEBFULLNAME=$(git config --global user.name)
-          export DEBEMAIL=$(git config --global user.email)
+          export DEBFULLNAME=$(git config user.name)
+          export DEBEMAIL=$(git config user.email)
           echo "PKGNAME=${PKGNAME}" >> $GITHUB_ENV
           echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
           echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV

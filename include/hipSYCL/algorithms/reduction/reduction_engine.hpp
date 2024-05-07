@@ -355,10 +355,8 @@ public:
                 stage.data_plan[reduction_index].is_output_initialized =
                     is_initialized_a;
               } else {
-                // TODO To support buffers/accessors, we should
-                // avoid this function in host code.
                 stage.data_plan[reduction_index].stage_output =
-                    descriptor.get_final_output_destination();
+                    nullptr;
                 stage.data_plan[reduction_index].is_output_initialized =
                     nullptr;
               }

@@ -63,12 +63,11 @@ public:
         _is_output_initialized{is_output_initialized},
         _stage_input{stage_input}, _stage_output{stage_output},
         _problem_size{problem_size} {
-    if (!_stage_output)
-      _stage_output = this->get_final_output_destination();
+    
   }
 
   bool is_final_stage() const noexcept {
-    return _stage_output == this->get_final_output_destination();
+    return !_stage_output;
   }
 
   initialization_flag_t *get_input_initialization_state() const noexcept {
@@ -84,6 +83,8 @@ public:
   }
 
   typename ReductionDescriptor::value_type *get_stage_output() const noexcept {
+    if (!_stage_output)
+      return this->get_final_output_destination();
     return _stage_output;
   }
 

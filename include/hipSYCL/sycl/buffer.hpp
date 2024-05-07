@@ -483,7 +483,7 @@ public:
     : buffer(bufferRange, propList)
   { _alloc = allocator; }
 
-  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
+  buffer(T *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
@@ -492,7 +492,11 @@ public:
     default_policies dpol;
     dpol.destructor_waits = true;
     dpol.use_external_storage = true;
-    dpol.writes_back = true;
+
+    if constexpr (std::is_const_v<T>)
+      dpol.writes_back = false;
+    else
+      dpol.writes_back = true;
     
     init_policies_from_properties_or_default(dpol);
 
@@ -504,7 +508,7 @@ public:
     }
   }
 
-  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
+  buffer(T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
       : buffer{hostData, bufferRange, propList} {
     _alloc = allocator;
@@ -537,6 +541,7 @@ public:
     }
   }
 
+  template <class t = T, std::enable_if_t<!std::is_const_v<t>, bool> = true>
   buffer(const T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
     : buffer{hostData, bufferRange, propList}
@@ -1197,14 +1202,15 @@ private:
     this->init_data_backend(range);
 
     rt::device_id host_device = detail::get_host_device();
-    _impl->data->add_nonempty_allocation(detail::get_host_device(), host_memory,
+    _impl->data->add_nonempty_allocation(detail::get_host_device(),
+					 const_cast<std::remove_const_t<T>*>(host_memory),
                                          _impl->requires_runtime.get()
                                              ->backends()
                                              .get(host_device.get_backend())
                                              ->get_allocator(host_device),
                                          false /*takes_ownership*/);
     // Remember host_memory in case of potential write back
-    _impl->writeback_ptr = host_memory;
+    _impl->writeback_ptr = const_cast<std::remove_const_t<T>*>(host_memory);
   }
 
   void init(const range<dimensions> &range,

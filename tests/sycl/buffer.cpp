@@ -217,6 +217,69 @@ BOOST_AUTO_TEST_CASE(buffer_external_writeback_nullptr) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_const_ptr) {
+  namespace s = cl::sycl;
+
+  int initial_val = 1;
+  int test_val = 42;
+
+  std::size_t size = 1024;
+  std::vector<int> host_buff(size, initial_val);
+  {
+    const int* host_ptr = host_buff.data();
+    s::buffer<int> buff{host_ptr, size};
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      auto acc =
+        buff.get_access<s::access::mode::write>(cgh);
+
+      cgh.parallel_for(s::range{size}, [=](auto idx) {
+        acc[idx] = test_val;
+      });
+    });
+  }
+
+  // Here, host_buff should still contain the original data, since we passed
+  // a const ptr to the buffer constructor.
+  for (auto val : host_buff)
+    BOOST_CHECK(val == initial_val);
+
+  // Now do the same thing, but set a valid final data address
+  {
+    const int* host_ptr = host_buff.data();
+    s::buffer<int> buff{host_ptr, size};
+
+    int* no_const_host_ptr = host_buff.data();
+    buff.set_final_data(no_const_host_ptr);
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      auto acc =
+        buff.get_access<s::access::mode::write>(cgh);
+
+      cgh.parallel_for(s::range{size}, [=](auto idx) {
+        acc[idx] = test_val;
+      });
+    });
+  }
+
+  // Here, host_buff should now contain the new data
+  for (auto val : host_buff)
+    BOOST_CHECK(val == test_val);
+}
+
+BOOST_AUTO_TEST_CASE(buffer_const_T_constructor) {
+  namespace s = cl::sycl;
+
+  std::size_t size = 1024;
+  std::vector<int> host_buff(size);
+
+  const int* host_ptr = host_buff.data();
+  s::buffer<const int> buff{host_ptr, size};
+
+  int *host_ptr2 = host_buff.data();
+  s::buffer<const int> buff2{host_ptr2, size};
+}
+
 BOOST_AUTO_TEST_CASE(buffer_container_constructor) {
   cl::sycl::queue q;
 

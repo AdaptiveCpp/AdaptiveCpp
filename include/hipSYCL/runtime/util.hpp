@@ -59,10 +59,7 @@ U* cast(T* val)
 
 template <int Dim> class static_array {
 public:
-
   static_array() = default;
-  static_array(const static_array &other) : _data{other._data} {}
-
 
   static_array(std::size_t dim0) {
     for (int i = 0; i < Dim; ++i)
@@ -247,6 +244,14 @@ inline std::uint64_t power_of_2_ceil(std::uint64_t a) {
   if (a == 0)
     return 0;
   return next_power_of_2(a - 1);
+}
+
+inline std::uint64_t ceil_division(std::uint64_t a, std::uint64_t b) {
+  return (a + b - 1) / b;
+}
+
+inline std::uint64_t next_multiple_of(std::uint64_t a, std::uint64_t b) {
+  return ceil_division(a, b) * b;
 }
 
 }

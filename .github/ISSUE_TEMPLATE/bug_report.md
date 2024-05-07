@@ -25,7 +25,7 @@ A clear and concise description of what you expected to happen.
    * host compiler
    * CUDA version (if applicable)
    * ROCm version and how ROCm was installed (if applicable)
-* How you have compiled your application and which arguments you have passed to `syclcc`. In particular, which backends and hardware you have compiled for.
+* How you have compiled your application and which arguments you have passed to `acpp`. In particular, which backends and hardware you have compiled for.
 
 
 **Optional additional diagnostic information**

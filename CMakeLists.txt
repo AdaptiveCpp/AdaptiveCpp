@@ -1,63 +1,75 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.9)
 if(NOT CMAKE_VERSION VERSION_LESS 3.12)
   cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
 endif()
 
 
-set(ACPP_VERSION_MAJOR 23)
-set(ACPP_VERSION_MINOR 10)
+set(ACPP_VERSION_MAJOR 24)
+set(ACPP_VERSION_MINOR 02)
 set(ACPP_VERSION_PATCH 0)
+
+execute_process(
+        COMMAND git status
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE GIT_STATUS
+)
+
 if(NOT ACPP_VERSION_SUFFIX)
-  # Get the latest abbreviated commit hash of the working branch
-  execute_process(
-    COMMAND git log -1 --format=%h
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
-    RESULT_VARIABLE GIT_HASH_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # git branch
-  execute_process(
-    COMMAND git rev-parse --abbrev-ref HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_BRANCH
-    RESULT_VARIABLE GIT_BRANCH_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # date of commit
-  execute_process(COMMAND git show -s --format=%cd --date=short HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_GIT_DATE
-    RESULT_VARIABLE GIT_DATE_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  # Convert YYYY-MM-DD to YYYYMMDD
-  # We can't use --date=format:%Y%m%d to be compatible with git pre-2.6
-  string(REPLACE "-" "" ACPP_GIT_DATE ${ACPP_GIT_DATE})
-  # check whether there are local changes
-  execute_process(COMMAND git diff-index --name-only HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE ACPP_LOCAL_CHANGES
-    RESULT_VARIABLE GIT_LOCAL_CHANGES_RETURN_CODE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
+  # With a release tarball, "git status" will fail (return non zero)
+  if(GIT_STATUS)
+    set(ACPP_VERSION_SUFFIX "")
+  else()
+    # Get the latest abbreviated commit hash of the working branch
+    execute_process(
+      COMMAND git log -1 --format=%h
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
+      RESULT_VARIABLE GIT_HASH_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # git branch
+    execute_process(
+      COMMAND git rev-parse --abbrev-ref HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_BRANCH
+      RESULT_VARIABLE GIT_BRANCH_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # date of commit
+    execute_process(COMMAND git show -s --format=%cd --date=short HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_GIT_DATE
+      RESULT_VARIABLE GIT_DATE_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # Convert YYYY-MM-DD to YYYYMMDD
+    # We can't use --date=format:%Y%m%d to be compatible with git pre-2.6
+    string(REPLACE "-" "" ACPP_GIT_DATE ${ACPP_GIT_DATE})
+    # check whether there are local changes
+    execute_process(COMMAND git diff-index --name-only HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE ACPP_LOCAL_CHANGES
+      RESULT_VARIABLE GIT_LOCAL_CHANGES_RETURN_CODE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
   
-  if (GIT_HASH_RETURN_CODE EQUAL 0 AND GIT_BRANCH_RETURN_CODE EQUAL 0 AND 
-      GIT_DATE_RETURN_CODE EQUAL 0 AND GIT_LOCAL_CHANGES_RETURN_CODE EQUAL 0)
+    if (GIT_HASH_RETURN_CODE EQUAL 0 AND GIT_BRANCH_RETURN_CODE EQUAL 0 AND 
+        GIT_DATE_RETURN_CODE EQUAL 0 AND GIT_LOCAL_CHANGES_RETURN_CODE EQUAL 0)
     
-    if(NOT "${ACPP_LOCAL_CHANGES}" STREQUAL "")
-      set(DIRTY_STR ".dirty")
-    else()
-      set(DIRTY_STR "")
-    endif()
+      if(NOT "${ACPP_LOCAL_CHANGES}" STREQUAL "")
+        set(DIRTY_STR ".dirty")
+      else()
+        set(DIRTY_STR "")
+      endif()
   
-    set(ACPP_VERSION_SUFFIX "+git.${ACPP_GIT_COMMIT_HASH}.${ACPP_GIT_DATE}.branch.${ACPP_GIT_BRANCH}${DIRTY_STR}")
+      set(ACPP_VERSION_SUFFIX "+git.${ACPP_GIT_COMMIT_HASH}.${ACPP_GIT_DATE}.branch.${ACPP_GIT_BRANCH}${DIRTY_STR}")
+    endif()
   endif()
 endif()
 
 project(hipSYCL VERSION ${ACPP_VERSION_MAJOR}.${ACPP_VERSION_MINOR}.${ACPP_VERSION_PATCH})
 
-set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
+
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -90,8 +102,15 @@ endif()
 list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
-# Check for OpenCL
-find_package(OpenCL QUIET)
+
+# Check for OpenCL unless user has explicitly set WITH_SSCP_COMPILER to False
+if (DEFINED WITH_SSCP_COMPILER)
+  if (WITH_SSCP_COMPILER)
+    find_package(OpenCL QUIET)
+  endif()
+else()
+  find_package(OpenCL QUIET)
+endif()
 
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)
@@ -220,7 +239,7 @@ if(BUILD_CLANG_PLUGIN)
   get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
   get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
   # The path to the internal clang includes is currently required on ROCm
-  # to let syclcc-clang fix a wrong order of system includes (clang's internal 
+  # to let acpp fix a wrong order of system includes (clang's internal 
   # includes are not of high enough priority in the include path search order).
   # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
   # which is a clang-specific header file.
@@ -295,8 +314,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_subdirectory(src)
-
 set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
 set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
   "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
@@ -334,9 +351,18 @@ endif()
 
 
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
+set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Which filesystem libraries should be searched for")
+
+##########################################################
+## Do not define any variables that might be used by build
+## targets below this line.
+##########################################################
+add_subdirectory(src)
 
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")
+
+set(DEFAULT_WIN32_HIP_LINK_LINE "-L$HIPSYCL_ROCM_PATH/lib -lamdhip64")
 
 if(MINGW)
   set(DEFAULT_LINK_PREFIX "-l:")
@@ -361,8 +387,14 @@ set(DEFAULT_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber 
 set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR}")
 
 # If no link lines given, set to default.
-if(NOT ROCM_LINK_LINE)
-  set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+if(WIN32)
+  if(NOT ROCM_LINK_LINE)
+    set(ROCM_LINK_LINE ${DEFAULT_WIN32_HIP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+  endif()
+else()
+  if(NOT ROCM_LINK_LINE)
+    set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+  endif()
 endif()
 
 if(WIN32)
@@ -459,7 +491,7 @@ endif()
 
 if(NOT DEFAULT_TARGETS)
   if(WITH_SSCP_COMPILER)
-    set(DEFAULT_TARGETS "omp\;generic")
+    set(DEFAULT_TARGETS "generic")
   else()
     message(WARNING "The generic SSCP compiler is disabled; without it, offloading code to accelerators requires explicitly specifying --acpp-targets when invoking acpp."
 " A binary generated by invoking acpp without --acpp-targets will only be able to run on the host. Set -DDEFAULT_TARGETS to your desired default targets during cmake "

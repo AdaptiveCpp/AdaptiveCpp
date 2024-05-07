@@ -147,17 +147,17 @@ public:
     if(!isValid())
       return;
 
-    if(Var->getType()->isIntegerTy(8)) {
+    if(Var->getValueType()->isIntegerTy(8)) {
       set(bit_cast<int8_t>(Buffer));
-    } else if(Var->getType()->isIntegerTy(16)) {
+    } else if(Var->getValueType()->isIntegerTy(16)) {
       set(bit_cast<int16_t>(Buffer));
-    } else if(Var->getType()->isIntegerTy(32)) {
+    } else if(Var->getValueType()->isIntegerTy(32)) {
       set(bit_cast<int32_t>(Buffer));
-    } else if(Var->getType()->isIntegerTy(64)) {
+    } else if(Var->getValueType()->isIntegerTy(64)) {
       set(bit_cast<int64_t>(Buffer));
-    } else if(Var->getType()->isFloatTy()) {
+    } else if(Var->getValueType()->isFloatTy()) {
       set(bit_cast<float>(Buffer));
-    } else if(Var->getType()->isDoubleTy()) {
+    } else if(Var->getValueType()->isDoubleTy()) {
       set(bit_cast<double>(Buffer));
     } else {
       M->getContext().emitError(

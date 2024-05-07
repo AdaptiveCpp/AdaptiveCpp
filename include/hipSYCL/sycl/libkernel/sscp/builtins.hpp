@@ -33,7 +33,7 @@
 
 #include "builtins/math.hpp"
 #include "builtins/native.hpp"
-#include "builtins/interger.hpp"
+#include "builtins/integer.hpp"
 #include "builtins/relational.hpp"
 #include "builtins/print.hpp"
 
@@ -432,6 +432,33 @@ HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
 template<class T, std::enable_if_t<!std::is_signed_v<T>, int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
   return __hipsycl_sscp_mul24_u32(x, y);
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) < 4),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_popcount(T x) noexcept {
+  //we convert to the unsigned type to avoid the typecast creating
+  //additional ones in front of the value if x is negative
+  using Usigned = typename std::make_unsigned<T>::type;
+  return __hipsycl_sscp_popcount_u32(static_cast<__hipsycl_uint32>(static_cast<Usigned>(x)));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 4),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_popcount(T x) noexcept {
+  return __hipsycl_sscp_popcount_u32(static_cast<__hipsycl_uint32>(x));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 8),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_popcount(T x) noexcept {
+  return __hipsycl_sscp_popcount_u64(static_cast<__hipsycl_uint64>(x));
 }
 
 // **************** common functions *****************

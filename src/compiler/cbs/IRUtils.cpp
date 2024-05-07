@@ -43,6 +43,8 @@
 #include <llvm/Transforms/Utils/PromoteMemToReg.h>
 
 namespace hipsycl::compiler::utils {
+using namespace hipsycl::compiler::cbs;
+
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,
                           llvm::Function &F) {
   DT.reset();
@@ -120,7 +122,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
   return llvm::CallInst::Create(F, "", InsertBefore);
 }
 
-bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
+bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix, int NoInlineDebugLevel) {
   if (CI->getCalledFunction()->isIntrinsic() ||
       CI->getCalledFunction()->getName() == BarrierIntrinsicName)
     return false;
@@ -137,8 +139,11 @@ bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
 #else
   llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI);
   if (!ILR.isSuccess()) {
-    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << CalleeName << ">: '"
-                          << ILR.getFailureReason() << "'\n";
+    HIPSYCL_DEBUG_STREAM(NoInlineDebugLevel, (NoInlineDebugLevel >= HIPSYCL_DEBUG_LEVEL_INFO
+                                                  ? HIPSYCL_DEBUG_PREFIX_INFO
+                                                  : HIPSYCL_DEBUG_PREFIX_WARNING))
+        << PassPrefix << " failed to inline function <" << CalleeName << ">: '"
+        << ILR.getFailureReason() << "'\n";
 #endif
     return false;
   }
@@ -371,7 +376,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
   for (auto &I : *EntryBlock) {
     if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
-      if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified))
+      if (Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified))
         continue; // already arrayificated
       if (!std::all_of(Alloca->user_begin(), Alloca->user_end(), [&LoopBlocks](llvm::User *User) {
             auto *Inst = llvm::dyn_cast<llvm::Instruction>(User);

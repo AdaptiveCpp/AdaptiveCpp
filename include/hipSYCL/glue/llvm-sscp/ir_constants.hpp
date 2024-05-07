@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_IR_CONSTANTS_HPP
 #define HIPSYCL_IR_CONSTANTS_HPP
 
+#include <type_traits>
+
 #include "s1_ir_constants.hpp"
 #include "s2_ir_constants.hpp"
 
@@ -51,9 +53,12 @@ ValueT __hipsycl_sscp_s2_ir_constant<ConstantName, ValueT>::get(
   }
 }
 
-template<auto& ConstantName, class ValueT>
-ValueT ir_constant(ValueT default_value = ValueT{}) noexcept {
+namespace hipsycl::sycl::jit {
+
+template <auto &ConstantName, class ValueT>
+auto introspect(ValueT default_value = {}) noexcept {
   return __hipsycl_sscp_s2_ir_constant<ConstantName, ValueT>::get(default_value);
+}
 }
 
 #endif

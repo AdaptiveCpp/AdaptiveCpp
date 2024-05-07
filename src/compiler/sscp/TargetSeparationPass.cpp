@@ -36,10 +36,12 @@
 #include "hipSYCL/common/hcf_container.hpp"
 
 #include <cstddef>
+
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
+#include <llvm/IR/GlobalValue.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
@@ -60,7 +62,7 @@ namespace compiler {
 class Timer {
 public:
   Timer(llvm::StringRef Name, bool PrintAtDestruction = false, llvm::StringRef Description = "")
-  : Name{Name}, Print{PrintAtDestruction}, Description{Description} {
+  : Print{PrintAtDestruction}, Name{Name}, Description{Description} {
     Start = std::chrono::high_resolution_clock::now();;
     IsRunning = true;
   }
@@ -146,6 +148,7 @@ struct KernelParam {
   std::size_t ArgByteOffset;
   std::size_t OriginalArgIndex;
   ParamType Type;
+  llvm::SmallVector<std::string> Annotations;
 };
 
 struct KernelInfo {
@@ -188,6 +191,7 @@ struct KernelInfo {
         KP.Type = PT;
         KP.ArgByteOffset = OriginalParamInfos[i].OffsetInOriginalParam;
         KP.OriginalArgIndex = OriginalParamInfos[i].OriginalParamIndex;
+        KP.Annotations = OriginalParamInfos[i].Annotations;
         this->Parameters.push_back(KP);
       }
     }
@@ -282,6 +286,13 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   // getOutlinigEntrypoints() returns both kernels as well as non-kernel (i.e. SYCL_EXTERNAL)
   // entrypoints
+
+  S2IRConstant::forEachS2IRConstant(*DeviceModule, [](S2IRConstant IRC){
+    // This is important to avoid GlobalOpt during Kernel outlining from removing these
+    // unitialized variables.
+    IRC.getGlobalVariable()->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
+  });
+
   KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
   KP.run(*DeviceModule, DeviceMAM);
 
@@ -322,11 +333,12 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   return DeviceModule;
 }
 
-std::string generateHCF(llvm::Module& DeviceModule,
-                        std::size_t HcfObjectId,
-                        const std::vector<KernelInfo>& Kernels,
-                        const std::vector<std::string>& ExportedSymbols,
-                        const std::vector<std::string>& ImportedSymbols) {
+std::string
+generateHCF(llvm::Module &DeviceModule, std::size_t HcfObjectId,
+            const std::vector<KernelInfo> &Kernels, const std::vector<std::string> &ExportedSymbols,
+            const std::vector<std::string> &ImportedSymbols,
+            const std::vector<std::string> &KernelCompileFlags,
+            const std::vector<std::pair<std::string, std::string>> &KernelCompileOptions) {
 
   std::string ModuleContent;
   llvm::raw_string_ostream OutputStream{ModuleContent};
@@ -356,6 +368,16 @@ std::string generateHCF(llvm::Module& DeviceModule,
   for(const auto& Kernel : Kernels) {
     auto* K = KernelsNode->add_subnode(Kernel.Name);
     K->set_as_list("image-providers", {std::string{"llvm-ir.global"}});
+    
+    auto* FlagsNode = K->add_subnode("compile-flags");
+    for(const auto& F : KernelCompileFlags) {
+      FlagsNode->set(F, "1");
+    }
+    auto *OptsNode = K->add_subnode("compile-options");
+    for(const auto& O : KernelCompileOptions) {
+      OptsNode->set(O.first, O.second);
+    }
+
     auto* ParamsNode = K->add_subnode("parameters");
 
     for(std::size_t i = 0; i < Kernel.Parameters.size(); ++i) {
@@ -376,6 +398,11 @@ std::string generateHCF(llvm::Module& DeviceModule,
         TypeDescription = "other-by-value";
       }
       P->set("type", TypeDescription);
+
+      auto* AnnotationsNode = P->add_subnode("annotations");
+      for(const auto& A : ParamInfo.Annotations) {
+        AnnotationsNode->set(A, "1");
+      }
     }
   }
   
@@ -410,7 +437,8 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
       IRGenTimer.stopAndPrint();
 
       Timer HCFGenTimer{"generateHCF"};
-      HcfString = generateHCF(*DeviceIR, HcfObjectId, Kernels, ExportedSymbols, ImportedSymbols);
+      HcfString = generateHCF(*DeviceIR, HcfObjectId, Kernels, ExportedSymbols, ImportedSymbols,
+                              CompilationFlags, CompilationOptions);
       HCFGenTimer.stopAndPrint();
 
       if(SSCPEmitHcf) {
@@ -443,6 +471,26 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
     }
   }
   return llvm::PreservedAnalyses::none();
+}
+
+TargetSeparationPass::TargetSeparationPass(const std::string &KernelCompilationOptions) {
+  llvm::StringRef Opts{KernelCompilationOptions};
+
+  llvm::SmallVector<llvm::StringRef> Fragments;
+  Opts.split(Fragments, ',', -1, false);
+
+  for(auto& S : Fragments) {
+    if(S.contains("=")) {
+      llvm::SmallVector<llvm::StringRef> OptionFragments;
+      S.split(OptionFragments, '=', 1, false);
+      if(OptionFragments.size() == 2) {
+        CompilationOptions.push_back(
+            std::make_pair(std::string{OptionFragments[0]}, std::string{OptionFragments[1]}));
+      }
+    } else {
+      CompilationFlags.push_back(std::string{S});
+    }
+  }
 }
 }
 }

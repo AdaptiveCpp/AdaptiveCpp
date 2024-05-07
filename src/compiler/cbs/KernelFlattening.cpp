@@ -28,6 +28,7 @@
 
 #include "hipSYCL/compiler/cbs/KernelFlattening.hpp"
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
@@ -44,15 +45,14 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB) {
     for (auto &I : BB) {
       if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
         if (CallI->getCalledFunction()) {
-          LastChanged =
-              hipsycl::compiler::utils::checkedInlineFunction(CallI, "[KernelFlattening]");
+          LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI, "[KernelFlattening]",
+                                                                        HIPSYCL_DEBUG_LEVEL_INFO);
           if (LastChanged)
             break;
         }
       }
     }
-    if (LastChanged)
-      Changed = true;
+    Changed |= LastChanged;
   } while (LastChanged);
 
   return Changed;

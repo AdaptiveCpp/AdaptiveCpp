@@ -841,11 +841,12 @@ HIPSYCL_BUILTIN VecType min(const VecType &a, ScalarType b) {
 // TODO rotate
 // TODO sub_sat
 // TODO upsample
-// TODO popcount
 // TODO mad24
 
 HIPSYCL_DEFINE_BUILTIN(mul24, HIPSYCL_BUILTIN_OVERLOAD_SET_GENINTEGER32BIT,
                         HIPSYCL_BUILTIN_GENERATOR_BINARY_T_T)
+HIPSYCL_DEFINE_BUILTIN(popcount, HIPSYCL_BUILTIN_OVERLOAD_SET_GENINTEGER,
+                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 
 // ********************** common functions *******************
 #define HIPSYCL_BUILTIN_ENABLE_IF_MATCHING_FP_SCALAR(VecType, ScalarType)      \

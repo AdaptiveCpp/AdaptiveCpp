@@ -1,7 +1,12 @@
 
 # Building and installing AdaptiveCpp
 
-## Manual installation (Linux)
+
+## Operating system support
+
+Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows support with CPU and CUDA backends is experimental, see [Using AdaptiveCpp on Windows](https://github.com/OpenSYCL/OpenSYCL/wiki/Using-Open-SYCL-on-Windows).
+
+## Installation from source (Linux)
 
 ### Software dependencies
 In order to successfully build and install AdaptiveCpp, the following dependencies must be installed for all backends:
@@ -14,6 +19,29 @@ In order to successfully build and install AdaptiveCpp, the following dependenci
 
 In addition, the various supported [compilation flows](compilation.md) and programming models have additional requirements:
 
+### A standard installation
+
+For a standard installation that has the most important features enabled, you will additionally need to install an official LLVM release >= 14. Please do not use a development version or vendor-specific fork of LLVM.
+This can be very conveniently be achieved e.g. using https://apt.llvm.org [(detailed instructions)](install-llvm.md).
+
+Next, ensure that you have the stacks installed that you want to target (e.g. CUDA, ROCm, OpenCL etc).
+
+AdaptiveCpp will automatically enable all backends that it finds on the system, so in typical scenarios, the following is sufficient:
+
+```
+git clone https://github.com/AdaptiveCpp/AdaptiveCpp
+cd AdaptiveCpp
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=/your/desired/install/location ..
+make install
+```
+If it does not find some backends or does not pick up the right LLVM, please look at the documentation for the individual components linked below.
+
+
+### Advanced installation
+
+Advanced users may want to customize their installation more, or use features that are not so commonly used. The following sections describe requirements for individual components in more detail.
+
 #### Compilation flows
 
 | Compilation flow | Target hardware | Short description | Requirements |
@@ -24,8 +52,10 @@ In addition, the various supported [compilation flows](compilation.md) and progr
 | `cuda.explicit-multipass` | NVIDIA GPUs | CUDA backend (clang, can be targeted simultaneously with other backends) | CUDA >= 10, LLVM 11 or 13+ |
 | `cuda-nvcxx` | NVIDIA GPUs | CUDA backend (nvc++) | Latest NVIDIA HPC SDK |
 | `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM >= 10 |
-| `spirv` | Intel GPUs | SPIR-V/Level Zero backend | Level Zero driver and loader, clang with SYCL patches (e.g DPC++) |
-| `generic` | NVIDIA, AMD, Intel GPUs, OpenCL SPIR-V devices | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. AdaptiveCpp runtime backends for the respective target hardware need to be available. |
+| `generic` | NVIDIA, AMD, Intel GPUs, OpenCL SPIR-V devices | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended and LLVM must be <= the ROCm LLVM version. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. AdaptiveCpp runtime backends for the respective target hardware need to be available. |
+
+Note: Building against `libc++` instead of `libstdc++` is only expected to work for the `generic` target. Additionally, AdaptiveCpp must have been built using the same standard library that the user code is linked against.
+`libc++` is currently not supported for the C++ standard parallelism offloading model.
 
 #### Models
 
@@ -76,6 +106,10 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 ###### General
 *  `-DCMAKE_CXX_COMPILER` should be pointed to the C++ compiler to compile AdaptiveCpp with. Note that this also sets the default C++ compiler for the CPU backend when using acpp once AdaptiveCpp is installed. This can however also be modified later using `HIPSYCL_CPU_CXX`.
 
+###### generic
+
+* `-DWITH_SSCP_COMPILER=OFF/ON` can be used to explicitly enable or disable the generic SSCP compiler.
+
 ###### omp.library-only
 
 * `-DCMAKE_CXX_COMPILER` can be used to set the default OpenMP compiler.
@@ -96,37 +130,13 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 
 * See the ROCm [installation instructions](install-rocm.md) instructions.
 
-###### spirv
 
-* No specific cmake flags are currently available.
-
-## Manual installation (Mac)
+## Installation from source (Mac)
 
 On Mac, only the CPU backends are supported. The required steps are analogous to Linux.
 
-## Manual installation (Windows)
+## Installation from source (Windows)
 
 For experimental building on Windows (CPU and CUDA backends) see the corresponding [wiki](https://github.com/OpenSYCL/OpenSYCL/wiki/Using-AdaptiveCpp-on-Windows).
 The `omp.accelerated` CPU compilation flow is unsupported on Windows.
 
-## Repositories (Linux)
-
-**Note: The software repositories mentioned below are outdated and in the process of being restructured. They do not contain modern AdaptiveCpp versions.**
-
-Another way to install AdaptiveCpp is to use our repositories. We provide repositories for several distributions (currently Ubuntu 18.04, CentOS 7, Arch Linux). A description of the repositories is available [here](../install/scripts/README.md#installing-from-repositories)
-
-Our repositories cover the *entire software stack*, i.e. they include a compatible clang/LLVM distribution and ROCm stacks. The following packages are available:
-* `hipSYCL` - contains the actual AdaptiveCpp libraries, tools and headers
-* `hipSYCL-base` - contains the LLVM/clang stack used by AdaptiveCpp. Installation of this package is mandatory.
-* `hipSYCL-rocm` - contains a ROCm stack. This package is only required if you wish to target AMD ROCm GPUs.
-* `hipSYCL-nightly` - built from the current develop branch every day.
-* `hipSYCL-base-nightly` - contains the LLVM/clang stack for the nightly AdaptiveCpp packages
-* `hipSYCL-rocm-nightly` - contains a ROCm stack compatible with the nightly AdaptiveCpp packages
-
-**Note: For legal reasons, we do not redistribute the hipSYCL-cuda package** This package is only required if you wish to target CUDA GPUs. You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
-
-
-## Installation scripts
-
-**Note: The scripts are outdated and in process of being restructured. They may or may not work with recent AdaptiveCpp versions**
-We also provide scripts for packaging AdaptiveCpp and its dependencies. For more information on packaging and how to create your own AdaptiveCpp packages, please see the [documentation](../install/scripts/README.md).

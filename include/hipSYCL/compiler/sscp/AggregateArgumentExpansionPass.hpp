@@ -39,11 +39,14 @@ namespace compiler {
 
 
 struct OriginalParamInfo {
-  OriginalParamInfo(std::size_t Offset, std::size_t OriginalIndex)
-  : OffsetInOriginalParam{Offset}, OriginalParamIndex{OriginalIndex} {}
+  OriginalParamInfo(std::size_t Offset, std::size_t OriginalIndex,
+                    const llvm::SmallVector<std::string> &Annotations)
+      : OffsetInOriginalParam{Offset}, OriginalParamIndex{OriginalIndex}, Annotations{Annotations} {
+  }
 
   std::size_t OffsetInOriginalParam;
   std::size_t OriginalParamIndex;
+  llvm::SmallVector<std::string> Annotations;
 };
 // Expands aggregates into primitive function arguments. Aggregate types to expand are
 // expected to be marked using the ByVal attribute.

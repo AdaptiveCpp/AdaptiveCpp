@@ -62,7 +62,8 @@ struct TranslationHints {
 class LLVMToBackendTranslator {
 public:
   LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
-    const std::vector<std::string>& OutliningEntrypoints);
+    const std::vector<std::string>& OutliningEntrypoints,
+    const std::vector<std::string>& KernelNames);
 
   virtual ~LLVMToBackendTranslator() {}
 
@@ -83,6 +84,8 @@ public:
   }
 
   void setS2IRConstant(const std::string& name, const void* ValueBuffer);
+  void specializeKernelArgument(const std::string &KernelName, int ParamIndex,
+                                const void *ValueBuffer);
 
   bool setBuildFlag(const std::string &Flag);
   bool setBuildOption(const std::string &Option, const std::string &Value);
@@ -109,6 +112,14 @@ public:
   // Returns IR that caused the error in case an error occurs
   const std::string& getFailedIR() const {
     return ErroringCode;
+  }
+
+  const std::vector<std::string>& getOutliningEntrypoints() const {
+    return OutliningEntrypoints;
+  }
+
+  const std::vector<std::string>& getKernels () const {
+    return Kernels;
   }
 
   std::string getErrorLogAsString() const {
@@ -199,20 +210,37 @@ protected:
   void registerError(const std::string& E) {
     Errors.push_back(E);
   }
+
+  // These will be non-zero if work group sizes are known at jit time.
+  // Backends should check these values for being != 0 before using them.
+  int KnownGroupSizeX = 0;
+  int KnownGroupSizeY = 0;
+  int KnownGroupSizeZ = 0;
+
+  // Will be >= 0 if set by option. Backends using this should therefore check >= 0.
+  std::int64_t KnownLocalMemSize = -1;
+
+  bool GlobalSizesFitInInt = false;
+  bool IsFastMath = false;
+
 private:
 
   void resolveExternalSymbols(llvm::Module& M);
   void setFailedIR(llvm::Module& M);
 
   int S2IRConstantBackendId;
+  
   std::vector<std::string> OutliningEntrypoints;
+  std::vector<std::string> Kernels;
+
   std::vector<std::string> Errors;
-  std::unordered_map<std::string, std::function<void(llvm::Module &)>> S2IRConstantApplicators;
+  std::unordered_map<std::string, std::function<void(llvm::Module &)>> SpecializationApplicators;
   ExternalSymbolResolver SymbolResolver;
   bool HasExternalSymbolResolver = false;
 
   // In case an error occurs, the code will be stored here
   std::string ErroringCode;
+
 };
 
 }

@@ -141,7 +141,8 @@ public:
   static bool determineRequiredDeviceLibs(const std::string& RocmPath,
                                           const std::string& DeviceLibsPath,
                                           const std::string& TargetDevice,
-                                          std::vector<std::string>& BitcodeFiles) {
+                                          std::vector<std::string>& BitcodeFiles,
+                                          bool IsFastMath = false) {
     
 
     llvm::SmallVector<std::string> Invocation;
@@ -156,15 +157,36 @@ public:
 
     Invocation = {ClangPath, "-x", "ir",
       "--cuda-device-only", "-O3",
-      RocmPathFlag,
-      RocmDeviceLibsFlag,
       OffloadArchFlag,
       "-nogpuinc",
       "/dev/null",
       "--hip-link",
       "-###"
     };
+    if(IsFastMath)
+      Invocation.push_back("-ffast-math");
     
+    if(!llvm::StringRef{ClangPath}.endswith("hipcc")) {
+      // Normally we try to use hipcc. However, when that fails,
+      // we may have fallen back to clang. In that case we may
+      // have to additionally set --rocm-path and --rocm-device-lib-path.
+      //
+      // When using hipcc, this is generally not needed as hipcc already
+      // knows how ROCm is configured. It might also have been specially
+      // tweaked by non-standard ROCm pacakges to find ROCm in unusual places.
+      //
+      // So we should not use --rocm-path and --rock-device-lib-path unless
+      // we really have to.
+      Invocation.push_back(RocmPathFlag);
+      Invocation.push_back(RocmDeviceLibsFlag);
+
+      if (!llvm::sys::fs::exists(common::filesystem::join_path(DeviceLibsPath, "ockl.bc"))) {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToAmdgpu: Configured ROCm device bitcode library path " << DeviceLibsPath
+            << " does not seem to contain key ROCm bitcode libraries such as ockl.bc. It is "
+               "possible that builtin bitcode linking is incomplete.\n";
+      }
+    }
     
     std::string Output;
     if(!getCommandOutput(ClangPath, Invocation, Output))
@@ -172,7 +194,7 @@ public:
 
     std::stringstream sstr{Output};
     std::string CurrentComponent;
-
+    
     bool ConsumeNext = false;
     while(sstr) {
       sstr >> CurrentComponent;
@@ -192,7 +214,7 @@ public:
 };
 
 LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::amdgpu, KN}, KernelNames{KN} {
+    : LLVMToBackendTranslator{sycl::jit::backend::amdgpu, KN, KN}, KernelNames{KN} {
   RocmDeviceLibsPath = common::filesystem::join_path(RocmPath,
                                                      std::vector<std::string>{"amdgcn", "bitcode"});
 }
@@ -201,10 +223,17 @@ LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &K
 bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
   M.setTargetTriple(TargetTriple);
+#if LLVM_VERSION_MAJOR >= 17
+  M.setDataLayout(
+      "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:32-p8:128:128-"
+      "i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-"
+      "n32:64-S32-A5-G1-ni:7:8");
+#else
   M.setDataLayout(
       "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-i64:64-v16:16-v24:32-v32:32-"
       "v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7");
-
+#endif
+  
   AddressSpaceMap ASMap = getAddressSpaceMap();
 
   KernelFunctionParameterRewriter ParamRewriter{
@@ -221,6 +250,14 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
       F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
+
+      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+        int FlatGroupSize = KnownGroupSizeX * KnownGroupSizeY * KnownGroupSizeZ;
+        
+        if(!F->hasFnAttribute("amdgpu-flat-work-group-size"))
+          F->addFnAttr("amdgpu-flat-work-group-size",
+                     std::to_string(FlatGroupSize) + "," + std::to_string(FlatGroupSize));
+      }
     }
   }
 
@@ -322,7 +359,7 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 
   std::vector<std::string> DeviceLibs;
   RocmDeviceLibs::determineRequiredDeviceLibs(RocmPath, RocmDeviceLibsPath, TargetDevice,
-                                              DeviceLibs);
+                                              DeviceLibs, IsFastMath);
   for(const auto& Lib : DeviceLibs) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Linking with bitcode file: " << Lib << "\n";
     addBitcodeFile(Lib);

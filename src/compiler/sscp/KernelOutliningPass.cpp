@@ -38,7 +38,7 @@ bool isUsedInFunctions(llvm::SmallPtrSet<llvm::User*, 16>& VisitedUsers, llvm::U
     if(I->getFunction())
       return true;
   }
-  
+
   if(VisitedUsers.contains(User))
     return false;
   VisitedUsers.insert(User);
@@ -54,7 +54,7 @@ template<class FunctionSetT>
 void descendCallGraphAndAdd(llvm::Function* F, llvm::CallGraph& CG, FunctionSetT& Set){
   if(!F || Set.contains(F))
     return;
-  
+
   Set.insert(F);
   llvm::CallGraphNode* CGN = CG.getOrInsertFunction(F);
   if(!CGN)
@@ -97,7 +97,7 @@ public:
   llvm::Type* run(llvm::Function* F, int ArgNo) {
     VisitedUsers.clear();
     if(llvm::Value* Arg = F->getArg(ArgNo)) {
-      if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
+      if(llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
 
         // If either byval or byref attributes are present, we can just look up
         // the pointee type directly.
@@ -112,7 +112,7 @@ public:
         llvm::SmallDenseMap<llvm::Type *, int> Scores;
         scanAllocas(F, Scores);
         rankUsers(F->getArg(ArgNo), Scores);
-        
+
         llvm::Type* BestTy = nullptr;
         int BestScore = std::numeric_limits<int>::min();
         for(auto S : Scores) {
@@ -157,13 +157,13 @@ private:
         Scores[GEPI->getSourceElementType()] = CurrentScore - 1;
       } else if (auto EEI = llvm::dyn_cast<llvm::ExtractElementInst>(Current)) {
         Scores[EEI->getVectorOperand()->getType()] = CurrentScore - 2;
-      } else if (auto ACI = llvm::dyn_cast<llvm::AddrSpaceCastInst>(Current)) {
+      } else if (llvm::dyn_cast<llvm::AddrSpaceCastInst>(Current)) {
         // Follow address space casts, we don't care about pointer address spaces
         rankUsers(Current, Scores, CurrentScore);
       } else if(auto CI = llvm::dyn_cast<llvm::CallBase>(Current)) {
         // Ugh, the value is forwarded as an argument into some other function, need
         // to continue looking there...
-        
+
         // First, check if we have any interesting allocas in the called function
         scanAllocas(CI->getCalledFunction(), Scores);
 
@@ -218,7 +218,7 @@ void canonicalizeKernelParameters(llvm::Function* F, llvm::Module& M) {
       } else if(!F->hasParamAttribute(0, llvm::Attribute::ByVal)) {
         // Now it gets interesting: We have a single pointer and no ByVal.
         // Following explanations are possible:
-        // 1.) We are dealing with a struct, but ByVal is missing, e.g. 
+        // 1.) We are dealing with a struct, but ByVal is missing, e.g.
         //     because the struct is not trivially copyable, and clang
         //     therefore has not emitted ByVal due to ABI.
         // 2.) The user has captured just a single USM pointer
@@ -265,8 +265,31 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
 
   llvm::SmallSet<std::string, 16> Kernels;
 
-  utils::findFunctionsWithStringAnnotations(M, [&](llvm::Function* F, llvm::StringRef Annotation){
+  utils::findFunctionsWithStringAnnotationsWithArg(M, [&](llvm::Function* F, llvm::StringRef Annotation, llvm::Constant* Argument){
     if(F) {
+      if(Annotation.compare(SscpKernelDimensionName) == 0){
+        HIPSYCL_DEBUG_INFO << "Found kernel dim annotation: " << F->getName() << " with arg: " << * Argument << "\n";
+        // annotate the actual kernel with the dimension
+        for (auto &U : F->uses()) {
+          if (auto *CI = llvm::dyn_cast<llvm::CallInst>(U.getUser())) {
+            if (CI->getCalledFunction() == F) {
+
+              auto DimVal = llvm::cast<llvm::Constant>(Argument->getOperand(0));
+              if (DimVal->getNumOperands() > 0) {
+                DimVal = llvm::cast<llvm::Constant>(DimVal->getOperand(0));
+              }
+
+              llvm::SmallVector<llvm::Metadata *, 4> Operands;
+              Operands.push_back(llvm::ValueAsMetadata::get(CI->getFunction()));
+              Operands.push_back(llvm::MDString::get(M.getContext(), SscpKernelDimensionName));
+              Operands.push_back(llvm::ValueAsMetadata::getConstant(DimVal));
+
+              M.getOrInsertNamedMetadata(SscpAnnotationsName)
+                  ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+            }
+          }
+        }
+      }
       if(Annotation.compare(SSCPKernelMarker) == 0) {
         HIPSYCL_DEBUG_INFO << "Found SSCP kernel: " << F->getName() << "\n";
         this->KernelNames.push_back(F->getName().str());
@@ -276,7 +299,7 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
         HIPSYCL_DEBUG_INFO << "Found SSCP outlining entrypoint: " << F->getName() << "\n";
         // Make kernel have external linkage to avoid having everything optimized away
         F->setLinkage(llvm::GlobalValue::ExternalLinkage);
-        
+
         // If we have a definition, we need to perform outlining.
         // Otherwise, we would need to treat the function as imported --
         // however this cannot really happen as clang does not codegen our
@@ -306,24 +329,24 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
 
   // Some backends (e.g. PTX) don't like aliases. We need to replace
   // them early on, because it can get difficult to handle them once
-  // we have removed what their aliasees. 
+  // we have removed what their aliasees.
   llvm::SmallVector<llvm::GlobalAlias*, 16> AliasesToRemove;
-  for(auto& A : M.aliases()) 
-    AliasesToRemove.push_back(&A);    
+  for(auto& A : M.aliases())
+    AliasesToRemove.push_back(&A);
   // Need separate iteration, so that we don't erase stuff from the list
   // we are iterating over.
   for(auto* A : AliasesToRemove) {
     if(A) {
       if(A->getAliasee())
         A->replaceAllUsesWith(A->getAliasee());
-      A->eraseFromParent();  
+      A->eraseFromParent();
     }
   }
 
   llvm::SmallPtrSet<llvm::Function*, 16> SSCPEntrypoints;
   for(const auto& EntrypointName : OutliningEntrypoints) {
     llvm::Function* F = M.getFunction(EntrypointName);
-    
+
     if(F) {
       SSCPEntrypoints.insert(F);
     }
@@ -338,7 +361,7 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
     //HIPSYCL_DEBUG_INFO << "SSCP Kernel outlining: Function is device function: "
     //                   << F->getName().str() << "\n";
   // }
-  
+
   llvm::SmallVector<llvm::Function*, 16> PureHostFunctions;
   for(auto& F: M) {
     // Called Intrinsics don't show up in our device functions list,
@@ -380,8 +403,7 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   for(auto& G : UnneededGlobals) {
     G->replaceAllUsesWith(llvm::UndefValue::get(G->getType()));
     G->eraseFromParent();
-  } 
-
+  }
   llvm::GlobalOptPass GO;
   GO.run(M, AM);
   return llvm::PreservedAnalyses::none();

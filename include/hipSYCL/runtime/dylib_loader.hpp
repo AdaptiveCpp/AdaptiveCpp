@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,17 +25,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SSCP_INTEGER_BUILTINS_HPP
-#define HIPSYCL_SSCP_INTEGER_BUILTINS_HPP
+#ifndef HIPSYCL_DYLIB_LOADER_HPP
+#define HIPSYCL_DYLIB_LOADER_HPP
 
-#include "builtin_config.hpp"
+#include <string>
+#include <string_view>
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b);
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b);
+#ifndef _WIN32
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C"
+#else
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C" __declspec(dllexport)
+#endif
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_clz_u8(__hipsycl_uint8); 	
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_clz_u16(__hipsycl_uint16); 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_clz_u32(__hipsycl_uint32); 	
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_clz_u64(__hipsycl_uint64); 	
+namespace hipsycl {
+namespace rt {
+namespace detail {
+void *load_library(const std::string &filename, std::string_view loader);
+void *get_symbol_from_library(void *handle, const std::string &symbolName, std::string_view loader);
+void close_library(void *handle, std::string_view loader);
+
+}
+}
+}
 
 #endif
+

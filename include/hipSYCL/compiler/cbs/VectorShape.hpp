@@ -66,6 +66,7 @@ public:
   bool isUniform() const { return isStrided(0); }
   bool greaterThanUniform() const { return !isUniform() && isDefined(); }
   inline bool isContiguous() const { return isStrided(1); }
+  inline bool isContiguousOrStrided() const { return hasStridedShape() && stride > 0; }
 
   static VectorShape varying(align_t aligned = 1) { return VectorShape(aligned); }
   static VectorShape strided(stride_t stride, align_t aligned = 1) {

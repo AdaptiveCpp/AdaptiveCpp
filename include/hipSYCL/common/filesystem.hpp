@@ -47,6 +47,40 @@ join_path(const std::string &base,
 std::vector<std::string> list_regular_files(const std::string &directory);
 std::vector<std::string> list_regular_files(const std::string &directory,
                                             const std::string &extension);
+
+/// Writes data atomically to filename
+bool atomic_write(const std::string& filename, const std::string& data);
+
+/// Removes a file, returns true if successful.
+bool remove(const std::string &filename);
+
+class tuningdb {
+public:
+  static tuningdb& get() {
+    static tuningdb t;
+    return t;
+  }
+
+  const std::string& get_base_dir() const {
+    return _base_dir;
+  }
+
+  const std::string& get_this_app_dir() const {
+    return _this_app_dir;
+  }
+
+  const std::string& get_jit_cache_dir() const {
+    return _jit_cache_dir;
+  }
+private:
+  tuningdb();
+
+  std::string _base_dir;
+  std::string _this_app_dir;
+  std::string _jit_cache_dir;
+};
+
+
 }
 
 }

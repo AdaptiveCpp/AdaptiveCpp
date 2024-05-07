@@ -338,7 +338,6 @@ class acpp_config:
                                          (see --acpp-explicit-multipass)
                - hip.integrated-multipass: Force HIP backend to operate in integrated
                                            multipass mode.
-      * spirv - use clang SYCL driver to generate spirv
       * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device"""),
 
       'stdpar-prefetch-mode' : option("--acpp-stdpar-prefetch-mode", "ACPP_STDPAR_PREFETCH_MODE", "default-stdpar-prefetch-mode", 
@@ -865,6 +864,34 @@ class acpp_config:
   def common_compiler_args(self):
     return self._common_compiler_args
 
+
+  @property
+  def default_clang_optimization_args(self):
+    has_ffp_contract = False
+    has_fast_math = False
+    opt_level = 0
+    opt_args = []
+
+    for arg in self._args:
+      if arg == "-ffast-math":
+        has_fast_math = True
+      elif arg.startswith("-ffp-contract="):
+        has_ffp_contract = True
+      elif arg.startswith("-O"):
+        ending = arg.replace("-O", "", 1)
+        if ending.isnumeric():
+          opt_level = int(ending)
+        elif ending == "fast":
+          opt_level = 3
+        else:
+          opt_level = 1
+
+    if opt_level > 1:
+      if not has_fast_math and not has_ffp_contract:
+        opt_args.append("-ffp-contract=fast")
+
+    return opt_args
+
   @property
   def acpp_include_path(self):
     return os.path.join(self.acpp_installation_path, "include", "AdaptiveCpp")
@@ -1165,101 +1192,6 @@ class hip_multipass_invocation:
       header.hcf_object.attach_binary_content(target_node, hipfb)
     
     header.write_header(self._integration_header)
-
-class spirv_multipass_invocation:
-  @property
-  def unique_name(self):
-    return "spirv"
-
-  @property
-  def is_integrated_multipass(self):
-    return False
-
-  @property
-  def is_explicit_multipass(self):
-    return not self.is_integrated_multipass
-
-
-  def __init__(self, config):
-    self._config = config
-    self._acpp_lib_path = os.path.join(
-      config.acpp_installation_path, "lib/")
-    self.set_temp_dir("/tmp")
-
-  def set_temp_dir(self, temp_dir):
-    self._temp_dir = temp_dir
-    self._integration_header = os.path.join(
-      self._temp_dir,"__acpp_embedded_spirv_kernels.hpp")
-
-  def get_requested_targets(self):
-    return ["spirv"]
-
-  def get_device_compiler(self):
-    return self._config.clang_path
-
-  def get_compiler_preference(self):
-    return (self._config.clang_path, 100)
-
-  def set_host_compiler(self, host_compiler):
-    pass
-
-  def enable_extended_host_pass(self):
-    pass
-
-  @property
-  def is_extended_host_pass_enabled(self):
-    return False
-
-  def get_host_pass_requirements(self):
-    return {
-      'requires-extended-host-pass' : False,
-      'extended-host-pass-providers' : [],
-      'conflicts' : ['cuda-nvcxx'],
-      'caveats' : []
-    }
-
-  def get_flags(self, target):
-    flags = self._config.cuda_cxx_flags
-    
-    flags += [
-        "-fsycl-device-only",
-        "-fsycl-unnamed-lambda",
-        "-fno-sycl-use-bitcode",
-        "-D__HIPSYCL_ENABLE_SPIRV_TARGET__",
-        "-D__HIPSYCL_SPIRV__",
-        "-o",self._explicit_pass_output_file(target)
-      ]
-
-    return flags
-
-  # CXX flags for main pass
-  def get_cxx_flags(self):
-    return [
-      "-Xclang", "-fsycl-is-host",
-      "-D__HIPSYCL_MULTIPASS_SPIRV_HEADER__=\"{}\"".format(
-            self._integration_header),
-      "-D__HIPSYCL_ENABLE_SPIRV_TARGET__"
-    ]
-
-  # Linker flags for main pass
-  def get_linker_flags(self):
-    return []
-
-  def _explicit_pass_output_file(self, target):
-    return os.path.join(self._temp_dir, "acpp-kernels.spv")
-
-  def create_code_objects(self, targets):
-
-    if len(targets) != 1 or targets[0] != "spirv":
-      raise RuntimeError("SPIR-V multipass invocation: Invalid target")
-
-    with open(self._explicit_pass_output_file(targets[0]), "rb") as f:
-      data = f.read()
-
-      header = integration_header("spirv")
-      header.hcf_object.attach_binary_content(header.hcf_object.root, data)
-    
-      header.write_header(self._integration_header)
 
 
 class cuda_invocation:
@@ -1587,6 +1519,7 @@ class llvm_sscp_invocation:
   def __init__(self, config, targets):
     self._linker_args = []
     self._cxx_flags = []
+    self._config = config
 
     if len(targets) != 0:
       raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")
@@ -1608,10 +1541,18 @@ class llvm_sscp_invocation:
     flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
             "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
 
+    sscp_compile_opts = []
+    if ("-Ofast" in self._config.forwarded_compiler_arguments or 
+      "-ffast-math" in self._config.forwarded_compiler_arguments):
+      sscp_compile_opts.append("fast-math")
+
+    if len(sscp_compile_opts) > 0:
+      flags += ["-mllvm", "-hipsycl-sscp-kernel-opts="+ ",".join(sscp_compile_opts)]
+
     if not sys.platform.startswith("win32"):
       flags += [
-        "-fplugin=" + config.acpp_plugin_path
-        , "-fpass-plugin=" + config.acpp_plugin_path
+        "-fplugin=" + self._config.acpp_plugin_path
+        , "-fpass-plugin=" + self._config.acpp_plugin_path
       ]
     flags += self._cxx_flags
 
@@ -1639,6 +1580,12 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    self._clang_opt_args = config.default_clang_optimization_args
+    try:
+      self._clang_path = config.clang_path
+    except OptionNotSet:
+      self._clang_path = None
+
     try:
       self._stdpar_prefetch_mode = config.stdpar_prefetch_mode
     except OptionNotSet:
@@ -1700,12 +1647,6 @@ class compiler:
       elif backend == "hip.explicit-multipass":
         self._multipass_backends.append(
           hip_multipass_invocation(config, config.targets["hip.explicit-multipass"]))
-      elif backend == 'spirv':
-        print_warning("'spirv' target is deprecated, incomplete and may not work. It should not be "
-              "used outside of experiments and will be removed in a future version. Production "
-              "use cases should use 'generic' target instead to target SPIR-V devices.")
-        self._multipass_backends.append(
-          spirv_multipass_invocation(config))
       elif backend == 'sscp' or backend == 'generic':
         self._backends.append(llvm_sscp_invocation(config, config.targets[backend]))
       else:
@@ -1718,7 +1659,7 @@ class compiler:
       mb.set_host_compiler(self._host_compiler)
 
     if not "omp" in self._targets and not "omp.accelerated" in self._targets and\
-            not "omp.library-only" in self._targets:
+            not "omp.library-only" in self._targets and not "generic" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
      self._backends.append(omp_sequential_invocation(config))
@@ -1942,6 +1883,9 @@ class compiler:
     ld_flags = self.common_linker_flags
     compiler_executable = self._host_compiler
 
+    if compiler_executable == self._clang_path:
+      cxx_flags += self._clang_opt_args
+
     for backend_args in self._backends:
       cxx_flags += backend_args.get_cxx_flags()
       ld_flags += backend_args.get_linker_flags()
@@ -1972,7 +1916,7 @@ class compiler:
 
 def print_config(config):
   config_db = config.config_db
-  print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
+  print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")
   for k in config_db.keys:
     v = "(unconfigured)"
     try:
@@ -2010,6 +1954,12 @@ if __name__ == '__main__':
     print_error("acpp requires python 3.")
     sys.exit(-1)
   
+  filename = os.path.basename(os.path.realpath(__file__))
+  if filename == "syclcc":
+    print_warning("syclcc is deprecated; please use acpp instead.")
+  if filename == "syclcc-clang":
+    print_warning("syclcc-clang is deprecated; please use acpp instead.")
+
   args = sys.argv[1:]
 
   try:

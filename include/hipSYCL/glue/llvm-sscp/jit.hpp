@@ -86,6 +86,10 @@ public:
     return _mapped_data.data();
   }
 
+  void* const* get_mapped_args() const {
+    return _mapped_data.data();
+  }
+
   const std::size_t* get_mapped_arg_sizes() const {
     return _mapped_sizes.data();
   }
@@ -219,10 +223,32 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   runtime_linker configure_linker {translator, imported_symbol_names};
 
   // Apply configuration
-  translator->setS2IRConstant<sycl::sscp::current_backend, int>(
+  translator->setS2IRConstant<sycl::jit::current_backend, int>(
       translator->getBackendId());
-  for(const auto& entry : config.entries()) {
+  for(const auto& entry : config.s2_ir_entries()) {
     translator->setS2IRConstant(entry.get_name(), entry.get_data_buffer());
+  }
+  if(translator->getKernels().size() == 1) {
+    // Currently we only can specialize kernel arguments for the 
+    // single-kernel code object model
+    for(const auto& entry : config.specialized_arguments()) {
+      translator->specializeKernelArgument(translator->getKernels().front(),
+                                          entry.first, &entry.second);
+    }
+  }
+
+  for(const auto& option : config.build_options()) {
+    std::string option_name = glue::to_string(option.first);
+    std::string option_value =
+        option.second.int_value.has_value()
+            ? std::to_string(option.second.int_value.value())
+            : option.second.string_value.value();
+    
+    translator->setBuildOption(option_name, option_value);
+  }
+
+  for(const auto& flag : config.build_flags()) {
+    translator->setBuildFlag(glue::to_string(flag));
   }
 
   // Transform code

@@ -66,7 +66,12 @@ namespace compiler {
 
 static llvm::cl::opt<bool> EnableLLVMSSCP{
     "hipsycl-sscp", llvm::cl::init(false),
-    llvm::cl::desc{"Enable hipSYCL LLVM SSCP compilation flow"}};
+    llvm::cl::desc{"Enable AdaptiveCpp LLVM SSCP compilation flow"}};
+
+static llvm::cl::opt<std::string> LLVMSSCPKernelOpts{
+    "hipsycl-sscp-kernel-opts", llvm::cl::init(""),
+    llvm::cl::desc{
+        "Specify compilation options to use when JIT-compiling AdaptiveCpp SSCP kernels"}};
 
 static llvm::cl::opt<bool> EnableStdPar{
     "hipsycl-stdpar", llvm::cl::init(false),
@@ -164,7 +169,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           if(EnableLLVMSSCP){
             PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, OptLevel Level) {
-                  MPM.addPass(TargetSeparationPass{});
+                  MPM.addPass(TargetSeparationPass{LLVMSSCPKernelOpts});
                 });
           }
 #endif
@@ -182,7 +187,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
 #endif
             if(!CompilationStateManager::getASTPassState().isDeviceCompilation())
-              registerCBSPipeline(MPM, Opt);
+              registerCBSPipeline(MPM, Opt, false);
           });
           // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
           // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254

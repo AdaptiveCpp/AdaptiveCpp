@@ -20,7 +20,7 @@ function(libkernel_generate_bitcode_library)
       OUTPUT ${target_output_file}
       COMMAND ${CLANG_EXECUTABLE_PATH} -target ${triple} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
                     -I ${HIPSYCL_SOURCE_DIR}/include ${additional} -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-      DEPENDS ${source}
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source}
       VERBATIM)
 
   install(FILES ${target_output_file} DESTINATION lib/hipSYCL/bitcode)
@@ -75,3 +75,4 @@ endfunction()
 add_subdirectory(spirv)
 add_subdirectory(ptx)
 add_subdirectory(amdgpu)
+add_subdirectory(host)

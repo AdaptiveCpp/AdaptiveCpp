@@ -29,7 +29,9 @@
 #define HIPSYCL_LIBKERNEL_HOST_BUILTINS_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#ifndef HIPSYCL_SSCP_LIBKERNEL_LIBRARY
 #include "hipSYCL/sycl/libkernel/vec.hpp"
+#endif
 
 #include <bitset>
 #include <cstdlib>
@@ -610,6 +612,15 @@ HIPSYCL_BUILTIN T __hipsycl_min(T x, T y) noexcept {
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
   return x * y;
+}
+
+template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_popcount(T x) noexcept {
+    T count = T(0);
+    for (size_t i = 0; i < sizeof(T) * 8; i++) {
+        count += !!(x & (T(1) << i));
+    }
+    return count;
 }
 
 // **************** common functions *****************

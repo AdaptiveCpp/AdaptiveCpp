@@ -1,10 +1,10 @@
 
 set(LLVM_TO_BACKEND_INCLUDE_DIRS 
   ../../../include
-  ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}/include)
 
+set(CMAKE_INSTALL_RPATH ${base} ${base}/../../)
 
 function(create_llvm_based_library)
   set(options)
@@ -25,9 +25,10 @@ function(create_llvm_based_library)
 
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
+  target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS})
+  find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
   if(NOT LLVM_LIBRARY)
     message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
   endif()
@@ -74,6 +75,7 @@ function(create_llvm_to_backend_tool)
 
   target_include_directories(${target}-tool PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
+  target_include_directories(${target}-tool SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   
   target_compile_definitions(${target}-tool PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_TOOL_COMPONENT)
   target_link_libraries(${target}-tool PRIVATE ${target})
@@ -105,7 +107,12 @@ include(ExternalProject)
 if(WITH_SSCP_COMPILER)
   create_llvm_based_library(
     TARGET llvm-to-backend
-    SOURCES LLVMToBackend.cpp AddressSpaceInferencePass.cpp ../sscp/KernelOutliningPass.cpp)
+    SOURCES 
+      LLVMToBackend.cpp 
+      AddressSpaceInferencePass.cpp
+      KnownGroupSizeOptPass.cpp
+      GlobalSizesFitInI32OptPass.cpp
+      ../sscp/KernelOutliningPass.cpp)
 
   if(WITH_LLVM_TO_SPIRV)
     add_hipsycl_llvm_backend(
@@ -184,4 +191,32 @@ if(WITH_SSCP_COMPILER)
     endif()
 
   endif()
+
+
+  if(WITH_LLVM_TO_HOST)
+    include(CheckCXXCompilerFlag)
+
+    check_cxx_compiler_flag(-mcpu=native HAS_MCPU_NATIVE)
+    check_cxx_compiler_flag(-march=native HAS_MARCH_NATIVE)
+
+    if(HAS_MARCH_NATIVE)
+      set(HOST_CPU_FLAG -march=native)
+    elseif(HAS_MCPU_NATIVE)
+      set(HOST_CPU_FLAG -mcpu=native)
+    else()
+      set(HOST_CPU_FLAG "")
+      message(WARNING "Could not find -mcpu=native or -march=native. Host code generation may be suboptimal.")
+    endif()
+
+    add_hipsycl_llvm_backend(
+      BACKEND host
+      LIBRARY host/LLVMToHost.cpp host/HostKernelWrapperPass.cpp
+      TOOL host/LLVMToHostTool.cpp)
+
+    target_compile_definitions(llvm-to-host PRIVATE
+      -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
+      -DHIPSYCL_HOST_CPU_FLAG="${HOST_CPU_FLAG}")
+    target_link_libraries(llvm-to-host PRIVATE acpp-clang-cbs)
+  endif()
+
 endif()

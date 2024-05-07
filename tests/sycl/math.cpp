@@ -110,8 +110,8 @@ namespace {
 
   // utility functions for generic testing
 
-  template<typename DT, int D>
-  auto get_math_input(vec<DT, 16> v) {
+  template <typename DT, int D>
+  auto get_math_input(const vec<DT, 16> &v) {
     if constexpr(D==0) {
       return v.template swizzle<0>();
     } else if constexpr(D==2) {
@@ -224,6 +224,12 @@ namespace {
     while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
     return idx;
   }
+
+  template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
+  inline T ref_popcount(T x) noexcept {
+    std::bitset<sizeof(T)*CHAR_BIT> bset(x);
+    return bset.count();
+  }
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
@@ -242,8 +248,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
-    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
-    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
+    s::vec<DT, 16> v2{17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0};
+    acc[0] = get_math_input<DT, D>(v1);
+    acc[1] = get_math_input<DT, D>(v2);
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
       acc[i] = T{DT{0}};
     }
@@ -309,8 +317,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
   constexpr DT mix_input_2 = 0.8f;
   {
     auto acc = buf.template get_access<s::access::mode::write>();
-    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
-    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
+    s::vec<DT, 16> v2{17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0};
+    acc[0] = get_math_input<DT, D>(v1);
+    acc[1] = get_math_input<DT, D>(v2);
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
       acc[i] = T{DT{0}};
     }
@@ -396,7 +406,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
 
   namespace s = cl::sycl;
 
-  constexpr int FUN_COUNT = 4;
+  constexpr int FUN_COUNT = 5;
 
   // build inputs
 
@@ -404,8 +414,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
-    acc[0] = get_math_input<DT, D>({7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3});
-    acc[1] = get_math_input<DT, D>({17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1});
+    s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
+    s::vec<DT, 16> v2{17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0};
+    acc[0] = get_math_input<DT, D>(v1);
+    acc[1] = get_math_input<DT, D>(v2);
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
       acc[i] = T{DT{0}};
     }
@@ -421,6 +433,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
       acc[i++] = s::min(acc[0], acc[1]);
       acc[i++] = s::max(acc[0], acc[1]);
       acc[i++] = s::clz(acc[0]);
+      acc[i++] = s::popcount(acc[0]);
     });
   });
 
@@ -438,6 +451,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
       BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)));
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)));
       BOOST_TEST(comp(acc[i++], c) == ref_clz(comp(acc[0], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_popcount(comp(acc[0], c)));
     }
   }
 }
@@ -465,8 +479,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs::type) {
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
-    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
-    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
+    s::vec<DT, 16> v2{17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0};
+    acc[0] = get_math_input<DT, D>(v1);
+    acc[1] = get_math_input<DT, D>(v2);
     for (int i = 2; i < FUN_COUNT + 2; ++i) {
       acc[i] = T{DT{0}};
     }
@@ -527,8 +543,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo::type) {
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
-    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
-    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
+    s::vec<DT, 16> v2{17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0};
+    acc[0] = get_math_input<DT, D>(v1);
+    acc[1] = get_math_input<DT, D>(v2);
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
       acc[i] = T{DT{0}};
     }
@@ -581,8 +599,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats::type) {
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
-    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
-    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
+    s::vec<DT, 16> v2{17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0};
+    acc[0] = get_math_input<DT, D>(v1);
+    acc[1] = get_math_input<DT, D>(v2);
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
       acc[i] = T{DT{0}};
     }
@@ -635,7 +655,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_int, T,
   {
     auto inputs  = in.get_host_access();
     auto outputs = out.get_host_access();
-    inputs[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
+    s::vec<DT, 16> v{17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0};
+    inputs[0] = get_math_input<DT, D>(v);
     for(int i = 0; i < FUN_COUNT; ++i) {
       outputs[i] = T{DT{0}};
     }
@@ -685,8 +706,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
     auto float_inputs = float_in.get_host_access();
     auto int_inputs = int_in.get_host_access();
     auto outputs = out.get_host_access();
-    float_inputs[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
-    int_inputs[0] = get_math_input<int, D>({17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1});
+    s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
+    s::vec<int, 16> v2{17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1};
+    float_inputs[0] = get_math_input<DT, D>(v1);
+    int_inputs[0] = get_math_input<int, D>(v2);
     for(int i = 0; i < FUN_COUNT; ++i) {
       outputs[i] = T{DT{0}};
     }

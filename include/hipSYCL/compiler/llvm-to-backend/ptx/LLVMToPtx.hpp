@@ -48,12 +48,18 @@ public:
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) override;
 protected:
   virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
+  virtual bool applyBuildFlag(const std::string &Flag) override;
+  
   virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
   virtual AddressSpaceMap getAddressSpaceMap() const override;
 private:
   std::vector<std::string> KernelNames;
   unsigned PtxVersion = 30;
   unsigned PtxTarget = 30;
+
+  int FlushDenormalsToZero = -1;
+  int PreciseSqrt = -1;
+  int PreciseDiv = -1;
 };
 
 }

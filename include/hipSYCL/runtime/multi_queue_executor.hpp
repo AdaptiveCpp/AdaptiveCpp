@@ -172,7 +172,6 @@ private:
   };
 
   std::vector<per_device_data> _device_data;
-  std::size_t _num_submitted_operations;
   std::vector<inorder_queue*> _managed_queues;
   backend_id _backend;
 };
@@ -182,7 +181,7 @@ class lazily_constructed_executor {
 public:
   template<class Factory>
   lazily_constructed_executor(Factory&& F)
-  : _factory{std::forward<Factory>(F)}, _is_initialized{false} {}
+  : _is_initialized{false}, _factory{std::forward<Factory>(F)} {}
 
   Executor* get() {
     if(_is_initialized.load(std::memory_order_acquire))

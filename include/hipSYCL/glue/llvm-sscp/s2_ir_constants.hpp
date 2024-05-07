@@ -50,13 +50,14 @@ namespace hipsycl::glue::sscp {
   struct ir_constant_name {};
 }
 
-namespace hipsycl::sycl::sscp {
+namespace hipsycl::sycl::jit {
 
 namespace backend {
 
 inline constexpr int spirv = 0;
 inline constexpr int ptx = 1;
 inline constexpr int amdgpu = 2;
+inline constexpr int host = 3;
 
 }
 

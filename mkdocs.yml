@@ -1,0 +1,76 @@
+site_name: AdaptiveCpp Documentation
+
+repo_url: https://github.com/AdaptiveCpp/AdaptiveCpp
+repo_name: AdaptiveCpp
+
+docs_dir: doc
+
+nav:
+  - 'AdaptiveCpp documentation': 'index.md'
+
+
+  - 'Usage' :
+      - 'Using AdaptiveCpp' : 'using-hipsycl.md'
+      - 'Compilation model' : 'compilation.md'
+      - 'Env variables' : 'env_variables.md'
+      - 'Performance guide' : 'performance.md'
+      - 'Macros' : 'macros.md'
+      - 'SYCL interoperability' : 'hip-source-interop.md'
+      - 'C++ standard parallelism offloading (stdpar)' : 'stdpar.md'
+
+  - 'AdaptiveCpp design' : 
+      - 'Architecture' : 'architecture.md'
+      - 'Runtime Specification' : 'runtime-spec.md'
+      - 'HCF' : 'hcf.md'
+      - 'SSCP implementation' : 'generic-sscp.md'
+
+  - 'Extensions overview' : 'extensions.md'
+  - 'Extensions in detail' :
+      - 'Accessor variants' : 'accessor-variants.md'
+      - 'Buffer USM interop' : 'buffer-usm-interop.md'
+      - 'Enqueue custom operation' : 'enqueue-custom-operation.md'
+      - 'Explicit buffer policies' : 'explicit-buffer-policies.md'
+      - 'Multi device queue' : 'multi-device-queue.md'
+      - 'Scoped parallelism' : 'scoped-parallelism.md'
+
+  - 'Installing AdaptiveCpp' : 'installing.md'
+  - 'Installation doc' :
+      - 'LLVM' : 'install-llvm.md'
+      - 'CUDA' : 'install-cuda.md'
+      - 'ROCM' : 'install-rocm.md'
+      - 'OpenCL' : 'install-ocl.md'
+      - 'Level Zero' : 'install-spirv.md'
+
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - git-authors
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+
+markdown_extensions:
+  # for the grid in index.md
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+  # code blocks
+  - pymdownx.highlight:
+      use_pygments: true
+  - pymdownx.superfences
+
+
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences

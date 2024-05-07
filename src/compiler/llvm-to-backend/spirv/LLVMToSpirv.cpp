@@ -41,6 +41,7 @@
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/Passes/PassBuilder.h>
@@ -126,8 +127,7 @@ bool removeDynamicLocalMemorySupport(llvm::Module& M) {
 }
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::spirv, KN}, KernelNames{KN} {}
-
+    : LLVMToBackendTranslator{sycl::jit::backend::spirv, KN, KN}, KernelNames{KN} {}
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
@@ -152,6 +152,19 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
       F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+
+      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+        llvm::SmallVector<llvm::Metadata *> MDs;
+        MDs.push_back(llvm::ConstantAsMetadata::get(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+        MDs.push_back(llvm::ConstantAsMetadata::get(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+        MDs.push_back(llvm::ConstantAsMetadata::get(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+
+        static const char* ReqdWGSize = "reqd_work_group_size";
+        F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
+      }
     }
   }
 
@@ -300,7 +313,7 @@ bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const st
 }
 
 bool LLVMToSpirvTranslator::applyBuildFlag(const std::string& Flag) {
-  if(Flag == "enable-intel-llvm-spirv-options") {
+  if(Flag == "spirv-enable-intel-llvm-spirv-options") {
     UseIntelLLVMSpirvArgs = true;
     return true;
   }

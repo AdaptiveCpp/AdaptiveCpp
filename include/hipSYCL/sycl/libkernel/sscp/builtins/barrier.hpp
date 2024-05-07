@@ -30,8 +30,6 @@
 #ifndef HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
 #define HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
 
-#define HIPSYCL_SSCP_CONVERGENT_BUILTIN HIPSYCL_SSCP_BUILTIN __attribute__((convergent))
-
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
 __hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,

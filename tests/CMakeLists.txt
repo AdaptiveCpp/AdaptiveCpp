@@ -50,11 +50,29 @@ if(WIN32)
 add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_USE_MATH_DEFINES)
 endif()
 
+#OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
+if (APPLE)
+  if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
+    execute_process(COMMAND brew list libomp
+    COMMAND grep libomp.a 
+    COMMAND sed -E "s/\\/lib\\/.*//"
+    OUTPUT_VARIABLE DefaultOMP_ROOT
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    # fater linkage will error out if it is not found
+    set(OpenMP_ROOT ${DefaultOMP_ROOT})
+    set(OMP_ROOT ${DefaultOMP_ROOT})
+  endif()
+endif()
+find_package(OpenMP REQUIRED)
+
 add_subdirectory(platform_api)
 
 add_subdirectory(dump_test)
+
+
 add_executable(device_compilation_tests device_compilation_tests.cpp)
-target_include_directories(device_compilation_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(device_compilation_tests PRIVATE ${Boost_INCLUDE_DIRS} ${OpenMP_CXX_INCLUDE_DIRS})
 add_sycl_to_target(TARGET device_compilation_tests)
 
 add_executable(sycl_tests
@@ -89,7 +107,7 @@ add_executable(sycl_tests
 
 # Also test instant submission mode
 target_compile_definitions(sycl_tests PRIVATE -DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1)
-target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
 add_sycl_to_target(TARGET sycl_tests)
 
 add_executable(rt_tests 
@@ -97,7 +115,7 @@ add_executable(rt_tests
   runtime/dag_builder.cpp
   runtime/data.cpp)
 
-target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
 target_link_libraries(rt_tests PRIVATE Threads::Threads)
 add_sycl_to_target(TARGET rt_tests)
 
@@ -137,7 +155,7 @@ if(WITH_PSTL_TESTS)
   # the boost test headers allocate memory that is then transferred to libboost_unit_tests
   # which then cannot free it anymore. We we need to selectively enable it only for the actual test code.
   target_compile_definitions(pstl_tests PRIVATE -DHIPSYCL_STDPAR_MEMORY_MANAGEMENT_DEFAULT_DISABLED)
-  target_include_directories(pstl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+  target_include_directories(pstl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
   target_link_libraries(pstl_tests PRIVATE Threads::Threads -ltbb)
   add_sycl_to_target(TARGET pstl_tests)
 endif()

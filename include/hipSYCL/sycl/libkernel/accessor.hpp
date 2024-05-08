@@ -31,6 +31,7 @@
 
 #include <exception>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <type_traits>
 #include <cassert>
@@ -1052,7 +1053,10 @@ public:
     return get_count();
   }
 
-  //size_type max_size() const noexcept;
+  size_type max_size() const noexcept {
+    return std::numeric_limits<difference_type>::max();
+  }
+
   template <bool IsAllowed = has_size_queries,
             std::enable_if_t<IsAllowed, int> = 0>
   bool empty() const noexcept {
@@ -1749,7 +1753,9 @@ public:
     return _impl.get_count();
   }
 
-  //size_type max_size() const noexcept;
+  size_type max_size() const noexcept {
+    return std::numeric_limits<difference_type>::max();
+  }
 
   bool empty() const noexcept {
     return size() == 0;
@@ -1980,7 +1986,10 @@ public:
     return _num_elements.size();
   }
 
-  // size_type max_size() const noexcept;
+  size_type max_size() const noexcept
+  {
+    return std::numeric_limits<difference_type>::max();
+  }
 
   range<dimensions> get_range() const
   {

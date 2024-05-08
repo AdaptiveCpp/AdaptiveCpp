@@ -292,6 +292,9 @@ BOOST_AUTO_TEST_CASE(buffer_shared_ptr) {
     {
       s::buffer<int> buf{hostptr, size};
 
+      // buffer must copy the shared_ptr, so its ref count should be two now
+      BOOST_CHECK(hostptr.use_count() == 2);
+
       q.submit([&](auto &cgh) {
         auto acc = buf.get_access<s::access::mode::write>(cgh);
         cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
@@ -371,6 +374,9 @@ BOOST_AUTO_TEST_CASE(buffer_shared_ptr) {
 
     {
       s::buffer<int> buf{hostptr, size};
+
+      // buffer must copy the shared_ptr, so its ref count should be two now
+      BOOST_CHECK(hostptr.use_count() == 2);
 
       q.submit([&](auto &cgh) {
         auto acc = buf.get_access<s::access::mode::write>(cgh);

@@ -37,7 +37,7 @@
 
 
 #define SYCL_SIMPLE_SWIZZLES
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 #include "../common/reset.hpp"
 

@@ -26,19 +26,19 @@
  */
 
 #include <iostream>
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 int main()
 {
-  cl::sycl::platform platform;
+  sycl::platform platform;
   auto devs = platform.get_devices();
 
   for(const auto& d : devs)
     std::cout << "Found device "
-              << d.get_info<cl::sycl::info::device::name>()
+              << d.get_info<sycl::info::device::name>()
               << std::endl;
 
-  cl::sycl::queue q;
+  sycl::queue q;
   std::cout << "Created queue on GPU: " << ((q.is_host() == false) ? "true" : "false")
                                         << std::endl;
 }

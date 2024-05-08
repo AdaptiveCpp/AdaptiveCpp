@@ -31,7 +31,7 @@
 
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "sycl_test_suite.hpp"
-using namespace cl;
+
 
 BOOST_FIXTURE_TEST_SUITE(reduction_tests, reset_device_fixture)
 

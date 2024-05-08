@@ -177,7 +177,7 @@ jobs:
           echo "$(dpkg -S libcuda)"
       - name: install ROCm
         run: |
-          [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy
+          export CODENAME="jammy"
           apt install -y libnuma-dev cmake unzip
           wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -
           echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | tee /etc/apt/sources.list.d/rocm.list

@@ -60,7 +60,7 @@ jobs:
           echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
           echo $GITHUB_ENV
           export CXXFLAGS="$CXXFLAGS"
-          if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
+          if [ "${{matrix.clang}}" != "11" ] && [ "${{matrix.clang}}" -lt "16" ]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
             export CC=clang-${{matrix.clang}}
             export CXX=clang++-${{matrix.clang}}
@@ -168,7 +168,7 @@ jobs:
           echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
           echo $GITHUB_ENV
           export CXXFLAGS="$CXXFLAGS"
-          if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
+          if [ "${{matrix.clang}}" != "11" ] && [ "${{matrix.clang}}" -lt "16" ]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
             export CC=clang-${{matrix.clang}}
             export CXX=clang++-${{matrix.clang}}

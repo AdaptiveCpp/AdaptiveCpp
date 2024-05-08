@@ -364,6 +364,23 @@ BOOST_AUTO_TEST_CASE(buffer_shared_ptr) {
     for (int i = 0; i != size; ++i)
       BOOST_CHECK(hostptr.get()[i] == testVal);
   }
+
+  // Test buffer construction with std::shared_ptr<T[]>
+  {
+    std::shared_ptr<int[]> hostptr{new int[size]};
+
+    {
+      s::buffer<int> buf{hostptr, size};
+
+      q.submit([&](auto &cgh) {
+        auto acc = buf.get_access<s::access::mode::write>(cgh);
+        cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+      });
+    }
+
+    for (int i = 0; i != size; ++i)
+      BOOST_CHECK(hostptr.get()[i] == testVal);
+  }
 }
 
 BOOST_AUTO_TEST_CASE(buffer_uninitialized) {

@@ -365,4 +365,51 @@ BOOST_AUTO_TEST_CASE(buffer_shared_ptr) {
       BOOST_CHECK(hostptr.get()[i] == testVal);
   }
 }
+
+BOOST_AUTO_TEST_CASE(buffer_uninitialized) {
+  namespace s = cl::sycl;
+
+  struct bad_type {
+    bad_type() {
+      BOOST_ERROR(
+          "The buffer dared to call the constructor that shall not be called");
+    }
+
+    // This is okay
+    bad_type(int val) : val{val} {}
+
+    int val;
+  };
+
+  const std::size_t size = 1024;
+  int testVal = 42;
+
+  { // Check "normal" uninitialized buffer
+    s::buffer<bad_type> buf{size};
+
+    s::queue{}.submit([&](auto &cgh) {
+      auto acc = buf.get_access<s::access::mode::write>(cgh);
+      cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+    });
+
+    auto ha = buf.get_host_access();
+    for (auto val : ha)
+      BOOST_CHECK(val.val == testVal);
+  }
+
+  { // Check shared_ptr uninitialized buffer
+    std::shared_ptr<bad_type> hostptr;
+    s::buffer<bad_type> buf{hostptr, size};
+
+    s::queue{}.submit([&](auto &cgh) {
+      auto acc = buf.get_access<s::access::mode::write>(cgh);
+      cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+    });
+
+    auto ha = buf.get_host_access();
+    for (auto val : ha)
+      BOOST_CHECK(val.val == testVal);
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

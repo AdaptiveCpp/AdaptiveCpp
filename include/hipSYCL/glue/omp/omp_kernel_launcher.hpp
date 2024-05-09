@@ -107,30 +107,29 @@ extern "C" size_t __hipsycl_cbs_local_id_x;
 extern "C" size_t __hipsycl_cbs_local_id_y;
 extern "C" size_t __hipsycl_cbs_local_id_z;
 
-template <int Dim, class Function, class ...Reducers>
+template <int Dim, class Function>
 HIPSYCL_LOOP_SPLIT_ND_KERNEL __attribute__((noinline))
 inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, const sycl::range<Dim> num_groups,
   HIPSYCL_LOOP_SPLIT_ND_KERNEL_LOCAL_SIZE_ARG const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
   size_t num_local_mem_bytes, void* group_shared_memory_ptr,
-  std::function<void()> &barrier_impl,
-  Reducers& ... reducers) noexcept {
+  std::function<void()> &barrier_impl) noexcept {
   if constexpr (Dim == 1) {
     sycl::id<Dim> local_id{__hipsycl_cbs_local_id_x};
     sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
       local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
-    f(this_item, reducers...);
+    f(this_item);
   } else if constexpr (Dim == 2) {
     sycl::id<Dim> local_id{__hipsycl_cbs_local_id_x, __hipsycl_cbs_local_id_y};
     sycl::nd_item<Dim> this_item{&offset, group_id,
       local_id, local_size, num_groups,
       &barrier_impl, group_shared_memory_ptr};
-    f(this_item, reducers...);
+    f(this_item);
   } else if constexpr (Dim == 3) {
     sycl::id<Dim> local_id{__hipsycl_cbs_local_id_x, __hipsycl_cbs_local_id_y, __hipsycl_cbs_local_id_z};
     sycl::nd_item<Dim> this_item{&offset,    group_id,
       local_id,   local_size,
       num_groups, &barrier_impl, group_shared_memory_ptr};
-    f(this_item, reducers...);
+    f(this_item);
   }
 }
 #endif
@@ -200,7 +199,7 @@ inline void parallel_for_ndrange_kernel(
 
     host::iterate_range_omp_for(num_groups, [&](sycl::id<Dim> &&group_id) {
       iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
-        num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
+        num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl);
     });
 #elif defined(HIPSYCL_HAS_FIBERS)
     host::static_range_decomposition<Dim> group_decomposition{

@@ -189,7 +189,7 @@ parallel_for_kernel(Function f, sycl::range<dimensions> execution_range,
         auto this_item = sycl::detail::make_item<dimensions>(
             sycl::detail::get_global_id<dimensions>(), execution_range);
         if (item_is_in_range(this_item, execution_range))
-          f(this_item, reducers...);
+          f(this_item);
       });
     }
   );
@@ -210,7 +210,7 @@ __sycl_kernel void parallel_for_ndrange_kernel(Function f,
             sycl::detail::get_local_size<dimensions>(),
             sycl::detail::get_grid_size<dimensions>()};
 #endif
-        f(this_item, reducers...);
+        f(this_item);
       });
   );
 }

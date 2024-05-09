@@ -38,7 +38,8 @@ namespace hipsycl::algorithms::reduction::wg_model {
 
 /// In addition to reduction_descriptor, also stores internal information
 /// needed by the reduction engine, such as scratch data pointers.
-/// This object will be constructed by the reduction engine.
+/// This object will be constructed by the reduction engine on the host,
+/// but its member functions should only be used on device!
 template <class ReductionDescriptor>
 class configured_reduction_descriptor : public ReductionDescriptor {
 public:
@@ -62,9 +63,7 @@ public:
         _is_input_initialized{is_input_initialized},
         _is_output_initialized{is_output_initialized},
         _stage_input{stage_input}, _stage_output{stage_output},
-        _problem_size{problem_size} {
-    
-  }
+        _problem_size{problem_size} {}
 
   bool is_final_stage() const noexcept {
     return !_stage_output;

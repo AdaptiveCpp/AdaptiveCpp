@@ -272,9 +272,8 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
   
   sycl::buffer<int> sum_buff{1};
   sycl::buffer<int> max_buff{1};
-  
-  q.submit([&](sycl::handler
-                   &cgh) {
+
+  q.submit([&](sycl::handler &cgh) {
     auto values_acc = values_buff.get_access<sycl::access_mode::read>(
         cgh);
 
@@ -296,7 +295,7 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
                        max.combine(values_acc[idx]);
                      });
   });
-
+  
   BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }

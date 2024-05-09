@@ -349,7 +349,7 @@ public:
                 stage.data_plan[reduction_index].is_input_initialized =
                     is_initialized_b;
               }
-              // outputs should be set to final destination for last stage
+              // outputs should be set to nullptr for last stage
               if (i != result_plan.size() - 1) {
                 stage.data_plan[reduction_index].stage_output = stage_scratch_a;
                 stage.data_plan[reduction_index].is_output_initialized =

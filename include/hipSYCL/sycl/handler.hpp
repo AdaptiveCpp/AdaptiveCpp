@@ -38,6 +38,7 @@
 #include "context.hpp"
 #include "device.hpp"
 #include "event.hpp"
+#include "libkernel/sscp/builtins/print.hpp"
 #include "types.hpp"
 #include "usm_query.hpp"
 #include "libkernel/accessor.hpp"
@@ -798,7 +799,7 @@ private:
             typename... Reductions>
   rt::dag_node_ptr submit_ndrange_reduction_kernel(
       sycl::range<Dim> global_range, sycl::range<Dim> local_range,
-      KernelFuncType f, bool user_kernel_allows_index_remapping, Reductions... reductions) {
+      KernelFuncType f, Reductions... reductions) {
 
     const std::size_t local_size = local_range.size();
 
@@ -810,6 +811,14 @@ private:
       
       if(previous_event)
         req_list.add_node_requirement(previous_event);
+      // Also need to add existing memory requirements, so that
+      // additional kernels will also create dependencies on
+      // buffers for buffer-accessor reductions
+      for(const rt::dag_node_ptr& req : _requirements.get()) {
+        auto* op = req->get_operation();
+        if(op->is_requirement())
+          req_list.add_node_requirement(req);
+      }
       
       previous_event =
           this->submit_kernel_impl<__hipsycl_unnamed_kernel,
@@ -839,10 +848,8 @@ private:
     algorithms::reduction::wg_hierarchical_reduction_engine engine{
         horizontal_reducer, &scratch_allocations};
 
-    //util::data_streamer streamer{q.get_device(), problem_size, local_size};
-    //const std::size_t dispatched_global_size =
-    //    streamer.get_required_global_size();
     const std::size_t dispatched_global_size = global_range.size();
+
     auto plan = engine.create_plan(dispatched_global_size, local_size,
                                   reductions...);
     
@@ -859,9 +866,6 @@ private:
     auto main_kernel = engine.make_main_reducing_kernel(
         [=](sycl::nd_item<Dim> idx, auto &...reducers) {
           make_lvalue_reducers(f, idx, generate_sycl_reducer(reducers)...);
-          //util::data_streamer::run(problem_size, idx, [&](sycl::id<1> i){
-          //  k(i, reducer);
-          //})
         },
         plan);
 
@@ -896,9 +900,9 @@ private:
     this->_operation_uses_reductions = true;
 
     if constexpr(KernelType == rt::kernel_type::ndrange_parallel_for) {
-      auto node = submit_ndrange_reduction_kernel<KernelName>(
-          global_range, local_range, f, false, reductions...);
-      _command_group_nodes.push_back(node);
+      _command_group_nodes.push_back(
+          submit_ndrange_reduction_kernel<KernelName>(global_range, local_range,
+                                                      f, reductions...));
     }
     else if constexpr(KernelType == rt::kernel_type::basic_parallel_for) {
       auto default_local_range = [](){
@@ -912,26 +916,54 @@ private:
 
       local_range = default_local_range();
 
-      auto wrapped_f = [=](sycl::nd_item<Dim> idx, auto&... reducers) {
-        auto gid = idx.get_global_id();
-        auto this_item = sycl::detail::make_item<Dim>(
-          gid, global_range);
-        
+      bool can_use_data_streamer = 
+        (Dim == 1) && _execution_hints.has_hint<rt::hints::bind_to_device>();
+
+      if (can_use_data_streamer) {
+        const std::size_t desired_global_range = global_range.size();
+
+        algorithms::util::data_streamer streamer{
+            _execution_hints.get_hint<rt::hints::bind_to_device>()
+              ->get_device_id(), desired_global_range, local_range.size()};
+        std::size_t dispatched_global_range = streamer.get_required_global_size();
+
+        auto wrapped_f = [desired_global_range, f](sycl::nd_item<1> idx, auto &...reducers) {
+          algorithms::util::data_streamer::run(
+              desired_global_range, idx, [&](sycl::id<1> i) {
+                auto this_item = sycl::detail::make_item<1>(
+                    i, sycl::range{desired_global_range});
+                if constexpr (Dim == 1) {
+                  f(this_item, reducers...);
+                }
+              });
+        };
+
+        // Ensure everything is submitted as 1D since data streaming
+        // can only work for 1D kernels.
+        _command_group_nodes.push_back(
+            submit_ndrange_reduction_kernel<KernelName>(
+                sycl::range<1>{dispatched_global_range},
+                sycl::range<1>{local_range.size()}, wrapped_f, reductions...));
+      } else {
+        auto wrapped_f = [=](sycl::nd_item<Dim> idx, auto &...reducers) {
+          auto gid = idx.get_global_id();
+          auto this_item = sycl::detail::make_item<Dim>(gid, global_range);
+
+          for (int i = 0; i < Dim; ++i)
+            if (gid[i] >= global_range[i])
+              return;
+          f(this_item, reducers...);
+        };
+
+        sycl::range<Dim> num_groups;
         for(int i = 0; i < Dim; ++i)
-          if(gid[i] >= global_range[i])
-            return;
-        f(this_item, reducers...);
-      };
+          num_groups[i] = (global_range[i] + local_range[i] - 1)/local_range[i];
 
-      sycl::range<Dim> num_groups;
-      
-      for(int i = 0; i < Dim; ++i)
-        num_groups[i] = (global_range[i] + local_range[i] - 1)/local_range[i];
-
-      auto node = submit_ndrange_reduction_kernel<KernelName>(
-          num_groups * local_range, local_range, wrapped_f,
-          true, reductions...);
-      _command_group_nodes.push_back(node);
+        _command_group_nodes.push_back(
+            submit_ndrange_reduction_kernel<KernelName>(
+                num_groups * local_range, local_range, wrapped_f,
+                reductions...));
+      }
     }
   }
 

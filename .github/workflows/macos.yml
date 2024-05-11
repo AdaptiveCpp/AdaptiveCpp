@@ -21,10 +21,14 @@ jobs:
         set -e
     - name: build
       run: |
+        export CXX=`brew list llvm | grep clang++`
+        export LLVM_DIR=`brew list llvm | grep cmake/AddLLVM.cmake | sed -E "s/\/cmake\/.*//"`
+        
         mkdir build && cd build
         cmake .. \
         -DWITH_OPENCL_BACKEND=OFF \
-        -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install
+        -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install \
+        -DLLVM_DIR=$LLVM_DIR
         make -j 2 install VERBOSE=ON
     - name: build library only CPU tests
       run: |

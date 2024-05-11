@@ -19,11 +19,15 @@ jobs:
         brew install llvm
         brew install boost
         set -e
+        
+        export CXX=`brew list llvm | grep clang++`
+        echo "CXX=${CXX}" >> $GITHUB_ENV
+        export LLVM_ROOT=`echo $CXX | sed -E "s/bin\/.*//"`
+        echo "LLVM_DIR=${LLVM_ROOT}/lib/cmake/llvm" >> $GITHUB_ENV
+        echo "LDFLAGS=-L${LLVM_ROOT}/lib/c++ -Wl,-rpath,${LLVM_ROOT}/lib/c++" >> $GITHUB_ENV
+        
     - name: build
       run: |
-        export CXX=`brew list llvm | grep clang++`
-        export LLVM_DIR=`brew list llvm | grep cmake/llvm/AddLLVM.cmake | sed -E "s/cmake\/llvm\/.*/cmake\/llvm/"`
-        
         mkdir build && cd build
         cmake .. \
         -DWITH_OPENCL_BACKEND=OFF \

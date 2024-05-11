@@ -103,13 +103,15 @@ list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
 
-# Check for OpenCL unless user has explicitly set WITH_SSCP_COMPILER to False
-if (DEFINED WITH_SSCP_COMPILER)
-  if (WITH_SSCP_COMPILER)
+if(NOT APPLE) # OpenCL on Apple is a lie!
+  # Check for OpenCL unless user has explicitly set WITH_SSCP_COMPILER to False
+  if (DEFINED WITH_SSCP_COMPILER)
+    if (WITH_SSCP_COMPILER)
+      find_package(OpenCL QUIET)
+    endif()
+  else()
     find_package(OpenCL QUIET)
   endif()
-else()
-  find_package(OpenCL QUIET)
 endif()
 
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
@@ -157,14 +159,16 @@ set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GP
 set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build hipSYCL support for OpenCL SPIR-V devices supporting USM")
 set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
-if(APPLE OR WIN32 OR WITH_CUDA_NVCXX_ONLY)
+if(WIN32 OR WITH_CUDA_NVCXX_ONLY)
   set(WITH_ACCELERATED_CPU false CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
   set(WITH_SSCP_COMPILER false CACHE BOOL "Build hipSYCL generic SSCP compiler support")
   set(WITH_STDPAR_COMPILER false CACHE BOOL "Build hipSYCL C++ standard parallelism support")
 else()
   set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
   set(WITH_SSCP_COMPILER true CACHE BOOL "Build hipSYCL generic SSCP compiler support")
-  set(WITH_STDPAR_COMPILER true CACHE BOOL "Build hipSYCL C++ standard parallelism compiler support")
+  if(NOT APPLE)
+    set(WITH_STDPAR_COMPILER true CACHE BOOL "Build hipSYCL C++ standard parallelism compiler support")
+  endif()
 endif()
 set(WITH_CPU_BACKEND true)
 

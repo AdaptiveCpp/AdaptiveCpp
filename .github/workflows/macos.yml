@@ -22,7 +22,7 @@ jobs:
     - name: build
       run: |
         export CXX=`brew list llvm | grep clang++`
-        export LLVM_DIR=`brew list llvm | grep cmake/AddLLVM.cmake | sed -E "s/\/cmake\/.*//"`
+        export LLVM_DIR=`brew list llvm | grep cmake/llvm/AddLLVM.cmake | sed -E "s/cmake\/llvm\/.*/cmake\/llvm/"`
         
         mkdir build && cd build
         cmake .. \

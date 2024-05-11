@@ -15,15 +15,25 @@ jobs:
         set +e
         brew update
         brew install cmake
+        brew install llvm
         brew install libomp
         brew install boost
         set -e
+
+        export CXX=`brew list llvm | grep clang++`
+        echo "CXX=${CXX}" >> $GITHUB_ENV
+        export LLVM_ROOT=`echo $CXX | sed -E "s/bin\/.*//"`
+        echo "LLVM_DIR=${LLVM_ROOT}/lib/cmake/llvm" >> $GITHUB_ENV
+        echo "LDFLAGS=-L${LLVM_ROOT}/lib/c++ -Wl,-rpath,${LLVM_ROOT}/lib/c++" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=${LLVM_ROOT}/lib/c++:${LLVM_ROOT}/lib:${GITHUB_WORKSPACE}/build/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        
     - name: build
       run: |
         mkdir build && cd build
         cmake .. \
         -DWITH_OPENCL_BACKEND=OFF \
-        -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install
+        -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install \
+        -DLLVM_DIR=$LLVM_DIR
         make -j 2 install VERBOSE=ON
     - name: build library only CPU tests
       run: |
@@ -33,6 +43,10 @@ jobs:
         -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
         ${GITHUB_WORKSPACE}/tests
         make -j 2 VERBOSE=ON
+    - name: run CPU tests
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        ./sycl_tests
     - name: build accelerated CPU tests
       run: |
         mkdir build/tests-acc-cpu && cd build/tests-acc-cpu
@@ -41,6 +55,11 @@ jobs:
         -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
         ${GITHUB_WORKSPACE}/tests
         make -j 2 VERBOSE=ON
+    - name: run accelerated CPU tests
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-acc-cpu
+        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-cbs
     - name: build SSCP (CPU) tests
       run: |
         mkdir build/tests-sscp && cd build/tests-sscp
@@ -49,15 +68,6 @@ jobs:
         -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
         ${GITHUB_WORKSPACE}/tests
         make -j 2 VERBOSE=ON
-    - name: run CPU tests
-      run: |
-        cd ${GITHUB_WORKSPACE}/build/tests-cpu
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
-    - name: run accelerated CPU tests
-      run: |
-        cd ${GITHUB_WORKSPACE}/build/tests-acc-cpu
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-cbs
     - name: run SSCP tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-acc-cpu

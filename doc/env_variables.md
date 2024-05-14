@@ -28,3 +28,4 @@
 * `ACPP_STDPAR_OHC_MIN_TIME`: stdpar offload heuristic configuration (ohc): If set, offloading decisions will only be reevaluated after at least this much time in seconds has passed.
 * `ACPP_RT_NO_JIT_CACHE_POPULATION`: If set to `1`, prevents the kernel cache from storing SSCP JIT-compiled binaries in the persistent on-disk cache. This can be useful e.g. in an MPI context, where it is sufficient that only one process among many populates the cache.
 * `ACPP_ADAPTIVITY_LEVEL`: Controls the optimization level of the adaptivity engine. This is currently only relevant for the generic SSCP target. A higher value implies JIT-compiling more specialized kernels at the expense of more frequent JIT compilations. A value of 0 disables all adaptivity (not recommended).
+* `ACPP_APPDB_DIR`: By default, AdaptiveCpp stores its application db (which in particular includes the per-app JIT cache) in `$HOME/.acpp`. This environment variable can be used to override the location.

@@ -84,6 +84,13 @@ enum class kernel_build_flag : int {
   spirv_enable_intel_llvm_spirv_options
 };
 
+// This anonymous namespace is necessary to ensure that each backend plugin
+// has its own instance of the singleton. Otherwise there might be problems
+// when the runtime is restarted.
+// TODO: A cleaner solution might be to move the kernel_configuration content
+// from glue to rt, and define these functions inside a .cpp file.
+namespace {
+
 class string_build_config_mapper {
 public:
   string_build_config_mapper() {
@@ -178,6 +185,8 @@ to_build_flag(const std::string& s) {
     return {};
   return it->second;
 }
+
+} // anonymous namespace
 
 class kernel_configuration {
 

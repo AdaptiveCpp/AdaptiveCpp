@@ -52,7 +52,7 @@ public:
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name,
-                               const glue::kernel_configuration& config) override;
+                               const kernel_configuration& config) override;
   
   virtual rt::range<3> select_group_size(const rt::range<3> &num_groups,
                                          const rt::range<3> &group_size) const override;
@@ -93,7 +93,7 @@ public:
       const std::string &kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const glue::kernel_configuration &config);
+      const kernel_configuration &config);
 
   worker_thread& get_worker();
 private:

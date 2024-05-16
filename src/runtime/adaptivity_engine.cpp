@@ -26,7 +26,7 @@
  */
 
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/application.hpp"
 
@@ -49,31 +49,31 @@ kernel_adaptivity_engine::kernel_adaptivity_engine(
   _adaptivity_level = application::get_settings().get<setting::adaptivity_level>();
 }
 
-glue::kernel_configuration::id_type
+kernel_configuration::id_type
 kernel_adaptivity_engine::finalize_binary_configuration(
-    glue::kernel_configuration &config) {
+    kernel_configuration &config) {
 
   if(_adaptivity_level > 0) {
     // Enter single-kernel code model
     config.append_base_configuration(
-        glue::kernel_base_config_parameter::single_kernel, _kernel_name);
+        kernel_base_config_parameter::single_kernel, _kernel_name);
 
     // Hard-code group sizes into the JIT binary
-    config.set_build_option(glue::kernel_build_option::known_group_size_x,
+    config.set_build_option(kernel_build_option::known_group_size_x,
                             _block_size[0]);
-    config.set_build_option(glue::kernel_build_option::known_group_size_y,
+    config.set_build_option(kernel_build_option::known_group_size_y,
                             _block_size[1]);
-    config.set_build_option(glue::kernel_build_option::known_group_size_z,
+    config.set_build_option(kernel_build_option::known_group_size_z,
                             _block_size[2]);
 
     // Try to optimize size_t -> i32 for queries if those fit in int
     auto global_size = _num_groups * _block_size;
     auto int_max = std::numeric_limits<int>::max();
     if (global_size[0] * global_size[1] * global_size[2] < int_max)
-      config.set_build_flag(glue::kernel_build_flag::global_sizes_fit_in_int);
+      config.set_build_flag(kernel_build_flag::global_sizes_fit_in_int);
 
     // Hard-code local memory size into the JIT binary
-    config.set_build_option(glue::kernel_build_option::known_local_mem_size,
+    config.set_build_option(kernel_build_option::known_local_mem_size,
                             _local_mem_size);
 
     // Handle kernel parameter optimization hints

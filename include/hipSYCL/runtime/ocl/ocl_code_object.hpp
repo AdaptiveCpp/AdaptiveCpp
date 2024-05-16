@@ -35,7 +35,7 @@
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -56,7 +56,7 @@ public:
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name,
-                               const glue::kernel_configuration& config) override;
+                               const kernel_configuration& config) override;
 private:
   ocl_queue* _queue;
 };
@@ -66,7 +66,7 @@ class ocl_executable_object : public code_object {
 public:
   ocl_executable_object(const cl::Context &ctx, cl::Device &dev,
                         hcf_object_id source, const std::string &code_image,
-                        const glue::kernel_configuration &config);
+                        const kernel_configuration &config);
   virtual ~ocl_executable_object();
 
   result get_build_result() const;
@@ -82,7 +82,7 @@ public:
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
   virtual compilation_flow source_compilation_flow() const override;
-  virtual glue::kernel_configuration::id_type configuration_id() const override;
+  virtual kernel_configuration::id_type configuration_id() const override;
 
   cl::Device get_cl_device() const;
   cl::Context get_cl_context() const;
@@ -98,7 +98,7 @@ private:
   mutable std::unordered_map<std::string, cl::Kernel> _kernel_handles;
 
   result _build_status;
-  glue::kernel_configuration::id_type _id;
+  kernel_configuration::id_type _id;
 };
 
 

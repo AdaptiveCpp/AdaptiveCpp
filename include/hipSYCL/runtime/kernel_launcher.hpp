@@ -39,7 +39,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/util.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 
 #include "backend.hpp"
 
@@ -94,7 +94,7 @@ public:
   // Additional backend-specific parameters (e.g. queue)
   virtual void set_params(void*) = 0;
   virtual void invoke(dag_node *node,
-                      const glue::kernel_configuration &config) = 0;
+                      const kernel_configuration &config) = 0;
 
   void set_backend_capabilities(const backend_kernel_launch_capabilities& cap) {
     _capabilities = cap;
@@ -141,13 +141,13 @@ public:
     return selected_launcher;
   }
 
-  const glue::kernel_configuration& get_kernel_configuration() const {
+  const kernel_configuration& get_kernel_configuration() const {
     return _kernel_config;
   }
 private:
   common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
       _kernels;
-  glue::kernel_configuration _kernel_config;
+  kernel_configuration _kernel_config;
 };
 
 

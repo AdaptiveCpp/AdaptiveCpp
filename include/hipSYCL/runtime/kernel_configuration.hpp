@@ -45,7 +45,7 @@
 
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
 enum class kernel_base_config_parameter : int {
   backend_id = 0,
@@ -84,12 +84,6 @@ enum class kernel_build_flag : int {
   spirv_enable_intel_llvm_spirv_options
 };
 
-// This anonymous namespace is necessary to ensure that each backend plugin
-// has its own instance of the singleton. Otherwise there might be problems
-// when the runtime is restarted.
-// TODO: A cleaner solution might be to move the kernel_configuration content
-// from glue to rt, and define these functions inside a .cpp file.
-namespace {
 
 class string_build_config_mapper {
 public:
@@ -125,26 +119,28 @@ public:
     }
   }
 
-  static const auto& string_to_build_option_map() {
-    return get()._options;
+  const auto&
+  string_to_build_option_map() const{
+    return _options;
   }
 
-  static const auto& string_to_build_flag_map() {
-    return get()._flags;
+  const auto&
+  string_to_build_flag_map() const {
+    return _flags;
   }
 
-  static const auto& build_option_to_string_map() {
-    return get()._inverse_options;
+  const auto&
+  build_option_to_string_map() const {
+    return _inverse_options;
   }
 
-  static const auto& build_flag_to_string_map() {
-    return get()._inverse_flags;
+  const auto&
+  build_flag_to_string_map() const {
+    return _inverse_flags;
   }
+
+  static string_build_config_mapper& get();
 private:
-  static string_build_config_mapper& get() {
-    static string_build_config_mapper mapper;
-    return mapper;
-  }
 
   std::unordered_map<std::string, kernel_build_option> _options;
   std::unordered_map<std::string, kernel_build_flag> _flags;
@@ -153,7 +149,7 @@ private:
 };
 
 inline std::string to_string(kernel_build_flag f) {
-  const auto& map = string_build_config_mapper::build_flag_to_string_map();
+  const auto& map = string_build_config_mapper::get().build_flag_to_string_map();
   auto it = map.find(f);
   if(it == map.end())
     return {};
@@ -161,7 +157,7 @@ inline std::string to_string(kernel_build_flag f) {
 }
 
 inline std::string to_string(kernel_build_option o) {
-  const auto& map = string_build_config_mapper::build_option_to_string_map();
+  const auto& map = string_build_config_mapper::get().build_option_to_string_map();
   auto it = map.find(o);
   if(it == map.end())
     return {};
@@ -170,7 +166,7 @@ inline std::string to_string(kernel_build_option o) {
 
 inline std::optional<kernel_build_option>
 to_build_option(const std::string& s) {
-  const auto& map = string_build_config_mapper::string_to_build_option_map();
+  const auto& map = string_build_config_mapper::get().string_to_build_option_map();
   auto it = map.find(s);
   if(it == map.end())
     return {};
@@ -179,14 +175,13 @@ to_build_option(const std::string& s) {
 
 inline std::optional<kernel_build_flag>
 to_build_flag(const std::string& s) {
-  const auto& map = string_build_config_mapper::string_to_build_flag_map();
+  const auto& map = string_build_config_mapper::get().string_to_build_flag_map();
   auto it = map.find(s);
   if(it == map.end())
     return {};
   return it->second;
 }
 
-} // anonymous namespace
 
 class kernel_configuration {
 

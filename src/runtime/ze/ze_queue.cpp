@@ -33,7 +33,7 @@
 #include <vector>
 
 #include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -466,24 +466,24 @@ result ze_queue::submit_multipass_kernel_from_code_object(
 
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
-  glue::kernel_configuration config;
+  kernel_configuration config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::level_zero);
+      kernel_base_config_parameter::backend_id, backend_id::level_zero);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::explicit_multipass);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
   
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, dev);
-  glue::kernel_configuration::extend_hash(
+      kernel_base_config_parameter::runtime_device, dev);
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_context, ctx);
+      kernel_base_config_parameter::runtime_context, ctx);
 
   auto code_object_constructor = [&]() -> code_object* {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
@@ -553,7 +553,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       const std::string &kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const glue::kernel_configuration &initial_config) {
+      const kernel_configuration &initial_config) {
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
@@ -588,16 +588,16 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
-  static thread_local glue::kernel_configuration config;
+  static thread_local kernel_configuration config;
   config = initial_config;
   
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::level_zero);
+      kernel_base_config_parameter::backend_id, backend_id::level_zero);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   for(const auto& flag : kernel_info->get_compilation_flags())
     config.set_build_flag(flag);
@@ -605,20 +605,20 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     config.set_build_option(opt.first, opt.second);
 
   config.set_build_option(
-      glue::kernel_build_option::spirv_dynamic_local_mem_allocation_size,
+      kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
   config.set_build_flag(
-      glue::kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
+      kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
   
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, dev);
-  glue::kernel_configuration::extend_hash(
+      kernel_base_config_parameter::runtime_device, dev);
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_context, ctx);
+      kernel_base_config_parameter::runtime_context, ctx);
 
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);

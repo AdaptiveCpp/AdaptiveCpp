@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -61,7 +61,7 @@ public:
   omp_sscp_executable_object(const std::string &shared_lib_path,
                              hcf_object_id hcf_source,
                              const std::vector<std::string> &kernel_names,
-                             const glue::kernel_configuration &config);
+                             const kernel_configuration &config);
 
   virtual ~omp_sscp_executable_object();
 
@@ -85,7 +85,7 @@ private:
   result build(const std::string &source, const std::vector<std::string> &kernel_names);
 
   hcf_object_id _hcf;
-  glue::kernel_configuration::id_type _id;
+  kernel_configuration::id_type _id;
   std::string _kernel_cache_path;
 
   result _build_result;

@@ -120,7 +120,7 @@ jobs:
       matrix:
         clang: ['16']
         os: [ubuntu-22.04]
-        cuda: [12.4]
+        cuda: [11.8]
         rocm: [5.6.1]
     steps:
       - name: install git and other dependencies in container
@@ -178,10 +178,14 @@ jobs:
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
       - name: install CUDA Toolkit and driver
         run : |
+          export CUDAMAJOR=$(echo ${{matrix.cuda}} | sed 's/\..*//')
+          export CUDAMINOR=$(echo ${{matrix.cuda}} | sed 's/.*\.//')
+          echo "CUDAMAJOR=${CUDAMAJOR}" >> $GITHUB_ENV
+          echo "CUDAMINOR=${CUDAMINOR}" >> $GITHUB_ENV
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           dpkg -i cuda-keyring_1.1-1_all.deb
           apt update
-          apt install -y cuda-toolkit-$(echo ${{matrix.cuda}} | sed 's/\..*//')-$(echo ${{matrix.cuda}} | sed 's/.*\.//')
+          apt install -y cuda-toolkit-${{ env.CUDAMAJOR }}-${{ env.CUDAMINOR }}
           DEBIAN_FRONTEND=noninteractive apt install -y cuda-drivers-550
           echo "$(dpkg -S libcuda)"
       - name: install ROCm
@@ -223,7 +227,7 @@ jobs:
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
           echo "libhiprtc 5 hip-runtime-amd" >> debian/shlibs.local
           echo $(cat /var/lib/dpkg/info/ocl-icd-libopencl1\:amd64.shlibs) >> debian/shlibs.local
-          echo "libcudart 12 cuda-cudart-12-4" >> debian/shlibs.local
+          echo "libcudart ${{ env.CUDAMAJOR }} cuda-cudart-${{ env.CUDAMAJOR }}-${{ env.CUDAMINOR }}" >> debian/shlibs.local
           echo "libze_loader 1 level-zero" >> debian/shlibs.local
           echo "libamdhip64 5 hip-runtime-amd" >> debian/shlibs.local
           echo $(sed -n 1p /var/lib/dpkg/info/libnvidia-compute-*\:amd64.shlibs) >> debian/shlibs.local

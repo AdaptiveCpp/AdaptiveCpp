@@ -166,6 +166,10 @@ jobs:
           echo "PKGNAME=${PKGNAME}" >> $GITHUB_ENV
           echo "DEBFULLNAME=${DEBFULLNAME}" >> $GITHUB_ENV
           echo "DEBEMAIL=${DEBEMAIL}" >> $GITHUB_ENV
+          export CUDAMAJOR=$(echo ${{matrix.cuda}} | sed 's/\..*//')
+          export CUDAMINOR=$(echo ${{matrix.cuda}} | sed 's/.*\.//')
+          echo "CUDAMAJOR=${CUDAMAJOR}" >> $GITHUB_ENV
+          echo "CUDAMINOR=${CUDAMINOR}" >> $GITHUB_ENV
           echo $GITHUB_ENV
           export CXXFLAGS="$CXXFLAGS"
           if [ "${{matrix.clang}}" != "11" ] && [ "${{matrix.clang}}" -lt "16" ]; then
@@ -178,10 +182,6 @@ jobs:
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
       - name: install CUDA Toolkit and driver
         run : |
-          export CUDAMAJOR=$(echo ${{matrix.cuda}} | sed 's/\..*//')
-          export CUDAMINOR=$(echo ${{matrix.cuda}} | sed 's/.*\.//')
-          echo "CUDAMAJOR=${CUDAMAJOR}" >> $GITHUB_ENV
-          echo "CUDAMINOR=${CUDAMINOR}" >> $GITHUB_ENV
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           dpkg -i cuda-keyring_1.1-1_all.deb
           apt update

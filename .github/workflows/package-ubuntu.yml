@@ -234,7 +234,7 @@ jobs:
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
           echo "libhiprtc 5 hip-runtime-amd" >> debian/shlibs.local
           echo $(cat /var/lib/dpkg/info/ocl-icd-libopencl1\:amd64.shlibs) >> debian/shlibs.local
-          echo "libcudart ${{ env.CUDAMAJOR }} cuda-cudart-${{ env.CUDAMAJOR }}-${{ env.CUDAMINOR }}" >> debian/shlibs.local
+          echo "libcudart ${{ env.CUDAMAJOR }}.0 cuda-cudart-${{ env.CUDAMAJOR }}-${{ env.CUDAMINOR }}" >> debian/shlibs.local
           echo "libze_loader 1 level-zero" >> debian/shlibs.local
           echo "libamdhip64 5 hip-runtime-amd" >> debian/shlibs.local
           echo $(sed -n 1p /var/lib/dpkg/info/libnvidia-compute-*\:amd64.shlibs) >> debian/shlibs.local

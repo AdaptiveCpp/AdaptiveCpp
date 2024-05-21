@@ -224,6 +224,13 @@ jobs:
           sed -i "s/-DWITH_ROCM_BACKEND=.*/-DWITH_ROCM_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_LEVEL_ZERO_BACKEND=.*/-DWITH_LEVEL_ZERO_BACKEND=ON \\\/" debian/rules
           sed -i "s/-DWITH_OPENCL_BACKEND=.*/-DWITH_OPENCL_BACKEND=ON \\\/" debian/rules
+          echo "libacpp-rt ${{ env.PKGNAME }} acpp" >> debian/shlibs.local
+          echo "libacpp-common ${{ env.PKGNAME }} acpp" >> debian/shlibs.local
+          echo "libllvm-to-ptx ${{ env.PKGNAME }} acpp" >> debian/shlibs.local
+          echo "libllvm-to-host ${{ env.PKGNAME }} acpp" >> debian/shlibs.local
+          echo "libllvm-to-spirv ${{ env.PKGNAME }} acpp" >> debian/shlibs.local
+          echo "libllvm-to-amdgpu ${{ env.PKGNAME }} acpp" >> debian/shlibs.local
+          echo "libllvm-to-backend ${{ env.PKGNAME }} acpp" >> debian/shlibs.local
           echo $(cat  /var/lib/dpkg/info/libllvm${{matrix.clang}}\:amd64.shlibs) > debian/shlibs.local
           echo "libhiprtc 5 hip-runtime-amd" >> debian/shlibs.local
           echo $(cat /var/lib/dpkg/info/ocl-icd-libopencl1\:amd64.shlibs) >> debian/shlibs.local

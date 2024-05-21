@@ -34,6 +34,7 @@ namespace {
 class string_build_config_mapper {
 public:
   string_build_config_mapper() {
+    printf("Constructing mapper\n");
     _options =  {
       {"known-group-size-x", kernel_build_option::known_group_size_x},
       {"known-group-size-y", kernel_build_option::known_group_size_y},
@@ -63,6 +64,10 @@ public:
     for(const auto& elem : _flags) {
       _inverse_flags[elem.second] = elem.first;
     }
+  }
+
+  ~string_build_config_mapper() {
+    printf("Mapper destroyed\n");
   }
 
   const auto&
@@ -102,16 +107,20 @@ private:
 
 
 std::string to_string(kernel_build_flag f) {
+  printf("to_string(kernel_build_flag f)\n");
   const auto& map = string_build_config_mapper::get().build_flag_to_string_map();
   auto it = map.find(f);
+  printf("to_string(kernel_build_flag f) end\n");
   if(it == map.end())
     return {};
   return it->second;
 }
 
 std::string to_string(kernel_build_option o) {
+  printf("to_string(kernel_build_option f)\n");
   const auto& map = string_build_config_mapper::get().build_option_to_string_map();
   auto it = map.find(o);
+  printf("to_string(kernel_build_option f) end\n");
   if(it == map.end())
     return {};
   return it->second;
@@ -119,8 +128,10 @@ std::string to_string(kernel_build_option o) {
 
 std::optional<kernel_build_option>
 to_build_option(const std::string& s) {
+  printf("to_build_option()\n");
   const auto& map = string_build_config_mapper::get().string_to_build_option_map();
   auto it = map.find(s);
+  printf("to_build_option() end\n");
   if(it == map.end())
     return {};
   return it->second;
@@ -128,8 +139,10 @@ to_build_option(const std::string& s) {
 
 std::optional<kernel_build_flag>
 to_build_flag(const std::string& s) {
+  printf("to_build_flag()\n");
   const auto& map = string_build_config_mapper::get().string_to_build_flag_map();
   auto it = map.find(s);
+  printf("to_build_flag() end\n");
   if(it == map.end())
     return {};
   return it->second;

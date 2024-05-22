@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/musa/musa_instrumentation.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/musa/musa_event.hpp"
 
-#ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
-#define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
+#include <musa_runtime_api.h>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/executor.hpp"
-#include "hipSYCL/runtime/multi_queue_executor.hpp"
-
-#include "hipSYCL/sycl/backend.hpp"
+#include <cassert>
+#include <memory>
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-template <sycl::backend b> struct backend_interop {
-  // Specializations should define for interop with a sycl type T:
-  //
-  // using native_T_type = <native-backend-type>
-  // static native_T_type get_native_T(const T&)
-  // T make_T(const native_T_type&, <potentially additional args>)
-  //
-  // For interop_handle, the following is required:
-  // native_queue_type get_native_queue(rt::backend_kernel_launcher*)
-  // native_queue_type get_native_queue(rt::device_id, rt::backend_executor*)
-  // 
-  // In any case, the following should be defined:
-  // static constexpr bool can_make_T = <whether make_T exists>
-  // static constexpr bool can_extract_native_T = <whether get_native_T exists>
-};
+profiler_clock::duration
+musa_event_time_delta::operator()(const dag_node_event& t0,
+                                  const dag_node_event& t1) const {
+  assert(t0.is_complete());
+  assert(t1.is_complete());
+
+  musaEvent_t t0_evt = cast<const musa_node_event>(&t0)->get_event();
+  musaEvent_t t1_evt = cast<const musa_node_event>(&t1)->get_event();
+  
+  float ms = 0.0f;
+  musaError_t err = musaEventElapsedTime(&ms, t0_evt, t1_evt);
+
+  if (err != musaSuccess) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"musa_event_time_delta: musaEventElapsedTime() failed",
+                   error_code{"MUSA", err}});
+  }
+
+  return std::chrono::round<profiler_clock::duration>(
+      std::chrono::duration<float, std::milli>{ms});
+}
 
 }
-} // namespace hipsycl
+}
 
-#include "cuda/cuda_interop.hpp"
-#include "hip/hip_interop.hpp"
-#include "ze/ze_interop.hpp"
-#include "omp/omp_interop.hpp"
-#include "musa/musa_interop.hpp"
-
-#endif

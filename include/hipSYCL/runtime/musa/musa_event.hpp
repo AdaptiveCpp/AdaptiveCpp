@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_MUSA_EVENT_HPP
+#define HIPSYCL_MUSA_EVENT_HPP
 
-#ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
-#define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
+#include "../inorder_queue_event.hpp"
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/executor.hpp"
-#include "hipSYCL/runtime/multi_queue_executor.hpp"
-
-#include "hipSYCL/sycl/backend.hpp"
+// Note: MUevent_st* == musaEvent_t 
+struct MUevent_st;
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-template <sycl::backend b> struct backend_interop {
-  // Specializations should define for interop with a sycl type T:
-  //
-  // using native_T_type = <native-backend-type>
-  // static native_T_type get_native_T(const T&)
-  // T make_T(const native_T_type&, <potentially additional args>)
-  //
-  // For interop_handle, the following is required:
-  // native_queue_type get_native_queue(rt::backend_kernel_launcher*)
-  // native_queue_type get_native_queue(rt::device_id, rt::backend_executor*)
-  // 
-  // In any case, the following should be defined:
-  // static constexpr bool can_make_T = <whether make_T exists>
-  // static constexpr bool can_extract_native_T = <whether get_native_T exists>
+class musa_event_pool;
+class musa_node_event : public inorder_queue_event<MUevent_st*>
+{
+public:
+  using backend_event_type = MUevent_st*;
+  /// \param evt musa event; must have been properly initialized and recorded.
+  /// \param pool the pool managing the event. If not null, the destructor will return the event
+  /// to the pool.
+  musa_node_event(device_id dev, MUevent_st* evt, musa_event_pool* pool = nullptr);
+
+  ~musa_node_event();
+
+  virtual bool is_complete() const override;
+  virtual void wait() override;
+
+  backend_event_type get_event() const;
+  device_id get_device() const;
+
+  backend_event_type request_backend_event() override;
+private:
+  device_id _dev;
+  backend_event_type _evt;
+  musa_event_pool* _pool;
 };
 
 }
-} // namespace hipsycl
+}
 
-#include "cuda/cuda_interop.hpp"
-#include "hip/hip_interop.hpp"
-#include "ze/ze_interop.hpp"
-#include "omp/omp_interop.hpp"
-#include "musa/musa_interop.hpp"
 
 #endif

@@ -58,6 +58,7 @@ inline constexpr int spirv = 0;
 inline constexpr int ptx = 1;
 inline constexpr int amdgpu = 2;
 inline constexpr int host = 3;
+inline constexpr int musa = 4;
 
 }
 

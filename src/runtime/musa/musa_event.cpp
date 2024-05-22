@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,61 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/musa/musa_event.hpp"
+#include "hipSYCL/runtime/musa/musa_event_pool.hpp"
+#include "hipSYCL/runtime/error.hpp"
 
-#ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
-#define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
-
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/executor.hpp"
-#include "hipSYCL/runtime/multi_queue_executor.hpp"
-
-#include "hipSYCL/sycl/backend.hpp"
+#include <musa_runtime_api.h>
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-template <sycl::backend b> struct backend_interop {
-  // Specializations should define for interop with a sycl type T:
-  //
-  // using native_T_type = <native-backend-type>
-  // static native_T_type get_native_T(const T&)
-  // T make_T(const native_T_type&, <potentially additional args>)
-  //
-  // For interop_handle, the following is required:
-  // native_queue_type get_native_queue(rt::backend_kernel_launcher*)
-  // native_queue_type get_native_queue(rt::device_id, rt::backend_executor*)
-  // 
-  // In any case, the following should be defined:
-  // static constexpr bool can_make_T = <whether make_T exists>
-  // static constexpr bool can_extract_native_T = <whether get_native_T exists>
-};
+
+musa_node_event::musa_node_event(device_id dev, musaEvent_t evt, musa_event_pool* pool)
+: _dev{dev}, _evt{evt}, _pool{pool}
+{}
+
+musa_node_event::~musa_node_event() {
+  if(_pool) {
+    _pool->release_event(_evt);
+  }
+}
+
+bool musa_node_event::is_complete() const
+{
+  musaError_t err = musaEventQuery(_evt);
+  if (err != musaErrorNotReady && err != musaSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"musa_node_event: Couldn't query event status",
+                              error_code{"MUSA", err}});
+  }
+  return err == musaSuccess;
+}
+
+void musa_node_event::wait()
+{
+  auto err = musaEventSynchronize(_evt);
+  if (err != musaSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"musa_node_event: musaEventSynchronize() failed",
+                              error_code{"MUSA", err}});
+  }
+}
+
+musa_node_event::backend_event_type musa_node_event::get_event() const
+{
+  return _evt;
+}
+
+device_id musa_node_event::get_device() const
+{
+  return _dev;
+}
+
+musa_node_event::backend_event_type
+musa_node_event::request_backend_event() {
+  return get_event();
+}
 
 }
-} // namespace hipsycl
-
-#include "cuda/cuda_interop.hpp"
-#include "hip/hip_interop.hpp"
-#include "ze/ze_interop.hpp"
-#include "omp/omp_interop.hpp"
-#include "musa/musa_interop.hpp"
-
-#endif
+}

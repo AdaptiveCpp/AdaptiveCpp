@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/sycl/libkernel/sscp/builtins/musa/builtin.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
-#ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
-#define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#define HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(name)                                \
+  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f32(float x) {  \
+    return __mt_##name##_f32(x);                                               \
+  }                                                                            \
+  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f64(double x) { \
+    return __mt_##name##_f64(x);                                               \
+  }
+  
+HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(isnan)
 
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/executor.hpp"
-#include "hipSYCL/runtime/multi_queue_executor.hpp"
+HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(isinf)
 
-#include "hipSYCL/sycl/backend.hpp"
+HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(isfinite)
 
-namespace hipsycl {
-namespace glue {
-
-template <sycl::backend b> struct backend_interop {
-  // Specializations should define for interop with a sycl type T:
-  //
-  // using native_T_type = <native-backend-type>
-  // static native_T_type get_native_T(const T&)
-  // T make_T(const native_T_type&, <potentially additional args>)
-  //
-  // For interop_handle, the following is required:
-  // native_queue_type get_native_queue(rt::backend_kernel_launcher*)
-  // native_queue_type get_native_queue(rt::device_id, rt::backend_executor*)
-  // 
-  // In any case, the following should be defined:
-  // static constexpr bool can_make_T = <whether make_T exists>
-  // static constexpr bool can_extract_native_T = <whether get_native_T exists>
-};
-
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnormal_f32(float x) {
+  return __builtin_isnormal(x);
 }
-} // namespace hipsycl
 
-#include "cuda/cuda_interop.hpp"
-#include "hip/hip_interop.hpp"
-#include "ze/ze_interop.hpp"
-#include "omp/omp_interop.hpp"
-#include "musa/musa_interop.hpp"
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnormal_f64(double x) {
+  return __builtin_isnormal(x);
+}
 
-#endif
+HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(signbit)

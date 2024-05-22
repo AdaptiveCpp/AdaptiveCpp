@@ -209,6 +209,38 @@ if(WITH_LEVEL_ZERO_BACKEND)
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
+if(WITH_MUSA_BACKEND)
+  add_library(rt-backend-musa SHARED
+    musa/musa_event.cpp
+    musa/musa_event_pool.cpp
+    musa/musa_queue.cpp
+    musa/musa_instrumentation.cpp
+    musa/musa_allocator.cpp
+    musa/musa_device_manager.cpp
+    musa/musa_hardware_manager.cpp
+    musa/musa_backend.cpp
+    musa/musa_code_object.cpp)
+
+  target_include_directories(rt-backend-musa PRIVATE
+    ${HIPSYCL_SOURCE_DIR}/include
+    ${MUSA_TOOLKIT_ROOT_DIR}/include)
+  
+  target_link_libraries(rt-backend-musa PRIVATE acpp-rt ${MUSA_LIBRARIES} ${MUSA_DRIVER_LIBRARY})
+
+  target_compile_options(rt-backend-musa PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-musa PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-musa PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-musa PRIVATE llvm-to-musa)
+  endif()
+
+  install(TARGETS rt-backend-musa
+        RUNTIME DESTINATION bin/hipSYCL
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
+endif()
+
 if(WITH_OPENCL_BACKEND)
   include(FetchContent)
   FetchContent_Declare(ocl-headers
@@ -338,4 +370,3 @@ if(WITH_CPU_BACKEND)
       LIBRARY DESTINATION lib/hipSYCL
       ARCHIVE DESTINATION lib/hipSYCL)
 endif()
-

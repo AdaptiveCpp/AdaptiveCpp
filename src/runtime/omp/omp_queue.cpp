@@ -433,7 +433,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  static thread_local kernel_configuration config;
+  kernel_configuration config;
   config = initial_config;
   
   config.append_base_configuration(

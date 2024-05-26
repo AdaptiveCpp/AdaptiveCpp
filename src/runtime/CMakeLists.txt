@@ -34,6 +34,7 @@ add_library(acpp-rt SHARED
   data.cpp
   inorder_executor.cpp
   kernel_cache.cpp
+  kernel_configuration.cpp
   multi_queue_executor.cpp
   dag.cpp
   dag_node.cpp

@@ -26,7 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_code_object.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
@@ -146,7 +146,7 @@ result hip_multipass_executable_object::build(const std::string& hip_fat_binary)
 hip_sscp_executable_object::hip_sscp_executable_object(
     const std::string &code_image, const std::string &target_arch,
     hcf_object_id hcf_source, const std::vector<std::string> &kernel_names,
-    int device, const glue::kernel_configuration &config)
+    int device, const kernel_configuration &config)
     : _target{target_arch}, _origin{hcf_source}, _kernel_names{kernel_names},
       _device{device}, _id{config.generate_id()}, _module{nullptr} {
   _build_result = build(code_image);

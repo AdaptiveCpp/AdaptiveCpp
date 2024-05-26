@@ -59,15 +59,16 @@ if(WITH_STDPAR_COMPILER)
   set(STDPAR_COMPILER
     stdpar/MallocToUSM.cpp
     stdpar/SyncElision.cpp)
-    add_definitions(-DHIPSYCL_WITH_STDPAR_COMPILER)
+  add_definitions(-DHIPSYCL_WITH_STDPAR_COMPILER)
 else()
   set(STDPAR_COMPILER "")
 endif()
 
 if(WITH_REFLECTION_BUILTINS)
   set(REFLECTION_BUILTINS
-    reflection/IntrospectStructPass.cpp)
-    add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
+    reflection/IntrospectStructPass.cpp
+    reflection/FunctionNameExtractionPass.cpp)
+  add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
 else()
   set(REFLECTION_BUILTINS "")
 endif()

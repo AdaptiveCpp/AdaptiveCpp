@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2024 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,37 +25,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXTENSIONS_HPP
-#define HIPSYCL_EXTENSIONS_HPP
+#ifndef HIPSYCL_GLUE_FCALL_SPECIALIZATION_HPP
+#define HIPSYCL_GLUE_FCALL_SPECIALIZATION_HPP
 
-#ifdef HIPSYCL_EXT_ENABLE_ALL
- #define HIPSYCL_EXT_FP_ATOMICS
-#endif
+#include <string>
+#include <vector>
 
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#define HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
-#define HIPSYCL_EXT_SCOPED_PARALLELISM_V2
-#define HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
-#define HIPSYCL_EXT_CG_PROPERTY_RETARGET
-#define HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
-#define HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
-#define HIPSYCL_EXT_BUFFER_USM_INTEROP
-#define HIPSYCL_EXT_PREFETCH_HOST
-#define HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE
-#define HIPSYCL_EXT_BUFFER_PAGE_SIZE
-#define HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
-#define HIPSYCL_EXT_ACCESSOR_VARIANTS
 
-#ifndef HIPSYCL_STRICT_ACCESSOR_DEDUCTION
- #define HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
-#endif
+namespace hipsycl::glue::sscp {
 
-#define HIPSYCL_EXT_UPDATE_DEVICE
-#define HIPSYCL_EXT_QUEUE_WAIT_LIST
-#define HIPSYCL_EXT_MULTI_DEVICE_QUEUE
-#define HIPSYCL_EXT_COARSE_GRAINED_EVENTS
-#define HIPSYCL_EXT_QUEUE_PRIORITY
-#define HIPSYCL_EXT_SPECIALIZED
-#define HIPSYCL_EXT_DYNAMIC_FUNCTIONS
+template <class T>
+struct __hipsycl_sscp_emit_param_type_annotation_fcall_specialized_config {
+  T value;
+};
+
+struct fcall_specialized_config {
+  std::size_t unique_hash = 0;
+  std::vector<std::pair<std::string, std::vector<std::string>>> function_call_map;
+};
+
+using fcall_config_kernel_property_t =
+    __hipsycl_sscp_emit_param_type_annotation_fcall_specialized_config<
+        const fcall_specialized_config *>;
+}
 
 #endif

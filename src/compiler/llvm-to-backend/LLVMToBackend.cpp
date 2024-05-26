@@ -213,6 +213,9 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     HIPSYCL_DEBUG_INFO << "LLVMToBackend: Processing specialization " << A.first << "\n";
     A.second(M);
   }
+  // Return error in case applying specializations has caused error list to be populated
+  if(!Errors.empty())
+    return false;
 
   bool ContainsUnsetIRConstants = false;
   bool FlavoringSuccessful = false;
@@ -423,6 +426,76 @@ void LLVMToBackendTranslator::specializeKernelArgument(const std::string &Kernel
                                   llvm::ArrayRef<llvm::Value *>{}, "", InsertionPt);
           F->getArg(ParamIndex)->replaceNonMetadataUsesWith(FnCall);
         }
+      }
+    }
+  };
+}
+
+void LLVMToBackendTranslator::specializeFunctionCalls(
+    const std::string &FuncName, const std::vector<std::string> &ReplacementCalls,
+    bool OverrideOnlyUndefined) {
+  std::string Id = "__specialized_function_call_"+FuncName;
+  SpecializationApplicators[Id] = [=](llvm::Module& M) {
+    if(auto* F = M.getFunction(FuncName)) {
+      if((!OverrideOnlyUndefined || F->isDeclaration()) && !ReplacementCalls.empty()) {
+        llvm::Value* ReplacementValue;
+
+        if(ReplacementCalls.size() == 1){
+          llvm::Function* ReplacementF = M.getFunction(ReplacementCalls[0]);
+          ReplacementValue = ReplacementF;
+
+          if(!ReplacementValue) {
+            registerError("LLVMToBackend: Could not find function call specialization target " +
+                        ReplacementCalls[0] + ", was the function emitted to device code?");
+            return;
+          }
+          if(ReplacementF->getFunctionType() != F->getFunctionType()) {
+            registerError("LLVMToBackend: Specialization function " + ReplacementCalls[0] +
+                          " has incompatible type for specialization of " + FuncName);
+            return;
+          }
+        } else {
+          llvm::SmallVector<llvm::Function*, 16> ReplacementFs;
+
+          if (!F->getReturnType()->isVoidTy()) {
+            registerError("LLVMToBackend: Specialization of function calls using a function call "
+                          "list is only possible if the original and all replacement functions "
+                          "have void return type.");
+            return;
+          }
+          for(const auto& FName : ReplacementCalls) {
+            auto* RetrievedF = M.getFunction(FName);
+            if(!RetrievedF) {
+              registerError("LLVMToBackend: Could not find function call specialization target " +
+                            FName + ", was the function emitted to device code?");
+              return;
+            }
+            if(RetrievedF->getFunctionType() != F->getFunctionType()) {
+              registerError("LLVMToBackend: Specialization function " + FName +
+                          " has incompatible type for specialization of " + FuncName);
+              return;
+            }
+            ReplacementFs.push_back(RetrievedF);
+          }
+          auto ReplacementWrapperFuncCallee = M.getOrInsertFunction(Id, F->getFunctionType(), F->getAttributes());
+          if(auto* ReplacementWrapperF = ReplacementWrapperFuncCallee.getCallee()) {
+            auto BB = llvm::BasicBlock::Create(M.getContext(), "entry",
+                                               static_cast<llvm::Function *>(ReplacementWrapperF));
+            for(auto* F : ReplacementFs) {
+              llvm::SmallVector<llvm::Value*> Args;
+              for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i)
+                Args.push_back(F->getArg(i));
+
+              llvm::CallInst::Create(ReplacementWrapperFuncCallee,
+                                     llvm::ArrayRef<llvm::Value *>{Args}, "", BB);
+            }                                            
+            llvm::ReturnInst::Create(M.getContext(), BB);
+          }
+        }
+
+        F->replaceUsesWithIf(ReplacementValue, [=](llvm::Use& U) {
+          return llvm::isa<llvm::CallBase>(U.getUser());
+        });
       }
     }
   };

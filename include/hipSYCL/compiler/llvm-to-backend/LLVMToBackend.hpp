@@ -86,6 +86,9 @@ public:
   void setS2IRConstant(const std::string& name, const void* ValueBuffer);
   void specializeKernelArgument(const std::string &KernelName, int ParamIndex,
                                 const void *ValueBuffer);
+  void specializeFunctionCalls(const std::string &FuncName,
+                             const std::vector<std::string> &ReplacementCalls,
+                             bool OverrideOnlyUndefined=true);
 
   bool setBuildFlag(const std::string &Flag);
   bool setBuildOption(const std::string &Option, const std::string &Value);

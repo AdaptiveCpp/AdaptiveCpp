@@ -4,6 +4,86 @@ AdaptiveCpp implements several extensions that are not defined by the specificat
 
 ## Supported extensions
 
+### `HIPSYCL_EXT_DYNAMIC_FUNCTIONS`
+
+This extension allows users to provide functions used in kernels with definitions selected at runtime. We call such functions *dynamic functions*, since their definition will be determined at runtime using the JIT compiler. Once a kernel using dynamic functions has been JIT-compiled, there are no runtime overheads as dynamic functions are hardwired at JIT-time.
+
+This can be used to assemble custom kernels at runtime, or to obtain kernel-fusion-like semantics with a high degree of user control.
+
+**This functionality relies on JIT compilation to provide correct semantics. It is thus only available with `--acpp-targets=generic`.** For other compilation flows, code using this functionality will not compile.
+
+The extension works by replacing all function calls in the kernel to a target function with function calls to a replacement function. The original function may be just a declaration, or a function with an existing definition.
+
+The following example demonstrates how this feature could be used in kernel-fusion-like style to decide at runtime that the kernel should consist of both calls to `myfunction1` followed by `myfunction2`.
+```c++
+// SYCL_EXTERNAL ensures that these functions are emitted to device code,
+// even though they are not referenced by the kernel at compile time.
+SYCL_EXTERNAL void myfunction1(sycl::item<1> idx) {
+  // code
+}
+
+SYCL_EXTERNAL void myfunction2(sycl::item<1> idx) {
+  // code
+}
+
+void execute_operations(sycl::item<1> idx);
+
+int main() {
+  sycl::queue q;
+
+  // The dynamic_function_config object stores the JIT-time function mapping information.
+  sycl::jit::dynamic_function_config dyn_function_config;
+  // Requests calls to execute_operations to be replaced at JIT time
+  // with {myfunction1(idx); myfunction2(idx);}
+  dyn_function_config.define_as_call_sequence(&execute_operations, {&myfunction1, &myfunction2});
+  q.parallel_for(sycl::range{1024}, dyn_function_config.apply([=](sycl::item<1> idx){
+    execute_operations(idx);
+  }));
+
+  q.wait();
+}
+```
+
+
+The AdaptiveCpp runtime maintains a kernel cache that automatically distinguishes the same kernel invoked with different dynamic function configuration. JIT compilation is only triggered when a new configuration is requested that is not yet present in the cache.
+
+**Important notes**
+* `dynamic_function_config::apply()` is a very light-weight operation, but constructing a new `dynamic_function_config` object may have some overhead due to initializing the required data structures. It is therefore recommended to reuse a preexisting `dynamic_function_config` object when the same kernel is submitted multiple times with the same configuration.
+* Only a single `dynamic_function_config` object may be applied at a given kernel launch.
+* It is the user's responsibility to ensure that the `dynamic_function_config` object is kept alive at least until all kernels using it have completed.
+* `dynamic_function_config` is not thread-safe; if one object is shared across multiple threads, it is the user's responsibility to ensure appropriate synchronization.
+* With this extension, the user can exchange kernel code at runtime. This means that in general, the compiler cannot know at compile time anymore which parts of the code need to be part of device code. Therefore, functions  providing the definitions have to be marked as `SYCL_EXTERNAL` to ensure that they are emitted to device code. This can be omitted if the function is invoked from the kernel already at compile time.
+* It is possible to provide a "default definition" for dynamic functions by not just declaring them, but also providing a definition (e.g. in the example above, provide a definition for `execute_operations`). However, in this case, we recommend that the function is marked with `__attribute__((noinline))`. Otherwise, in some cases the compiler might decide to already inline the function early on during the optimization process -- and once, inlined, the JIT compiler no loner sees the function and therefore can no longer find function calls to replace. The `noinline` attribute will have no performance implications once the replacement function definition has been put in place by the JIT compiler.
+
+#### API Reference
+
+```c++
+namespace sycl::jit {
+
+class dynamic_function_config {
+public:
+
+  // Set the definition of `func` to be provided by `definition`.
+  template<class Ret, typename... Args>
+  void define(Ret (*func)(Args...), Ret(*definition)(Args...));
+
+  // Set the definition of `func` to be provided by a sequence of calls to the functions
+  // provided in `definitions`. Note that `define_as_call_sequence` is only supported
+  // for functions of void return type.
+  template <typename... Args>
+  void define_as_call_sequence(void (*func)(Args...),
+                          const std::vector<void (*)(Args...)> &definitions);
+
+  // Returns a kernel object that has this configuration applied. The resulting object
+  // can then be passed e.g. to parallel_for().
+  template<class Kernel>
+  auto apply(Kernel k);
+};
+
+}
+```
+
+
 ### `HIPSYCL_EXT_SPECIALIZED`
 
 This extension adds a mechanism to hint to the SSCP JIT compiler that a kernel specialization should be generated. That is, when `sycl::specialized<T>` is passed as a kernel argument, the compiler will generate a kernel with the value of the object stored in the `specialized` wrapper hardcoded as a constant. This addresses the same problem as SYCL 2020 specialization constants, however it provides two major benefits:

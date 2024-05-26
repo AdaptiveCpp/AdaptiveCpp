@@ -118,6 +118,9 @@ hcf_kernel_info::hcf_kernel_info(
         if(entry.second == "1") {
           if(entry.first == "specialized") {
             _known_annotations.back().push_back(annotation_type::specialized);
+          } else if(entry.first == "fcall_specialized_config") {
+            _known_annotations.back().push_back(
+                annotation_type::fcall_specialized_config);
           } else {
             _string_annotations.back().push_back(entry.first);
           }

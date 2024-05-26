@@ -32,7 +32,7 @@
 #include <memory>
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/small_map.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
@@ -78,8 +78,8 @@ public:
   /// Returns the kernel configuration id. This can e.g. be used
   /// to distinguish kernels with different specialization constant values /
   /// S2 IR constant values.
-  virtual glue::kernel_configuration::id_type configuration_id() const {
-    return glue::kernel_configuration::id_type{};
+  virtual kernel_configuration::id_type configuration_id() const {
+    return kernel_configuration::id_type{};
   }
   
   // Do we really need this? Cannot be implemented on all backends,
@@ -122,8 +122,8 @@ public:
   const std::vector<std::string> &get_images_containing_kernel() const;
   hcf_object_id get_hcf_object_id() const;
 
-  const std::vector<glue::kernel_build_flag>& get_compilation_flags() const;
-  const std::vector<std::pair<glue::kernel_build_option, std::string>> &
+  const std::vector<rt::kernel_build_flag>& get_compilation_flags() const;
+  const std::vector<std::pair<rt::kernel_build_option, std::string>> &
   get_compilation_options() const;
 
 private:
@@ -137,8 +137,8 @@ private:
 
   std::vector<std::string> _image_providers;
   
-  std::vector<glue::kernel_build_flag> _compilation_flags;
-  std::vector<std::pair<glue::kernel_build_option, std::string>>
+  std::vector<rt::kernel_build_flag> _compilation_flags;
+  std::vector<std::pair<rt::kernel_build_option, std::string>>
       _compilation_options;
 
   hcf_object_id _id;
@@ -239,7 +239,7 @@ private:
 
 class kernel_cache {
 public:
-  using code_object_id = glue::kernel_configuration::id_type;
+  using code_object_id = kernel_configuration::id_type;
   using code_object_ptr = std::unique_ptr<const code_object>;
 
   static std::shared_ptr<kernel_cache> get();
@@ -294,11 +294,11 @@ public:
                                                       CodeObjectConstructor &&c) {
     if(auto* code_object = get_code_object(id_of_code_object)) {
       HIPSYCL_DEBUG_INFO << "kernel_cache: Cache hit for id "
-                         << glue::kernel_configuration::to_string(id_of_code_object) << "\n";
+                         << kernel_configuration::to_string(id_of_code_object) << "\n";
       return code_object;
     }
     HIPSYCL_DEBUG_INFO << "kernel_cache: Cache MISS for id "
-                      << glue::kernel_configuration::to_string(id_of_code_object) << "\n";
+                      << kernel_configuration::to_string(id_of_code_object) << "\n";
     
     std::string compiled_binary;
     // TODO: We might want to allow JIT compilation in parallel at some point
@@ -345,11 +345,11 @@ private:
     auto* existing_code_object = get_code_object_impl(id);
     if(existing_code_object) {
       HIPSYCL_DEBUG_INFO << "kernel_cache: Cache hit for id "
-                         << glue::kernel_configuration::to_string(id) << "\n";
+                         << kernel_configuration::to_string(id) << "\n";
       return existing_code_object;
     }
     HIPSYCL_DEBUG_INFO << "kernel_cache: Cache MISS for id "
-                      << glue::kernel_configuration::to_string(id) << "\n";
+                      << kernel_configuration::to_string(id) << "\n";
 
     const code_object* new_object = c();
     if(new_object) {
@@ -360,7 +360,7 @@ private:
 
   mutable std::mutex _mutex;
 
-  std::unordered_map<code_object_id, code_object_ptr, glue::kernel_id_hash>
+  std::unordered_map<code_object_id, code_object_ptr, rt::kernel_id_hash>
       _code_objects;
   
   bool _is_first_jit_compilation = true;

@@ -94,7 +94,7 @@ public:
       const std::string &kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const glue::kernel_configuration &config);
+      const kernel_configuration &config);
 
 private:
   const std::vector<std::shared_ptr<dag_node_event>>&

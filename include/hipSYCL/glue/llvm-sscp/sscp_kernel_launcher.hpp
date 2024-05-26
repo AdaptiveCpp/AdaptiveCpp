@@ -30,8 +30,8 @@
 
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/s1_ir_constants.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -328,7 +328,7 @@ public:
   }
 
   virtual void invoke(rt::dag_node *node,
-                      const kernel_configuration &config) final override {
+                      const rt::kernel_configuration &config) final override {
     _configuration = &config;
     _invoker(node);
   }
@@ -441,7 +441,7 @@ private:
 
   std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
-  const kernel_configuration* _configuration = nullptr;
+  const rt::kernel_configuration* _configuration = nullptr;
   void* _params = nullptr;
 };
 

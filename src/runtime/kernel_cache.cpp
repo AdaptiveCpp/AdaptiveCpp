@@ -29,7 +29,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/backend.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -131,14 +131,14 @@ hcf_kernel_info::hcf_kernel_info(
 
   if(const auto* flags_node = kernel_node->get_subnode("compile-flags")) {
     for(const auto& flag : flags_node->key_value_pairs) {
-      auto f = glue::to_build_flag(flag.first);
+      auto f = to_build_flag(flag.first);
       if(f.has_value())
         _compilation_flags.push_back(f.value());
     }
   }
   if(const auto* options_node = kernel_node->get_subnode("compile-options")) {
     for(const auto& option : options_node->key_value_pairs) {
-      auto o = glue::to_build_option(option.first);
+      auto o = to_build_option(option.first);
       if(o.has_value())
         _compilation_options.push_back(
             std::make_pair(o.value(), option.second));
@@ -192,12 +192,12 @@ hcf_object_id hcf_kernel_info::get_hcf_object_id() const {
   return _id;
 }
 
-const std::vector<glue::kernel_build_flag> &
+const std::vector<kernel_build_flag> &
 hcf_kernel_info::get_compilation_flags() const {
   return _compilation_flags;
 }
 
-const std::vector<std::pair<glue::kernel_build_option, std::string>> &
+const std::vector<std::pair<kernel_build_option, std::string>> &
 hcf_kernel_info::get_compilation_options() const {
   return _compilation_options;
 }
@@ -455,7 +455,7 @@ const code_object* kernel_cache::get_code_object_impl(code_object_id id) const {
 std::string kernel_cache::get_persistent_cache_file(code_object_id id_of_binary) {
   using namespace common::filesystem;
   std::string cache_dir = tuningdb::get().get_jit_cache_dir();
-  return join_path(cache_dir, glue::kernel_configuration::to_string(id_of_binary)+".jit");
+  return join_path(cache_dir, kernel_configuration::to_string(id_of_binary)+".jit");
 }
 
 bool kernel_cache::persistent_cache_lookup(code_object_id id_of_binary,
@@ -467,7 +467,7 @@ bool kernel_cache::persistent_cache_lookup(code_object_id id_of_binary,
     return false;
 
   HIPSYCL_DEBUG_INFO << "kernel_cache: Persistent cache hit for id "
-                     << glue::kernel_configuration::to_string(id_of_binary)
+                     << kernel_configuration::to_string(id_of_binary)
                      << " in file " << filename << std::endl;
 
   std::streamsize file_size = file.tellg();
@@ -486,7 +486,7 @@ void kernel_cache::persistent_cache_store(code_object_id id_of_binary,
   std::string filename = get_persistent_cache_file(id_of_binary);
 
   HIPSYCL_DEBUG_INFO << "kernel_cache: Storing compiled binary with id "
-                     << glue::kernel_configuration::to_string(id_of_binary)
+                     << kernel_configuration::to_string(id_of_binary)
                      << " in persistent cache file " << filename << std::endl;
   
 

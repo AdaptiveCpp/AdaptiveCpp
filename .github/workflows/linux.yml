@@ -25,10 +25,6 @@ jobs:
             os: ubuntu-20.04
             cuda: 11.0.2
             rocm: 4.0.1
-          - clang: 14
-            os: ubuntu-20.04
-            cuda: 11.0.2
-            rocm: 4.0.1
           - clang: 17
             os: ubuntu-22.04
             cuda: 11.0.2

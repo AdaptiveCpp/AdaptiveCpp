@@ -37,7 +37,6 @@ BOOST_AUTO_TEST_CASE(queue_no_profiling_exception)
   };
 
   cl::sycl::queue queue;  // no enable_profiling
-  constexpr size_t n = 4;
 
   cl::sycl::buffer<int, 1> buf1{cl::sycl::range<1>(1)};
   auto evt1 = queue.submit([&](cl::sycl::handler &cgh) {
@@ -74,18 +73,19 @@ BOOST_AUTO_TEST_CASE(queue_no_profiling_exception)
     cgh.fill(buf1.get_access<cl::sycl::access::mode::discard_write>(cgh), 1);
   });
 
-  int host_array[n];
+  int host_array;
   auto evt5 = queue.submit([&](cl::sycl::handler &cgh) {
     // copy to pointer
-    cgh.copy(buf2.get_access<cl::sycl::access::mode::read>(cgh), host_array);
+    cgh.copy(buf2.get_access<cl::sycl::access::mode::read>(cgh), &host_array);
   });
-
+  
   BOOST_CHECK_EXCEPTION(evt4.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
                         cl::sycl::exception,
                         is_invalid);
   BOOST_CHECK_EXCEPTION(evt5.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
                         cl::sycl::exception,
                         is_invalid);
+  queue.wait();
 }
 
 BOOST_AUTO_TEST_CASE(queue_profiling)

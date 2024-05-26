@@ -35,7 +35,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include <cstddef>
 #include <vector>
@@ -214,7 +214,7 @@ private:
 
 inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                           const std::string &source,
-                          const glue::kernel_configuration &config,
+                          const rt::kernel_configuration &config,
                           const symbol_list_t& imported_symbol_names,
                           std::string &output) {
 
@@ -238,7 +238,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   }
 
   for(const auto& option : config.build_options()) {
-    std::string option_name = glue::to_string(option.first);
+    std::string option_name = rt::to_string(option.first);
     std::string option_value =
         option.second.int_value.has_value()
             ? std::to_string(option.second.int_value.value())
@@ -248,7 +248,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   }
 
   for(const auto& flag : config.build_flags()) {
-    translator->setBuildFlag(glue::to_string(flag));
+    translator->setBuildFlag(rt::to_string(flag));
   }
 
   // Transform code
@@ -286,7 +286,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                           const common::hcf_container* hcf,
                           const std::string& image_name,
-                          const glue::kernel_configuration &config,
+                          const rt::kernel_configuration &config,
                           std::string &output) {
   assert(hcf);
   assert(hcf->root_node());
@@ -332,7 +332,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
 inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                           rt::hcf_object_id hcf_object,
                           const std::string& image_name,
-                          const glue::kernel_configuration &config,
+                          const rt::kernel_configuration &config,
                           std::string &output) {
   const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
   if(!hcf) {

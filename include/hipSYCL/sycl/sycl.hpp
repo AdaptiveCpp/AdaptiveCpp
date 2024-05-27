@@ -72,6 +72,7 @@
 #include "libkernel/builtins.hpp"
 #include "libkernel/atomic.hpp"
 #include "libkernel/atomic_ref.hpp"
+#include "libkernel/atomic_fence.hpp"
 #include "libkernel/stream.hpp"
 #include "libkernel/sub_group.hpp"
 #include "libkernel/group_traits.hpp"

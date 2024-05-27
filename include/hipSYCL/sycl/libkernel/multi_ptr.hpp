@@ -1169,7 +1169,7 @@ address_space_cast(ElementType *ptr) {
 
 // Deprecated, address_space_cast should be used instead.
 template <typename ElementType, access::address_space Space,
-          access::decorated DecorateAddress>
+          access::decorated DecorateAddress = access::decorated::legacy>
 [[deprecated]] HIPSYCL_UNIVERSAL_TARGET
     multi_ptr<ElementType, Space, DecorateAddress>
     make_ptr(ElementType *ptr) {

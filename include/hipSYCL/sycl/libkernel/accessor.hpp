@@ -48,7 +48,7 @@
 
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/sycl/extensions.hpp"
-// #include "hipSYCL/sycl/buffer.hpp"
+#include "hipSYCL/sycl/buffer.hpp"
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/buffer_allocator.hpp"
 #include "hipSYCL/sycl/access.hpp"
@@ -2154,11 +2154,6 @@ private:
   address _addr{};
   range<dimensions> _num_elements;
 };
-
-// Defined in multi_ptr.hpp 
-// template <typename dataT, int dimensions = 1>
-// using local_accessor = accessor<dataT, dimensions, access::mode::read_write,
-//  access::target::local>;
 
 namespace detail::accessor {
 

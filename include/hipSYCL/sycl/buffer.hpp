@@ -109,11 +109,8 @@ public:
 class use_mutex : public detail::buffer_property
 {
 public:
-  use_mutex(mutex_class& ref) : mutex{ref} {}
-  mutex_class* get_mutex_ptr() const { return &mutex; }
-
-private:
-  mutex_class &mutex;
+  use_mutex(mutex_class& ref);
+  mutex_class* get_mutex_ptr() const;
 };
 
 class context_bound : public detail::buffer_property
@@ -266,10 +263,11 @@ private:
   }
 
   void add_writeback_hints(rt::device_id dev, rt::execution_hints& hints) {
-    hints.set_hint(rt::hints::bind_to_device{dev});
+    hints.add_hint(
+        rt::make_execution_hint<rt::hints::bind_to_device>(dev));
     if (has_writeback_node_group()) {
-      hints.set_hint(rt::hints::node_group{
-          write_back_node_group});
+      hints.add_hint(rt::make_execution_hint<rt::hints::node_group>(
+          write_back_node_group));
     }
   }
   
@@ -299,7 +297,7 @@ private:
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
         source_location, dest_location, data_src->get_num_elements());
 
-    rt::dag_node_ptr node = build.builder()->add_command_group(
+    rt::dag_node_ptr node = build.builder()->add_memcpy(
         std::move(explicit_copy), reqs, hints);
 
     return node;
@@ -486,7 +484,7 @@ public:
     : buffer(bufferRange, propList)
   { _alloc = allocator; }
 
-  buffer(T *hostData, const range<dimensions> &bufferRange,
+  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
@@ -495,9 +493,7 @@ public:
     default_policies dpol;
     dpol.destructor_waits = true;
     dpol.use_external_storage = true;
-
-    if constexpr (not std::is_const_v<T>)
-      dpol.writes_back = true;
+    dpol.writes_back = true;
     
     init_policies_from_properties_or_default(dpol);
 
@@ -509,7 +505,7 @@ public:
     }
   }
 
-  buffer(T *hostData, const range<dimensions> &bufferRange,
+  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
       : buffer{hostData, bufferRange, propList} {
     _alloc = allocator;
@@ -542,7 +538,6 @@ public:
     }
   }
 
-  template <class t = T, std::enable_if_t<!std::is_const_v<t>, bool> = true>
   buffer(const T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
     : buffer{hostData, bufferRange, propList}
@@ -574,36 +569,7 @@ public:
   buffer(const shared_ptr_class<T> &hostData,
          const range<dimensions> &bufferRange,
          const property_list &propList = {})
-    : buffer(hostData, bufferRange, AllocatorT(), propList)
-  {}
-
-  buffer(const std::shared_ptr<T[]> &hostData,
-	 const range<dimensions> &bufferRange,
-	 AllocatorT allocator, const property_list &propList = {})
-    : detail::property_carrying_object{propList}
-  {
-    _impl = std::make_shared<detail::buffer_impl>();
-    _alloc = allocator;
-
-    default_policies dpol;
-    dpol.destructor_waits = true;
-    dpol.use_external_storage = true;
-    dpol.writes_back = true;
-    init_policies_from_properties_or_default(dpol);
-
-    if(_impl->use_external_storage) {
-      _impl->shared_host_data = hostData;
-      this->init(bufferRange, hostData.get());
-    } else {
-      this->init(bufferRange);
-      this->copy_host_content(hostData.get());
-    }
-  }
-
-  buffer(const std::shared_ptr<T[]> &hostData,
-	 const range<dimensions> &bufferRange,
-	 const property_list &propList = {})
-    : buffer(hostData, bufferRange, AllocatorT(), propList)
+  : buffer(hostData, bufferRange, AllocatorT(), propList)
   {}
 
   template <class InputIterator,
@@ -624,10 +590,9 @@ public:
 
     if(_impl->use_external_storage)
       // TODO This could be allowed for special cases, e.g. if iterators are pointers
-      throw exception{make_error_code(errc::invalid),
-                      "buffer: Cannot comply: User requested to using " 
-                      "external storage, but this is not yet possible "
-                      "with iterators."};
+      throw invalid_parameter_error{
+          "buffer: Cannot comply: User requested to using external storage, "
+          "but this is not yet possible with iterators."};
 
     _alloc = allocator;
 
@@ -808,6 +773,14 @@ public:
     return host_accessor{*this, std::forward<Args>(args)...};
   }
 
+  void set_final_data(std::shared_ptr<T> finalData)
+  {
+    std::lock_guard<std::mutex> lock {_impl->lock};
+    set_write_back_target(finalData.get());
+    
+    _impl->writeback_buffer = finalData;
+  }
+
   // TODO Add special handling of iterators for set_final_data()
   template <typename Destination = std::nullptr_t>
   void set_final_data(Destination finalData = nullptr)
@@ -832,8 +805,7 @@ public:
                  ::template rebind_alloc<ReinterpretT>>
   reinterpret(range<ReinterpretDim> reinterpretRange) const {
     if(_range.size() * sizeof(T) != reinterpretRange.size() * sizeof(ReinterpretT))
-      throw exception{make_error_code(errc::invalid),
-                      "reinterpret must preserve the byte count of the buffer"};
+      throw invalid_parameter_error{"reinterpret must preserve the byte count of the buffer"};
 
     buffer<ReinterpretT, ReinterpretDim,
             typename std::allocator_traits<AllocatorT>::template rebind_alloc<
@@ -899,7 +871,7 @@ public:
 
   /// Instruct buffer to free the allocation on the specified device at buffer
   /// destruction.
-  /// Throws \c errc::invalid exception if no allocation for specified device
+  /// Throws \c invalid_parameter_error if no allocation for specified device
   /// exists.
   void own_allocation(const device &dev) {
 
@@ -910,13 +882,13 @@ public:
         [](rt::data_allocation<void *> &alloc) { alloc.is_owned = true; });
 
     if (!found)
-      throw exception{make_error_code(errc::invalid),
-                      "Buffer does not contain allocation for specified device"};
+      throw invalid_parameter_error{
+          "Buffer does not contain allocation for specified device"};
   }
   /// Instruct buffer to free the allocation at buffer destruction.
   /// \c ptr must be an existing allocation managed by the buffer.
   /// If \c ptr cannot be found among the managed memory allocations,
-  /// \c errc::invalid exception is thrown.
+  /// \c invalid_parameter_error is thrown.
   void own_allocation(const T *ptr) {
     bool found = _impl->data->find_and_handle_allocation(
         static_cast<void *>(const_cast<T*>(ptr)),
@@ -925,15 +897,14 @@ public:
         });
 
     if (!found) {
-      throw exception{make_error_code(errc::invalid),
-                      "Provided pointer was not found among the "
-                      "managed buffer allocations."};
+      throw invalid_parameter_error{"Provided pointer was not found among the "
+                                    "managed buffer allocations."};
     }
   }
 
   /// Instruct buffer to not free the allocation on the specified device at buffer
   /// destruction.
-  /// Throws \c errc::invalid exception if no allocation for specified device
+  /// Throws \c invalid_parameter_error if no allocation for specified device
   /// exists.
   void disown_allocation(const device &dev) {
     rt::device_id rt_dev = detail::extract_rt_device(dev);
@@ -943,13 +914,13 @@ public:
         [](rt::data_allocation<void *> &alloc) { alloc.is_owned = false; });
 
     if (!found)
-      throw exception{make_error_code(errc::invalid),
-                      "Buffer does not contain allocation for specified device"};
+      throw invalid_parameter_error{
+          "Buffer does not contain allocation for specified device"};
   }
 
   /// Instruct buffer to not free the allocation associated with the provided
   /// pointer.
-  /// Throws \c errc::invalid exception if no allocation managed by the buffer
+  /// Throws \c invalid_parameter_error if no allocation managed by the buffer
   /// is described by \c ptr.
   void disown_allocation(const T *ptr) {
     bool found = _impl->data->find_and_handle_allocation(
@@ -959,9 +930,8 @@ public:
         });
 
     if (!found) {
-      throw exception{make_error_code(errc::invalid),
-                      "Provided pointer was not found among the "
-                      "managed buffer allocations."};
+      throw invalid_parameter_error{"Provided pointer was not found among the "
+                                    "managed buffer allocations."};
     }
   }
 
@@ -990,13 +960,13 @@ public:
 
   /// \return the buffer allocation object associated with the provided
   /// device. If the buffer does not contain an allocation for the specified
-  /// device, throws \c errc::invalid exception.
+  /// device, throws \c invalid_parameter_error.
   buffer_allocation::descriptor<T> get_allocation(const device &dev) const {
     rt::device_id rt_dev = detail::extract_rt_device(dev);
 
     if (!_impl->data->has_allocation(rt_dev))
-      throw exception{make_error_code(errc::invalid),
-                      "No allocation for the given device was found"};
+      throw invalid_parameter_error{
+          "No allocation for the given device was found"};
 
     auto rt_allocation = _impl->data->get_allocation(rt_dev);
     return rt_data_allocation_to_buffer_alloc(rt_allocation);
@@ -1004,7 +974,7 @@ public:
 
   /// \return the buffer allocation object associated with the provided pointer.
   /// If the buffer does not contain an allocation described by ptr,
-  /// throws \c errc::invalid exception.
+  /// throws \c invalid_parameter_error.
   buffer_allocation::descriptor<T> get_allocation(const T *ptr) const {
 
     buffer_allocation::descriptor<T> result = null_allocation();
@@ -1015,9 +985,8 @@ public:
     });
 
     if (!found) {
-      throw exception{make_error_code(errc::invalid),
-                      "Provided pointer was not found among the "
-                      "managed buffer allocations."};
+      throw invalid_parameter_error{"Provided pointer was not found among the "
+                                    "managed buffer allocations."};
     }
     return result;
   }
@@ -1051,38 +1020,20 @@ private:
 
     return result;
   }
-
+  
+  
   template <typename Destination = std::nullptr_t>
-  void set_write_back_target(Destination finalData = nullptr) {
-    if constexpr (std::is_pointer_v<Destination> ||
-                  std::is_null_pointer_v<Destination>) {
+  void set_write_back_target(Destination finalData = nullptr)
+  {
+    if constexpr(std::is_pointer_v<Destination> || std::is_null_pointer_v<Destination>){
       if (finalData) {
         enable_write_back(true);
-      } else {
+      }
+      else {
         enable_write_back(false);
       }
 
       _impl->writeback_ptr = finalData;
-    } else if constexpr (std::is_same_v<std::weak_ptr<T>, Destination> ||
-                         std::is_same_v<std::weak_ptr<T[]>, Destination>) {
-      auto finalDataPtr = finalData.lock();
-      if (finalDataPtr) {
-        enable_write_back(true);
-      } else {
-        enable_write_back(false);
-      }
-
-      _impl->writeback_ptr = finalDataPtr.get();
-    } else if constexpr (std::is_same_v<std::shared_ptr<T>, Destination> ||
-                         std::is_same_v<std::shared_ptr<T[]>, Destination>) {
-      if (finalData) {
-        enable_write_back(true);
-      } else {
-        enable_write_back(false);
-      }
-
-      _impl->writeback_ptr = finalData.get();
-      _impl->writeback_buffer = finalData;
     } else {
       // Assume it is an iterator to contiguous memory
       enable_write_back(true);
@@ -1096,10 +1047,10 @@ private:
       if (_impl->writes_back != flag){
         // Deny changing policy if it has previously been explicitly requested
         // by the user
-        throw exception{make_error_code(errc::invalid),
-                        "buffer::set_write_back(): buffer was constructed "
-                        "explicitly with writeback policy, denying changing "
-                        "the policy as this likely indicates a bug in user code"};
+        throw invalid_parameter_error{
+            "buffer::set_write_back(): buffer was constructed explicitly with "
+            "writeback policy, denying changing the policy as this likely "
+            "indicates a bug in user code"};
       }
     }
     if(_impl->writes_back != flag) {
@@ -1148,7 +1099,7 @@ private:
   }
 
   template<class Policy>
-  bool get_policy_from_property_or_default(bool default_value) const
+  bool get_policy_from_property_or_default(bool default_value)
   {
     if(this->has_property<Policy>())
       return this->get_property<Policy>().value();
@@ -1198,8 +1149,7 @@ private:
       }
 
       if(!host_ptr)
-        throw exception{make_error_code(errc::runtime),
-                        "buffer: host memory allocation failed"};
+        throw runtime_error{"buffer: host memory allocation failed"};
 
       _impl->data->add_empty_allocation(
           host_device, host_ptr,
@@ -1227,8 +1177,7 @@ private:
   void init(const range<dimensions>& range, T* host_memory)
   {
     if(!host_memory)
-      throw exception{make_error_code(errc::invalid),
-                      "buffer: Supplied host pointer is null."};
+      throw invalid_parameter_error{"buffer: Supplied host pointer is null."};
 
     if(this->has_property<property::buffer::use_optimized_host_memory>()){
       HIPSYCL_DEBUG_INFO
@@ -1242,15 +1191,14 @@ private:
     this->init_data_backend(range);
 
     rt::device_id host_device = detail::get_host_device();
-    _impl->data->add_nonempty_allocation(detail::get_host_device(),
-					 const_cast<std::remove_const_t<T>*>(host_memory),
+    _impl->data->add_nonempty_allocation(detail::get_host_device(), host_memory,
                                          _impl->requires_runtime.get()
                                              ->backends()
                                              .get(host_device.get_backend())
                                              ->get_allocator(host_device),
                                          false /*takes_ownership*/);
     // Remember host_memory in case of potential write back
-    _impl->writeback_ptr = const_cast<std::remove_const_t<T>*>(host_memory);
+    _impl->writeback_ptr = host_memory;
   }
 
   void init(const range<dimensions> &range,
@@ -1259,17 +1207,15 @@ private:
     this->init_data_backend(range);
 
     if(input_allocations.size() == 0) {
-      throw exception{make_error_code(errc::invalid),
-                      "buffer: USM constructor was used, but no "
-                      "USM allocations to work with were used."};
+      throw invalid_parameter_error{"buffer: USM constructor was used, but no "
+                                    "USM allocations to work with were used."};
     }
 
     // TODO: We should check here for duplicate USM pointers or duplicate devices
     for (const buffer_allocation::tracked_descriptor<T> &desc :
          input_allocations) {
       if(!desc.desc.ptr) {
-        throw exception{make_error_code(errc::invalid),
-                        "buffer: Invalid USM input pointer"};
+        throw invalid_parameter_error{"buffer: Invalid USM input pointer"};
       }
 
       rt::device_id dev = detail::extract_rt_device(desc.desc.dev);

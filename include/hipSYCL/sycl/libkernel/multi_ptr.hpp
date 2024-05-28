@@ -679,7 +679,7 @@ public:
             std::enable_if_t<S == access::address_space::local_space ||
                                  S == access::address_space::generic_space,
                              bool> = true>
-  multi_ptr(local_accessor<ElementType, Dimensions> a)
+  HIPSYCL_KERNEL_TARGET multi_ptr(local_accessor<ElementType, Dimensions> a)
       : _ptr{reinterpret_cast<const void *>(
             a.template get_multi_pointer<DecorateAddress>().get())} {}
 

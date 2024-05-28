@@ -45,6 +45,7 @@ if(WITH_SSCP_COMPILER)
   set(SSCP_COMPILER 
     sscp/KernelOutliningPass.cpp
     sscp/IRConstantReplacer.cpp
+    sscp/DynamicFunctionSupport.cpp
     sscp/TargetSeparationPass.cpp
     sscp/HostKernelNameExtractionPass.cpp
     sscp/AggregateArgumentExpansionPass.cpp

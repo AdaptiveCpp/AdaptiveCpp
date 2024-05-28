@@ -33,6 +33,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
+#include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
@@ -270,6 +271,12 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
 
       if(IsFastMath)
         setFastMathFunctionAttribs(M);
+
+      // Remove argument_used hints, which are no longer needed once we enter optimization stage.
+      // This is primarily needed for dynamic functions.
+      utils::ProcessFunctionAnnotationPass PFA({"argument_used"});
+      PFA.run(M, MAM);
+
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
 
       if(!OptimizationSuccessful) {
@@ -435,11 +442,13 @@ void LLVMToBackendTranslator::specializeFunctionCalls(
     const std::string &FuncName, const std::vector<std::string> &ReplacementCalls,
     bool OverrideOnlyUndefined) {
   std::string Id = "__specialized_function_call_"+FuncName;
-  SpecializationApplicators[Id] = [=](llvm::Module& M) {
+  SpecializationApplicators[Id] = [=](llvm::Module &M) {
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Specializing function calls to " << FuncName << " to:\n";
+    for(const auto& s : ReplacementCalls)
+      HIPSYCL_DEBUG_INFO << "LLVMToBackend:   " << s << "\n";
     if(auto* F = M.getFunction(FuncName)) {
       if((!OverrideOnlyUndefined || F->isDeclaration()) && !ReplacementCalls.empty()) {
         llvm::Value* ReplacementValue;
-
         if(ReplacementCalls.size() == 1){
           llvm::Function* ReplacementF = M.getFunction(ReplacementCalls[0]);
           ReplacementValue = ReplacementF;
@@ -478,19 +487,21 @@ void LLVMToBackendTranslator::specializeFunctionCalls(
             ReplacementFs.push_back(RetrievedF);
           }
           auto ReplacementWrapperFuncCallee = M.getOrInsertFunction(Id, F->getFunctionType(), F->getAttributes());
-          if(auto* ReplacementWrapperF = ReplacementWrapperFuncCallee.getCallee()) {
+          if (auto *ReplacementWrapperF =
+                  static_cast<llvm::Function *>(ReplacementWrapperFuncCallee.getCallee())) {
             auto BB = llvm::BasicBlock::Create(M.getContext(), "entry",
-                                               static_cast<llvm::Function *>(ReplacementWrapperF));
+                                               ReplacementWrapperF);
             for(auto* F : ReplacementFs) {
               llvm::SmallVector<llvm::Value*> Args;
               for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i)
-                Args.push_back(F->getArg(i));
+                Args.push_back(ReplacementWrapperF->getArg(i));
 
-              llvm::CallInst::Create(ReplacementWrapperFuncCallee,
+              llvm::CallInst::Create(llvm::FunctionCallee{F},
                                      llvm::ArrayRef<llvm::Value *>{Args}, "", BB);
             }                                            
             llvm::ReturnInst::Create(M.getContext(), BB);
           }
+          ReplacementValue  = ReplacementWrapperFuncCallee.getCallee();
         }
 
         F->replaceUsesWithIf(ReplacementValue, [=](llvm::Use& U) {

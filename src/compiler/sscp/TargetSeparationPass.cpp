@@ -32,11 +32,15 @@
 #include "hipSYCL/compiler/sscp/HostKernelNameExtractionPass.hpp"
 #include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
 #include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
+#include "hipSYCL/compiler/sscp/DynamicFunctionSupport.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
+#include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
 #include <cstddef>
 
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
@@ -200,6 +204,7 @@ struct KernelInfo {
 
 
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
+                                               const std::vector<std::string>& DynamicFunctions,
                                                std::vector<KernelInfo> &KernelInfoOutput,
                                                std::vector<std::string> &ExportedSymbolsOutput,
                                                std::vector<std::string> &ImportedSymbolsOutput) {
@@ -249,6 +254,21 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   StringAttrsToRemove.push_back("target-cpu");
   StringAttrsToRemove.push_back("target-features");
   StringAttrsToRemove.push_back("tune-cpu");
+
+  llvm::SmallSet<llvm::Function *, 16> AcppNoInlineFunctions;
+  utils::findFunctionsWithStringAnnotations(
+      *DeviceModule, [&](llvm::Function *F, llvm::StringRef Annotation) {
+        if (F) {
+          if (Annotation.compare("acpp_no_s1_device_inline") == 0) {
+            AcppNoInlineFunctions.insert(F);
+          }
+        }
+      });
+  for(const auto& FName : DynamicFunctions) {
+    if(auto* F = DeviceModule->getFunction(FName))
+      AcppNoInlineFunctions.insert(F);
+  }
+
   for(auto& F : *DeviceModule) {
     for(auto& A : AttrsToRemove) {
       if(F.hasFnAttribute(A))
@@ -258,10 +278,17 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
       if(F.hasFnAttribute(A))
         F.removeFnAttr(A);
     }
+
     // Need to enable inlining so that we can efficiently JIT even when
-    // the user compiles with -O0
+    // the user compiles with -O0. However, we need skip functions
+    // that have the acpp_no_s1_inline annotation.
+    bool IsAcppNoInline = AcppNoInlineFunctions.contains(&F);
     if(F.hasFnAttribute(llvm::Attribute::NoInline)) {
-      F.removeFnAttr(llvm::Attribute::NoInline);
+      if(!IsAcppNoInline)
+        F.removeFnAttr(llvm::Attribute::NoInline);
+    } else {
+      if(IsAcppNoInline)
+        F.addFnAttr(llvm::Attribute::NoInline);
     }
   }
 
@@ -413,6 +440,9 @@ generateHCF(llvm::Module &DeviceModule, std::size_t HcfObjectId,
 llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
                                                   llvm::ModuleAnalysisManager &MAM) {
 
+  DynamicFunctionIdentifactionPass DFI;
+  DFI.run(M, MAM);
+
   {
     ScopedPrintingTimer totalTimer{"TargetSeparationPass (total)"};
     // TODO If we know that the SSCP compilation flow is the only one using HCF,
@@ -432,8 +462,8 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
       
       
       Timer IRGenTimer{"generateDeviceIR", true};
-      std::unique_ptr<llvm::Module> DeviceIR =
-          generateDeviceIR(M, Kernels, ExportedSymbols, ImportedSymbols);
+      std::unique_ptr<llvm::Module> DeviceIR = generateDeviceIR(
+          M, DFI.getDynamicFunctionNames(), Kernels, ExportedSymbols, ImportedSymbols);
       IRGenTimer.stopAndPrint();
 
       Timer HCFGenTimer{"generateHCF"};
@@ -453,6 +483,22 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
       ScopedPrintingTimer Timer {"HostKernelNameExtractionPass"};
       HostKernelNameExtractionPass KernelNamingPass;
       KernelNamingPass.run(M, MAM);
+    }
+
+    {
+      ScopedPrintingTimer Timer {"Host-side dynamic function handling"};
+
+      HostSideDynamicFunctionHandlerPass HDFH{DFI.getDynamicFunctionNames(),
+                                              DFI.getDynamicFunctionDefinitionNames()};
+
+      HDFH.run(M, MAM);
+
+      // Remove argument_used hints, which are no longer needed once IR
+      // has been generated. This is primarily needed for dynamic functions.
+      // TODO: We should consider whether it might make more sense to move this to late-stage
+      // JIT, at least for the device part.
+      utils::ProcessFunctionAnnotationPass PFA({"argument_used"});
+      PFA.run(M, MAM);
     }
 
     {

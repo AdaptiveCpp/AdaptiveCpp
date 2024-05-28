@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
+#include "hipSYCL/glue/llvm-sscp/fcall_specialization.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/application.hpp"
@@ -87,6 +88,21 @@ kernel_adaptivity_engine::finalize_binary_configuration(
           std::memcpy(&buffer_value, _arg_mapper.get_mapped_args()[i], arg_size);
           config.set_specialized_kernel_argument(i, buffer_value);
         }
+      }
+    }
+  }
+
+  // Handle function call specializations
+  for (int i = 0; i < _kernel_info->get_num_parameters(); ++i) {
+    auto &annotations = _kernel_info->get_known_annotations(i);
+    std::size_t arg_size = _kernel_info->get_argument_size(i);
+    for (auto annotation : annotations) {
+      if (annotation ==
+              hcf_kernel_info::annotation_type::fcall_specialized_config &&
+          arg_size == sizeof(glue::sscp::fcall_config_kernel_property_t)) {
+        glue::sscp::fcall_config_kernel_property_t value;
+        std::memcpy(&value, _arg_mapper.get_mapped_args()[i], arg_size);
+        config.set_function_call_specialization_config(i, value);
       }
     }
   }

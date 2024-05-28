@@ -115,6 +115,7 @@ const char* resolve_function_name(Ret (*func)(Args...)) {
   return detail::symbol_information::get().resolve_symbol_name((void*)func);
 }
 
+
 }
 
 

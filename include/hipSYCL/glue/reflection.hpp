@@ -121,6 +121,7 @@ const char* resolve_function_name(Ret (*func)(Args...)) {
 
 // Will be defined by compiler
 extern "C" void __acpp_reflection_init_registered_function_pointers();
+extern "C" void __acpp_function_annotation_needs_function_ptr_argument_reflection();
 
 // Compiler will generate calls to this function to register functions.
 __attribute__((used))

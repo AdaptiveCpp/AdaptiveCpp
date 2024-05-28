@@ -88,6 +88,7 @@ public:
     // to IR for class member functions, so we use these
     // annotation functions to convey this information instead.
     __acpp_function_annotation_dynamic_function();
+    __acpp_function_annotation_needs_function_ptr_argument_reflection();
 
     _function_name = glue::reflection::resolve_function_name(func);
     if(!_function_name)
@@ -117,6 +118,7 @@ public:
   [[clang::noinline]]
   dynamic_function_definition(Ret (*func)(Args...)) {
     __acpp_function_annotation_dynamic_function_def_arg0();
+    __acpp_function_annotation_needs_function_ptr_argument_reflection();
 
     _function_name = glue::reflection::resolve_function_name(func);
     if(!_function_name)
@@ -171,6 +173,7 @@ public:
               Ret (*definition)(Args...)) {
     __acpp_function_annotation_dynamic_function();
     __acpp_function_annotation_dynamic_function_def_arg1();
+    __acpp_function_annotation_needs_function_ptr_argument_reflection();
 
     define(pointer_to_dynamic_function_id(df), pointer_to_dynamic_function_id(definition));
   }
@@ -222,6 +225,7 @@ public:
       const std::vector<dynamic_function_definition<void, Args...>>
           &definitions) {
     __acpp_function_annotation_dynamic_function();
+    __acpp_function_annotation_needs_function_ptr_argument_reflection();
     
     std::vector<dynamic_function_id> definition_ids;
     definition_ids.reserve(definitions.size());

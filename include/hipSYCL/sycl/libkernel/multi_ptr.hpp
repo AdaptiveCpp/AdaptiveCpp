@@ -874,9 +874,10 @@ public:
 
   // Implicit conversion to a multi_ptr<void>
   // Available only when ElementType is not const-qualified
-  HIPSYCL_UNIVERSAL_TARGET
+
   template <typename E = ElementType,
             std::enable_if_t<!std::is_const_v<E>, bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET
   operator multi_ptr<void, Space, access::decorated::legacy>() const {
     return multi_ptr<void, Space, access::decorated::legacy>{
         reinterpret_cast<void *>(_ptr)};
@@ -884,9 +885,9 @@ public:
 
   // Implicit conversion to a multi_ptr<const void>
   // Available only when ElementType is const-qualified
-  HIPSYCL_UNIVERSAL_TARGET
   template <typename E = ElementType,
             std::enable_if_t<std::is_const_v<E>, bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET
   operator multi_ptr<const void, Space, access::decorated::legacy>() const {
     return multi_ptr<const void, Space, access::decorated::legacy>{
         reinterpret_cast<const void *>(_ptr)};

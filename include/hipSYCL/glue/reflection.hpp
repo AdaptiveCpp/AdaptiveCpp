@@ -140,6 +140,14 @@ struct __acpp_reflection_tu_init_trigger {
 static __acpp_reflection_tu_init_trigger __reflection_init;
 
 
+namespace hipsycl::glue::reflection {
 
+template<class Ret, typename... Args>
+__attribute__((noinline))
+void enable_function_symbol_reflection(Ret (*func)(Args...)) {
+  __acpp_function_annotation_needs_function_ptr_argument_reflection();
+}
+
+}
 
 #endif

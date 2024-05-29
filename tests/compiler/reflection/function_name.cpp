@@ -21,7 +21,7 @@ int main() {
   const char* name1 = hipsycl::glue::reflection::resolve_function_name(&myfunction1);
   const char* name2 = hipsycl::glue::reflection::resolve_function_name(&myfunction2);
 
-  // CHECK: myfunction1
+  // CHECK: _Z11myfunction1v
   std::cout << (name1 ? name1 : "nullptr") << std::endl;
   // CHECK: nullptr
   std::cout << (name2 ? name2 : "nullptr") << std::endl;

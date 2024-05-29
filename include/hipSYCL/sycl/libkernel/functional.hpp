@@ -243,7 +243,7 @@ private:
   static constexpr auto get() {
     if constexpr(std::is_integral_v<AccumulatorT>)
       return std::numeric_limits<AccumulatorT>::max();
-    else return std::numeric_limits<AccumulatorT>::inifinity();
+    else return std::numeric_limits<AccumulatorT>::infinity();
   }
 public:
   static constexpr AccumulatorT value = get();
@@ -255,7 +255,7 @@ private:
   static constexpr auto get() {
     if constexpr(std::is_integral_v<AccumulatorT>)
       return std::numeric_limits<AccumulatorT>::lowest();
-    else return -std::numeric_limits<AccumulatorT>::inifinity();
+    else return -std::numeric_limits<AccumulatorT>::infinity();
   }
 public:
   static constexpr AccumulatorT value = get();

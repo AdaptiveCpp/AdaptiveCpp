@@ -29,7 +29,7 @@
 #ifndef HIPSYCL_LIBKERNEL_SSCP_BUILTINS_HPP
 #define HIPSYCL_LIBKERNEL_SSCP_BUILTINS_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 
 #include "builtins/math.hpp"
 #include "builtins/native.hpp"

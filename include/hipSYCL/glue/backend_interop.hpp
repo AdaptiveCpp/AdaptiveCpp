@@ -29,13 +29,13 @@
 #ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../sycl/libkernel/backend.hpp"
 
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/executor.hpp"
-#include "hipSYCL/runtime/multi_queue_executor.hpp"
+#include "../runtime/device_id.hpp"
+#include "../runtime/executor.hpp"
+#include "../runtime/multi_queue_executor.hpp"
 
-#include "hipSYCL/sycl/backend.hpp"
+#include "../sycl/backend.hpp"
 
 namespace hipsycl {
 namespace glue {

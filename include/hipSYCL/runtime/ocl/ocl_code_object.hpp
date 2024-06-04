@@ -32,10 +32,10 @@
 
 #include <CL/opencl.hpp>
 
-#include "hipSYCL/runtime/code_object_invoker.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/runtime/kernel_configuration.hpp"
+#include "../../runtime/code_object_invoker.hpp"
+#include "../../runtime/error.hpp"
+#include "../../runtime/kernel_cache.hpp"
+#include "../../runtime/kernel_configuration.hpp"
 
 namespace hipsycl {
 namespace rt {

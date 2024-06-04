@@ -29,7 +29,7 @@
 #define HIPSYCL_SSCP_BUILTINS_HALF_HPP
 
 #include "builtin_config.hpp"
-#include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
+#include "../../../../sycl/libkernel/detail/half_representation.hpp"
 
 HIPSYCL_SSCP_BUILTIN __acpp_f16 __acpp_sscp_half_add(
     __acpp_f16 a, __acpp_f16 b);

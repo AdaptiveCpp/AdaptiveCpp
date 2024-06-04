@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_IRUTILS_HPP
 #define HIPSYCL_IRUTILS_HPP
 
-#include "hipSYCL/common/debug.hpp"
+#include "../../common/debug.hpp"
 
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/Constants.h>

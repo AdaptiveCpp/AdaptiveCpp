@@ -30,7 +30,7 @@
 
 #include <cassert>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 
 #if (defined(__clang__) && defined(__HIP__)) || (defined(__clang__) && defined(__CUDA__))
 

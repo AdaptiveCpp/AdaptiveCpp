@@ -29,8 +29,8 @@
 #define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
 
 #include "../generic/hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../../runtime/hip/hip_queue.hpp"
+#include "../../runtime/device_id.hpp"
 
 namespace hipsycl {
 namespace glue {

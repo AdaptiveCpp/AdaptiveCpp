@@ -25,12 +25,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/sycl/backend.hpp"
-#include "hipSYCL/sycl/device.hpp"
+#include "../../sycl/backend.hpp"
+#include "../../sycl/device.hpp"
 
 #ifdef SYCL_EXT_HIPSYCL_BACKEND_HIP
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/error.hpp"
+#include "../../runtime/hip/hip_queue.hpp"
+#include "../../runtime/error.hpp"
 
 #ifndef HIPSYCL_GLUE_HIP_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_HIP_BACKEND_INTEROP_HPP

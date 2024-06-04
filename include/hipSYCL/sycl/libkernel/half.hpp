@@ -31,11 +31,11 @@
 #include <limits>
 #include <functional>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/detail/half_representation.hpp"
+#include "../../sycl/libkernel/host/host_backend.hpp"
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
-#include "hipSYCL/sycl/libkernel/sscp/builtins/half.hpp"
+#include "../../sycl/libkernel/sscp/builtins/half.hpp"
 #endif
 
 

@@ -32,15 +32,15 @@
 #include <iterator>
 #include <limits>
 #include <type_traits>
-#include "hipSYCL/sycl/libkernel/accessor.hpp"
-#include "hipSYCL/sycl/libkernel/atomic_builtins.hpp"
-#include "hipSYCL/sycl/libkernel/memory.hpp"
-#include "hipSYCL/sycl/libkernel/functional.hpp"
-#include "hipSYCL/sycl/event.hpp"
-#include "hipSYCL/sycl/queue.hpp"
+#include "../sycl/libkernel/accessor.hpp"
+#include "../sycl/libkernel/atomic_builtins.hpp"
+#include "../sycl/libkernel/memory.hpp"
+#include "../sycl/libkernel/functional.hpp"
+#include "../sycl/event.hpp"
+#include "../sycl/queue.hpp"
 #include "util/traits.hpp"
-#include "hipSYCL/algorithms/util/allocation_cache.hpp"
-#include "hipSYCL/algorithms/util/memory_streaming.hpp"
+#include "../algorithms/util/allocation_cache.hpp"
+#include "../algorithms/util/memory_streaming.hpp"
 
 namespace hipsycl::algorithms {
 

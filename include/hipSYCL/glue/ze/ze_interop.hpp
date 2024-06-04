@@ -27,11 +27,11 @@
 
 
 
-#include "hipSYCL/sycl/backend.hpp"
-#include "hipSYCL/sycl/device.hpp"
+#include "../../sycl/backend.hpp"
+#include "../../sycl/device.hpp"
 
 
-#include "hipSYCL/runtime/error.hpp"
+#include "../../runtime/error.hpp"
 
 #ifndef HIPSYCL_GLUE_ZE_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_ZE_BACKEND_INTEROP_HPP

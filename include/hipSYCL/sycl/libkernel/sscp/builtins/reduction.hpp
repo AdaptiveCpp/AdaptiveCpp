@@ -26,7 +26,7 @@
  */
 
 #include "builtin_config.hpp"
-#include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
+#include "../../../../sycl/libkernel/detail/half_representation.hpp"
 
 #ifndef HIPSYCL_SSCP_REDUCTION_BUILTINS_HPP
 #define HIPSYCL_SSCP_REDUCTION_BUILTINS_HPP

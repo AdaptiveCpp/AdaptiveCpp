@@ -40,8 +40,8 @@
 #include <typeinfo>
 #include <functional>
 #include "AddressSpaceMap.hpp"
-#include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
-#include "hipSYCL/runtime/util.hpp"
+#include "../../glue/llvm-sscp/s2_ir_constants.hpp"
+#include "../../runtime/util.hpp"
 
 namespace llvm {
 class Module;

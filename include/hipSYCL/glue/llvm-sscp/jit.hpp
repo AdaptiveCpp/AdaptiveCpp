@@ -28,15 +28,15 @@
 #ifndef HIPSYCL_GLUE_JIT_HPP
 #define HIPSYCL_GLUE_JIT_HPP
 
-#include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/common/small_map.hpp"
-#include "hipSYCL/common/filesystem.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/runtime/kernel_configuration.hpp"
-#include "hipSYCL/runtime/application.hpp"
+#include "../../common/hcf_container.hpp"
+#include "../../common/debug.hpp"
+#include "../../common/small_map.hpp"
+#include "../../common/filesystem.hpp"
+#include "../../compiler/llvm-to-backend/LLVMToBackend.hpp"
+#include "../../runtime/error.hpp"
+#include "../../runtime/kernel_cache.hpp"
+#include "../../runtime/kernel_configuration.hpp"
+#include "../../runtime/application.hpp"
 #include <cstddef>
 #include <vector>
 #include <atomic>

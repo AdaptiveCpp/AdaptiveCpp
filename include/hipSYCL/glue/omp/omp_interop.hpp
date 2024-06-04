@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_GLUE_OMPHOST_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_OMPHOST_BACKEND_INTEROP_HPP
 
-#include "hipSYCL/sycl/backend.hpp"
+#include "../../sycl/backend.hpp"
 
 namespace hipsycl {
 namespace glue {

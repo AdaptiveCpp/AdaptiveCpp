@@ -6,7 +6,7 @@
 #pragma once
 
 #include "bitcasts.h"
-#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
+#include "../../../../sycl/libkernel/detail/int_types.hpp"
 
 #define HIPSYCL_INT32_C(n) __acpp_int32{n}
 #define HIPSYCL_UINT32_C(n) __acpp_uint32{n}

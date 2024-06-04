@@ -30,7 +30,7 @@
 
 #include <functional>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 #include "id.hpp"
 #include "item.hpp"
 #include "range.hpp"

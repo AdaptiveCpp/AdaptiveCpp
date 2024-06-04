@@ -28,9 +28,9 @@
 #ifndef HIPSYCL_MULTI_PTR_HPP
 #define HIPSYCL_MULTI_PTR_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/access.hpp"
-#include "hipSYCL/sycl/libkernel/memory.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/access.hpp"
+#include "../../sycl/libkernel/memory.hpp"
 
 #include <type_traits>
 

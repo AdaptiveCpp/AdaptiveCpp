@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_COLLECTIVE_EXECUTION_ENGINE_HPP
 #define HIPSYCL_COLLECTIVE_EXECUTION_ENGINE_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 
 /**
  * Due to an issue with Boost.Intrusive (used by Boost.Fiber), on Windows,
@@ -46,9 +46,9 @@
 #include <boost/fiber/fiber.hpp>
 #include <boost/fiber/barrier.hpp>
 
-#include "hipSYCL/sycl/libkernel/range.hpp"
-#include "hipSYCL/sycl/libkernel/id.hpp"
-#include "hipSYCL/sycl/libkernel/nd_item.hpp"
+#include "../../../sycl/libkernel/range.hpp"
+#include "../../../sycl/libkernel/id.hpp"
+#include "../../../sycl/libkernel/nd_item.hpp"
 
 #include "iterate_range.hpp"
 #include "range_decomposition.hpp"

@@ -28,9 +28,9 @@
 #ifndef HIPSYCL_HOST_TIMESTAMPED_EVENT_HPP
 #define HIPSYCL_HOST_TIMESTAMPED_EVENT_HPP
 
-#include "hipSYCL/runtime/inorder_queue.hpp"
-#include "hipSYCL/runtime/instrumentation.hpp"
-#include "hipSYCL/runtime/event.hpp"
+#include "../../runtime/inorder_queue.hpp"
+#include "../../runtime/instrumentation.hpp"
+#include "../../runtime/event.hpp"
 
 namespace hipsycl {
 namespace rt {

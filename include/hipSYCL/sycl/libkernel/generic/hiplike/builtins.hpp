@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_LIBKERNEL_HIPLIKE_BUILTINS_HPP
 #define HIPSYCL_LIBKERNEL_HIPLIKE_BUILTINS_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/vec.hpp"
+#include "../../../../sycl/libkernel/backend.hpp"
+#include "../../../../sycl/libkernel/vec.hpp"
 
 #include <cstdlib>
 #include <cmath>

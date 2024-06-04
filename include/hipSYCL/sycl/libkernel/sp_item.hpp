@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_SP_ITEM_HPP
 #define HIPSYCL_SP_ITEM_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 #include "id.hpp"
 #include "range.hpp"
 

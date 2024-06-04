@@ -32,9 +32,9 @@
 #include <vector>
 #include <array>
 #include <string>
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/common/hcf_container.hpp"
+#include "../../runtime/device_id.hpp"
+#include "../../runtime/kernel_cache.hpp"
+#include "../../common/hcf_container.hpp"
 
 #define HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelT) \
   (void)::hipsycl::rt::detail::static_kernel_registration<KernelT>::init;

@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_LIBKERNEL_BUILTIN_DISPATCH_HPP
 #define HIPSYCL_LIBKERNEL_BUILTIN_DISPATCH_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 
 #define HIPSYCL_DISPATCH_BUILTIN(name, ...)                                    \
   __acpp_backend_switch(                                                    \

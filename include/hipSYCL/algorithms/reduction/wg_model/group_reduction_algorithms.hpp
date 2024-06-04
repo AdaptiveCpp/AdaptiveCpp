@@ -26,10 +26,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
-#include "hipSYCL/sycl/libkernel/group_functions.hpp"
+#include "../../../sycl/libkernel/detail/local_memory_allocator.hpp"
+#include "../../../sycl/libkernel/group_functions.hpp"
 
-#include "hipSYCL/sycl/libkernel/sp_group.hpp"
+#include "../../../sycl/libkernel/sp_group.hpp"
 #include "wg_model_queries.hpp"
 #include "../reduction_descriptor.hpp"
 

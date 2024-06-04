@@ -28,12 +28,12 @@
 #ifndef HIPSYCL_OPERATIONS_HPP
 #define HIPSYCL_OPERATIONS_HPP
 
-#include "hipSYCL/glue/kernel_names.hpp"
-#include "hipSYCL/sycl/access.hpp"
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/common/small_vector.hpp"
+#include "../glue/kernel_names.hpp"
+#include "../sycl/access.hpp"
+#include "../common/debug.hpp"
+#include "../common/small_vector.hpp"
 
-#include "hipSYCL/glue/embedded_pointer.hpp"
+#include "../glue/embedded_pointer.hpp"
 
 #include "data.hpp"
 #include "event.hpp"

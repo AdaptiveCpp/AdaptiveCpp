@@ -31,11 +31,11 @@
 #include <vector>
 #include <memory>
 
-#include "hipSYCL/sycl/exception.hpp"
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/runtime/kernel_launcher.hpp"
-#include "hipSYCL/glue/kernel_names.hpp"
-#include "hipSYCL/common/small_vector.hpp"
+#include "../sycl/exception.hpp"
+#include "../sycl/libkernel/backend.hpp"
+#include "../runtime/kernel_launcher.hpp"
+#include "../glue/kernel_names.hpp"
+#include "../common/small_vector.hpp"
 
 #if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
 #include "hip/hip_kernel_launcher.hpp"

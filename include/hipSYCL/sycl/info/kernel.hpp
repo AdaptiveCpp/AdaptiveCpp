@@ -29,7 +29,7 @@
 #ifndef HIPSYCL_INFO_KERNEL_HPP
 #define HIPSYCL_INFO_KERNEL_HPP
 
-#include "hipSYCL/sycl/libkernel/range.hpp"
+#include "../../sycl/libkernel/range.hpp"
 #include "info.hpp"
 #include "../types.hpp"
 

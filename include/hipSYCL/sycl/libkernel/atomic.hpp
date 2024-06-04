@@ -30,10 +30,10 @@
 
 #include <type_traits>
 
-#include "hipSYCL/sycl/access.hpp"
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/host/atomic_builtins.hpp"
-#include "hipSYCL/sycl/libkernel/memory.hpp"
+#include "../../sycl/access.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/host/atomic_builtins.hpp"
+#include "../../sycl/libkernel/memory.hpp"
 #include "multi_ptr.hpp"
 
 

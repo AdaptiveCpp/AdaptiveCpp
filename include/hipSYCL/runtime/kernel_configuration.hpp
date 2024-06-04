@@ -41,7 +41,7 @@
 #include <optional>
 #include <unordered_map>
 
-#include "hipSYCL/common/stable_running_hash.hpp"
+#include "../common/stable_running_hash.hpp"
 
 
 namespace hipsycl {

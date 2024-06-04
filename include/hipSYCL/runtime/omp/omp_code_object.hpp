@@ -31,11 +31,11 @@
 #include <string>
 #include <vector>
 
-#include "hipSYCL/runtime/kernel_configuration.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/runtime/util.hpp"
+#include "../../runtime/kernel_configuration.hpp"
+#include "../../runtime/device_id.hpp"
+#include "../../runtime/error.hpp"
+#include "../../runtime/kernel_cache.hpp"
+#include "../../runtime/util.hpp"
 
 
 namespace hipsycl {

@@ -1,6 +1,6 @@
 #pragma once
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
+#include "../../../../sycl/libkernel/backend.hpp"
+#include "../../../../sycl/libkernel/detail/int_types.hpp"
 
 namespace hipsycl::fp16 {
 

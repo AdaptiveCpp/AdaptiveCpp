@@ -30,7 +30,7 @@
 
 #include <type_traits>
 #include "backend.hpp"
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
+#include "../../sycl/libkernel/host/host_backend.hpp"
 #include "sp_group.hpp"
 #include "sp_private_memory.hpp"
 

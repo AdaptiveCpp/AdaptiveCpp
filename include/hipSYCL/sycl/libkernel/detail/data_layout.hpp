@@ -30,8 +30,8 @@
 
 #include <cassert>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/types.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
+#include "../../../sycl/types.hpp"
 #include "../id.hpp"
 #include "../range.hpp"
 

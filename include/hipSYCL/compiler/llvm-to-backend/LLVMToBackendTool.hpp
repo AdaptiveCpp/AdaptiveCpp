@@ -34,7 +34,7 @@
 #include <fstream>
 #include <functional>
 #include "LLVMToBackend.hpp"
-#include "hipSYCL/common/hcf_container.hpp"
+#include "../../common/hcf_container.hpp"
 
 namespace hipsycl {
 namespace compiler {

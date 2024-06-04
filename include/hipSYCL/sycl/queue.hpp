@@ -29,16 +29,16 @@
 #ifndef HIPSYCL_QUEUE_HPP
 #define HIPSYCL_QUEUE_HPP
 
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/glue/error.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/dag_node.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/hints.hpp"
-#include "hipSYCL/runtime/inorder_executor.hpp"
-#include "hipSYCL/runtime/inorder_queue.hpp"
-#include "hipSYCL/runtime/runtime.hpp"
-#include "hipSYCL/sycl/backend.hpp"
+#include "../common/debug.hpp"
+#include "../glue/error.hpp"
+#include "../runtime/application.hpp"
+#include "../runtime/dag_node.hpp"
+#include "../runtime/error.hpp"
+#include "../runtime/hints.hpp"
+#include "../runtime/inorder_executor.hpp"
+#include "../runtime/inorder_queue.hpp"
+#include "../runtime/runtime.hpp"
+#include "../sycl/backend.hpp"
 #include "types.hpp"
 #include "exception.hpp"
 

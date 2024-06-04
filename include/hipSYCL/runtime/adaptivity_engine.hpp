@@ -29,10 +29,10 @@
 #define HIPSYCL_ADAPTIVITY_ENGINE_HPP
 
 
-#include "hipSYCL/glue/llvm-sscp/jit.hpp"
-#include "hipSYCL/runtime/kernel_configuration.hpp"
-#include "hipSYCL/runtime/util.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
+#include "../glue/llvm-sscp/jit.hpp"
+#include "../runtime/kernel_configuration.hpp"
+#include "../runtime/util.hpp"
+#include "../runtime/kernel_cache.hpp"
 
 namespace hipsycl {
 namespace rt {

@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_SYCL_BACKEND_HPP
 #define HIPSYCL_SYCL_BACKEND_HPP
 
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../runtime/device_id.hpp"
 
 #include "libkernel/backend.hpp"
 

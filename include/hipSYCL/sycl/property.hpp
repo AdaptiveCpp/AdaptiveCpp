@@ -36,7 +36,7 @@
 #include "types.hpp"
 #include "exception.hpp"
 
-#include "hipSYCL/common/small_vector.hpp"
+#include "../common/small_vector.hpp"
 
 namespace hipsycl {
 namespace sycl {

@@ -29,11 +29,11 @@
 #ifndef HIPSYCL_DEVICE_SELECTOR_HPP
 #define HIPSYCL_DEVICE_SELECTOR_HPP
 
-#include "hipSYCL/runtime/application.hpp"
+#include "../runtime/application.hpp"
 
 #include "exception.hpp"
 #include "device.hpp"
-#include "hipSYCL/runtime/settings.hpp"
+#include "../runtime/settings.hpp"
 
 #include <limits>
 #include <functional>

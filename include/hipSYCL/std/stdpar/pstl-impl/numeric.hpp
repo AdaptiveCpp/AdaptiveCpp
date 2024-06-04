@@ -28,14 +28,14 @@
 #ifndef HIPSYCL_PSTL_NUMERIC_DEFINITION_HPP
 #define HIPSYCL_PSTL_NUMERIC_DEFINITION_HPP
 
-#include "hipSYCL/std/stdpar/detail/execution_fwd.hpp"
-#include "hipSYCL/std/stdpar/numeric"
+#include "../../../std/stdpar/detail/execution_fwd.hpp"
+#include "../../../std/stdpar/numeric"
 
 #include "../detail/sycl_glue.hpp"
 #include "../detail/stdpar_builtins.hpp"
 #include "../detail/offload.hpp"
-#include "hipSYCL/algorithms/util/allocation_cache.hpp"
-#include "hipSYCL/algorithms/numeric.hpp"
+#include "../../../algorithms/util/allocation_cache.hpp"
+#include "../../../algorithms/numeric.hpp"
 #include <iterator>
 #include <numeric>
 

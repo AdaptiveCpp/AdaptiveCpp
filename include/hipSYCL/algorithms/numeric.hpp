@@ -33,14 +33,14 @@
 #include <functional>
 #include <limits>
 
-#include "hipSYCL/algorithms/util/allocation_cache.hpp"
-#include "hipSYCL/sycl/libkernel/accessor.hpp"
-#include "hipSYCL/sycl/libkernel/functional.hpp"
-#include "hipSYCL/sycl/event.hpp"
-#include "hipSYCL/sycl/queue.hpp"
-#include "hipSYCL/algorithms/reduction/reduction_descriptor.hpp"
-#include "hipSYCL/algorithms/reduction/reduction_engine.hpp"
-#include "hipSYCL/algorithms/util/memory_streaming.hpp"
+#include "../algorithms/util/allocation_cache.hpp"
+#include "../sycl/libkernel/accessor.hpp"
+#include "../sycl/libkernel/functional.hpp"
+#include "../sycl/event.hpp"
+#include "../sycl/queue.hpp"
+#include "../algorithms/reduction/reduction_descriptor.hpp"
+#include "../algorithms/reduction/reduction_engine.hpp"
+#include "../algorithms/util/memory_streaming.hpp"
 
 namespace hipsycl::algorithms {
 

@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_RT_SETTINGS_HPP
 #define HIPSYCL_RT_SETTINGS_HPP
 
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../runtime/device_id.hpp"
 
 #include <ios>
 #include <optional>

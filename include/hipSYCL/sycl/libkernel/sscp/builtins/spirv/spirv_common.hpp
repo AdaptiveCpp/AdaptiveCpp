@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_SSCP_BUILTIN_SPIRV_COMMON_HPP
 #define HIPSYCL_SSCP_BUILTIN_SPIRV_COMMON_HPP
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
+#include "../../../../../sycl/libkernel/sscp/builtins/builtin_config.hpp"
 
 
 

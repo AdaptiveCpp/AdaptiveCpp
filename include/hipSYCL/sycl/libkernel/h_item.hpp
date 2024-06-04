@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_H_ITEM_HPP
 #define HIPSYCL_H_ITEM_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 #include "item.hpp"
 
 #include "detail/thread_hierarchy.hpp"

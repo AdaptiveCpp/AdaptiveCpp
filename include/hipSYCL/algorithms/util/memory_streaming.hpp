@@ -28,10 +28,10 @@
 #ifndef HIPSYCL_ALGORITHMS_MEMORY_STREAMING_HPP
 #define HIPSYCL_ALGORITHMS_MEMORY_STREAMING_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/device.hpp"
-#include "hipSYCL/sycl/libkernel/nd_item.hpp"
-#include "hipSYCL/sycl/info/device.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/device.hpp"
+#include "../../sycl/libkernel/nd_item.hpp"
+#include "../../sycl/info/device.hpp"
 #include <cstddef>
 
 

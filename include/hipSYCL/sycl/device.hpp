@@ -39,13 +39,13 @@
 #include "backend.hpp"
 #include "exception.hpp"
 #include "version.hpp"
-#include "hipSYCL/sycl/libkernel/range.hpp"
+#include "../sycl/libkernel/range.hpp"
 
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/runtime.hpp"
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/hardware.hpp"
+#include "../runtime/device_id.hpp"
+#include "../runtime/application.hpp"
+#include "../runtime/runtime.hpp"
+#include "../runtime/backend.hpp"
+#include "../runtime/hardware.hpp"
 
 namespace hipsycl {
 namespace sycl {

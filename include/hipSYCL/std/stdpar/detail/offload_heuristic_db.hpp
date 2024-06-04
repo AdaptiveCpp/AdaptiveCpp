@@ -39,9 +39,9 @@
 #include <memory>
 #include <vector>
 #include <mutex>
-#include "hipSYCL/runtime/settings.hpp"
-#include "hipSYCL/std/stdpar/detail/allocation_map.hpp"
-#include "hipSYCL/common/stable_running_hash.hpp"
+#include "../../../runtime/settings.hpp"
+#include "../../../std/stdpar/detail/allocation_map.hpp"
+#include "../../../common/stable_running_hash.hpp"
 
 
 namespace hipsycl::stdpar {

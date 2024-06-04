@@ -30,7 +30,7 @@
 
 
 #include "buffer.hpp"
-#include "hipSYCL/sycl/info/queue.hpp"
+#include "../sycl/info/queue.hpp"
 #include "queue.hpp"
 
 namespace hipsycl {

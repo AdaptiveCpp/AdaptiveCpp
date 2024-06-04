@@ -30,7 +30,7 @@
 
 #include <type_traits>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 #include "sp_group.hpp"
 
 namespace hipsycl {

@@ -32,10 +32,10 @@
 #include <type_traits>
 #include <array>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 #include "id.hpp"
 #include "detail/device_array.hpp"
-#include "hipSYCL/runtime/util.hpp"
+#include "../../runtime/util.hpp"
 
 namespace hipsycl {
 namespace sycl {

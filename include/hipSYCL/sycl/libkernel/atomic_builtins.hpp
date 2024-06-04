@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_ATOMIC_BUILTINS_HPP
 #define HIPSYCL_ATOMIC_BUILTINS_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/detail/builtin_dispatch.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/detail/builtin_dispatch.hpp"
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/atomic_builtins.hpp"

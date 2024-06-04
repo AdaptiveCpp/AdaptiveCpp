@@ -29,9 +29,9 @@
 #define HIPSYCL_BUILTINS_HPP
 
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
-#include "hipSYCL/sycl/libkernel/vec.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/host/host_backend.hpp"
+#include "../../sycl/libkernel/vec.hpp"
 #include <type_traits>
 #include <cstdlib>
 

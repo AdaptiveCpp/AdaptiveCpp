@@ -30,10 +30,10 @@
 #ifndef HIPSYCL_REDUCTION_WG_MODEL_QUERIES_HPP
 #define HIPSYCL_REDUCTION_WG_MODEL_QUERIES_HPP
 
-#include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
-#include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
-#include "hipSYCL/sycl/libkernel/nd_item.hpp"
-#include "hipSYCL/sycl/libkernel/group.hpp"
+#include "../../../sycl/libkernel/detail/thread_hierarchy.hpp"
+#include "../../../sycl/libkernel/detail/data_layout.hpp"
+#include "../../../sycl/libkernel/nd_item.hpp"
+#include "../../../sycl/libkernel/group.hpp"
 
 namespace hipsycl::algorithms::reduction::wg_model {
 

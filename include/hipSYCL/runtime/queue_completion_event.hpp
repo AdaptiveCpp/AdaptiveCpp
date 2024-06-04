@@ -30,7 +30,7 @@
 
 #include <mutex>
 #include "error.hpp"
-#include "hipSYCL/runtime/event.hpp"
+#include "../runtime/event.hpp"
 #include "inorder_queue_event.hpp"
 #include "inorder_queue.hpp"
 

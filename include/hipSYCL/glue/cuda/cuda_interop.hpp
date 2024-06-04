@@ -27,12 +27,12 @@
 
 
 
-#include "hipSYCL/sycl/backend.hpp"
-#include "hipSYCL/sycl/device.hpp"
+#include "../../sycl/backend.hpp"
+#include "../../sycl/device.hpp"
 
 #ifdef SYCL_EXT_HIPSYCL_BACKEND_CUDA
-#include "hipSYCL/runtime/cuda/cuda_queue.hpp"
-#include "hipSYCL/runtime/error.hpp"
+#include "../../runtime/cuda/cuda_queue.hpp"
+#include "../../runtime/error.hpp"
 
 #ifndef HIPSYCL_GLUE_CUDA_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_CUDA_BACKEND_INTEROP_HPP

@@ -35,8 +35,8 @@
 #include <string>
 #include <system_error>
 
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/sycl/info/queue.hpp"
+#include "../runtime/error.hpp"
+#include "../sycl/info/queue.hpp"
 #include "types.hpp"
 #include "libkernel/backend.hpp"
 

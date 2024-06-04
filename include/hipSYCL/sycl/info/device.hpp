@@ -31,7 +31,7 @@
 
 #include <cstddef>
 
-#include "hipSYCL/sycl/aspect.hpp"
+#include "../../sycl/aspect.hpp"
 #include "info.hpp"
 #include "../types.hpp"
 #include "../aspect.hpp"

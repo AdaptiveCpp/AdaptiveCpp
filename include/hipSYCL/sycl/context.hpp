@@ -39,8 +39,8 @@
 #include "info/info.hpp"
 #include "exception.hpp"
 
-#include "hipSYCL/runtime/device_list.hpp"
-#include "hipSYCL/glue/error.hpp"
+#include "../runtime/device_list.hpp"
+#include "../glue/error.hpp"
 
 namespace hipsycl {
 namespace sycl {

@@ -36,7 +36,7 @@
 #include "../detail/stdpar_builtins.hpp"
 #include "../detail/stdpar_defs.hpp"
 #include "../detail/offload.hpp"
-#include "hipSYCL/algorithms/algorithm.hpp"
+#include "../../../algorithms/algorithm.hpp"
 
 namespace std {
 

@@ -30,7 +30,7 @@
 
 #include <cassert>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 
 #if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
  #error "This file needs nvc++"

@@ -28,33 +28,33 @@
 #ifndef HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 
-#include "hipSYCL/runtime/kernel_configuration.hpp"
+#include "../../runtime/kernel_configuration.hpp"
 #include <cassert>
 #include <tuple>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/dag_node.hpp"
-#include "hipSYCL/runtime/hints.hpp"
-#include "hipSYCL/runtime/omp/omp_queue.hpp"
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/exception.hpp"
-#include "hipSYCL/sycl/interop_handle.hpp"
-#include "hipSYCL/sycl/libkernel/range.hpp"
-#include "hipSYCL/sycl/libkernel/id.hpp"
-#include "hipSYCL/sycl/libkernel/item.hpp"
-#include "hipSYCL/sycl/libkernel/nd_item.hpp"
-#include "hipSYCL/sycl/libkernel/sp_item.hpp"
-#include "hipSYCL/sycl/libkernel/sp_group.hpp"
-#include "hipSYCL/sycl/libkernel/group.hpp"
-#include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
-#include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
+#include "../../common/debug.hpp"
+#include "../../runtime/error.hpp"
+#include "../../runtime/dag_node.hpp"
+#include "../../runtime/hints.hpp"
+#include "../../runtime/omp/omp_queue.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/exception.hpp"
+#include "../../sycl/interop_handle.hpp"
+#include "../../sycl/libkernel/range.hpp"
+#include "../../sycl/libkernel/id.hpp"
+#include "../../sycl/libkernel/item.hpp"
+#include "../../sycl/libkernel/nd_item.hpp"
+#include "../../sycl/libkernel/sp_item.hpp"
+#include "../../sycl/libkernel/sp_group.hpp"
+#include "../../sycl/libkernel/group.hpp"
+#include "../../sycl/libkernel/detail/local_memory_allocator.hpp"
+#include "../../sycl/libkernel/detail/data_layout.hpp"
 
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/kernel_launcher.hpp"
+#include "../../runtime/device_id.hpp"
+#include "../../runtime/kernel_launcher.hpp"
 
 #include "../generic/host/collective_execution_engine.hpp"
 #include "../generic/host/iterate_range.hpp"

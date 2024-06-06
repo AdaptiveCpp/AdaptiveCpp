@@ -31,6 +31,9 @@
 #include <string>
 #include <vector>
 
+#include "appdb.hpp"
+
+
 namespace hipsycl {
 namespace common {
 
@@ -72,14 +75,29 @@ public:
   const std::string& get_jit_cache_dir() const {
     return _jit_cache_dir;
   }
+
+  template<class KeyT, class DataT>
+  auto& get_app_db() {
+    static db::appdb db{get_app_db_path(), false};
+    return db;
+  }
+
+  template<class KeyT, class DataT>
+  auto& get_const_app_db() const {
+    static db::appdb db{get_app_db_path(), true};
+    return db;
+  }
 private:
+  std::string get_app_db_path () const {
+    return join_path(get_this_app_dir(), "app.db");
+  }
+
   tuningdb();
 
   std::string _base_dir;
   std::string _this_app_dir;
   std::string _jit_cache_dir;
 };
-
 
 }
 

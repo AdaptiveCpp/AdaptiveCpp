@@ -40,97 +40,83 @@ namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(name, cuda_variable,             \
-                                              hip_variable, spirv_variable,    \
-                                              sscp_variable, host_variable)    \
+#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(                                 \
+    name, cuda_variable, hip_variable, sscp_variable, host_variable)           \
   HIPSYCL_KERNEL_TARGET                                                        \
   inline int name() {                                                          \
     __hipsycl_backend_switch(return 0, return sscp_variable(),                 \
-                                    return cuda_variable, return hip_variable, \
-                                    return spirv_variable)                     \
+                                    return cuda_variable, return hip_variable) \
   }
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_x, 
   threadIdx.x,
   hipThreadIdx_x,
-  __spirv_BuiltInLocalInvocationId.x,
   __hipsycl_sscp_get_local_id_x,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_y, 
   threadIdx.y,
   hipThreadIdx_y,
-  __spirv_BuiltInLocalInvocationId.y,
   __hipsycl_sscp_get_local_id_y,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_z, 
   threadIdx.z,
   hipThreadIdx_z,
-  __spirv_BuiltInLocalInvocationId.z,
   __hipsycl_sscp_get_local_id_z,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_x,
   blockIdx.x,
   hipBlockIdx_x,
-  __spirv_BuiltInWorkgroupId.x,
   __hipsycl_sscp_get_group_id_x,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_y,
   blockIdx.y,
   hipBlockIdx_y,
-  __spirv_BuiltInWorkgroupId.y,
   __hipsycl_sscp_get_group_id_y,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_z,
   blockIdx.z,
   hipBlockIdx_z,
-  __spirv_BuiltInWorkgroupId.z,
   __hipsycl_sscp_get_group_id_z,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_x,
   blockDim.x,
   hipBlockDim_x,
-  __spirv_BuiltInWorkgroupSize.x, 
   __hipsycl_sscp_get_local_size_x,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_y,
   blockDim.y,
   hipBlockDim_y,
-  __spirv_BuiltInWorkgroupSize.y,
   __hipsycl_sscp_get_local_size_y,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_z,
   blockDim.z,
   hipBlockDim_z,
-  __spirv_BuiltInWorkgroupSize.z,
   __hipsycl_sscp_get_local_size_z,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_x,
   gridDim.x,
   hipGridDim_x,
-  __spirv_BuiltInNumWorkgroups.x,
   __hipsycl_sscp_get_num_groups_x,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_y,
   gridDim.y,
   hipGridDim_y,
-  __spirv_BuiltInNumWorkgroups.y,
   __hipsycl_sscp_get_num_groups_y,
   0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_z,
   gridDim.z,
   hipGridDim_z,
-  __spirv_BuiltInNumWorkgroups.z,
   __hipsycl_sscp_get_num_groups_z,
   0)
 

@@ -31,7 +31,7 @@
 
 #include "cuda/cuda_backend.hpp"
 #include "hip/hip_backend.hpp"
-#include "spirv/spirv_backend.hpp"
+
 // These need to be included last, since they need to
 // know if we are in any device pass of the other backends.
 #include "sscp/sscp_backend.hpp"
@@ -47,10 +47,6 @@
  #define HIPSYCL_PLATFORM_CUDA
 #endif
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
- #define HIPSYCL_PLATFORM_SPIRV
-#endif
-
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP
  #define HIPSYCL_PLATFORM_SSCP
  #define HIPSYCL_PLATFORM_LLVM
@@ -62,7 +58,6 @@
 
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
     HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV ||                               \
     HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 1
 #else
@@ -146,11 +141,6 @@
 #else
  #define __hipsycl_if_target_hiplike(...)
 #endif
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
- #define __hipsycl_if_target_spirv(...) __hipsycl_if_target_device(__VA_ARGS__)
-#else
- #define __hipsycl_if_target_spirv(...)
-#endif
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
  #define __hipsycl_if_target_sscp(...) __hipsycl_if_target_device(__VA_ARGS__)
 #else
@@ -158,19 +148,16 @@
 #endif
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP // Same as: host pass, with SSCP enabled
-#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code,    \
-                                 spirv_code)                                   \
+#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
   if (__hipsycl_sscp_is_host) {                                                \
     host_code;                                                                 \
   } else {                                                                     \
     sscp_code;                                                                 \
   }
 #else
-#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code,    \
-                                 spirv_code)                                   \
+#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
   __hipsycl_if_target_host(host_code;) __hipsycl_if_target_cuda(cuda_code;)    \
-      __hipsycl_if_target_hip(hip_code;)                                       \
-          __hipsycl_if_target_spirv(spirv_code;)
+      __hipsycl_if_target_hip(hip_code;)
 #endif
 
 #define HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                           \

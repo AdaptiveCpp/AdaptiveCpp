@@ -59,7 +59,6 @@ void print(const char* s, Args... args) {
       __hipsycl_sscp_print("Type not yet supported for printing with generic target\n");
     },
     printf(s, args...),
-    printf(s, args...),
     printf(s, args...));
 }
 

@@ -40,10 +40,6 @@
 #include "generic/hiplike/atomic_builtins.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-#include "spirv/atomic_builtins.hpp"
-#endif
-
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "sscp/atomic_builtins.hpp"
 #endif

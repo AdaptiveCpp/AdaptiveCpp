@@ -1285,7 +1285,7 @@ group_barrier(const detail::sp_group<PropertyDescriptor> &g,
     }
     __syncthreads();
   );
-  __hipsycl_if_target_spirv(/* todo */);
+  __hipsycl_if_target_sscp(/* todo */);
   __hipsycl_if_target_host(/* todo */);
 }
 
@@ -1305,7 +1305,7 @@ group_barrier(const detail::sp_sub_group<PropertyDescriptor> &g,
   __hipsycl_if_target_cuda(
     __syncwarp();
   );
-  __hipsycl_if_target_spirv(/* todo */);
+  __hipsycl_if_target_sscp(/* todo */);
   __hipsycl_if_target_host(/* todo */);
 }
 

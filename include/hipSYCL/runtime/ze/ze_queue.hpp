@@ -83,12 +83,6 @@ public:
     return _hw_manager;
   }
 
-  result submit_multipass_kernel_from_code_object(
-      const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string &backend_kernel_name, const rt::range<3> &grid_size,
-      const rt::range<3> &block_size, unsigned dynamic_shared_mem,
-      void **kernel_args, const std::size_t *arg_sizes, std::size_t num_args);
-
   result submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
       const std::string &kernel_name, const rt::range<3> &num_groups,
@@ -110,7 +104,7 @@ private:
   ze_command_list_handle_t _command_list;
   ze_hardware_manager* _hw_manager;
   const std::size_t _device_index;
-  ze_multipass_code_object_invoker _multipass_code_object_invoker;
+
   ze_sscp_code_object_invoker _sscp_code_object_invoker;
 
   std::shared_ptr<dag_node_event> _last_submitted_op_event;

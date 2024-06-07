@@ -1,5 +1,9 @@
 find_package(Threads REQUIRED)
 
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT is_ipo_supported OUTPUT ipo_error)
+
 set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")
 set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
 
@@ -30,6 +34,7 @@ add_library(acpp-rt SHARED
   data.cpp
   inorder_executor.cpp
   kernel_cache.cpp
+  kernel_configuration.cpp
   multi_queue_executor.cpp
   dag.cpp
   dag_node.cpp
@@ -81,6 +86,9 @@ else()
     set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dylib" PARENT_SCOPE)
   endif()
 endif()
+if(is_ipo_supported)
+  set_property(TARGET acpp-rt PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+endif()
 
 install(TARGETS acpp-rt
         EXPORT install_exports
@@ -115,6 +123,10 @@ if(WITH_CUDA_BACKEND)
   if(WITH_SSCP_COMPILER)
     target_compile_definitions(rt-backend-cuda PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
     target_link_libraries(rt-backend-cuda PRIVATE llvm-to-ptx)
+  endif()
+
+  if(is_ipo_supported)
+    set_property(TARGET rt-backend-cuda PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
   install(TARGETS rt-backend-cuda
@@ -159,6 +171,10 @@ if(WITH_ROCM_BACKEND)
     target_link_libraries(rt-backend-hip PRIVATE llvm-to-amdgpu)
   endif()
 
+  if(is_ipo_supported)
+    set_property(TARGET rt-backend-hip PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+  endif()
+
   install(TARGETS rt-backend-hip
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
@@ -183,6 +199,10 @@ if(WITH_LEVEL_ZERO_BACKEND)
   if(WITH_SSCP_COMPILER)
     target_compile_definitions(rt-backend-ze PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
     target_link_libraries(rt-backend-ze PRIVATE llvm-to-spirv)
+  endif()
+
+  if(is_ipo_supported)
+    set_property(TARGET rt-backend-ze PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
   install(TARGETS rt-backend-ze
@@ -241,6 +261,10 @@ if(WITH_OPENCL_BACKEND)
     target_link_libraries(rt-backend-ocl PRIVATE llvm-to-spirv)
   endif()
 
+  if(is_ipo_supported)
+    set_property(TARGET rt-backend-ocl PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+  endif()
+
   install(TARGETS rt-backend-ocl
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
@@ -254,8 +278,23 @@ if(WITH_CPU_BACKEND)
     omp/omp_hardware_manager.cpp
     omp/omp_queue.cpp)
 
-    find_package(OpenMP REQUIRED)
+    # OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
+    if (APPLE)
+      if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
+        execute_process(COMMAND brew list libomp
+        COMMAND grep libomp.a 
+        COMMAND sed -E "s/\\/lib\\/.*//"
+        OUTPUT_VARIABLE DefaultOMP_ROOT
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+        # fater linkage will error out if it is not found
+        set(OpenMP_ROOT ${DefaultOMP_ROOT})
+        set(OMP_ROOT ${DefaultOMP_ROOT})
+      endif()
+    endif()
+
+    find_package(OpenMP REQUIRED)
+    
     target_include_directories(rt-backend-omp PRIVATE
       ${HIPSYCL_SOURCE_DIR}/include 
       ${PROJECT_BINARY_DIR}/include)
@@ -290,6 +329,10 @@ if(WITH_CPU_BACKEND)
 
   target_compile_options(rt-backend-omp PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-omp PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
+  if(is_ipo_supported)
+    set_property(TARGET rt-backend-omp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+  endif()
 
   install(TARGETS rt-backend-omp
       RUNTIME DESTINATION bin/hipSYCL

@@ -47,11 +47,11 @@ Advanced users may want to customize their installation more, or use features th
 | Compilation flow | Target hardware | Short description | Requirements |
 |------------------|-------------------|-------------------|-------------------|
 | `omp.library-only` | Any CPU | OpenMP CPU backend | Any OpenMP compiler |
-| `omp.accelerated` | Any CPU supported by LLVM | OpenMP CPU backend (compiler-accelerated)| LLVM >= 11 |
-| `cuda.integrated-multipass` | NVIDIA GPUs | CUDA backend (clang)| CUDA >= 10, LLVM >= 10 |
-| `cuda.explicit-multipass` | NVIDIA GPUs | CUDA backend (clang, can be targeted simultaneously with other backends) | CUDA >= 10, LLVM 11 or 13+ |
+| `omp.accelerated` | Any CPU supported by LLVM | OpenMP CPU backend (compiler-accelerated)| LLVM >= 14 |
+| `cuda.integrated-multipass` | NVIDIA GPUs | CUDA backend (clang)| CUDA >= 10, LLVM >= 14 |
+| `cuda.explicit-multipass` | NVIDIA GPUs | CUDA backend (clang, can be targeted simultaneously with other backends) | CUDA >= 10, LLVM >= 14 |
 | `cuda-nvcxx` | NVIDIA GPUs | CUDA backend (nvc++) | Latest NVIDIA HPC SDK |
-| `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM >= 10 |
+| `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM >= 14 |
 | `generic` | NVIDIA, AMD, Intel GPUs, OpenCL SPIR-V devices | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended and LLVM must be <= the ROCm LLVM version. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. AdaptiveCpp runtime backends for the respective target hardware need to be available. |
 
 Note: Building against `libc++` instead of `libstdc++` is only expected to work for the `generic` target. Additionally, AdaptiveCpp must have been built using the same standard library that the user code is linked against.

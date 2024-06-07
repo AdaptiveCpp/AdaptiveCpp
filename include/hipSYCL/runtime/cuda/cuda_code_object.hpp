@@ -31,7 +31,7 @@
 #include <vector>
 #include <string>
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -91,7 +91,7 @@ public:
                               hcf_object_id hcf_source,
                               const std::vector<std::string> &kernel_names,
                               int device,
-                              const glue::kernel_configuration &config);
+                              const kernel_configuration &config);
 
   virtual ~cuda_sscp_executable_object();
 
@@ -117,7 +117,7 @@ private:
   hcf_object_id _hcf;
   std::vector<std::string> _kernel_names;
   result _build_result;
-  glue::kernel_configuration::id_type _id;
+  kernel_configuration::id_type _id;
   int _device;
   CUmod_st* _module;
 };

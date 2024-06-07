@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.9)
 if(NOT CMAKE_VERSION VERSION_LESS 3.12)
   cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
 endif()
@@ -273,28 +273,17 @@ if(BUILD_CLANG_PLUGIN)
       set(ROCM_VERSION_MINOR ${CMAKE_MATCH_2})
       set(ROCM_VERSION_PATCH ${CMAKE_MATCH_3})
       message(STATUS "AMD clang version: ${ROCM_VERSION_MAJOR}.${ROCM_VERSION_MINOR}.${ROCM_VERSION_PATCH}")
-
-      if(${LLVM_VERSION_MAJOR} EQUAL 13 AND NOT DEFINED HIPSYCL_NO_DEVICE_MANGLER)
-        message(SEND_ERROR "AMD clang version not compatible with hipSYCL explicit multipass. "
-                           "To disable explicit multipass set -DHIPSYCL_NO_DEVICE_MANGLER=ON. "
-                           "This also disables simultaneous compilation for CUDA and HIP devices.")
-      endif()
     endif()
   endif()
-  if(${LLVM_VERSION_MAJOR} LESS 11 AND ${WITH_ACCELERATED_CPU})
-    message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 11) to be used with CPU acceleration support, disabling WITH_ACCELERATED_CPU")
-    set(WITH_ACCELERATED_CPU false)
-  endif()
-  if(${LLVM_VERSION_MAJOR} LESS 14 AND ${WITH_SSCP_COMPILER})
-    message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 14) to be used with SSCP compiler, disabling WITH_SSCP_COMPILER")
-    set(WITH_SSCP_COMPILER false)
-  endif()
-  if(${LLVM_VERSION_MAJOR} LESS 14 AND ${WITH_STDPAR_COMPILER})
-    message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 14) to be used with C++ standard parallelism support, disabling WITH_STDPAR_COMPILER")
-    set(WITH_STDPAR_COMPILER false)
-  endif()
+  
   if(${LLVM_VERSION_MAJOR} LESS 14)
-    set(WITH_REFLECTION_BUILTINS OFF)
+    if(${WITH_ACCELERATED_CPU} OR ${WITH_SSCP_COMPILER} OR ${WITH_STDPAR_COMPILER})
+      message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 14) to be used with advanced AdaptiveCpp compiler features, disabling WITH_STDPAR_COMPILER, WITH_ACCELERATED_CPU, WITH_SSCP_COMPILER")
+      set(WITH_REFLECTION_BUILTINS OFF)
+      set(WITH_STDPAR_COMPILER false)
+      set(WITH_SSCP_COMPILER false)
+      set(WITH_ACCELERATED_CPU false)
+    endif()
   endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
   
@@ -308,7 +297,6 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
-option(HIPSYCL_NO_DEVICE_MANGLER "Disable the use of DeviceMangler. necessary for LLVM 13 distributed with the rocm packages." OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -362,6 +350,8 @@ add_subdirectory(src)
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")
 
+set(DEFAULT_WIN32_HIP_LINK_LINE "-L$HIPSYCL_ROCM_PATH/lib -lamdhip64")
+
 if(MINGW)
   set(DEFAULT_LINK_PREFIX "-l:")
 else()
@@ -385,8 +375,14 @@ set(DEFAULT_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber 
 set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR}")
 
 # If no link lines given, set to default.
-if(NOT ROCM_LINK_LINE)
-  set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+if(WIN32)
+  if(NOT ROCM_LINK_LINE)
+    set(ROCM_LINK_LINE ${DEFAULT_WIN32_HIP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+  endif()
+else()
+  if(NOT ROCM_LINK_LINE)
+    set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+  endif()
 endif()
 
 if(WIN32)

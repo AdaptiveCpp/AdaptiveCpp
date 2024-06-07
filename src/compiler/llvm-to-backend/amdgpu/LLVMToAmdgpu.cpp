@@ -157,8 +157,6 @@ public:
 
     Invocation = {ClangPath, "-x", "ir",
       "--cuda-device-only", "-O3",
-      RocmPathFlag,
-      RocmDeviceLibsFlag,
       OffloadArchFlag,
       "-nogpuinc",
       "/dev/null",
@@ -168,13 +166,35 @@ public:
     if(IsFastMath)
       Invocation.push_back("-ffast-math");
     
+    if(!llvm::StringRef{ClangPath}.endswith("hipcc")) {
+      // Normally we try to use hipcc. However, when that fails,
+      // we may have fallen back to clang. In that case we may
+      // have to additionally set --rocm-path and --rocm-device-lib-path.
+      //
+      // When using hipcc, this is generally not needed as hipcc already
+      // knows how ROCm is configured. It might also have been specially
+      // tweaked by non-standard ROCm pacakges to find ROCm in unusual places.
+      //
+      // So we should not use --rocm-path and --rock-device-lib-path unless
+      // we really have to.
+      Invocation.push_back(RocmPathFlag);
+      Invocation.push_back(RocmDeviceLibsFlag);
+
+      if (!llvm::sys::fs::exists(common::filesystem::join_path(DeviceLibsPath, "ockl.bc"))) {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToAmdgpu: Configured ROCm device bitcode library path " << DeviceLibsPath
+            << " does not seem to contain key ROCm bitcode libraries such as ockl.bc. It is "
+               "possible that builtin bitcode linking is incomplete.\n";
+      }
+    }
+    
     std::string Output;
     if(!getCommandOutput(ClangPath, Invocation, Output))
       return false;
 
     std::stringstream sstr{Output};
     std::string CurrentComponent;
-
+    
     bool ConsumeNext = false;
     while(sstr) {
       sstr >> CurrentComponent;
@@ -194,7 +214,7 @@ public:
 };
 
 LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::jit::backend::amdgpu, KN}, KernelNames{KN} {
+    : LLVMToBackendTranslator{sycl::jit::backend::amdgpu, KN, KN}, KernelNames{KN} {
   RocmDeviceLibsPath = common::filesystem::join_path(RocmPath,
                                                      std::vector<std::string>{"amdgcn", "bitcode"});
 }

@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
@@ -515,22 +515,22 @@ result hip_queue::submit_multipass_kernel_from_code_object(
   std::string selected_target = available_targets[0];
   int device = _dev.get_id();
   
-  glue::kernel_configuration config;
+  kernel_configuration config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::hip);
+      kernel_base_config_parameter::backend_id, backend_id::hip);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::explicit_multipass);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::target_arch, selected_target);
+      kernel_base_config_parameter::target_arch, selected_target);
 
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, device);
+      kernel_base_config_parameter::runtime_device, device);
 
   // Will be invoked by the kernel cache in case there is a miss in the kernel
   // cache and we have to construct a new code object
@@ -590,7 +590,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       const std::string &kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const glue::kernel_configuration &initial_config) {
+      const kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
   this->activate_device();
   
@@ -610,33 +610,43 @@ result hip_queue::submit_sscp_kernel_from_code_object(
             kernel_name});
   }
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "hip_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, num_groups,
+      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
   
-  static thread_local glue::kernel_configuration config;
+  static thread_local kernel_configuration config;
   config = initial_config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::hip);
+      kernel_base_config_parameter::backend_id, backend_id::hip);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
 
   for(const auto& flag : kernel_info->get_compilation_flags())
     config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
     config.set_build_option(opt.first, opt.second);
 
-  config.set_build_option(glue::kernel_build_option::amdgpu_target_device,
+  config.set_build_option(kernel_build_option::amdgpu_target_device,
                           target_arch_name);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, device);
+      kernel_base_config_parameter::runtime_device, device);
 
   auto get_image_and_kernel_names =
       [&](std::vector<std::string> &contained_kernels) -> std::string {
@@ -702,15 +712,6 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       static_cast<const hip_executable_object *>(obj)->get_module();
   assert(module);
 
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{
-            "hip_queue: Could not map C++ arguments to kernel arguments"});
-  }
-
   return launch_kernel_from_module(
       module, kernel_name, num_groups, group_size, local_mem_size, _stream,
       arg_mapper.get_mapped_args(),
@@ -755,7 +756,7 @@ result hip_sscp_code_object_invoker::submit_kernel(
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, const std::string &kernel_name,
-    const glue::kernel_configuration &config) {
+    const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(
       op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,

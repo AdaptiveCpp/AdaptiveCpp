@@ -20,11 +20,8 @@ jobs:
         set -e
     - name: build
       run: |
-        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
-        echo "OMP_ROOT=${OMP_ROOT}" >> $GITHUB_ENV
         mkdir build && cd build
         cmake .. \
-        -DOpenMP_ROOT=$OMP_ROOT \
         -DWITH_OPENCL_BACKEND=OFF \
         -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install
         make -j 2 install VERBOSE=ON
@@ -33,7 +30,6 @@ jobs:
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DACPP_TARGETS=omp.library-only \
-        -DCMAKE_CXX_FLAGS=-I$OMP_ROOT/include \
         -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
         ${GITHUB_WORKSPACE}/tests
         make -j 2 VERBOSE=ON

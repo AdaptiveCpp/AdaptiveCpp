@@ -1,0 +1,62 @@
+name: Benchmark on self-hosted runners
+
+on:
+  pull_request:
+    types:
+      - labeled
+
+env:
+  SYCL_BENCH_BENCHMARKS: scalar_prod 2DConvolution
+
+jobs:
+  run-benchmark:
+    if: (${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/run-benchmark')) || ${{ github.event.label.name == 'benchmark' }}
+    runs-on: [self-hosted, gpu-nvidia]
+    strategy:
+      matrix:
+        clang_version: ['15']
+        cuda: ['11.0']
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build AdaptiveCpp
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=Off -DWITH_OPENCL_BACKEND=Off -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} ..
+        make -j16 install
+        cp /.singularity.d/libs/libcuda.* `pwd`/install/lib/
+    - name: Build sycl-bench
+      run: |
+        git clone https://github.com/bcosenza/sycl-bench.git
+        cd sycl-bench
+        mkdir build && cd build
+        cmake .. -DSYCL_IMPL=hipSYCL -DhipSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/hipSYCL/ -DHIPSYCL_TARGETS=cuda:sm_61
+        make $SYCL_BENCH_BENCHMARKS
+        
+    - name: Run SYCL-Bench
+      run: |
+        cd sycl-bench/bin
+        mkdir benchmarks
+        for benchmark in $SYCL_BENCH_BENCHMARKS; do cp ../build/$benchmark ./benchmarks/$benchmark; done
+        ./run-suite gpu-warmup
+        python3 ${GITHUB_WORKSPACE}/devops/sycl-bench_to_json.py sycl-bench.csv
+        cat output.json
+        mv output.json ${GITHUB_WORKSPACE}
+
+    - name: Download previous benchmark data
+      uses: actions/cache@v4
+      with:
+        path: ./cache
+        key: ${{ runner.os }}-benchmark
+
+    - name: Store new result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        name: SYCL-Bench benchmark
+        tool: customSmallerIsBetter
+        output-file-path: output.json
+        external-data-json-path: ./cache/benchmark-data.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        comment-on-alert: true
+        summary-always: true
+        comment-always: true
+

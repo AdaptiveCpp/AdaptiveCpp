@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2023 Aksel Alpay and contributors
+ * Copyright (c) 2018-2024 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,44 +26,58 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_AGGREGATE_ARGUMENT_EXPANSION_PASS_HPP
-#define HIPSYCL_AGGREGATE_ARGUMENT_EXPANSION_PASS_HPP
+#ifndef HIPSYCL_SPECIALIZED_HPP
+#define HIPSYCL_SPECIALIZED_HPP
 
-#include <llvm/IR/PassManager.h>
-#include <vector>
-#include <string>
-#include <unordered_map>
+#include <type_traits>
 
 namespace hipsycl {
-namespace compiler {
+namespace sycl {
 
+namespace detail {
 
-struct OriginalParamInfo {
-  OriginalParamInfo(std::size_t Offset, std::size_t OriginalIndex,
-                    const llvm::SmallVector<std::string> &Annotations)
-      : OffsetInOriginalParam{Offset}, OriginalParamIndex{OriginalIndex}, Annotations{Annotations} {
+template <class T>
+struct __hipsycl_sscp_emit_param_type_annotation_specialized {
+  T value;
+};
+
+} // namespace detail
+
+template <class T> class specialized {
+public:
+  template <typename U = T, typename = std::enable_if_t<
+                                std::is_default_constructible<U>::value>>
+  specialized() : _value{} {}
+
+  specialized(const T &value) : _value{value} {}
+
+  specialized(const specialized<T> &other) : _value{other._value.value} {}
+
+  specialized(sycl::specialized<T> &&other) { swap(*this, other); }
+
+  specialized<T> &operator=(const T &value) {
+    sycl::specialized<T> tmp{value};
+    swap(*this, tmp);
+    return *this;
   }
 
-  std::size_t OffsetInOriginalParam;
-  std::size_t OriginalParamIndex;
-  llvm::SmallVector<std::string> Annotations;
-};
-// Expands aggregates into primitive function arguments. Aggregate types to expand are
-// expected to be marked using the ByVal attribute.
-class AggregateArgumentExpansionPass : public llvm::PassInfoMixin<AggregateArgumentExpansionPass> {
-public:
-  AggregateArgumentExpansionPass(const std::vector<std::string>& FunctionNames);
-  llvm::PreservedAnalyses run(llvm::Module &M,
-                              llvm::ModuleAnalysisManager &MAM);
-  // Returns offsets of expanded arg in the original aggregate
-  const std::vector<OriginalParamInfo>* getInfosOnOriginalParams(const std::string& FunctionName) const;
+  specialized<T> &operator=(specialized<T> other) {
+    swap(*this, other);
+    return *this;
+  }
+
+  friend void swap(specialized<T> &first, specialized<T> &second) {
+    using std::swap;
+    swap(first._value.value, second._value.value);
+  }
+
+  operator T() const { return _value.value; }
+
 private:
-  std::vector<std::string> AffectedFunctionNames;
-  std::unordered_map<std::string, std::vector<OriginalParamInfo>> OriginalParamInfos;
+  detail::__hipsycl_sscp_emit_param_type_annotation_specialized<T> _value;
 };
 
-}
-}
-
+} // namespace sycl
+} // namespace hipsycl
 
 #endif

@@ -26,7 +26,7 @@
  */
 
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
@@ -409,7 +409,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     const std::string &kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
-    const glue::kernel_configuration &initial_config) {
+    const kernel_configuration &initial_config) {
 
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
@@ -423,8 +423,18 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
             kernel_name});
   }
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "ocl_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, num_groups,
+      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
   ocl_hardware_context *hw_ctx = static_cast<ocl_hardware_context *>(
@@ -434,16 +444,16 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
-  static thread_local glue::kernel_configuration config;
+  static thread_local kernel_configuration config;
   config = initial_config;
   
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::ocl);
+      kernel_base_config_parameter::backend_id, backend_id::ocl);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   for(const auto& flag : kernel_info->get_compilation_flags())
     config.set_build_flag(flag);
@@ -451,20 +461,20 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     config.set_build_option(opt.first, opt.second);
 
   config.set_build_option(
-      glue::kernel_build_option::spirv_dynamic_local_mem_allocation_size,
+      kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
 
   // TODO: Enable this if we are on Intel
-  // config.set_build_flag(glue::kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
+  // config.set_build_flag(kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, dev.get());
-  glue::kernel_configuration::extend_hash(
+      kernel_base_config_parameter::runtime_device, dev.get());
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_context, ctx.get());
+      kernel_base_config_parameter::runtime_context, ctx.get());
 
  
 
@@ -523,16 +533,6 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: Attempting to submit SSCP kernel"
                      << std::endl;
-
-
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{
-            "ocl_queue: Could not map C++ arguments to kernel arguments"});
-  }
 
   cl::Event completion_evt;
   auto submission_err = submit_ocl_kernel(

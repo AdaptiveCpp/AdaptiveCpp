@@ -26,7 +26,7 @@
  */
 
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/integer.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
 
 extern "C" __hipsycl_int32  __nv_mul24(__hipsycl_int32, __hipsycl_int32);

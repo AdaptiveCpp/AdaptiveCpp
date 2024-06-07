@@ -28,10 +28,8 @@
 #ifndef HIPSYCL_LLVMUTILS_HPP
 #define HIPSYCL_LLVMUTILS_HPP
 
-#if LLVM_VERSION_MAJOR < 13 || (LLVM_VERSION_MAJOR == 13 && defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR < 5)
-#define IS_OPAQUE(pointer) constexpr(false && pointer) /* Use `pointer` to silence warnings */
-#define HAS_TYPED_PTR 1
-#elif LLVM_VERSION_MAJOR < 16
+
+#if LLVM_VERSION_MAJOR < 16
 #define IS_OPAQUE(pointer) (pointer->isOpaquePointerTy())
 #define HAS_TYPED_PTR 1
 #else

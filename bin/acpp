@@ -1085,9 +1085,6 @@ class hip_multipass_invocation:
     self._host_compiler = self._config.clang_path
     self.set_temp_dir("/tmp")
 
-    if config.plugin_llvm_version < 13:
-      raise RuntimeError("hip.explicit-multipass is not supported for clang < 13.")
-
   def set_temp_dir(self, temp_dir):
     self._temp_dir = temp_dir
     self._integration_header = os.path.join(
@@ -1610,7 +1607,7 @@ class compiler:
           except OptionNotSet:
             return False
           return not "cuda-nvcxx" in config.targets and config.pure_cpu_compiler == clang_path\
-            and config.has_plugin_cpu_acceleration and int(config.plugin_llvm_version) >= 11
+            and config.has_plugin_cpu_acceleration
 
         if config.use_accelerated_cpu or default_to_accelerated(config):
           self._backends.append(omp_accelerated_invocation(config, config.targets["omp"]))

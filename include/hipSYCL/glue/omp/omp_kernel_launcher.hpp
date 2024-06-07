@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include <cassert>
 #include <tuple>
 #ifdef _OPENMP
@@ -474,7 +474,7 @@ public:
   }
 
   virtual void invoke(rt::dag_node *node,
-                      const kernel_configuration &) final override {
+                      const rt::kernel_configuration &) final override {
     _invoker(node);
   }
 

@@ -33,7 +33,7 @@
 
 #include "builtins/math.hpp"
 #include "builtins/native.hpp"
-#include "builtins/interger.hpp"
+#include "builtins/integer.hpp"
 #include "builtins/relational.hpp"
 #include "builtins/print.hpp"
 

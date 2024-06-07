@@ -45,7 +45,7 @@
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 #include "hipSYCL/compiler/llvm-to-backend/host/LLVMToHostFactory.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/omp/omp_code_object.hpp"
@@ -388,7 +388,7 @@ result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   launcher->set_backend_capabilities(cap);
 
   rt::dag_node *node_ptr = node.get();
-  const glue::kernel_configuration *config =
+  const kernel_configuration *config =
       &(op.get_launcher().get_kernel_configuration());
 
   omp_instrumentation_setup instrumentation_setup{op, node};
@@ -407,7 +407,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     const std::string &kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
-    const glue::kernel_configuration &initial_config) {
+    const kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
   const hcf_kernel_info *kernel_info =
@@ -419,20 +419,30 @@ result omp_queue::submit_sscp_kernel_from_code_object(
                    kernel_name});
   }
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if (!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "omp_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, num_groups,
+      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  static thread_local glue::kernel_configuration config;
+  static thread_local kernel_configuration config;
   config = initial_config;
   
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::omp);
+      kernel_base_config_parameter::backend_id, backend_id::omp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
 
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(config);
@@ -498,15 +508,6 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   auto kernel =
       static_cast<const omp_sscp_executable_object *>(obj)->get_kernel(
           kernel_name);
-
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if (!arg_mapper.mapping_available()) {
-    return make_error(
-        __hipsycl_here(),
-        error_info{
-            "omp_queue: Could not map C++ arguments to kernel arguments"});
-  }
 
   return launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
                                arg_mapper.get_mapped_args());
@@ -615,7 +616,7 @@ result omp_sscp_code_object_invoker::submit_kernel(
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, const std::string &kernel_name,
-    const glue::kernel_configuration &config) {
+    const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(
       op, hcf_object, kernel_name, num_groups, group_size,

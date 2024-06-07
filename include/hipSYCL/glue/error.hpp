@@ -49,7 +49,7 @@ inline void print_async_errors(sycl::exception_list error_list) {
                   << std::endl;
 
     output_stream
-        << "hipSYCL has caught the following undhandled asynchronous errors: "
+        << "hipSYCL has caught the following unhandled asynchronous errors: "
         << std::endl << std::endl;
 
     int idx = 0;

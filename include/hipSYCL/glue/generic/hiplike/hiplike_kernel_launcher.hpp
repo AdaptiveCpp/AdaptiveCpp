@@ -33,7 +33,7 @@
 #include <cstdlib>
 #include <string>
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -544,7 +544,7 @@ public:
   }
 
   virtual void invoke(rt::dag_node *node,
-                      const kernel_configuration &) final override {
+                      const rt::kernel_configuration &) final override {
     _invoker(node);
   }
 

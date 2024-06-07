@@ -31,7 +31,7 @@
 #include <vector>
 #include <string>
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -90,7 +90,7 @@ public:
                              hcf_object_id source,
                              const std::vector<std::string> &kernel_name,
                              int device,
-                             const glue::kernel_configuration &config);
+                             const kernel_configuration &config);
 
   virtual result get_build_result() const override;
 
@@ -115,7 +115,7 @@ private:
   hcf_object_id _origin;
   std::vector<std::string> _kernel_names;
   result _build_result;
-  glue::kernel_configuration::id_type _id;
+  kernel_configuration::id_type _id;
   int _device;
   ihipModule_t* _module;
 };

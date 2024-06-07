@@ -4,6 +4,33 @@ AdaptiveCpp implements several extensions that are not defined by the specificat
 
 ## Supported extensions
 
+### `HIPSYCL_EXT_SPECIALIZED`
+
+This extension adds a mechanism to hint to the SSCP JIT compiler that a kernel specialization should be generated. That is, when `sycl::specialized<T>` is passed as a kernel argument, the compiler will generate a kernel with the value of the object stored in the `specialized` wrapper hardcoded as a constant. This addresses the same problem as SYCL 2020 specialization constants, however it provides two major benefits:
+
+* It is much, much easier to use for users due to a far more intuitive API
+* It is a true zero-cost abstraction that does not add any overhead when the code is not compiled with a JIT compiler. This is in contrast to SYCL 2020 specialization constants which can actively *hurt* performance when they need to be emulated (e.g. if the compiler uses ahead-of-time compilation).
+
+As a consequence, unlike SYCL 2020 specialization constants, the `sycl::specialized` mechanism can be used as an optimization hint that has no drawbacks when the compiler cannot capitalize on it.
+
+Example:
+
+```c++
+
+sycl::queue q;
+
+sycl::specialized<float> scaling_factor = // some runtime value
+float* data = ...
+
+q.parallel_for(range, [=](auto idx){
+  // The JIT compiler will treat the value of scaling_factor as a constant at JIT-time.
+  // E.g, if scaling_factor is 1 at runtime, the compiler may generate an empty kernel.
+  data *= scaling_factor;
+});
+
+```
+
+`sycl::specialized` currently only affects the code generation of the SSCP JIT compiler (`--acpp-targets=generic`), and only if `ACPP_ADAPTIVITY_LEVEL` is set to any value larger than 0 (the default is 1).
 
 ### `HIPSYCL_EXT_SCOPED_PARALLELISM_V2`
 This extension provides the scoped parallelism kernel invocation and programming model. This extension does not need to be enabled explicitly and is always available.

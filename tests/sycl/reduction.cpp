@@ -345,6 +345,8 @@ BOOST_AUTO_TEST_CASE(incremental_reduction) {
   for(std::size_t i = 0; i < size;++i)
     data[i] = static_cast<int>(i);
 
+  *result = 0;
+
   // Also tests plus<> without explicit template argument
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
                  [=](auto idx, auto &redu) { redu += data[idx]; }).wait();

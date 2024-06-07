@@ -349,14 +349,16 @@ BOOST_AUTO_TEST_CASE(incremental_reduction) {
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
                  [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
 
-  BOOST_CHECK(*result == std::accumulate(data, data + size, 0));
+  int expected_result = std::accumulate(data, data + size, 0);
+  BOOST_CHECK(*result == expected_result);
 
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
                  [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
 
-  BOOST_CHECK(*result == 2 * std::accumulate(data, data + size, 0));
+  BOOST_CHECK(*result == 2 * expected_result);
 
   sycl::free(data, q);
+  sycl::free(result, q);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

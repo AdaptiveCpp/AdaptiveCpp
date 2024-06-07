@@ -29,7 +29,7 @@
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
 __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
-                                  __acpp_sscp_memory_order) {
+                               __acpp_sscp_memory_order) {
 
   if(fence_scope == hipsycl::sycl::memory_scope::system) {
     __nvvm_membar_sys();
@@ -42,7 +42,7 @@ __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
 __acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
-                                 __acpp_sscp_memory_order) {
+                              __acpp_sscp_memory_order) {
 
   if(fence_scope == hipsycl::sycl::memory_scope::system) {
     __nvvm_membar_sys();

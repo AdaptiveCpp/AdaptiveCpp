@@ -125,8 +125,7 @@ public:
   T exchange(T operand,
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_exchange<Space>(_ptr, operand, order,
-                                                       scope);
+    return detail::__acpp_atomic_exchange<Space>(_ptr, operand, order, scope);
   }
 
   bool compare_exchange_weak(T &expected, T desired,
@@ -163,8 +162,7 @@ public:
   Integral fetch_add(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_fetch_add<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_add<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -172,8 +170,7 @@ public:
   Integral fetch_sub(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_fetch_sub<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_sub<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -181,8 +178,7 @@ public:
   Integral fetch_and(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_fetch_and<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_and<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -190,8 +186,7 @@ public:
   Integral fetch_or(Integral operand,
                     memory_order order = default_read_modify_write_order,
                     memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_fetch_or<Space>(_ptr, operand, order,
-                                                    scope);
+    return detail::__acpp_atomic_fetch_or<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -199,8 +194,7 @@ public:
   Integral fetch_xor(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_fetch_xor<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_xor<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -208,8 +202,7 @@ public:
   Integral fetch_min(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_fetch_min<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_min<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -217,8 +210,7 @@ public:
   Integral fetch_max(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__acpp_atomic_fetch_max<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_max<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,

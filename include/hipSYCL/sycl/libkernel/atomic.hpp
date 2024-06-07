@@ -84,7 +84,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   T load(memory_order memoryOrder = memory_order::relaxed) const volatile {
     return detail::__acpp_atomic_load<addressSpace>(_ptr, memoryOrder,
-                                                       default_scope());
+                                                    default_scope());
   }
 
   HIPSYCL_KERNEL_TARGET

@@ -44,8 +44,8 @@ namespace detail {
     name, cuda_variable, hip_variable, sscp_variable, host_variable)           \
   HIPSYCL_KERNEL_TARGET                                                        \
   inline int name() {                                                          \
-    __acpp_backend_switch(return 0, return sscp_variable(),                 \
-                                    return cuda_variable, return hip_variable) \
+    __acpp_backend_switch(return 0, return sscp_variable(),                    \
+                                 return cuda_variable, return hip_variable)    \
   }
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_lid_x, 

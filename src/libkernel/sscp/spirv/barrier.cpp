@@ -34,10 +34,9 @@ __attribute__((convergent)) extern "C" void
 __spirv_ControlBarrier(__spv::ScopeFlag Execution, __spv::ScopeFlag Memory,
                        __acpp_uint32 Semantics);
 
-
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
-                                  __acpp_sscp_memory_order mem_order) {
+__acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                               __acpp_sscp_memory_order mem_order) {
 
   __acpp_uint32 flags = get_spirv_memory_semantics(mem_order);
 
@@ -54,8 +53,8 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN void
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-    __acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
-                                  __acpp_sscp_memory_order mem_order) {
+__acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                              __acpp_sscp_memory_order mem_order) {
   __acpp_uint32 flags = get_spirv_memory_semantics(mem_order);
 
   if(fence_scope == __acpp_sscp_memory_scope::sub_group)
@@ -68,7 +67,4 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN void
   __spv::ScopeFlag mem_fence_scope = get_spirv_scope(fence_scope);
 
   __spirv_ControlBarrier(__spv::ScopeFlag::Subgroup, mem_fence_scope, flags);
-  
 }
-
-

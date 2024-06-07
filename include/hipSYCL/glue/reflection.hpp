@@ -28,12 +28,10 @@
 #ifndef HIPSYCL_REFLECTION_HPP
 #define HIPSYCL_REFLECTION_HPP
 
-template<class StructT>
-void __acpp_introspect_flattened_struct(void *s,
-                                           int **num_flattened_members,
-                                           int **member_offsets,
-                                           int **member_sizes,
-                                           int **member_kinds);
+template <class StructT>
+void __acpp_introspect_flattened_struct(void *s, int **num_flattened_members,
+                                        int **member_offsets,
+                                        int **member_sizes, int **member_kinds);
 
 namespace hipsycl::glue::reflection {
 

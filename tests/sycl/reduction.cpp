@@ -347,10 +347,13 @@ BOOST_AUTO_TEST_CASE(incremental_reduction) {
 
   // Also tests plus<> without explicit template argument
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
-                 [=](auto idx, auto &redu) { redu += data[idx]; });
+                 [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
+
+  BOOST_CHECK(*result == std::accumulate(data, data + size, 0));
+
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
-                 [=](auto idx, auto &redu) { redu += data[idx]; });
-  q.wait();
+                 [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
+
   BOOST_CHECK(*result == 2 * std::accumulate(data, data + size, 0));
 
   sycl::free(data, q);

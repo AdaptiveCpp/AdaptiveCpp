@@ -45,7 +45,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
           application::get_settings().get<setting::visibility_mask>(),
           backend_id::hip)) {
     print_warning(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "hip_hardware_manager: HIP backend does not support device "
             "visibility masks. Use HIP_VISIBILE_DEVICES instead."});
@@ -59,7 +59,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
 
     if(err != hipErrorNoDevice){
       print_warning(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"hip_hardware_manager: Could not obtain number of devices",
                     error_code{"HIP", err}});
     }
@@ -78,7 +78,7 @@ std::size_t hip_hardware_manager::get_num_devices() const {
 
 hardware_context *hip_hardware_manager::get_device(std::size_t index) {
   if (index >= _devices.size()){
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_hardware_manager: Attempt to access invalid "
                               "device detected."});
     return nullptr;
@@ -89,7 +89,7 @@ hardware_context *hip_hardware_manager::get_device(std::size_t index) {
 
 device_id hip_hardware_manager::get_device_id(std::size_t index) const {
   if (index >= _devices.size()){
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_hardware_manager: Attempt to access invalid "
                               "device detected."});
   }
@@ -106,7 +106,7 @@ hip_hardware_context::hip_hardware_context(int dev) : _dev{dev} {
 
   if (err != hipSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_hardware_manager: Could not query device properties ",
                    error_code{"HIP", err}});
   }
@@ -403,7 +403,7 @@ std::string hip_hardware_context::get_driver_version() const {
   auto err = hipDriverGetVersion(&driver_version);
   if (err != hipSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_hardware_manager: Querying driver version failed",
                    error_code{"HIP", err}});
   }

@@ -38,7 +38,7 @@ hip_device_manager::hip_device_manager() {
 
   if (err != hipSuccess){
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "hip_device_manager: Could not obtain currently active HIP device",
             error_code{"HIP", err}});
@@ -56,7 +56,7 @@ void hip_device_manager::activate_device(int device_id)
 
     if (err != hipSuccess){
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "hip_device_manager: Could not set active HIP device",
             error_code{"HIP", err}});

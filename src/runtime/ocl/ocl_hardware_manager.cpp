@@ -59,7 +59,7 @@ ResultT info_query(const cl::Device& dev) {
   cl_int err = dev.getInfo(Query, &r);
   if(err != CL_SUCCESS) {
     register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_hardware_context: Could not obtain device info",
                     error_code{"CL", err}});
   }
@@ -100,7 +100,7 @@ bool should_include_platform(const std::string& platform_name, const cl::Platfor
   std::string ocl_version;
   cl_int err = p.getInfo(CL_PLATFORM_VERSION, &ocl_version);
   if (err != CL_SUCCESS) {
-    print_warning(__hipsycl_here(),
+    print_warning(__acpp_here(),
                   error_info{"ocl_hardware_manager: Could not retrieve OpenCL "
                              "version for platform " +
                                  platform_name,
@@ -546,7 +546,7 @@ ocl_hardware_manager::ocl_hardware_manager()
   cl_int err = cl::Platform::get(&platforms);
   if(err != CL_SUCCESS) {
     print_warning(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_hardware_manager: Could not obtain platform list",
                     error_code{"CL", err}});
     platforms.clear();
@@ -559,7 +559,7 @@ ocl_hardware_manager::ocl_hardware_manager()
     err = p.getInfo(CL_PLATFORM_NAME, &platform_name);
     if(err != CL_SUCCESS) {
       print_warning(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_hardware_manager: Could not retrieve platform name",
                     error_code{"CL", err}});
     }
@@ -578,7 +578,7 @@ ocl_hardware_manager::ocl_hardware_manager()
                          &devs);
       if (err != CL_SUCCESS) {
         print_warning(
-            __hipsycl_here(),
+            __acpp_here(),
             error_info{
                 "ocl_hardware_manager: Could not list devices of platform",
                 error_code{"CL", err}});
@@ -596,7 +596,7 @@ ocl_hardware_manager::ocl_hardware_manager()
             platform_ctx = ctx;
           else {
             print_warning(
-                __hipsycl_here(),
+                __acpp_here(),
                 error_info{"ocl_hardware_manager: Shared context construction "
                            "failed. Will attempt to fall back to individual "
                            "context per device, but this may prevent data "
@@ -605,7 +605,7 @@ ocl_hardware_manager::ocl_hardware_manager()
           }
         } else {
           print_warning(
-              __hipsycl_here(),
+              __acpp_here(),
               error_info{
                   "ocl_hardware_manager: Not constructing shared context "
                   "across devices. Note that this may prevent data "
@@ -626,7 +626,7 @@ ocl_hardware_manager::ocl_hardware_manager()
               if (err == CL_SUCCESS)
                 chosen_context = ctx;
               else {
-                print_error(__hipsycl_here(),
+                print_error(__acpp_here(),
                             error_info{"ocl_hardware_manager: Individual context "
                                       "creation failed",
                                       error_code{"CL", err}});

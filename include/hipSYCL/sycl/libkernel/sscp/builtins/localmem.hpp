@@ -31,9 +31,9 @@
 
 #include "builtin_config.hpp"
 
-#define __hipsycl_sscp_local static __attribute__((address_space(3)))
+#define __acpp_sscp_local static __attribute__((address_space(3)))
 
 HIPSYCL_SSCP_BUILTIN
-__attribute__((address_space(3))) void* __hipsycl_sscp_get_dynamic_local_memory();
+__attribute__((address_space(3))) void* __acpp_sscp_get_dynamic_local_memory();
 
 #endif

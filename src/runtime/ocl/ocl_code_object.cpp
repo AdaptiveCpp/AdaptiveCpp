@@ -61,7 +61,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
 
   if(err != CL_SUCCESS) {
     _build_status = register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ocl_code_object: Construction of CL program failed",
                    error_code{"CL", static_cast<int>(err)}});
     return;
@@ -87,7 +87,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
       msg += " Build log: " + build_log;
     
     _build_status = register_error(
-        __hipsycl_here(), error_info{msg,
+        __acpp_here(), error_info{msg,
                                      error_code{"CL", static_cast<int>(err)}});
     return;
   }
@@ -99,7 +99,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
   
   if(err != CL_SUCCESS) {
     _build_status = register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_code_object: Could not obtain kernel names in program",
             error_code{"CL", static_cast<int>(err)}});
@@ -113,7 +113,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
     cl::Kernel k{_program, name.c_str(), &err};
     if(err != CL_SUCCESS) {
       _build_status = register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_code_object: Could not construct kernel object for kernel "+name,
             error_code{"CL", static_cast<int>(err)}});
@@ -190,7 +190,7 @@ result ocl_executable_object::get_kernel(const std::string& name, cl::Kernel& ou
     return _build_status;
   auto it = _kernel_handles.find(name);
   if(it == _kernel_handles.end())
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ocl_executable_object: Unknown kernel name"});
   out = it->second;
   return make_success();

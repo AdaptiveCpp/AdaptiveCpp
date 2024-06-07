@@ -47,7 +47,7 @@ namespace hipsycl {
 namespace compiler {
 
 namespace {
-constexpr const char* builtin_name = "__hipsycl_introspect_flattened_struct";
+constexpr const char* builtin_name = "__acpp_introspect_flattened_struct";
 
 struct TypeInformation {
   int FlattenedNumMembers;
@@ -119,7 +119,7 @@ TypeInformationGlobalVars storeTypeInformationAsGlobals(llvm::Function *BuiltinI
                                                         const TypeInformation &TI) {
   TypeInformationGlobalVars TIGV;
 
-  std::string GVPrefix = "__hipsycl_typeinfo_" + BuiltinInstantiation->getName().str() + "_";
+  std::string GVPrefix = "__acpp_typeinfo_" + BuiltinInstantiation->getName().str() + "_";
 
   llvm::GlobalVariable *FlattenedNumMembersGV =
       new llvm::GlobalVariable(M, llvm::IntegerType::getInt32Ty(M.getContext()), true,

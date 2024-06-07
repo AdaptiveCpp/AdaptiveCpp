@@ -63,7 +63,7 @@ void host_synchronization_callback(hipStream_t stream, hipError_t status,
   dag_node_ptr* node = static_cast<dag_node_ptr*>(userData);
   
   if(status != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_queue callback: HIP returned error code.",
                               error_code{"HIP", status}});
   }
@@ -148,7 +148,7 @@ result launch_kernel_from_module(ihipModule_t *module,
       hipModuleGetFunction(&kernel_func, module, kernel_name.c_str());
 
   if(err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: could not extract kernel from module",
                                  error_code{"HIP", static_cast<int>(err)}});
   }
@@ -163,7 +163,7 @@ result launch_kernel_from_module(ihipModule_t *module,
                        dynamic_shared_mem, stream, kernel_args, nullptr);
 
   if (err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: could not submit kernel from module",
                                  error_code{"HIP", static_cast<int>(err)}});
   }
@@ -192,7 +192,7 @@ hip_queue::hip_queue(hip_backend *be, device_id dev, int priority)
     err = hipStreamCreateWithPriority(&_stream, hipStreamNonBlocking, priority);
   }
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_queue: Couldn't construct backend stream",
                               error_code{"HIP", err}});
     return;
@@ -206,7 +206,7 @@ hipStream_t hip_queue::get_stream() const { return _stream; }
 hip_queue::~hip_queue() {
   auto err = hipStreamDestroy(_stream);
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_queue: Couldn't destroy stream",
                               error_code{"HIP", err}});
   }
@@ -225,7 +225,7 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
   hipError_t err = hipEventRecord(evt, this->get_stream());
   if (err != hipSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_queue: Couldn't record event", error_code{"HIP", err}});
     return nullptr;
   }
@@ -341,7 +341,7 @@ result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
   }
 
   if (err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: Couldn't submit memcpy",
                                  error_code{"HIP", err}});
   }
@@ -356,7 +356,7 @@ result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
       op.get_launcher().find_launcher(backend_id::hip);
   
   if (!l)
-    return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
+    return make_error(__acpp_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
   
   rt::backend_kernel_launch_capabilities cap;
@@ -390,7 +390,7 @@ result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
   }
 
   if (err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: hipMemPrefetchAsync() failed",
                                  error_code{"HIP", err}});
   }
@@ -411,7 +411,7 @@ result hip_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
                                   op.get_num_bytes(), get_stream());
 
   if (err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: hipMemsetAsync() failed",
                                  error_code{"HIP", err}});
   }
@@ -424,7 +424,7 @@ result hip_queue::wait() {
   auto err = hipStreamSynchronize(_stream);
 
   if(err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: Couldn't synchronize with stream",
                                  error_code{"HIP", err}});
   }
@@ -439,7 +439,7 @@ result hip_queue::query_status(inorder_queue_status &status) {
   } else if(err == hipErrorNotReady) {
     status = inorder_queue_status{false};
   } else {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: Could not query stream status",
                                  error_code{"HIP", static_cast<int>(err)}});
   }
@@ -457,7 +457,7 @@ result hip_queue::submit_queue_wait_for(dag_node_ptr node) {
       cast<inorder_queue_event<hipEvent_t>>(evt.get());
   auto err = hipStreamWaitEvent(_stream, hip_evt->request_backend_event(), 0);
   if (err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: hipStreamWaitEvent() failed",
                                  error_code{"HIP", err}});
   }
@@ -476,7 +476,7 @@ result hip_queue::submit_external_wait_for(dag_node_ptr node) {
                            reinterpret_cast<void *>(user_data), 0);
 
   if (err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                    error_info{"hip_queue: Couldn't submit stream callback",
                               error_code{"HIP", err}});
   }
@@ -502,7 +502,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
         rt::hcf_cache::get().get_hcf(hcf_object);
   if (!hcf)
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_queue: Could not access requested HCF object"});
 
   assert(hcf->root_node());
@@ -571,7 +571,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
 
   
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: Code object construction failed"});
   }
 
@@ -605,7 +605,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_queue: Could not obtain hcf kernel info for kernel " +
             kernel_name});
   }
@@ -615,7 +615,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "hip_queue: Could not map C++ arguments to kernel arguments"});
   }
@@ -704,7 +704,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
   
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"hip_queue: Code object construction failed"});
   }
 
@@ -719,7 +719,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       arg_mapper.get_mapped_num_args());
 #else
   return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{
           "hip_queue: SSCP kernel launch was requested, but hipSYCL was "
           "not built with HIP SSCP support."});
@@ -743,7 +743,7 @@ result hip_multipass_code_object_invoker::submit_kernel(
   assert(_queue);
 
   std::string kernel_name = kernel_body_name;
-  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
+  if(kernel_name_tag.find("__acpp_unnamed_kernel") == std::string::npos)
     kernel_name = kernel_name_tag;
 
   return _queue->submit_multipass_kernel_from_code_object(

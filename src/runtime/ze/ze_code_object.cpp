@@ -53,7 +53,7 @@ result ze_sscp_code_object_invoker::submit_kernel(
 
   return _queue->submit_sscp_kernel_from_code_object(
       op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
-      arg_sizes, num_args, config);
+      arg_sizes, num_args, __acpp
 }
 
 ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
@@ -72,7 +72,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
     desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
   } else {
     _build_status = register_error(
-        __hipsycl_here(), error_info{"ze_executable_object: Invalid module format"});
+        __acpp_here(), error_info{"ze_executable_object: Invalid module format"});
     return;
   }
   
@@ -91,7 +91,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
     std::string build_log_content;
 
     if (zeModuleBuildLogGetString(build_log, &build_log_size, nullptr) ==
-        ZE_RESULT_SUCCESS) {
+        __acpp_SUCCESS) {
       std::vector<char> build_log_buffer(build_log_size);
       if (zeModuleBuildLogGetString(build_log, &build_log_size,
                                     build_log_buffer.data()) ==
@@ -105,7 +105,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
       msg += "\nBuild log: ";
       msg += build_log_content;
     }
-    _build_status = register_error(__hipsycl_here(),
+    _build_status = register_error(__acpp_here(),
                    error_info{msg,
                               error_code{"ze", static_cast<int>(err)}});
     zeModuleBuildLogDestroy(build_log);
@@ -123,8 +123,8 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
   err = zeModuleGetKernelNames(_module, &num_kernels, nullptr);
   if (err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
-        error_info{"ze_executable_object: Couldn't obtain number of kernels",
+        __acpp_here(),
+        error_info{"ze_executable_o__acppuldn't obtain number of kernels",
                    error_code{"ze", static_cast<int>(err)}});
     return;
   }
@@ -134,7 +134,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
 
   if (err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_executable_object: Couldn't obtain kernel names",
                    error_code{"ze", static_cast<int>(err)}});
     return;
@@ -142,18 +142,18 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
 
   for(const char* name : kernel_names)
     _kernels.push_back(std::string{name});
-}
+}__acpp
 
 ze_executable_object::~ze_executable_object() {
   if(_module) {
     ze_result_t err = zeModuleDestroy(_module);
     if(err != ZE_RESULT_SUCCESS) {
-      register_error(__hipsycl_here(),
+      register_error(__acpp_here(),
                    error_info{"ze_executable_object: Couldn't destroy module handle",
                               error_code{"ze", static_cast<int>(err)}});
     }
   }
-}
+}__acpp
 
 result ze_executable_object::get_build_result() const{
   return _build_status;
@@ -167,7 +167,7 @@ code_format ze_executable_object::format() const {
   if(_format == ze_source_format::spirv)
     return code_format::spirv;
   else
-    return code_format::native_isa;
+    return code_forma__acpp_isa;
 }
 
 backend_id ze_executable_object::managing_backend() const {
@@ -233,7 +233,7 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
       HIPSYCL_DEBUG_INFO << K << std::endl;
     }
 
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ze_executable_object: Couldn't construct kernel",
                                  error_code{"ze", static_cast<int>(err)}});
   }
@@ -252,7 +252,7 @@ ze_sscp_executable_object::ze_sscp_executable_object(ze_context_handle_t ctx, ze
                           const std::string &spirv_image,
                           const kernel_configuration &config)
     : ze_executable_object(ctx, dev, source, ze_source_format::spirv,
-                            spirv_image),
+                      __acpprv_image),
       _id{config.generate_id()} {}
 
 

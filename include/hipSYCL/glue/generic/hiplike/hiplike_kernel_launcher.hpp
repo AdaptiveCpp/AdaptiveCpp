@@ -91,9 +91,9 @@
 #ifndef __sycl_kernel
  #define __sycl_kernel
 #endif
-#ifndef __hipsycl_launch_integrated_kernel
+#ifndef __acpp_launch_integrated_kernel
 
-#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+#define __acpp_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
                                            ...)                                \
   assert(false && "Dummy integrated kernel launch was called");
 
@@ -113,7 +113,7 @@ struct dim3 {
 // Dummy kernel that is used in conjunction with 
 // __builtin_get_device_side_stable_name() to extract kernel names
 template<class KernelT>
-__global__ void __hipsycl_kernel_name_template () {}
+__global__ void __acpp_kernel_name_template () {}
 
 namespace hipsycl {
 namespace glue {
@@ -157,7 +157,7 @@ template <class F, typename... Reductions>
 __host__ __device__ void
 device_invocation_with_local_reducers(F&& f, Reductions... reductions) {
 
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     auto invoker = [&, f] __host__ __device__ (auto... reducers) {
 
       f(reducers...);
@@ -165,7 +165,7 @@ device_invocation_with_local_reducers(F&& f, Reductions... reductions) {
     };
     invoker(reductions.construct_reducer()...);
   );
-  __hipsycl_if_target_host(
+  __acpp_if_target_host(
     assert(false && "Attempted to execute device code path on host!");
   );
 }
@@ -183,10 +183,10 @@ template <typename KernelName, class Function, typename... Reductions>
 __sycl_kernel void
 primitive_parallel_for_with_local_reducers(Function f,
                                            Reductions... reductions) {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     device_invocation_with_local_reducers(
         [&] __host__ __device__(auto &...local_reducers) {
-          int gid = __hipsycl_lid_x + __hipsycl_gid_x * __hipsycl_lsize_x;
+          int gid = __acpp_lid_x + __acpp_gid_x * __acpp_lsize_x;
           f(gid, local_reducers...);
         },
         reductions...);
@@ -195,7 +195,7 @@ primitive_parallel_for_with_local_reducers(Function f,
 
 template <typename KernelName, class Function>
 __sycl_kernel void single_task_kernel(Function f) {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     device_invocation(f);
   );
 }
@@ -206,7 +206,7 @@ __sycl_kernel void
 parallel_for_kernel(Function f, sycl::range<dimensions> execution_range,
                     sycl::id<dimensions> offset, bool with_offset,
                     Reductions... reductions) {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     // Note: We currently cannot have with_offset as template parameter
     // because this might cause clang to emit two kernels with the same
     // mangled name (variants with and without offset) if an explicit kernel
@@ -235,7 +235,7 @@ template <typename KernelName, class Function, int dimensions,
 __sycl_kernel void parallel_for_ndrange_kernel(Function f,
                                                sycl::id<dimensions> offset,
                                                Reductions... reductions) {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     device_invocation(
       [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -262,7 +262,7 @@ parallel_for_workgroup(Function f,
                        // since it allows the compiler to infer 'dimensions'
                        sycl::range<dimensions> logical_group_size,
                        Reductions... reductions) {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     device_invocation(
         [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -299,10 +299,10 @@ private:
       nested_range<unknown_static_range, nested_range<static_range<1>>>;
 
     if constexpr(Dim == 1) {
-      if constexpr(DivisorX % __hipsycl_warp_size == 0) {
+      if constexpr(DivisorX % __acpp_warp_size == 0) {
         using decomposition =
             nested_range<unknown_static_range,
-                         nested_range<static_range<__hipsycl_warp_size>>>;
+                         nested_range<static_range<__acpp_warp_size>>>;
 
         return decomposition{};
       } else {
@@ -322,7 +322,7 @@ __sycl_kernel void
 parallel_region(Function f, MultiversioningProps props,
                 sycl::range<dimensions> num_groups,
                 sycl::range<dimensions> group_size, Reductions... reductions) {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     device_invocation(
       [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -461,7 +461,7 @@ public:
 
       if (!mem) {
         rt::register_error(
-            __hipsycl_here(),
+            __acpp_here(),
             rt::error_info{"Could not allocate scratch memory for reduction",
                            rt::error_type::memory_allocation_error});
         return nullptr;
@@ -497,26 +497,26 @@ public:
   // Must be __host__ __device__ in order to be able to call
   // hiplike_dynamic_local_memory()
   __host__ __device__ void *get_local_scratch_mem() const {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
         return static_cast<void *>(
                    static_cast<char *>(
                        sycl::detail::hiplike_dynamic_local_memory()) +
                    _local_memory_offset);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return nullptr;
     );
   }
 
   __host__ __device__ 
   void* get_reduction_output_buffer() const {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       if(!_is_final)
         return _scratch_memory_out;
       else
         return _descriptor.get_pointer();
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return nullptr;
     );
   }
@@ -524,13 +524,13 @@ public:
 
   __device__ hiplike::local_reducer<ReductionDescriptor>
   construct_reducer() const {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
         int my_local_id =
-            __hipsycl_lid_z * __hipsycl_lsize_y * __hipsycl_lsize_x +
-            __hipsycl_lid_y * __hipsycl_lsize_x + __hipsycl_lid_x;
+            __acpp_lid_z * __acpp_lsize_y * __acpp_lsize_x +
+            __acpp_lid_y * __acpp_lsize_x + __acpp_lid_x;
         int my_group_id =
-            __hipsycl_gid_z * __hipsycl_ngroups_y * __hipsycl_ngroups_x +
-            __hipsycl_gid_y * __hipsycl_ngroups_x + __hipsycl_gid_x;
+            __acpp_gid_z * __acpp_ngroups_y * __acpp_ngroups_x +
+            __acpp_gid_y * __acpp_ngroups_x + __acpp_gid_x;
 
         value_type *group_output_ptr =
             static_cast<value_type *>(get_reduction_output_buffer()) +
@@ -597,17 +597,17 @@ template<rt::backend_id Backend_id, class Queue_type>
 class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
-#define __hipsycl_invoke_kernel(nodeptr, f, KernelNameT, KernelBodyT, grid,    \
+#define __acpp_invoke_kernel(nodeptr, f, KernelNameT, KernelBodyT, grid,    \
                                 block, shared_mem, stream, ...)                \
   if (false) {                                                                 \
-    __hipsycl_kernel_name_template<KernelNameT><<<1, 1>>>();                   \
-    __hipsycl_kernel_name_template<KernelBodyT><<<1, 1>>>();                   \
+    __acpp_kernel_name_template<KernelNameT><<<1, 1>>>();                   \
+    __acpp_kernel_name_template<KernelBodyT><<<1, 1>>>();                   \
   }                                                                            \
   if constexpr (is_launch_from_module()) {                                     \
     invoke_from_module<KernelNameT, KernelBodyT>(nodeptr, grid, block,         \
                                                  shared_mem, __VA_ARGS__);     \
   } else {                                                                     \
-    __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream,     \
+    __acpp_launch_integrated_kernel(f, grid, block, shared_mem, stream,     \
                                        __VA_ARGS__)                            \
   }
 
@@ -676,7 +676,7 @@ public:
       // reductions
       if constexpr (type == rt::kernel_type::single_task) {
 
-        __hipsycl_invoke_kernel(
+        __acpp_invoke_kernel(
             node, hiplike_dispatch::single_task_kernel<kernel_name_t>,
             kernel_name_t, Kernel, dim3(1, 1, 1), dim3(1, 1, 1),
             dynamic_local_memory, _queue->get_native_type(), k);
@@ -728,7 +728,7 @@ public:
 
           if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
-            __hipsycl_invoke_kernel(node,
+            __acpp_invoke_kernel(node,
                 hiplike_dispatch::parallel_for_kernel<kernel_name_t>, kernel_name_t,
                 Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -742,7 +742,7 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_invoke_kernel(node,
+            __acpp_invoke_kernel(node,
                 hiplike_dispatch::parallel_for_ndrange_kernel<kernel_name_t>,
                 kernel_name_t, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -757,7 +757,7 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_invoke_kernel(node,
+            __acpp_invoke_kernel(node,
                 hiplike_dispatch::parallel_for_workgroup<kernel_name_t>,
                 kernel_name_t, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -784,7 +784,7 @@ public:
               
               using sp_properties_t = decltype(multiversioning_props);
 
-              __hipsycl_invoke_kernel(node,
+              __acpp_invoke_kernel(node,
                   hiplike_dispatch::parallel_region<multiversioned_name_t>,
                   multiversioned_name_t, decltype(multiversioned_kernel_body),
                   hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -845,10 +845,10 @@ public:
                   (local_reducers.combine_global_input(gid), ...);
               };
 
-              __hipsycl_invoke_kernel(node,
+              __acpp_invoke_kernel(node,
                   hiplike_dispatch::primitive_parallel_for_with_local_reducers<
-                      __hipsycl_unnamed_kernel>,
-                  __hipsycl_unnamed_kernel, decltype(pure_reduction_kernel),
+                      __acpp_unnamed_kernel>,
+                  __acpp_unnamed_kernel, decltype(pure_reduction_kernel),
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{num_groups}),
                   hiplike_dispatch::make_kernel_launch_range<1>(
@@ -916,7 +916,7 @@ private:
     return __builtin_unique_stable_name(KernelT);
 
     // If we have builtin_get_device_side_mangled_name, rely on
-    // __hipsycl_kernel_name_template unless we are in split compiler mode -
+    // __acpp_kernel_name_template unless we are in split compiler mode -
     // here we follow the traditional mangling based on the type.
     // In thas case, unnamed kernel lambdas are unsupported which is enforced
     // by the clang plugin in the device compilation pass.
@@ -928,9 +928,9 @@ private:
     // when semantic analysis runs, we cannot apply the builtin
     // directly to our kernel launchers. Use dummy __global__ instead
     std::string name_template = __builtin_get_device_side_mangled_name(
-      __hipsycl_kernel_name_template<KernelT>);
-    std::string template_marker = "_Z30__hipsycl_kernel_name_template";
-    std::string replacement = "_Z16__hipsycl_kernel";
+      __acpp_kernel_name_template<KernelT>);
+    std::string template_marker = "_Z27__acpp_kernel_name_template";
+    std::string replacement = "_Z13__acpp_kernel";
     name_template.erase(0, template_marker.size());
     return replacement + name_template;
 #else
@@ -948,12 +948,12 @@ private:
     std::size_t local_hcf_object_id = 0;
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
     if(Backend_id == rt::backend_id::cuda) {
-      local_hcf_object_id = __hipsycl_local_cuda_hcf_object_id;
+      local_hcf_object_id = __acpp_local_cuda_hcf_object_id;
     }
 #endif
 #ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
     if(Backend_id == rt::backend_id::hip) {
-      local_hcf_object_id = __hipsycl_local_hip_hcf_object_id;
+      local_hcf_object_id = __acpp_local_hip_hcf_object_id;
     }
 #endif
 
@@ -1003,7 +1003,7 @@ private:
 }
 }
 
-#undef __hipsycl_invoke_kernel
+#undef __acpp_invoke_kernel
 #undef __sycl_kernel
 
 #endif

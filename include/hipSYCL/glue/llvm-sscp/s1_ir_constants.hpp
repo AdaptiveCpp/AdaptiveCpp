@@ -33,15 +33,15 @@
 // Stage 1 IR constants
 // These variables need to be initialized by the clang plugin.
 HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
-    __hipsycl_local_sscp_hcf_object_id;
+    __acpp_local_sscp_hcf_object_id;
 
 HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
-    __hipsycl_local_sscp_hcf_object_size;
+    __acpp_local_sscp_hcf_object_size;
 
-HIPSYCL_SSCP_STAGE1_IR_CONST const char __hipsycl_local_sscp_hcf_content[];
+HIPSYCL_SSCP_STAGE1_IR_CONST const char __acpp_local_sscp_hcf_content[];
 
-HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_host;
-HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_device;
+HIPSYCL_SSCP_STAGE1_IR_CONST int  __acpp_sscp_is_host;
+HIPSYCL_SSCP_STAGE1_IR_CONST int  __acpp_sscp_is_device;
 
 
 #endif

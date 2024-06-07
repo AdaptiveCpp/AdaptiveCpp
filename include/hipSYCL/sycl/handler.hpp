@@ -299,14 +299,14 @@ public:
   }
 
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
       sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -321,7 +321,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -336,7 +336,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
@@ -351,7 +351,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     id<1> workItemOffset,
@@ -366,7 +366,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -384,7 +384,7 @@ public:
 
   /// \todo flexible ranges are currently unsupported
   /*
-  template <typename KernelName= __hipsycl_unnamed_kernel,
+  template <typename KernelName= __acpp_unnamed_kernel,
             typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                WorkgroupFunctionType kernelFunc)
@@ -395,7 +395,7 @@ public:
   }
   */
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
@@ -411,7 +411,7 @@ public:
 
   // Scoped parallelism API
   
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -546,7 +546,7 @@ public:
                   "host_image targets are unsupported");
 
 
-    this->submit_kernel<__hipsycl_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
+    this->submit_kernel<__acpp_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         sycl::id<dim>{}, get_range(dest),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
@@ -624,7 +624,7 @@ public:
                         "handler: USM fill() is unsupported for queues not "
                         "bound to devices"};
 
-      this->submit_kernel<__hipsycl_unnamed_kernel,
+      this->submit_kernel<__acpp_unnamed_kernel,
                           rt::kernel_type::basic_parallel_for>(
           sycl::id<1>{}, sycl::range<1>{count},
           get_preferred_group_size<1>(),

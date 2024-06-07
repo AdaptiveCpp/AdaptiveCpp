@@ -62,10 +62,10 @@ public:
     // TODO Optimize this - may be able to share
     // code with group algorithms
     // TODO What if local size is not power of two?
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       __syncthreads();
       const int local_size =
-          __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+          __acpp_lsize_x * __acpp_lsize_y * __acpp_lsize_z;
       for (int i = local_size / 2; i > 0; i /= 2) {
         if(_my_lid < i)
           _local_memory[_my_lid] =
@@ -79,7 +79,7 @@ public:
   }
 
   __host__ __device__ void combine_global_input(int my_global_id) {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       combine(_global_input[my_global_id]);
     );
   }

@@ -74,7 +74,7 @@ public:
   template <class F>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,
                   F &&f) noexcept {
-    __hipsycl_if_target_sscp(
+    __acpp_if_target_sscp(
       if(sycl::jit::introspect<sycl::jit::current_backend, int>() == sycl::jit::backend::host) {
         run_host(problem_size, idx, f);
       } else {
@@ -82,10 +82,10 @@ public:
       }
       return;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       run_device(problem_size, idx, f);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       run_host(problem_size, idx, f);
     );
   };

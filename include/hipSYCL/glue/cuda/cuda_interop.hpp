@@ -64,7 +64,7 @@ template <> struct backend_interop<sycl::backend::cuda> {
 
     if (!launcher_params) {
       rt::register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           rt::error_info{"Invalid argument to get_native_queue()"});
       
       return native_queue_type{};
@@ -81,7 +81,7 @@ template <> struct backend_interop<sycl::backend::cuda> {
 
     if (!mqe) {
       rt::register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           rt::error_info{"Invalid argument to get_native_queue()"});
       return native_queue_type{};
     }

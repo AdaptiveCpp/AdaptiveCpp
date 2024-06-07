@@ -54,7 +54,7 @@ void* ze_allocator::allocate(size_t min_alignment, size_t size_bytes) {
       zeMemAllocDevice(_ctx, &desc, size_bytes, min_alignment, _dev, &out);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemAllocDevice() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
@@ -76,7 +76,7 @@ void* ze_allocator::allocate_optimized_host(size_t min_alignment,
   ze_result_t err = zeMemAllocHost(_ctx, &desc, bytes, min_alignment, &out);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemAllocHost() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
@@ -90,7 +90,7 @@ void ze_allocator::free(void *mem) {
   ze_result_t err = zeMemFree(_ctx, mem);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(), 
+    register_error(__acpp_here(), 
         error_info{"ze_allocator: zeMemFree() failed", 
             error_code{"ze",static_cast<int>(err)}});
   }
@@ -117,7 +117,7 @@ void* ze_allocator::allocate_usm(size_t bytes) {
       zeMemAllocShared(_ctx, &device_desc, &host_desc, bytes, 0, _dev, &out);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemAllocShared() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
@@ -142,14 +142,14 @@ result ze_allocator::query_pointer(const void* ptr, pointer_info& out) const {
   ze_result_t err = zeMemGetAllocProperties(_ctx, ptr, &props, &dev);
 
   if(err != ZE_RESULT_SUCCESS) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemGetAllocProperties() failed",
                               error_code{"ze", static_cast<int>(err)}});
   }
 
   if(props.type == ZE_MEMORY_TYPE_UNKNOWN) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_allocator: query_pointer(): pointer is unknown by backend",
                      error_code{"ze", static_cast<int>(err)},
                      error_type::invalid_parameter_error});

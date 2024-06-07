@@ -547,21 +547,21 @@ using ulonglong16 = vec<unsigned long long, 16>;
                                FUNCTION_GENERATOR)                             \
   OVERLOAD_SET_GENERATOR(                                                      \
       FUNCTION_GENERATOR, builtin_name,                                        \
-      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__hipsycl_,              \
+      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__acpp_,              \
                              builtin_name))
 
 #define HIPSYCL_DEFINE_NATIVE_BUILTIN(builtin_name, OVERLOAD_SET_GENERATOR,    \
                                       FUNCTION_GENERATOR)                      \
   OVERLOAD_SET_GENERATOR(                                                      \
       FUNCTION_GENERATOR, builtin_name,                                        \
-      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__hipsycl_native_,       \
+      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__acpp_native_,       \
                              builtin_name))
 
 #define HIPSYCL_DEFINE_HALF_BUILTIN(builtin_name, OVERLOAD_SET_GENERATOR,      \
                                       FUNCTION_GENERATOR)                      \
   OVERLOAD_SET_GENERATOR(                                                      \
       FUNCTION_GENERATOR, builtin_name,                                        \
-      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__hipsycl_half_,         \
+      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__acpp_half_,         \
                              builtin_name))
 
 }
@@ -925,16 +925,16 @@ HIPSYCL_DEFINE_BUILTIN(sign, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
 
 // TODO: m[float/double][3/4]
 HIPSYCL_BUILTIN float3 cross(float3 a, float3 b) {
-  return __hipsycl_cross3(a, b);
+  return __acpp_cross3(a, b);
 }
 HIPSYCL_BUILTIN double3 cross(double3 a, double3 b) {
-  return __hipsycl_cross3(a, b);
+  return __acpp_cross3(a, b);
 }
 HIPSYCL_BUILTIN float4 cross(float4 a, float4 b) {
-  return __hipsycl_cross4(a, b);
+  return __acpp_cross4(a, b);
 }
 HIPSYCL_BUILTIN double4 cross(double4 a, double4 b) {
-  return __hipsycl_cross4(a, b);
+  return __acpp_cross4(a, b);
 }
 
 #define HIPSYCL_BUILTIN_GENERATOR_BINARY_REDUCTION_T_T(T, name, impl_name)     \

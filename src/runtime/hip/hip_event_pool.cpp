@@ -43,7 +43,7 @@ result hip_event_factory::create(hipEvent_t& out) {
   auto err = hipEventCreate(&evt);
   if(err != hipSuccess) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_event_factory: Couldn't create event", error_code{"HIP", err}});
     
   }
@@ -54,7 +54,7 @@ result hip_event_factory::create(hipEvent_t& out) {
 result hip_event_factory::destroy(hipEvent_t evt) {
   auto err = hipEventDestroy(evt);
   if (err != hipSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                    error_info{"hip_event_factory: Couldn't destroy event",
                               error_code{"HIP", err}});
   }

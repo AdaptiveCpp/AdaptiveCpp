@@ -271,7 +271,7 @@ public:
     if(is_bound()) {
       if(!has_device_ptr()) {
         register_error(
-            __hipsycl_here(),
+            __acpp_here(),
             error_info{
                 "buffer_memory_requirement: Attempted to initialize kernel "
                 "blob without having a device pointer available"});

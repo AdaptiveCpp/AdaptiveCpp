@@ -39,7 +39,7 @@
 
 #define __sycl_kernel __global__
 
-#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+#define __acpp_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
                                            ...)                                \
   f<<<grid, block, shared_mem, static_cast<CUstream_st*>(stream)>>>(__VA_ARGS__);
 

@@ -126,7 +126,7 @@ static llvm::RegisterStandardPasses
 #endif // HIPSYCL_WITH_ACCELERATED_CPU
 #endif // LLVM_VERSION_MAJOR < 16
 
-#if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
+#if !defined(_WIN32)
 #define HIPSYCL_RESOLVE_AND_QUOTE(V) #V
 #define HIPSYCL_STRINGIFY(V) HIPSYCL_RESOLVE_AND_QUOTE(V)
 #define HIPSYCL_PLUGIN_VERSION_STRING                                                              \
@@ -180,12 +180,9 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             if(!CompilationStateManager::getASTPassState().isDeviceCompilation())
               MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
           });
-#if LLVM_VERSION_MAJOR < 12
-          PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
-            OptLevel Opt = OptLevel::O3;
-#else
+
           PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
-#endif
+
             if(!CompilationStateManager::getASTPassState().isDeviceCompilation())
               registerCBSPipeline(MPM, Opt, false);
           });
@@ -199,7 +196,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         }
   };
 }
-#endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11
+#endif // !_WIN32
 
 } // namespace compiler
 } // namespace hipsycl

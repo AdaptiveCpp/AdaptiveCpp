@@ -300,4 +300,60 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }
 
+
+BOOST_AUTO_TEST_CASE(buffer_reduction) {
+  sycl::queue q;
+  sycl::buffer<int> values_buff{1024};
+  { 
+    sycl::host_accessor a{values_buff};
+    std::iota(a.get_pointer(), a.get_pointer() + 1024, 0);
+  }
+  
+  sycl::buffer<int> sum_buff{1};
+  sycl::buffer<int> max_buff{1};
+
+  q.submit([&](sycl::handler &cgh) {
+    auto values_acc = values_buff.get_access<sycl::access_mode::read>(
+        cgh);
+
+    auto sumReduction = sycl::reduction(
+        sum_buff, cgh, sycl::plus<int>(),
+        sycl::property_list{
+            sycl::property::reduction::initialize_to_identity{}});
+    auto maxReduction = sycl::reduction(
+        max_buff, cgh, sycl::maximum<int>(),
+        sycl::property_list{
+            sycl::property::reduction::initialize_to_identity{}});
+
+    cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
+                     [=](sycl::id<1> idx, auto &sum, auto &max) {
+                       sum += values_acc[idx];
+                       max.combine(values_acc[idx]);
+                     });
+  });
+  
+  BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
+  BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
+}
+
+BOOST_AUTO_TEST_CASE(incremental_reduction) {
+  const int size = 1024;
+  sycl::queue q;
+  int* data = sycl::malloc_shared<int>(size, q);
+
+  int* result = sycl::malloc_shared<int>(1, q);
+  for(std::size_t i = 0; i < size;++i)
+    data[i] = static_cast<int>(i);
+
+  // Also tests plus<> without explicit template argument
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) { redu += data[idx]; });
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) { redu += data[idx]; });
+  q.wait();
+  BOOST_CHECK(*result == 2 * std::accumulate(data, data + size, 0));
+
+  sycl::free(data, q);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

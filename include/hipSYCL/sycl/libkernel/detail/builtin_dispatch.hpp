@@ -34,13 +34,12 @@
   __hipsycl_backend_switch(                                                    \
       host_builtins::name(__VA_ARGS__), sscp_builtins::name(__VA_ARGS__),      \
       hiplike_builtins::name(__VA_ARGS__),                                     \
-      hiplike_builtins::name(__VA_ARGS__), spirv_builtins::name(__VA_ARGS__))
+      hiplike_builtins::name(__VA_ARGS__))
 
 #define HIPSYCL_RETURN_DISPATCH_BUILTIN(name, ...)                             \
   __hipsycl_backend_switch(return host_builtins::name(__VA_ARGS__),            \
                                   return sscp_builtins::name(__VA_ARGS__),     \
                                   return hiplike_builtins::name(__VA_ARGS__),  \
-                                  return hiplike_builtins::name(__VA_ARGS__),  \
-                                  return spirv_builtins::name(__VA_ARGS__))
+                                  return hiplike_builtins::name(__VA_ARGS__))
 
 #endif

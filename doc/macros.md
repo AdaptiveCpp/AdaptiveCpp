@@ -29,7 +29,6 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise. 
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
 
 ### Properties of current compilation pass
 
@@ -43,7 +42,6 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 
 * `__HIPSYCL_ENABLE_HIP_TARGET__` - defined during host and device passes if HIP is targeted
 * `__HIPSYCL_ENABLE_CUDA_TARGET__` - defined during host and device passes if CUDA is targeted
-* `__HIPSYCL_ENABLE_SPIRV_TARGET__` - defined during host and device passes if SPIR-V is targeted
 * `__HIPSYCL_ENABLE_OMPHOST_TARGET__` - defined if OpenMP is targeted
 
 ## Extension feature test macros

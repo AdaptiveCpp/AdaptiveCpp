@@ -64,8 +64,4 @@
  #include __HIPSYCL_MULTIPASS_HIP_HEADER__
 #endif
 
-#ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
- #include __HIPSYCL_MULTIPASS_SPIRV_HEADER__
-#endif
-
 #endif

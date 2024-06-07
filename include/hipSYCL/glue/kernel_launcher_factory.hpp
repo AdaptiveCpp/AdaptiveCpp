@@ -64,8 +64,7 @@ template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel,
 common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>
 make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       sycl::range<Dim> global_range,
-                      std::size_t dynamic_local_memory, Kernel k,
-                      Reductions... reductions) {
+                      std::size_t dynamic_local_memory, Kernel k) {
 
   using name_traits = kernel_name_traits<KernelNameTag, Kernel>;
 
@@ -75,7 +74,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,
-                                      dynamic_local_memory, k, reductions...);
+                                      dynamic_local_memory, k);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -84,7 +83,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   {
     auto launcher = std::make_unique<cuda_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,
-                                      dynamic_local_memory, k, reductions...);
+                                      dynamic_local_memory, k);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -94,7 +93,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   {
     auto launcher = std::make_unique<sscp_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,
-                                      dynamic_local_memory, k, reductions...);
+                                      dynamic_local_memory, k);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -105,7 +104,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,
-                                      dynamic_local_memory, k, reductions...);
+                                      dynamic_local_memory, k);
     launchers.emplace_back(std::move(launcher));
   }
 #endif

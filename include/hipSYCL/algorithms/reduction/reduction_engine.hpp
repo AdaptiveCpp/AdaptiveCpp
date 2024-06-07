@@ -349,16 +349,14 @@ public:
                 stage.data_plan[reduction_index].is_input_initialized =
                     is_initialized_b;
               }
-              // outputs should be set to final destination for last stage
+              // outputs should be set to nullptr for last stage
               if (i != result_plan.size() - 1) {
                 stage.data_plan[reduction_index].stage_output = stage_scratch_a;
                 stage.data_plan[reduction_index].is_output_initialized =
                     is_initialized_a;
               } else {
-                // TODO To support buffers/accessors, we should
-                // avoid this function in host code.
                 stage.data_plan[reduction_index].stage_output =
-                    descriptor.get_final_output_destination();
+                    nullptr;
                 stage.data_plan[reduction_index].is_output_initialized =
                     nullptr;
               }

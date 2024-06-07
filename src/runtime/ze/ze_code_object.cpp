@@ -53,7 +53,7 @@ result ze_sscp_code_object_invoker::submit_kernel(
 
   return _queue->submit_sscp_kernel_from_code_object(
       op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
-      arg_sizes, num_args, __acpp
+      arg_sizes, num_args, config);
 }
 
 ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
@@ -91,7 +91,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
     std::string build_log_content;
 
     if (zeModuleBuildLogGetString(build_log, &build_log_size, nullptr) ==
-        __acpp_SUCCESS) {
+        ZE_RESULT_SUCCESS) {
       std::vector<char> build_log_buffer(build_log_size);
       if (zeModuleBuildLogGetString(build_log, &build_log_size,
                                     build_log_buffer.data()) ==
@@ -124,7 +124,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
   if (err != ZE_RESULT_SUCCESS) {
     register_error(
         __acpp_here(),
-        error_info{"ze_executable_o__acppuldn't obtain number of kernels",
+        error_info{"ze_executable_object: Couldn't obtain number of kernels",
                    error_code{"ze", static_cast<int>(err)}});
     return;
   }
@@ -142,7 +142,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
 
   for(const char* name : kernel_names)
     _kernels.push_back(std::string{name});
-}__acpp
+}
 
 ze_executable_object::~ze_executable_object() {
   if(_module) {
@@ -153,7 +153,7 @@ ze_executable_object::~ze_executable_object() {
                               error_code{"ze", static_cast<int>(err)}});
     }
   }
-}__acpp
+}
 
 result ze_executable_object::get_build_result() const{
   return _build_status;
@@ -167,7 +167,7 @@ code_format ze_executable_object::format() const {
   if(_format == ze_source_format::spirv)
     return code_format::spirv;
   else
-    return code_forma__acpp_isa;
+    return code_format::native_isa;
 }
 
 backend_id ze_executable_object::managing_backend() const {
@@ -252,7 +252,7 @@ ze_sscp_executable_object::ze_sscp_executable_object(ze_context_handle_t ctx, ze
                           const std::string &spirv_image,
                           const kernel_configuration &config)
     : ze_executable_object(ctx, dev, source, ze_source_format::spirv,
-                      __acpprv_image),
+                            spirv_image),
       _id{config.generate_id()} {}
 
 

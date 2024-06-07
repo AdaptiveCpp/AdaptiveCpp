@@ -244,17 +244,16 @@ public:
     _params = params;
   }
 
-  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
-            typename... Reductions>
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+            Kernel k) {
 
     this->_type = type;
     this->_invoker = [=] (rt::dag_node* node) mutable {
 
       static_cast<rt::kernel_operation *>(node->get_operation())
-          ->initialize_embedded_pointers(k, reductions...);
+          ->initialize_embedded_pointers(k);
 
       auto get_grid_range = [&]() {
         for (int i = 0; i < Dim; ++i){

@@ -30,13 +30,13 @@
 #include <math.h>
 
 #define HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(name)                                \
-  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f32(float x) {  \
-    return __builtin_##name(x);                                             \
+  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f32(float x) {        \
+    return __builtin_##name(x);                                                \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f64(double x) { \
-    return __builtin_##name(x);                                             \
+  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f64(double x) {       \
+    return __builtin_##name(x);                                                \
   }
-  
+
 HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isnan)
 
 HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isinf)

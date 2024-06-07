@@ -33,31 +33,30 @@
 
 #define HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(name, float_version,                \
                                            double_version)                     \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x) {            \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x) {               \
     return float_version(x);                                                   \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x) {          \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x) {             \
     return double_version(x);                                                  \
   }
 
 #define HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN2(name, float_version,               \
                                             double_version)                    \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y) {   \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y) {      \
     return float_version(x, y);                                                \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x,            \
-                                                          double y) {          \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y) {   \
     return double_version(x, y);                                               \
   }
 
 #define HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN3(name, float_version,               \
                                             double_version)                    \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y,     \
-                                                         float z) {            \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y,        \
+                                                      float z) {               \
     return float_version(x, y, z);                                             \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y,  \
-                                                          double z) {          \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y,     \
+                                                       double z) {             \
     return double_version(x, y, z);                                            \
   }
 

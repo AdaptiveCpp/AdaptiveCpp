@@ -30,64 +30,65 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/math.hpp"
 
-#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(name)                   \
+#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(name)                              \
                                                                                \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x) {            \
-    return name##f(x);                                                 \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x) {               \
+    return name##f(x);                                                         \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x) {          \
-    return name(x);                                                 \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x) {             \
+    return name(x);                                                            \
   }
 
-#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2(name)                  \
+#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2(name)                             \
                                                                                \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y) {   \
-    return name##f(x, y);                                              \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y) {      \
+    return name##f(x, y);                                                      \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x,            \
-                                                          double y) {          \
-    return name(x, y);                                              \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y) {   \
+    return name(x, y);                                                         \
   }
 
-#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN3(name)                  \
+#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN3(name)                             \
                                                                                \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y,     \
-                                                         float z) {            \
-    return name##f(x, y, z);                                           \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y,        \
+                                                      float z) {               \
+    return name##f(x, y, z);                                                   \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y,  \
-                                                          double z) {          \
-    return name(x, y, z);                                           \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y,     \
+                                                       double z) {             \
+    return name(x, y, z);                                                      \
   }
 
-#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN_NAME(name, float_name, double_name)                   \
+#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN_NAME(name, float_name,             \
+                                                 double_name)                  \
                                                                                \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x) {            \
-    return float_name(x);                                                 \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x) {               \
+    return float_name(x);                                                      \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x) {          \
-    return double_name(x);                                                 \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x) {             \
+    return double_name(x);                                                     \
   }
 
-#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(name, float_name, double_name)                  \
+#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(name, float_name,            \
+                                                  double_name)                 \
                                                                                \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y) {   \
-    return float_name(x, y);                                              \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y) {      \
+    return float_name(x, y);                                                   \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x,            \
-                                                          double y) {          \
-    return double_name(x, y);                                              \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y) {   \
+    return double_name(x, y);                                                  \
   }
 
-#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN3_NAME(name, float_name, double_name)                  \
+#define HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN3_NAME(name, float_name,            \
+                                                  double_name)                 \
                                                                                \
-  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y,     \
-                                                         float z) {            \
-    return float_name(x, y, z);                                           \
+  HIPSYCL_SSCP_BUILTIN float __acpp_sscp_##name##_f32(float x, float y,        \
+                                                      float z) {               \
+    return float_name(x, y, z);                                                \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y,  \
-                                                          double z) {          \
-    return double_name(x, y, z);                                           \
+  HIPSYCL_SSCP_BUILTIN double __acpp_sscp_##name##_f64(double x, double y,     \
+                                                       double z) {             \
+    return double_name(x, y, z);                                               \
   }
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(acos)

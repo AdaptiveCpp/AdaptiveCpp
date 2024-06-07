@@ -351,7 +351,7 @@ result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
           __acpp_here(),
-          __acppo{"ze_queue: zeCommandListAppendMemoryFill() failed",
+          error_info{"ze_queue: zeCommandListAppendMemoryFill() failed",
                      error_code{"ze", static_cast<int>(err)}});
   }
 
@@ -401,7 +401,7 @@ result ze_queue::submit_external_wait_for(dag_node_ptr node) {
     if(err != ZE_RESULT_SUCCESS) {
       register_error(
           __acpp_here(),
-          __acppo{"ze_queue: Couldn't signal completion of external event",
+          error_info{"ze_queue: Couldn't signal completion of external event",
                      error_code{"ze", static_cast<int>(err)}});
     }
   });
@@ -520,7 +520,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   kernel_configuration::extend_hash(
       code_object_configuration_id,
       kernel_base_config_parameter::runtime_device, dev);
-  kernel_configuration__acpphash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
       kernel_base_config_parameter::runtime_context, ctx);
 
@@ -566,7 +566,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   if(!obj) {
     return make_error(__acpp_here(),
-        __acpp     error_info{"ze_queue: Code object construction failed"});
+                      error_info{"ze_queue: Code object construction failed"});
   }
 
   ze_kernel_handle_t kernel;
@@ -576,7 +576,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   if(!res.is_success())
     return res;
 
-  std::v__acppevent_handle_t> wait_events =
+  std::vector<ze_event_handle_t> wait_events =
       get_enqueued_event_handles();
   std::shared_ptr<dag_node_event> completion_evt = create_event();
 
@@ -608,4 +608,3 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 }
 }
 
-__acpp__acpp

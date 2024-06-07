@@ -34,10 +34,6 @@
 #include "host/builtins.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-#include "spirv/builtins.hpp"
-#endif
-
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
     HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
 #include "generic/hiplike/builtins.hpp"

@@ -42,25 +42,6 @@
 namespace hipsycl {
 namespace rt {
 
-
-result ze_multipass_code_object_invoker::submit_kernel(
-    const kernel_operation &op, hcf_object_id hcf_object,
-    const rt::range<3> &num_groups, const rt::range<3> &group_size,
-    unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name_tag,
-    const std::string &kernel_body_name) {
-
-  assert(_queue);
-
-  std::string kernel_name = kernel_body_name;
-  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
-    kernel_name = kernel_name_tag;
-
-  return _queue->submit_multipass_kernel_from_code_object(
-      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
-      arg_sizes, num_args);
-}
-
 result ze_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,

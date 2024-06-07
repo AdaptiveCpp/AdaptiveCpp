@@ -56,10 +56,6 @@ using backend = hipsycl::rt::backend_id;
  #define SYCL_EXT_HIPSYCL_BACKEND_CUDA
 #endif
 
-#if defined(HIPSYCL_LIBKERNEL_COMPIER_SUPPORTS_SPIRV) || defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
- #define SYCL_EXT_HIPSYCL_BACKEND_SPIRV
-#endif
-
 }
 } // namespace hipsycl
 

@@ -220,7 +220,7 @@ void memory_environment_device(const Group &g, FirstArg &&first,
         allocation_type::local_mem){
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
       __shared__ value_type memory_declaration;
-#else // HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+#else // SSCP
       // TODO
       value_type memory_declaration;
 #endif

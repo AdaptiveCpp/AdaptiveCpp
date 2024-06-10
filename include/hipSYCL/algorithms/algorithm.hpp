@@ -396,7 +396,7 @@ sycl::event early_exit_for_each(sycl::queue &q, std::size_t problem_size,
   
       util::abortable_data_streamer::run(problem_size, idx, [&](sycl::id<1> idx){
         
-        if (sycl::detail::__hipsycl_atomic_load<
+        if (sycl::detail::__acpp_atomic_load<
                 sycl::access::address_space::global_space>(
                 output_has_exited_early, sycl::memory_order_relaxed,
                 sycl::memory_scope_device)) {
@@ -404,7 +404,7 @@ sycl::event early_exit_for_each(sycl::queue &q, std::size_t problem_size,
         }
 
         if (should_exit(idx)) {
-          sycl::detail::__hipsycl_atomic_store<
+          sycl::detail::__acpp_atomic_store<
               sycl::access::address_space::global_space>(
               output_has_exited_early, 1, sycl::memory_order_relaxed,
               sycl::memory_scope_device);

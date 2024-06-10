@@ -42,7 +42,7 @@ namespace compiler {
 
 namespace {
 
-static const char* SSCPExtractKernelNameIdentifier = "__hipsycl_sscp_extract_kernel_name";
+static const char* SSCPExtractKernelNameIdentifier = "__acpp_sscp_extract_kernel_name";
 }
 
 llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
@@ -62,11 +62,11 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
               KernelName = KernelFunc->getName();
             } else {
               HIPSYCL_DEBUG_WARNING << "HostKernelNameExtractionPass: Could not find kernel name "
-                                       "for __hipsycl_sscp_extract_kernel_name invocation: "
+                                       "for __acpp_sscp_extract_kernel_name invocation: "
                                     << F.getName() << "\n";
             }
             
-            // Arg 1 is the access to the global __hipsycl_sscp_kernel_name
+            // Arg 1 is the access to the global __acpp_sscp_kernel_name
             // variable. This might result in a ConstantExpr to do a getelementptr
             // Instruction.
             // We need to extract the global variable that is accessed, so that
@@ -86,7 +86,7 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
             if(!GV) {
               HIPSYCL_DEBUG_WARNING
                   << "HostKernelNameExtractionPass: Could not find target global variable "
-                     "for __hipsycl_sscp_extract_kernel_name invocation: "
+                     "for __acpp_sscp_extract_kernel_name invocation: "
                   << F.getName() << "\n";
             } else {
               
@@ -104,7 +104,7 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
           
           } else {
             HIPSYCL_DEBUG_WARNING
-                << "HostKernelNameExtractionPass: found __hipsycl_sscp_extract_kernel_name "
+                << "HostKernelNameExtractionPass: found __acpp_sscp_extract_kernel_name "
                    "invocation, but incorrect number of arguments ("
                 << CI->arg_size() << ", should be 2)\n";
           }
@@ -121,7 +121,7 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
         KernelNameExtractionCalls.push_back(CI);
       } else {
         HIPSYCL_DEBUG_WARNING
-            << "HostKernelNameExtractionPass: found user of __hipsycl_sscp_extract_kernel_name() "
+            << "HostKernelNameExtractionPass: found user of __acpp_sscp_extract_kernel_name() "
                "that is not a function call\n";
       }
     }

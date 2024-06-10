@@ -39,7 +39,7 @@ cuda_device_manager::cuda_device_manager() {
 
   if (err != cudaSuccess){
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "cuda_device_manager: Could not obtain currently active CUDA device",
             error_code{"CUDA", err}});
@@ -57,7 +57,7 @@ void cuda_device_manager::activate_device(int device_id)
 
     if (err != cudaSuccess){
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "cuda_device_manager: Could not set active CUDA device",
             error_code{"CUDA", err}});

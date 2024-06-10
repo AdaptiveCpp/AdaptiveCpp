@@ -30,13 +30,13 @@
 #include <math.h>
 
 #define HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(name)                                \
-  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f32(float x) {  \
-    return __builtin_##name(x);                                             \
+  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f32(float x) {        \
+    return __builtin_##name(x);                                                \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f64(double x) { \
-    return __builtin_##name(x);                                             \
+  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f64(double x) {       \
+    return __builtin_##name(x);                                                \
   }
-  
+
 HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isnan)
 
 HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isinf)
@@ -45,9 +45,9 @@ HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isfinite)
 
 HIPSYCL_SSCP_MAP_HOST_REL_BUILTIN(isnormal)
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_signbit_f32(float x) {
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_signbit_f32(float x) {
   return signbit(x);
 }
-HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_signbit_f64(double x) {
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_signbit_f64(double x) {
   return signbit(x);
 }

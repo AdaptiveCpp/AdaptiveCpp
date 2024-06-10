@@ -37,7 +37,7 @@ namespace sycl {
 namespace detail {
 
 template <class T>
-struct __hipsycl_sscp_emit_param_type_annotation_specialized {
+struct __acpp_sscp_emit_param_type_annotation_specialized {
   T value;
 };
 
@@ -74,7 +74,7 @@ public:
   operator T() const { return _value.value; }
 
 private:
-  detail::__hipsycl_sscp_emit_param_type_annotation_specialized<T> _value;
+  detail::__acpp_sscp_emit_param_type_annotation_specialized<T> _value;
 };
 
 } // namespace sycl

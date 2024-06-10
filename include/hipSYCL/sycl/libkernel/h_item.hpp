@@ -192,10 +192,10 @@ public:
   HIPSYCL_KERNEL_TARGET
   range<Dimensions> get_physical_local_range() const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return detail::get_local_size<Dimensions>();
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       range<Dimensions> size;
       for(int i = 0; i < Dimensions; ++i)
         size[i] = 1; 
@@ -207,19 +207,19 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_range(int dimension) const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return detail::get_local_size<Dimensions>(dimension);
     );
-    __hipsycl_if_target_host(return 1;);
+    __acpp_if_target_host(return 1;);
   }
 
   HIPSYCL_KERNEL_TARGET
   id<Dimensions> get_physical_local_id() const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return detail::get_local_id<Dimensions>();
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       id<Dimensions> local_id;
       for(int i = 0; i < Dimensions; ++i)
         local_id[i] = 0; 
@@ -230,10 +230,10 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_id(int dimension) const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return detail::get_local_id<Dimensions>(dimension);
     );
-    __hipsycl_if_target_host(return 0;);
+    __acpp_if_target_host(return 0;);
   }
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
@@ -257,11 +257,11 @@ public:
 #endif
 private:
   // We do not really have to store both the physical and logical ids.
-  // * On GPU, the physical size can be retrieved from __hipsycl_lid_x/y/z
+  // * On GPU, the physical size can be retrieved from __acpp_lid_x/y/z
   // * On CPU, we want to parallelize across the work groups and have (hopefully)
   //   vectorized loops over the work items, so the physical id is always 0.
   // The same reasoning holds for the local sizes:
-  // * On GPU, we get the physical range from __hipsycl_lsize_x/y/z
+  // * On GPU, we get the physical range from __acpp_lsize_x/y/z
   // * On CPU, the physical range is always 1.
   //
   // Note that for the support of flexible work group sizes,

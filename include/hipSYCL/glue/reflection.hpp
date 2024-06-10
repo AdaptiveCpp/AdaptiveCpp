@@ -28,12 +28,10 @@
 #ifndef HIPSYCL_REFLECTION_HPP
 #define HIPSYCL_REFLECTION_HPP
 
-template<class StructT>
-void __hipsycl_introspect_flattened_struct(void *s,
-                                           int **num_flattened_members,
-                                           int **member_offsets,
-                                           int **member_sizes,
-                                           int **member_kinds);
+template <class StructT>
+void __acpp_introspect_flattened_struct(void *s, int **num_flattened_members,
+                                        int **member_offsets,
+                                        int **member_sizes, int **member_kinds);
 
 namespace hipsycl::glue::reflection {
 
@@ -49,7 +47,7 @@ public:
     // Currently it checks if the first operand of the call
     // to the builtin comes from an alloca instruction.
     StructT s_copy = s;
-    __hipsycl_introspect_flattened_struct<StructT>(&s_copy, &_num_members,
+    __acpp_introspect_flattened_struct<StructT>(&s_copy, &_num_members,
                                                    &_member_offsets, &_member_sizes,
                                                    reinterpret_cast<int **>(&_member_kinds));
   }

@@ -19,12 +19,12 @@ struct unannotated_wrapper {
 };
 
 template <class T>
-class __hipsycl_sscp_emit_param_type_annotation_custom_annotation1 {
+class __acpp_sscp_emit_param_type_annotation_custom_annotation1 {
   T value;
 };
 
 template <class T>
-class __hipsycl_sscp_emit_param_type_annotation_specialized {
+class __acpp_sscp_emit_param_type_annotation_specialized {
   T value;
 };
 
@@ -41,27 +41,27 @@ class __hipsycl_sscp_emit_param_type_annotation_specialized {
 
 make_test_kernel(__test_kernel1_, unannotated_wrapper<int>);
 make_test_kernel(__test_kernel2_,
-                 __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<int>);
+                 __acpp_sscp_emit_param_type_annotation_custom_annotation1<int>);
 make_test_kernel(__test_kernel3_,
-                 __hipsycl_sscp_emit_param_type_annotation_specialized<int>);
+                 __acpp_sscp_emit_param_type_annotation_specialized<int>);
 make_test_kernel(
     __test_kernel4_,
-    __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<
-        __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<int>>);
+    __acpp_sscp_emit_param_type_annotation_custom_annotation1<
+        __acpp_sscp_emit_param_type_annotation_custom_annotation1<int>>);
 make_test_kernel(
     __test_kernel5_,
-    __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<
-        __hipsycl_sscp_emit_param_type_annotation_specialized<int>>);
+    __acpp_sscp_emit_param_type_annotation_custom_annotation1<
+        __acpp_sscp_emit_param_type_annotation_specialized<int>>);
 
 using aggregate_type = std::pair<int, int>;
 make_test_kernel(__test_kernel6_,
-                 __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<
+                 __acpp_sscp_emit_param_type_annotation_custom_annotation1<
                      aggregate_type>);
 
 int main(int argc, char** argv)
 {
   bool always_false = argc == std::numeric_limits<int>::max();
-  auto hcf_id = __hipsycl_local_sscp_hcf_object_id;
+  auto hcf_id = __acpp_local_sscp_hcf_object_id;
 
   sycl::queue q = get_queue();
   int* data = sycl::malloc_device<int>(1,q);
@@ -73,20 +73,20 @@ int main(int argc, char** argv)
     q.single_task(__test_kernel1_{data, unannotated_wrapper<int>{}});
     q.single_task(__test_kernel2_{
         data,
-        __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<int>{}});
+        __acpp_sscp_emit_param_type_annotation_custom_annotation1<int>{}});
     q.single_task(__test_kernel3_{
-        data, __hipsycl_sscp_emit_param_type_annotation_specialized<int>{}});
+        data, __acpp_sscp_emit_param_type_annotation_specialized<int>{}});
     q.single_task(__test_kernel4_{
-        data, __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<
-                  __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<
+        data, __acpp_sscp_emit_param_type_annotation_custom_annotation1<
+                  __acpp_sscp_emit_param_type_annotation_custom_annotation1<
                       int>>{}});
     q.single_task(__test_kernel5_{
         data,
-        __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<
-            __hipsycl_sscp_emit_param_type_annotation_specialized<int>>{}});
+        __acpp_sscp_emit_param_type_annotation_custom_annotation1<
+            __acpp_sscp_emit_param_type_annotation_specialized<int>>{}});
     q.single_task(__test_kernel6_{
         data,
-        __hipsycl_sscp_emit_param_type_annotation_custom_annotation1<
+        __acpp_sscp_emit_param_type_annotation_custom_annotation1<
                      aggregate_type>{}});
   }
 

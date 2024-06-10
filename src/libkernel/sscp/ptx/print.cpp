@@ -30,6 +30,6 @@
 
 extern "C" int vprintf(const char *, const char *);
 
-void __hipsycl_sscp_print(const char* msg) {
+void __acpp_sscp_print(const char* msg) {
   vprintf(msg, nullptr);  
 }

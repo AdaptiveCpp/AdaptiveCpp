@@ -8,9 +8,9 @@
 #include "bitcasts.h"
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 
-#define HIPSYCL_INT32_C(n) __hipsycl_int32{n}
-#define HIPSYCL_UINT32_C(n) __hipsycl_uint32{n}
-#define HIPSYCL_UINT16_C(n) __hipsycl_uint16{n}
+#define HIPSYCL_INT32_C(n) __acpp_int32{n}
+#define HIPSYCL_UINT32_C(n) __acpp_uint32{n}
+#define HIPSYCL_UINT16_C(n) __acpp_uint16{n}
 
 namespace hipsycl::fp16 {
 
@@ -25,7 +25,7 @@ T fabs(T x) {
  *
  * @note The implementation doesn't use any floating-point operations.
  */
-static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
+static inline __acpp_uint32 fp16_ieee_to_fp32_bits(__acpp_uint16 h) {
 	/*
 	 * Extend the half-precision floating-point number to 32 bits and shift to the upper part of the 32-bit word:
 	 *      +---+-----+------------+-------------------+
@@ -35,7 +35,7 @@ static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
 	 *
 	 * S - sign bit, E - bits of the biased exponent, M - bits of the mantissa, 0 - zero bits.
 	 */
-	const __hipsycl_uint32 w = (__hipsycl_uint32) h << 16;
+	const __acpp_uint32 w = (__acpp_uint32) h << 16;
 	/*
 	 * Extract the sign of the input number into the high bit of the 32-bit word:
 	 *
@@ -44,7 +44,7 @@ static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
 	 *      +---+----------------------------------+
 	 * Bits  31                 0-31
 	 */
-	const __hipsycl_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
+	const __acpp_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
 	/*
 	 * Extract mantissa and biased exponent of the input number into the bits 0-30 of the 32-bit word:
 	 *
@@ -53,7 +53,7 @@ static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
 	 *      +---+-----+------------+-------------------+
 	 * Bits  30  27-31     17-26            0-16
 	 */
-	const __hipsycl_uint32 nonsign = w & HIPSYCL_UINT32_C(0x7FFFFFFF);
+	const __acpp_uint32 nonsign = w & HIPSYCL_UINT32_C(0x7FFFFFFF);
 	/*
 	 * Renorm shift is the number of bits to shift mantissa left to make the half-precision number normalized.
 	 * If the initial number is normalized, some of its high 6 bits (sign == 0 and 5-bit exponent) equals one.
@@ -64,9 +64,9 @@ static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
 #ifdef _MSC_VER
 	unsigned long nonsign_bsr;
 	_BitScanReverse(&nonsign_bsr, (unsigned long) nonsign);
-	__hipsycl_uint32 renorm_shift = (__hipsycl_uint32) nonsign_bsr ^ 31;
+	__acpp_uint32 renorm_shift = (__acpp_uint32) nonsign_bsr ^ 31;
 #else
-	__hipsycl_uint32 renorm_shift = __builtin_clz(nonsign);
+	__acpp_uint32 renorm_shift = __builtin_clz(nonsign);
 #endif
 	renorm_shift = renorm_shift > 5 ? renorm_shift - 5 : 0;
 	/*
@@ -76,7 +76,7 @@ static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
 	 *                   0x7F800000 if the half-precision number had exponent of 15 (i.e. was NaN or infinity)
 	 *                   0x00000000 otherwise
 	 */
-	const __hipsycl_int32 inf_nan_mask = ((__hipsycl_int32) (nonsign + 0x04000000) >> 8) & HIPSYCL_INT32_C(0x7F800000);
+	const __acpp_int32 inf_nan_mask = ((__acpp_int32) (nonsign + 0x04000000) >> 8) & HIPSYCL_INT32_C(0x7F800000);
 	/*
 	 * Iff nonsign is 0, it overflows into 0xFFFFFFFF, turning bit 31 into 1. Otherwise, bit 31 remains 0.
 	 * The signed shift right by 31 broadcasts bit 31 into all bits of the zero_mask. Thus
@@ -84,7 +84,7 @@ static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
 	 *                0xFFFFFFFF if the half-precision number was zero (+0.0h or -0.0h)
 	 *                0x00000000 otherwise
 	 */
-	const __hipsycl_int32 zero_mask = (__hipsycl_int32) (nonsign - 1) >> 31;
+	const __acpp_int32 zero_mask = (__acpp_int32) (nonsign - 1) >> 31;
 	/*
 	 * 1. Shift nonsign left by renorm_shift to normalize it (if the input was denormal)
 	 * 2. Shift nonsign right by 3 so the exponent (5 bits originally) becomes an 8-bit field and 10-bit mantissa
@@ -107,7 +107,7 @@ static inline __hipsycl_uint32 fp16_ieee_to_fp32_bits(__hipsycl_uint16 h) {
  * @note The implementation relies on IEEE-like (no assumption about rounding mode and no operations on denormals)
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
-static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
+static inline float fp16_ieee_to_fp32_value(__acpp_uint16 h) {
 	/*
 	 * Extend the half-precision floating-point number to 32 bits and shift to the upper part of the 32-bit word:
 	 *      +---+-----+------------+-------------------+
@@ -117,7 +117,7 @@ static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
 	 *
 	 * S - sign bit, E - bits of the biased exponent, M - bits of the mantissa, 0 - zero bits.
 	 */
-	const __hipsycl_uint32 w = (__hipsycl_uint32) h << 16;
+	const __acpp_uint32 w = (__acpp_uint32) h << 16;
 	/*
 	 * Extract the sign of the input number into the high bit of the 32-bit word:
 	 *
@@ -126,7 +126,7 @@ static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
 	 *      +---+----------------------------------+
 	 * Bits  31                 0-31
 	 */
-	const __hipsycl_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
+	const __acpp_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
 	/*
 	 * Extract mantissa and biased exponent of the input number into the high bits of the 32-bit word:
 	 *
@@ -135,7 +135,7 @@ static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
 	 *      +-----+------------+---------------------+
 	 * Bits  27-31    17-26            0-16
 	 */
-	const __hipsycl_uint32 two_w = w + w;
+	const __acpp_uint32 two_w = w + w;
 
 	/*
 	 * Shift mantissa and exponent into bits 23-28 and bits 13-22 so they become mantissa and exponent
@@ -163,7 +163,7 @@ static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
 	 * Note that the above operations do not handle denormal inputs (where biased exponent == 0). However, they also do not
 	 * operate on denormal inputs, and do not produce denormal results.
 	 */
-	const __hipsycl_uint32 exp_offset = HIPSYCL_UINT32_C(0xE0) << 23;
+	const __acpp_uint32 exp_offset = HIPSYCL_UINT32_C(0xE0) << 23;
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) || defined(__GNUC__) && !defined(__STRICT_ANSI__)
 	const float exp_scale = 0x1.0p-112f;
 #else
@@ -199,7 +199,7 @@ static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
 	 * Therefore, we need to subtract 0.5 from the constructed single-precision number to get the numerical equivalent of
 	 * the input half-precision number.
 	 */
-	const __hipsycl_uint32 magic_mask = HIPSYCL_UINT32_C(126) << 23;
+	const __acpp_uint32 magic_mask = HIPSYCL_UINT32_C(126) << 23;
 	const float magic_bias = 0.5f;
 	const float denormalized_value = fp32_from_bits((two_w >> 17) | magic_mask) - magic_bias;
 
@@ -209,8 +209,8 @@ static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
 	 *   input is either a denormal number, or zero.
 	 * - Combine the result of conversion of exponent and mantissa with the sign of the input number.
 	 */
-	const __hipsycl_uint32 denormalized_cutoff = HIPSYCL_UINT32_C(1) << 27;
-	const __hipsycl_uint32 result = sign |
+	const __acpp_uint32 denormalized_cutoff = HIPSYCL_UINT32_C(1) << 27;
+	const __acpp_uint32 result = sign |
 		(two_w < denormalized_cutoff ? fp32_to_bits(denormalized_value) : fp32_to_bits(normalized_value));
 	return fp32_from_bits(result);
 }
@@ -222,7 +222,7 @@ static inline float fp16_ieee_to_fp32_value(__hipsycl_uint16 h) {
  * @note The implementation relies on IEEE-like (no assumption about rounding mode and no operations on denormals)
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
-static inline __hipsycl_uint16 fp16_ieee_from_fp32_value(float f) {
+static inline __acpp_uint16 fp16_ieee_from_fp32_value(float f) {
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) || defined(__GNUC__) && !defined(__STRICT_ANSI__)
 	const float scale_to_inf = 0x1.0p+112f;
 	const float scale_to_zero = 0x1.0p-110f;
@@ -232,19 +232,19 @@ static inline __hipsycl_uint16 fp16_ieee_from_fp32_value(float f) {
 #endif
 	float base = (fabs(f) * scale_to_inf) * scale_to_zero;
 
-	const __hipsycl_uint32 w = fp32_to_bits(f);
-	const __hipsycl_uint32 shl1_w = w + w;
-	const __hipsycl_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
-	__hipsycl_uint32 bias = shl1_w & HIPSYCL_UINT32_C(0xFF000000);
+	const __acpp_uint32 w = fp32_to_bits(f);
+	const __acpp_uint32 shl1_w = w + w;
+	const __acpp_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
+	__acpp_uint32 bias = shl1_w & HIPSYCL_UINT32_C(0xFF000000);
 	if (bias < HIPSYCL_UINT32_C(0x71000000)) {
 		bias = HIPSYCL_UINT32_C(0x71000000);
 	}
 
 	base = fp32_from_bits((bias >> 1) + HIPSYCL_UINT32_C(0x07800000)) + base;
-	const __hipsycl_uint32 bits = fp32_to_bits(base);
-	const __hipsycl_uint32 exp_bits = (bits >> 13) & HIPSYCL_UINT32_C(0x00007C00);
-	const __hipsycl_uint32 mantissa_bits = bits & HIPSYCL_UINT32_C(0x00000FFF);
-	const __hipsycl_uint32 nonsign = exp_bits + mantissa_bits;
+	const __acpp_uint32 bits = fp32_to_bits(base);
+	const __acpp_uint32 exp_bits = (bits >> 13) & HIPSYCL_UINT32_C(0x00007C00);
+	const __acpp_uint32 mantissa_bits = bits & HIPSYCL_UINT32_C(0x00000FFF);
+	const __acpp_uint32 nonsign = exp_bits + mantissa_bits;
 	return (sign >> 16) | (shl1_w > HIPSYCL_UINT32_C(0xFF000000) ? HIPSYCL_UINT16_C(0x7E00) : nonsign);
 }
 
@@ -254,7 +254,7 @@ static inline __hipsycl_uint16 fp16_ieee_from_fp32_value(float f) {
  *
  * @note The implementation doesn't use any floating-point operations.
  */
-static inline __hipsycl_uint32 fp16_alt_to_fp32_bits(__hipsycl_uint16 h) {
+static inline __acpp_uint32 fp16_alt_to_fp32_bits(__acpp_uint16 h) {
 	/*
 	 * Extend the half-precision floating-point number to 32 bits and shift to the upper part of the 32-bit word:
 	 *      +---+-----+------------+-------------------+
@@ -264,7 +264,7 @@ static inline __hipsycl_uint32 fp16_alt_to_fp32_bits(__hipsycl_uint16 h) {
 	 *
 	 * S - sign bit, E - bits of the biased exponent, M - bits of the mantissa, 0 - zero bits.
 	 */
-	const __hipsycl_uint32 w = (__hipsycl_uint32) h << 16;
+	const __acpp_uint32 w = (__acpp_uint32) h << 16;
 	/*
 	 * Extract the sign of the input number into the high bit of the 32-bit word:
 	 *
@@ -273,7 +273,7 @@ static inline __hipsycl_uint32 fp16_alt_to_fp32_bits(__hipsycl_uint16 h) {
 	 *      +---+----------------------------------+
 	 * Bits  31                 0-31
 	 */
-	const __hipsycl_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
+	const __acpp_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
 	/*
 	 * Extract mantissa and biased exponent of the input number into the bits 0-30 of the 32-bit word:
 	 *
@@ -282,7 +282,7 @@ static inline __hipsycl_uint32 fp16_alt_to_fp32_bits(__hipsycl_uint16 h) {
 	 *      +---+-----+------------+-------------------+
 	 * Bits  30  27-31     17-26            0-16
 	 */
-	const __hipsycl_uint32 nonsign = w & HIPSYCL_UINT32_C(0x7FFFFFFF);
+	const __acpp_uint32 nonsign = w & HIPSYCL_UINT32_C(0x7FFFFFFF);
 	/*
 	 * Renorm shift is the number of bits to shift mantissa left to make the half-precision number normalized.
 	 * If the initial number is normalized, some of its high 6 bits (sign == 0 and 5-bit exponent) equals one.
@@ -293,9 +293,9 @@ static inline __hipsycl_uint32 fp16_alt_to_fp32_bits(__hipsycl_uint16 h) {
 #ifdef _MSC_VER
 	unsigned long nonsign_bsr;
 	_BitScanReverse(&nonsign_bsr, (unsigned long) nonsign);
-	__hipsycl_uint32 renorm_shift = (__hipsycl_uint32) nonsign_bsr ^ 31;
+	__acpp_uint32 renorm_shift = (__acpp_uint32) nonsign_bsr ^ 31;
 #else
-	__hipsycl_uint32 renorm_shift = __builtin_clz(nonsign);
+	__acpp_uint32 renorm_shift = __builtin_clz(nonsign);
 #endif
 	renorm_shift = renorm_shift > 5 ? renorm_shift - 5 : 0;
 	/*
@@ -305,7 +305,7 @@ static inline __hipsycl_uint32 fp16_alt_to_fp32_bits(__hipsycl_uint16 h) {
 	 *                0xFFFFFFFF if the half-precision number was zero (+0.0h or -0.0h)
 	 *                0x00000000 otherwise
 	 */
-	const __hipsycl_int32 zero_mask = (__hipsycl_int32) (nonsign - 1) >> 31;
+	const __acpp_int32 zero_mask = (__acpp_int32) (nonsign - 1) >> 31;
 	/*
 	 * 1. Shift nonsign left by renorm_shift to normalize it (if the input was denormal)
 	 * 2. Shift nonsign right by 3 so the exponent (5 bits originally) becomes an 8-bit field and 10-bit mantissa
@@ -327,7 +327,7 @@ static inline __hipsycl_uint32 fp16_alt_to_fp32_bits(__hipsycl_uint16 h) {
  * @note The implementation relies on IEEE-like (no assumption about rounding mode and no operations on denormals)
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
-static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
+static inline float fp16_alt_to_fp32_value(__acpp_uint16 h) {
 	/*
 	 * Extend the half-precision floating-point number to 32 bits and shift to the upper part of the 32-bit word:
 	 *      +---+-----+------------+-------------------+
@@ -337,7 +337,7 @@ static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
 	 *
 	 * S - sign bit, E - bits of the biased exponent, M - bits of the mantissa, 0 - zero bits.
 	 */
-	const __hipsycl_uint32 w = (__hipsycl_uint32) h << 16;
+	const __acpp_uint32 w = (__acpp_uint32) h << 16;
 	/*
 	 * Extract the sign of the input number into the high bit of the 32-bit word:
 	 *
@@ -346,7 +346,7 @@ static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
 	 *      +---+----------------------------------+
 	 * Bits  31                 0-31
 	 */
-	const __hipsycl_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
+	const __acpp_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
 	/*
 	 * Extract mantissa and biased exponent of the input number into the high bits of the 32-bit word:
 	 *
@@ -355,7 +355,7 @@ static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
 	 *      +-----+------------+---------------------+
 	 * Bits  27-31    17-26            0-16
 	 */
-	const __hipsycl_uint32 two_w = w + w;
+	const __acpp_uint32 two_w = w + w;
 
 	/*
 	 * Shift mantissa and exponent into bits 23-28 and bits 13-22 so they become mantissa and exponent
@@ -375,7 +375,7 @@ static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
 	 * Note that this operation does not handle denormal inputs (where biased exponent == 0). However, they also do not
 	 * operate on denormal inputs, and do not produce denormal results.
 	 */
-	const __hipsycl_uint32 exp_offset = HIPSYCL_UINT32_C(0x70) << 23;
+	const __acpp_uint32 exp_offset = HIPSYCL_UINT32_C(0x70) << 23;
 	const float normalized_value = fp32_from_bits((two_w >> 4) + exp_offset);
 
 	/*
@@ -406,7 +406,7 @@ static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
 	 * Therefore, we need to subtract 0.5 from the constructed single-precision number to get the numerical equivalent of
 	 * the input half-precision number.
 	 */
-	const __hipsycl_uint32 magic_mask = HIPSYCL_UINT32_C(126) << 23;
+	const __acpp_uint32 magic_mask = HIPSYCL_UINT32_C(126) << 23;
 	const float magic_bias = 0.5f;
 	const float denormalized_value = fp32_from_bits((two_w >> 17) | magic_mask) - magic_bias;
 
@@ -416,8 +416,8 @@ static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
 	 *   input is either a denormal number, or zero.
 	 * - Combine the result of conversion of exponent and mantissa with the sign of the input number.
 	 */
-	const __hipsycl_uint32 denormalized_cutoff = HIPSYCL_UINT32_C(1) << 27;
-	const __hipsycl_uint32 result = sign |
+	const __acpp_uint32 denormalized_cutoff = HIPSYCL_UINT32_C(1) << 27;
+	const __acpp_uint32 result = sign |
 		(two_w < denormalized_cutoff ? fp32_to_bits(denormalized_value) : fp32_to_bits(normalized_value));
 	return fp32_from_bits(result);
 }
@@ -429,16 +429,16 @@ static inline float fp16_alt_to_fp32_value(__hipsycl_uint16 h) {
  * @note The implementation relies on IEEE-like (no assumption about rounding mode and no operations on denormals)
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
-static inline __hipsycl_uint16 fp16_alt_from_fp32_value(float f) {
-	const __hipsycl_uint32 w = fp32_to_bits(f);
-	const __hipsycl_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
-	const __hipsycl_uint32 shl1_w = w + w;
+static inline __acpp_uint16 fp16_alt_from_fp32_value(float f) {
+	const __acpp_uint32 w = fp32_to_bits(f);
+	const __acpp_uint32 sign = w & HIPSYCL_UINT32_C(0x80000000);
+	const __acpp_uint32 shl1_w = w + w;
 
-	const __hipsycl_uint32 shl1_max_fp16_fp32 = HIPSYCL_UINT32_C(0x8FFFC000);
-	const __hipsycl_uint32 shl1_base = shl1_w > shl1_max_fp16_fp32 ? shl1_max_fp16_fp32 : shl1_w;
-	__hipsycl_uint32 shl1_bias = shl1_base & HIPSYCL_UINT32_C(0xFF000000);
-	const __hipsycl_uint32 exp_difference = 23 - 10;
-	const __hipsycl_uint32 shl1_bias_min = (127 - 1 - exp_difference) << 24;
+	const __acpp_uint32 shl1_max_fp16_fp32 = HIPSYCL_UINT32_C(0x8FFFC000);
+	const __acpp_uint32 shl1_base = shl1_w > shl1_max_fp16_fp32 ? shl1_max_fp16_fp32 : shl1_w;
+	__acpp_uint32 shl1_bias = shl1_base & HIPSYCL_UINT32_C(0xFF000000);
+	const __acpp_uint32 exp_difference = 23 - 10;
+	const __acpp_uint32 shl1_bias_min = (127 - 1 - exp_difference) << 24;
 	if (shl1_bias < shl1_bias_min) {
 		shl1_bias = shl1_bias_min;
 	}
@@ -446,7 +446,7 @@ static inline __hipsycl_uint16 fp16_alt_from_fp32_value(float f) {
 	const float bias = fp32_from_bits((shl1_bias >> 1) + ((exp_difference + 2) << 23));
 	const float base = fp32_from_bits((shl1_base >> 1) + (2 << 23)) + bias;
 
-	const __hipsycl_uint32 exp_f = fp32_to_bits(base) >> 13;
+	const __acpp_uint32 exp_f = fp32_to_bits(base) >> 13;
 	return (sign >> 16) | ((exp_f & HIPSYCL_UINT32_C(0x00007C00)) + (fp32_to_bits(base) & HIPSYCL_UINT32_C(0x00000FFF)));
 }
 

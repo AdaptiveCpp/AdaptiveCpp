@@ -30,10 +30,10 @@
 #ifndef HIPSYCL_SSCP_SUBGROUP_BUILTINS_HPP
 #define HIPSYCL_SSCP_SUBGROUP_BUILTINS_HPP
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_local_id();
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_size();
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_max_size();
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_id();
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_num_subgroups();
+HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_local_id();
+HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_size();
+HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_max_size();
+HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_id();
+HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_num_subgroups();
 
 #endif

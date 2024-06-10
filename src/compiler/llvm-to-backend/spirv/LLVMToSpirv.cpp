@@ -60,7 +60,7 @@ namespace compiler {
 
 namespace {
 
-static const char* DynamicLocalMemArrayName = "__hipsycl_sscp_spirv_dynamic_local_mem";
+static const char* DynamicLocalMemArrayName = "__acpp_sscp_spirv_dynamic_local_mem";
 
 void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
   llvm::SmallVector<std::string> Args {"-spirv-max-version=1.3",

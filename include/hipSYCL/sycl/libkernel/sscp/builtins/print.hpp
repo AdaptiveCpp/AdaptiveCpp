@@ -30,6 +30,6 @@
 
 #include "builtin_config.hpp"
 
-HIPSYCL_SSCP_BUILTIN void __hipsycl_sscp_print(const char* msg);
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_print(const char* msg);
 
 #endif

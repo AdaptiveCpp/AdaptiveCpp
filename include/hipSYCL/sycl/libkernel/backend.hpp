@@ -108,56 +108,56 @@
 #define HIPSYCL_HIPLIKE_BUILTIN __device__ HIPSYCL_FORCE_INLINE
 #endif
 
-#ifndef __hipsycl_if_target_host
+#ifndef __acpp_if_target_host
  #if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
-  #define __hipsycl_if_target_host(...) __VA_ARGS__
+  #define __acpp_if_target_host(...) __VA_ARGS__
  #else
-  #define __hipsycl_if_target_host(...)
+  #define __acpp_if_target_host(...)
  #endif
 #endif
 
-#ifndef __hipsycl_if_target_device
+#ifndef __acpp_if_target_device
  #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
-  #define __hipsycl_if_target_device(...) __VA_ARGS__
+  #define __acpp_if_target_device(...) __VA_ARGS__
  #else
-  #define __hipsycl_if_target_device(...)
+  #define __acpp_if_target_device(...)
  #endif
 #endif
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
- #define __hipsycl_if_target_cuda(...) __hipsycl_if_target_device(__VA_ARGS__)
+ #define __acpp_if_target_cuda(...) __acpp_if_target_device(__VA_ARGS__)
 #else
- #define __hipsycl_if_target_cuda(...)
+ #define __acpp_if_target_cuda(...)
 #endif
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
- #define __hipsycl_if_target_hip(...) __hipsycl_if_target_device(__VA_ARGS__)
+ #define __acpp_if_target_hip(...) __acpp_if_target_device(__VA_ARGS__)
 #else
- #define __hipsycl_if_target_hip(...)
+ #define __acpp_if_target_hip(...)
 #endif
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
     HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
- #define __hipsycl_if_target_hiplike(...)                                       \
-  __hipsycl_if_target_device(__VA_ARGS__)
+ #define __acpp_if_target_hiplike(...)                                       \
+  __acpp_if_target_device(__VA_ARGS__)
 #else
- #define __hipsycl_if_target_hiplike(...)
+ #define __acpp_if_target_hiplike(...)
 #endif
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
- #define __hipsycl_if_target_sscp(...) __hipsycl_if_target_device(__VA_ARGS__)
+ #define __acpp_if_target_sscp(...) __acpp_if_target_device(__VA_ARGS__)
 #else
- #define __hipsycl_if_target_sscp(...)
+ #define __acpp_if_target_sscp(...)
 #endif
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP // Same as: host pass, with SSCP enabled
-#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
-  if (__hipsycl_sscp_is_host) {                                                \
+#define __acpp_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
+  if (__acpp_sscp_is_host) {                                                \
     host_code;                                                                 \
   } else {                                                                     \
     sscp_code;                                                                 \
   }
 #else
-#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
-  __hipsycl_if_target_host(host_code;) __hipsycl_if_target_cuda(cuda_code;)    \
-      __hipsycl_if_target_hip(hip_code;)
+#define __acpp_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
+  __acpp_if_target_host(host_code;) __acpp_if_target_cuda(cuda_code;)    \
+      __acpp_if_target_hip(hip_code;)
 #endif
 
 #define HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                           \
@@ -165,6 +165,12 @@
    !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)
 
 
-
+// Backwards compatibility
+#define __hipsycl_if_target_host(...) __acpp_if_target_host(__VA_ARGS__)
+#define __hipsycl_if_target_device(...) __acpp_if_target_device(__VA_ARGS__)
+#define __hipsycl_if_target_cuda(...) __acpp_if_target_cuda(__VA_ARGS__)
+#define __hipsycl_if_target_hip(...) __acpp_if_target_hip(__VA_ARGS__)
+#define __hipsycl_if_target_hiplike(...) __acpp_if_target_hiplike(__VA_ARGS__)
+#define __hipsycl_if_target_sscp(...) __acpp_if_target_sscp(__VA_ARGS__)
 
 #endif

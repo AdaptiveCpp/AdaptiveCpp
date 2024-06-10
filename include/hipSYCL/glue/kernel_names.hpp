@@ -29,7 +29,7 @@
 #define HIPSYCL_GLUE_KERNEL_NAMES_HPP
 
 #include <utility>
-struct __hipsycl_unnamed_kernel {};
+struct __acpp_unnamed_kernel {};
 
 namespace hipsycl {
 namespace glue {
@@ -54,7 +54,7 @@ struct multiversioned_kernel_wrapper {
 template<class KernelNameTag, class KernelBodyT>
 struct kernel_name_traits {
   using tag = KernelNameTag;
-  // The name that the kernel should have. __hipsycl_unnamed_kernel if
+  // The name that the kernel should have. __acpp_unnamed_kernel if
   // unnamed, a type based on the name tag if named.
   using name = complete_kernel_name<tag>;
   // The name that is suggested to be used for name mangling. If unnamed,
@@ -80,13 +80,13 @@ struct kernel_name_traits {
 };
 
 template<class KernelBodyT>
-struct kernel_name_traits<__hipsycl_unnamed_kernel, KernelBodyT> {
-  using tag = __hipsycl_unnamed_kernel;
-  using name = __hipsycl_unnamed_kernel;
+struct kernel_name_traits<__acpp_unnamed_kernel, KernelBodyT> {
+  using tag = __acpp_unnamed_kernel;
+  using name = __acpp_unnamed_kernel;
   using suggested_mangling_name = KernelBodyT;
 
   template <typename... MultiversionParameters>
-  using multiversioned_name = __hipsycl_unnamed_kernel;
+  using multiversioned_name = __acpp_unnamed_kernel;
 
   template <typename... MultiversionParameters>
   using multiversioned_suggested_mangling_name =

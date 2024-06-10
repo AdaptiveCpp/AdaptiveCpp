@@ -29,8 +29,8 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/localmem.hpp"
 
-extern "C" void* __hipsycl_cbs_sscp_dynamic_local_memory;
+extern "C" void* __acpp_cbs_sscp_dynamic_local_memory;
 
-__attribute__((address_space(3))) void* __hipsycl_sscp_get_dynamic_local_memory() {
-  return (__attribute__((address_space(3))) void*)(__hipsycl_cbs_sscp_dynamic_local_memory);
+__attribute__((address_space(3))) void* __acpp_sscp_get_dynamic_local_memory() {
+  return (__attribute__((address_space(3))) void*)(__acpp_cbs_sscp_dynamic_local_memory);
 }

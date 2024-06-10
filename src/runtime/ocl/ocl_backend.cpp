@@ -89,7 +89,7 @@ backend_hardware_manager* ocl_backend::get_hardware_manager() const {
 backend_executor *ocl_backend::get_executor(device_id dev) const {
   if (dev.get_full_backend_descriptor().sw_platform != api_platform::ocl) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_backend: Passed device id from other backend to OpenCL backend"});
     return nullptr;
@@ -101,7 +101,7 @@ backend_executor *ocl_backend::get_executor(device_id dev) const {
 backend_allocator *ocl_backend::get_allocator(device_id dev) const {
   if (dev.get_full_backend_descriptor().sw_platform != api_platform::ocl) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_backend: Passed device id from other backend to OpenCL backend"});
     return nullptr;

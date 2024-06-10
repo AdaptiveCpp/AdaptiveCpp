@@ -57,22 +57,22 @@ T apply_on_data(T x, Operation op) {
 // implemented based on warp_shuffle_op in rocPRIM
 template<typename T>
 __device__
-T __hipsycl_shuffle_impl(T x, int id) {
+T __acpp_shuffle_impl(T x, int id) {
   return apply_on_data(x, [id](int data) { return __shfl(data, id); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_up_impl(T x, int offset) {
+T __acpp_shuffle_up_impl(T x, int offset) {
   return apply_on_data(x, [offset](int data) { return __shfl_up(data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_down_impl(T x, int offset) {
+T __acpp_shuffle_down_impl(T x, int offset) {
   return apply_on_data(x, [offset](int data) { return __shfl_down(data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_xor_impl(T x, int lane_mask) {
+T __acpp_shuffle_xor_impl(T x, int lane_mask) {
   return apply_on_data(x, [lane_mask](int data) { return __shfl_xor(data, lane_mask); });
 }
 
@@ -140,24 +140,24 @@ T apply_on_data(T x, Operation op) {
 
 template<typename T>
 __device__
-T __hipsycl_shuffle_impl(T x, int id) {
+T __acpp_shuffle_impl(T x, int id) {
   // nvc++ fails to correctly determine that the lambda needs to be compiled
   // for device exclusively, so mark as __device__.
   return apply_on_data(x, [id] __device__ (int data) { return __shfl_sync(AllMask, data, id); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_up_impl(T x, int offset) {
+T __acpp_shuffle_up_impl(T x, int offset) {
   return apply_on_data(x, [offset] __device__ (int data) { return __shfl_up_sync(AllMask, data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_down_impl(T x, int offset) {
+T __acpp_shuffle_down_impl(T x, int offset) {
   return apply_on_data(x, [offset] __device__ (int data) { return __shfl_down_sync(AllMask, data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_xor_impl(T x, int lane_mask) {
+T __acpp_shuffle_xor_impl(T x, int lane_mask) {
   return apply_on_data(x, [lane_mask] __device__ (int data) { return __shfl_xor_sync(AllMask, data, lane_mask); });
 }
 

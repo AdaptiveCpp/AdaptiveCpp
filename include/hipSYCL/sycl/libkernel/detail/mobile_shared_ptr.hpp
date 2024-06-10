@@ -55,7 +55,7 @@ class mobile_shared_ptr
 public:
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr() {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{nullptr};
     );
   }
@@ -63,35 +63,35 @@ public:
   // Argument is ignored on device
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(std::shared_ptr<T> ptr){
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{ptr};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(const mobile_shared_ptr& other){
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(mobile_shared_ptr&& other){
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   ~mobile_shared_ptr() {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       get_shared_ptr_ref().~shared_ptr();
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(const mobile_shared_ptr& other) {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       get_shared_ptr_ref() = other.get_shared_ptr_ref();
     );
 
@@ -100,7 +100,7 @@ public:
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(mobile_shared_ptr&& other) {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       get_shared_ptr_ref() = other.get_shared_ptr_ref();
     );
 
@@ -110,11 +110,11 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   const T* get() const
   { 
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       // Use sizeof(_data) to make sure it doesn't get optimized away
       return reinterpret_cast<T*>(sizeof(_data));
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return get_shared_ptr_ref().get(); 
     );
   }
@@ -122,11 +122,11 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   T* get()
   { 
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       // Use sizeof(_data) to make sure it doesn't get optimized away
       return reinterpret_cast<T*>(sizeof(_data));
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return get_shared_ptr_ref().get(); 
     );
   }
@@ -135,10 +135,10 @@ public:
   // it would pull shared_ptr_class<T> into device code.
   HIPSYCL_HOST_TARGET
   shared_ptr_class<T> get_shared_ptr() const {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return get_shared_ptr_ref();
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return nullptr;
     );
   }

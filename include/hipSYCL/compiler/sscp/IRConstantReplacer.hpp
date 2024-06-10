@@ -240,8 +240,8 @@ public:
 
 private:
   static bool isS2IRConstantName(llvm::StringRef Name) {
-    return Name.contains("__hipsycl_sscp_s2_ir_constant") &&
-           Name.contains("__hipsycl_ir_constant_v");
+    return Name.contains("__acpp_sscp_s2_ir_constant") &&
+           Name.contains("__acpp_ir_constant_v");
   }
 };
 

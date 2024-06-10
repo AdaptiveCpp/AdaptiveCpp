@@ -28,15 +28,14 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ocml.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
-
 #define HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(name)                                \
-  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f32(float x) {  \
+  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f32(float x) {        \
     return __ocml_##name##_f32(x);                                             \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f64(double x) { \
+  HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_##name##_f64(double x) {       \
     return __ocml_##name##_f64(x);                                             \
   }
-  
+
 HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(isnan)
 
 HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(isinf)

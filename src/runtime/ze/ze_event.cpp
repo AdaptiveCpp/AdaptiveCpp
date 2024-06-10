@@ -41,7 +41,7 @@ ze_node_event::~ze_node_event() {
   ze_result_t err = zeEventDestroy(_evt);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                   error_info{"ze_node_event: Could not destroy event",
                              error_code{"ze", static_cast<int>(err)}});
   }
@@ -51,7 +51,7 @@ bool ze_node_event::is_complete() const {
   ze_result_t err = zeEventQueryStatus(_evt);
 
   if(err != ZE_RESULT_SUCCESS && err != ZE_RESULT_NOT_READY) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                   error_info{"ze_node_event: Could not query event status",
                              error_code{"ze", static_cast<int>(err)}});
   }
@@ -64,7 +64,7 @@ void ze_node_event::wait() {
   ze_result_t err = zeEventHostSynchronize(_evt, UINT64_MAX);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                   error_info{"ze_node_event: Could not wait for event",
                              error_code{"ze", static_cast<int>(err)}});
   }

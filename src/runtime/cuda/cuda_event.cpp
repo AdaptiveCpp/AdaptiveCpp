@@ -49,7 +49,7 @@ bool cuda_node_event::is_complete() const
 {
   cudaError_t err = cudaEventQuery(_evt);
   if (err != cudaErrorNotReady && err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_node_event: Couldn't query event status",
                               error_code{"CUDA", err}});
   }
@@ -60,7 +60,7 @@ void cuda_node_event::wait()
 {
   auto err = cudaEventSynchronize(_evt);
   if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_node_event: cudaEventSynchronize() failed",
                               error_code{"CUDA", err}});
   }

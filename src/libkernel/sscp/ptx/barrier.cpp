@@ -28,8 +28,8 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                  __hipsycl_sscp_memory_order) {
+__acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                               __acpp_sscp_memory_order) {
 
   if(fence_scope == hipsycl::sycl::memory_scope::system) {
     __nvvm_membar_sys();
@@ -41,8 +41,8 @@ __hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                 __hipsycl_sscp_memory_order) {
+__acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                              __acpp_sscp_memory_order) {
 
   if(fence_scope == hipsycl::sycl::memory_scope::system) {
     __nvvm_membar_sys();

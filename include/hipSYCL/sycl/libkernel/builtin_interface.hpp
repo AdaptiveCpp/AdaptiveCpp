@@ -34,10 +34,6 @@
 #include "host/builtins.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-#include "spirv/builtins.hpp"
-#endif
-
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
     HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
 #include "generic/hiplike/builtins.hpp"
@@ -53,621 +49,621 @@ namespace detail {
 
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_acos(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_acos, x);
+HIPSYCL_BUILTIN T __acpp_acos(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_acos, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_acosh(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_acosh, x);
+HIPSYCL_BUILTIN T __acpp_acosh(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_acosh, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_acospi(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_acospi, x);
+HIPSYCL_BUILTIN T __acpp_acospi(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_acospi, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_asin(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_asin, x);
+HIPSYCL_BUILTIN T __acpp_asin(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_asin, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_asinh(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_asinh, x);
+HIPSYCL_BUILTIN T __acpp_asinh(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_asinh, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_asinpi(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_asinpi, x);
+HIPSYCL_BUILTIN T __acpp_asinpi(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_asinpi, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atan(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_atan, x);
+HIPSYCL_BUILTIN T __acpp_atan(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_atan, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atan2(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_atan2, x, y);
+HIPSYCL_BUILTIN T __acpp_atan2(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_atan2, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atanh(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_atanh, x);
+HIPSYCL_BUILTIN T __acpp_atanh(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_atanh, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atanpi(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_atanpi, x);
+HIPSYCL_BUILTIN T __acpp_atanpi(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_atanpi, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atan2pi(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_atan2pi, x, y);
+HIPSYCL_BUILTIN T __acpp_atan2pi(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_atan2pi, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_cbrt(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cbrt, x);
+HIPSYCL_BUILTIN T __acpp_cbrt(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_cbrt, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_ceil(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_ceil, x);
+HIPSYCL_BUILTIN T __acpp_ceil(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_ceil, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_copysign(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_copysign, x, y);
+HIPSYCL_BUILTIN T __acpp_copysign(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_copysign, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_cos(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cos, x);
+HIPSYCL_BUILTIN T __acpp_cos(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_cos, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_cosh(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cosh, x);
+HIPSYCL_BUILTIN T __acpp_cosh(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_cosh, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_cospi(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cospi, x);
+HIPSYCL_BUILTIN T __acpp_cospi(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_cospi, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_erfc(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_erfc, x);
+HIPSYCL_BUILTIN T __acpp_erfc(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_erfc, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_erf(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_erf, x);
+HIPSYCL_BUILTIN T __acpp_erf(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_erf, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_exp(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_exp, x);
+HIPSYCL_BUILTIN T __acpp_exp(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_exp, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_exp2(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_exp2, x);
+HIPSYCL_BUILTIN T __acpp_exp2(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_exp2, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_exp10(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_exp10, x);
+HIPSYCL_BUILTIN T __acpp_exp10(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_exp10, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_expm1(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_expm1, x);
+HIPSYCL_BUILTIN T __acpp_expm1(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_expm1, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fabs(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fabs, x);
+HIPSYCL_BUILTIN T __acpp_fabs(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fabs, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fdim(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fdim, x, y);
+HIPSYCL_BUILTIN T __acpp_fdim(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fdim, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_floor(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_floor, x);
+HIPSYCL_BUILTIN T __acpp_floor(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_floor, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fma(T x, T y, T z) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fma, x, y, z);
+HIPSYCL_BUILTIN T __acpp_fma(T x, T y, T z) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fma, x, y, z);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fmax(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fmax, x, y);
+HIPSYCL_BUILTIN T __acpp_fmax(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fmax, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fmin(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fmin, x, y);
+HIPSYCL_BUILTIN T __acpp_fmin(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fmin, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fmod(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fmod, x, y);
+HIPSYCL_BUILTIN T __acpp_fmod(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fmod, x, y);
 }
 
 template<class T>
-T __hipsycl_fract(T x, T* ptr) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fract, x, ptr);
+T __acpp_fract(T x, T* ptr) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fract, x, ptr);
 }
 
 template<class T, class IntPtr>
-HIPSYCL_BUILTIN T __hipsycl_frexp(T x, IntPtr y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_frexp, x, y);
+HIPSYCL_BUILTIN T __acpp_frexp(T x, IntPtr y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_frexp, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_hypot(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_hypot, x, y);
+HIPSYCL_BUILTIN T __acpp_hypot(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_hypot, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN int __hipsycl_ilogb(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_ilogb, x);
+HIPSYCL_BUILTIN int __acpp_ilogb(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_ilogb, x);
 }
 
 template<class T, class IntType>
-HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_ldexp, x, k);
+HIPSYCL_BUILTIN T __acpp_ldexp(T x, IntType k) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_ldexp, x, k);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_lgamma(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_acos, x);
+HIPSYCL_BUILTIN T __acpp_lgamma(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_acos, x);
 }
 
 template<class T, class IntPtr>
-HIPSYCL_BUILTIN T __hipsycl_lgamma_r(T x, IntPtr y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_lgamma_r, x, y);
+HIPSYCL_BUILTIN T __acpp_lgamma_r(T x, IntPtr y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_lgamma_r, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_log, x);
+HIPSYCL_BUILTIN T __acpp_log(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_log, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log2(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_log2, x);
+HIPSYCL_BUILTIN T __acpp_log2(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_log2, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log10(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_log10, x);
+HIPSYCL_BUILTIN T __acpp_log10(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_log10, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log1p(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_log1p, x);
+HIPSYCL_BUILTIN T __acpp_log1p(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_log1p, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_logb(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_logb, x);
+HIPSYCL_BUILTIN T __acpp_logb(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_logb, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_mad(T x, T y, T z) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_mad, x, y, z);
+HIPSYCL_BUILTIN T __acpp_mad(T x, T y, T z) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_mad, x, y, z);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_maxmag(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_maxmag, x, y);
+HIPSYCL_BUILTIN T __acpp_maxmag(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_maxmag, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_minmag, x, y);
+HIPSYCL_BUILTIN T __acpp_minmag(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_minmag, x, y);
 }
 
 template<class T, class FloatPtr>
-HIPSYCL_BUILTIN T __hipsycl_modf(T x, FloatPtr y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_modf, x, y);
+HIPSYCL_BUILTIN T __acpp_modf(T x, FloatPtr y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_modf, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_nextafter(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_nextafter, x, y);
+HIPSYCL_BUILTIN T __acpp_nextafter(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_nextafter, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_pow(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_pow, x, y);
+HIPSYCL_BUILTIN T __acpp_pow(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_pow, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_powr(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_powr, x, y);
+HIPSYCL_BUILTIN T __acpp_powr(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_powr, x, y);
 }
 
 template<class T, class IntType>
-HIPSYCL_BUILTIN T __hipsycl_pown(T x, IntType y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_pown, x, y);
+HIPSYCL_BUILTIN T __acpp_pown(T x, IntType y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_pown, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_remainder(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_remainder, x, y);
+HIPSYCL_BUILTIN T __acpp_remainder(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_remainder, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_rint(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_rint, x);
+HIPSYCL_BUILTIN T __acpp_rint(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_rint, x);
 }
 
 template<class T, class IntType>
-HIPSYCL_BUILTIN T __hipsycl_rootn(T x, IntType y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_rootn, x, y);
+HIPSYCL_BUILTIN T __acpp_rootn(T x, IntType y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_rootn, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_round(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_round, x);
+HIPSYCL_BUILTIN T __acpp_round(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_round, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_rsqrt(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_rsqrt, x);
+HIPSYCL_BUILTIN T __acpp_rsqrt(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_rsqrt, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_sin(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_sin, x);
+HIPSYCL_BUILTIN T __acpp_sin(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sin, x);
 }
 
 template<class T, class FloatPtr>
-HIPSYCL_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_sincos, x, cosval);
+HIPSYCL_BUILTIN T __acpp_sincos(T x, FloatPtr cosval) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sincos, x, cosval);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_sinh(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_sinh, x);
+HIPSYCL_BUILTIN T __acpp_sinh(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sinh, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_sinpi, x);
+HIPSYCL_BUILTIN T __acpp_sinpi(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sinpi, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_sqrt(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_sqrt, x);
+HIPSYCL_BUILTIN T __acpp_sqrt(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sqrt, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_tan(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_tan, x);
+HIPSYCL_BUILTIN T __acpp_tan(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_tan, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_tanh(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_tanh, x);
+HIPSYCL_BUILTIN T __acpp_tanh(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_tanh, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_tgamma(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_tgamma, x);
+HIPSYCL_BUILTIN T __acpp_tgamma(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_tgamma, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_trunc(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_trunc, x);
+HIPSYCL_BUILTIN T __acpp_trunc(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_trunc, x);
 }
 
 // ***************** native math builtins ******************
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_cos(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_cos, x);
+HIPSYCL_BUILTIN T __acpp_native_cos(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_cos, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_divide(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_divide, x, y);
+HIPSYCL_BUILTIN T __acpp_native_divide(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_divide, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_exp(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_exp, x);
+HIPSYCL_BUILTIN T __acpp_native_exp(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_exp, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_exp2(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_exp2, x);
+HIPSYCL_BUILTIN T __acpp_native_exp2(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_exp2, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_exp10(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_exp10, x);
+HIPSYCL_BUILTIN T __acpp_native_exp10(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_exp10, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_log(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_log, x);
+HIPSYCL_BUILTIN T __acpp_native_log(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_log, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_log2(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_log2, x);
+HIPSYCL_BUILTIN T __acpp_native_log2(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_log2, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_log10(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_log10, x);
+HIPSYCL_BUILTIN T __acpp_native_log10(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_log10, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_powr(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_powr, x, y);
+HIPSYCL_BUILTIN T __acpp_native_powr(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_powr, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_recip(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_recip, x);
+HIPSYCL_BUILTIN T __acpp_native_recip(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_recip, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_rsqrt(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_rsqrt, x);
+HIPSYCL_BUILTIN T __acpp_native_rsqrt(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_rsqrt, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_sin(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_sin, x);
+HIPSYCL_BUILTIN T __acpp_native_sin(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_sin, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_sqrt(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_sqrt, x);
+HIPSYCL_BUILTIN T __acpp_native_sqrt(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_sqrt, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_tan(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_tan, x);
+HIPSYCL_BUILTIN T __acpp_native_tan(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_native_tan, x);
 }
 
 // ***************** half precision math builtins ******************
 
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_cos(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_cos, x);
+HIPSYCL_BUILTIN T __acpp_half_cos(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_cos, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_divide(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_divide, x, y);
+HIPSYCL_BUILTIN T __acpp_half_divide(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_divide, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_exp(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_exp, x);
+HIPSYCL_BUILTIN T __acpp_half_exp(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_exp, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_exp2(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_exp2, x);
+HIPSYCL_BUILTIN T __acpp_half_exp2(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_exp2, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_exp10(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_exp10, x);
+HIPSYCL_BUILTIN T __acpp_half_exp10(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_exp10, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_log(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_log, x);
+HIPSYCL_BUILTIN T __acpp_half_log(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_log, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_log2(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_log2, x);
+HIPSYCL_BUILTIN T __acpp_half_log2(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_log2, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_log10(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_log10, x);
+HIPSYCL_BUILTIN T __acpp_half_log10(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_log10, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_powr(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_powr, x, y);
+HIPSYCL_BUILTIN T __acpp_half_powr(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_powr, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_recip(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_recip, x);
+HIPSYCL_BUILTIN T __acpp_half_recip(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_recip, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_rsqrt(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_rsqrt, x);
+HIPSYCL_BUILTIN T __acpp_half_rsqrt(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_rsqrt, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_sin(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_sin, x);
+HIPSYCL_BUILTIN T __acpp_half_sin(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_sin, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_sqrt(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_sqrt, x);
+HIPSYCL_BUILTIN T __acpp_half_sqrt(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_sqrt, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_half_tan(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_half_tan, x);
+HIPSYCL_BUILTIN T __acpp_half_tan(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_half_tan, x);
 }
 
 // ***************** integer functions **************
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_abs(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_abs, x);
+HIPSYCL_BUILTIN T __acpp_abs(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_abs, x);
 }
 
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
-HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_clamp, x, minval, maxval);
+HIPSYCL_BUILTIN T __acpp_clamp(T x, T minval, T maxval) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_clamp, x, minval, maxval);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_clz, x);
+HIPSYCL_BUILTIN T __acpp_clz(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_clz, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_max(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_max, x, y);
+HIPSYCL_BUILTIN T __acpp_max(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_max, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_min(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_min, x, y);
+HIPSYCL_BUILTIN T __acpp_min(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_min, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_mul24, x, y);
+HIPSYCL_BUILTIN T __acpp_mul24(T x, T y) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_mul24, x, y);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_popcount(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_popcount, x);
+HIPSYCL_BUILTIN T __acpp_popcount(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_popcount, x);
 }
 
 // **************** common functions *****************
 
 template<class T, std::enable_if_t<!std::is_integral_v<T>,int> = 0>
-HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_clamp, x, minval, maxval);
+HIPSYCL_BUILTIN T __acpp_clamp(T x, T minval, T maxval) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_clamp, x, minval, maxval);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_degrees(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_degrees, x);
+HIPSYCL_BUILTIN T __acpp_degrees(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_degrees, x);
 }
 
-// __hipsycl_max() and __hipsycl_min() are handled by the overloads from the
+// __acpp_max() and __acpp_min() are handled by the overloads from the
 // integer functions
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_mix(T x, T y, T a) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_mix, x, y, a);
+HIPSYCL_BUILTIN T __acpp_mix(T x, T y, T a) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_mix, x, y, a);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_radians(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_radians, x);
+HIPSYCL_BUILTIN T __acpp_radians(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_radians, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_step(T edge, T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_step, edge, x);
+HIPSYCL_BUILTIN T __acpp_step(T edge, T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_step, edge, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_smoothstep(T edge0, T edge1, T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_smoothstep, edge0, edge1, x);
+HIPSYCL_BUILTIN T __acpp_smoothstep(T edge0, T edge1, T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_smoothstep, edge0, edge1, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_sign(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_sign, x);
+HIPSYCL_BUILTIN T __acpp_sign(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sign, x);
 }
 
 template <typename VecType>
 HIPSYCL_BUILTIN VecType 
-__hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cross3, a, b);
+__acpp_cross3(const VecType &a, const VecType &b) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_cross3, a, b);
 }
 
 template <typename VecType>
 HIPSYCL_BUILTIN VecType 
-__hipsycl_cross4(const VecType &a, const VecType &b) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cross4, a, b);
+__acpp_cross4(const VecType &a, const VecType &b) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_cross4, a, b);
 }
 
 // ****************** geometric functions ******************
 
 template <class T>
-HIPSYCL_BUILTIN auto __hipsycl_dot(T a, T b) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_dot, a, b);
+HIPSYCL_BUILTIN auto __acpp_dot(T a, T b) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_dot, a, b);
 }
 
 template <class T>
-HIPSYCL_BUILTIN auto __hipsycl_length(T a) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_length, a);
+HIPSYCL_BUILTIN auto __acpp_length(T a) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_length, a);
 }
 
 template<class T>
-HIPSYCL_BUILTIN auto __hipsycl_distance(T a, T b) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_distance, a, b);
+HIPSYCL_BUILTIN auto __acpp_distance(T a, T b) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_distance, a, b);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_normalize(T a) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_normalize, a);
+HIPSYCL_BUILTIN T __acpp_normalize(T a) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_normalize, a);
 }
 
 template<class T>
-HIPSYCL_BUILTIN auto __hipsycl_fast_length(T a) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fast_length, a);
+HIPSYCL_BUILTIN auto __acpp_fast_length(T a) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fast_length, a);
 }
 
 template<class T>
-HIPSYCL_BUILTIN auto __hipsycl_fast_distance(T a, T b) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fast_distance, a, b);
+HIPSYCL_BUILTIN auto __acpp_fast_distance(T a, T b) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fast_distance, a, b);
 }
 
 template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fast_normalize, a);
+HIPSYCL_BUILTIN T __acpp_fast_normalize(T a) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fast_normalize, a);
 }
 
 // ****************** relational functions ******************
 
 template<class T>
-HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isnan, x);
+HIPSYCL_BUILTIN int __acpp_isnan(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isnan, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN int __hipsycl_isinf(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isinf, x);
+HIPSYCL_BUILTIN int __acpp_isinf(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isinf, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN int __hipsycl_isfinite(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isfinite, x);
+HIPSYCL_BUILTIN int __acpp_isfinite(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isfinite, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN int __hipsycl_isnormal(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isnormal, x);
+HIPSYCL_BUILTIN int __acpp_isnormal(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isnormal, x);
 }
 
 template<class T>
-HIPSYCL_BUILTIN int __hipsycl_signbit(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_signbit, x);
+HIPSYCL_BUILTIN int __acpp_signbit(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_signbit, x);
 }
 
 }

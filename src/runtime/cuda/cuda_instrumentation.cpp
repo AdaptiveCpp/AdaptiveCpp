@@ -51,7 +51,7 @@ cuda_event_time_delta::operator()(const dag_node_event& t0,
 
   if (err != cudaSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_event_time_delta: cudaEventElapsedTime() failed",
                    error_code{"CUDA", err}});
   }

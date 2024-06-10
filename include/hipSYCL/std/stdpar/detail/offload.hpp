@@ -621,11 +621,11 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
     hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
         .increment_num_outstanding_operations();                               \
   } else {                                                                     \
-    __hipsycl_stdpar_barrier();                                                \
+    __acpp_stdpar_barrier();                                                   \
     host_instrumentation([&]() { fallback_invoker(); }, algorithm_type_object, \
                          problem_size, __VA_ARGS__);                           \
   }                                                                            \
-  __hipsycl_stdpar_optional_barrier(); /*Compiler might move/elide this call*/
+  __acpp_stdpar_optional_barrier(); /*Compiler might move/elide this call*/
 
 #define HIPSYCL_STDPAR_OFFLOAD(algorithm_type_object, problem_size,            \
                                return_type, offload_invoker, fallback_invoker, \
@@ -639,7 +639,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
     hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
-    __hipsycl_stdpar_barrier();                                                \
+    __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \
           ? device_instrumentation([&]() { return offload_invoker(q); },       \
@@ -651,7 +651,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
   if (is_offloaded)                                                            \
     hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
         .increment_num_outstanding_operations();                               \
-  __hipsycl_stdpar_optional_barrier(); /*Compiler might move/elide this call*/ \
+  __acpp_stdpar_optional_barrier(); /*Compiler might move/elide this call*/    \
   return ret;
 
 #define HIPSYCL_STDPAR_BLOCKING_OFFLOAD(algorithm_type_object, problem_size,   \
@@ -672,7 +672,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
     hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
-    __hipsycl_stdpar_barrier();                                                \
+    __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \
           ? device_instrumentation([&]() { return offload_invoker(q); },       \

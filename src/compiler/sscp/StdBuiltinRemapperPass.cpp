@@ -96,7 +96,7 @@ llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
     std::string Suffix;
     std::string BaseName;
     if(ParseBuiltinName(B, BaseName, Suffix)) {
-      Replacements[B] = "__hipsycl_sscp_" + BaseName + "_" + Suffix;
+      Replacements[B] = "__acpp_sscp_" + BaseName + "_" + Suffix;
     }
   }
 

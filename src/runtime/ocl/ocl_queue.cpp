@@ -78,7 +78,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
     if(err != CL_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: Could not set kernel argument",
                      error_code{"CL", static_cast<int>(err)}});
     }
@@ -90,7 +90,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: Could not set indirect access flags",
                      error_code{"CL", static_cast<int>(err)}});
   }
@@ -117,7 +117,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
   if(err != CL_SUCCESS) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ocl_queue: Kernel launch failed",
                    error_code{"CL", static_cast<int>(err)}});
   }
@@ -142,7 +142,7 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index)
   cl_int err;
   _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_queue: Couldn't construct backend queue",
                               error_code{"CL", err}});
   }
@@ -167,7 +167,7 @@ std::shared_ptr<dag_node_event> ocl_queue::insert_event() {
 
     if(err != CL_SUCCESS) {
       register_error(
-            __hipsycl_here(),
+            __acpp_here(),
             error_info{
                 "ocl_queue: enqueueBarrierWithWaitList() failed",
                 error_code{"CL", err}});
@@ -231,13 +231,13 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
 
     if(err != CL_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: enqueuing memcpy failed",
                      error_code{"CL", static_cast<int>(err)}});
     }
   } else {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_queue: Multidimensional memory copies are not yet supported.",
             error_type::unimplemented});
@@ -252,7 +252,7 @@ result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::ocl);
   if (!l)
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
 
@@ -283,7 +283,7 @@ result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
 
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: enqueuing prefetch failed",
                      error_code{"CL", static_cast<int>(err)}});
   }
@@ -302,7 +302,7 @@ result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
                                    op.get_num_bytes(), {}, &evt);
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: enqueuing memset failed",
                      error_code{"CL", static_cast<int>(err)}});
   }
@@ -330,7 +330,7 @@ result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
 
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{
               "ocl_queue: enqueueBarrierWithWaitList() failed",
               error_code{"CL", err}});
@@ -346,7 +346,7 @@ result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
   cl::UserEvent uevt{hw_ctx->get_cl_context(), &err};
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{
               "ocl_queue: OpenCL user event creation failed",
               error_code{"CL", err}});
@@ -362,7 +362,7 @@ result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
     cl_int err = uevt.setStatus(CL_COMPLETE);
     if(err != CL_SUCCESS) {
       register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: Could not change status of user event",
                      error_code{"CL", err}});
     }
@@ -374,7 +374,7 @@ result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
 result ocl_queue::wait() {
   cl_int err = _queue.finish();
   if(err != CL_SUCCESS) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ocl_queue: Couldn't finish queue",
                                  error_code{"CL", err}});
   }
@@ -418,7 +418,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ocl_queue: Could not obtain hcf kernel info for kernel " +
             kernel_name});
   }
@@ -428,7 +428,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_queue: Could not map C++ arguments to kernel arguments"});
   }
@@ -520,7 +520,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       jit_compiler, code_object_constructor);
 
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ocl_queue: Code object construction failed"});
   }
 
@@ -549,7 +549,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   return make_success();
 #else
   return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{"ocl_queue: SSCP kernel launch was requested, but hipSYCL was "
                  "not built with OpenCL SSCP support."});
 #endif

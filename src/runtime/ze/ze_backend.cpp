@@ -68,7 +68,7 @@ ze_backend::ze_backend() {
   ze_result_t err = zeInit(0);
 
   if (err != ZE_RESULT_SUCCESS) {
-    print_warning(__hipsycl_here(),
+    print_warning(__acpp_here(),
                   error_info{"ze_backend: Call to zeInit() failed",
                             error_code{"ze", static_cast<int>(err)}});
   }

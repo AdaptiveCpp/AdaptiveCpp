@@ -51,14 +51,13 @@ namespace detail {
 
 template<typename... Args>
 void print(const char* s, Args... args) {
-  __hipsycl_backend_switch(
+  __acpp_backend_switch(
     printf(s, args...),
     if constexpr(sizeof...(args) == 0) {
-      __hipsycl_sscp_print(s);
+      __acpp_sscp_print(s);
     } else {
-      __hipsycl_sscp_print("Type not yet supported for printing with generic target\n");
+      __acpp_sscp_print("Type not yet supported for printing with generic target\n");
     },
-    printf(s, args...),
     printf(s, args...),
     printf(s, args...));
 }

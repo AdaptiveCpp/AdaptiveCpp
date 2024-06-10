@@ -44,7 +44,7 @@ result cuda_event_factory::create(cudaEvent_t& out) {
   auto err = cudaEventCreate(&evt);
   if(err != cudaSuccess) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_event_factory: Couldn't create event", error_code{"CUDA", err}});
     
   }
@@ -56,7 +56,7 @@ result cuda_event_factory::create(cudaEvent_t& out) {
 result cuda_event_factory::destroy(cudaEvent_t evt) {
   auto err = cudaEventDestroy(evt);
   if (err != cudaSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                    error_info{"cuda_event_factory: Couldn't destroy event",
                               error_code{"CUDA", err}});
   }

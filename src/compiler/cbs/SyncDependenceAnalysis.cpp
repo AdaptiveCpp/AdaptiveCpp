@@ -100,7 +100,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipSYCL/compiler/cbs/SyncDependenceAnalysis.hpp"
-#if LLVM_VERSION_MAJOR < 12 || LLVM_VERSION_MAJOR >= 17
+#if LLVM_VERSION_MAJOR >= 17
 
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"

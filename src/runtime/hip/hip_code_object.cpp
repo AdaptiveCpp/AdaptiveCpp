@@ -46,7 +46,7 @@ void unload_hip_module(ihipModule_t* module, int device) {
 
     if(err != hipSuccess) {
       register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"hip_executable_object: could not unload module",
                      error_code{"HIP", static_cast<int>(err)}});
     }
@@ -64,7 +64,7 @@ result build_hip_module(ihipModule_t *&module, int device,
     return make_success();
   else {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_executable_object: could not create module",
                    error_code{"HIP", static_cast<int>(err)}});
   }

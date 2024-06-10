@@ -40,115 +40,101 @@ namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(name, cuda_variable,             \
-                                              hip_variable, spirv_variable,    \
-                                              sscp_variable, host_variable)    \
+#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(                                 \
+    name, cuda_variable, hip_variable, sscp_variable, host_variable)           \
   HIPSYCL_KERNEL_TARGET                                                        \
   inline int name() {                                                          \
-    __hipsycl_backend_switch(return 0, return sscp_variable(),                 \
-                                    return cuda_variable, return hip_variable, \
-                                    return spirv_variable)                     \
+    __acpp_backend_switch(return 0, return sscp_variable(),                    \
+                                 return cuda_variable, return hip_variable)    \
   }
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_x, 
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_lid_x, 
   threadIdx.x,
   hipThreadIdx_x,
-  __spirv_BuiltInLocalInvocationId.x,
-  __hipsycl_sscp_get_local_id_x,
+  __acpp_sscp_get_local_id_x,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_y, 
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_lid_y, 
   threadIdx.y,
   hipThreadIdx_y,
-  __spirv_BuiltInLocalInvocationId.y,
-  __hipsycl_sscp_get_local_id_y,
+  __acpp_sscp_get_local_id_y,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_z, 
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_lid_z, 
   threadIdx.z,
   hipThreadIdx_z,
-  __spirv_BuiltInLocalInvocationId.z,
-  __hipsycl_sscp_get_local_id_z,
+  __acpp_sscp_get_local_id_z,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_x,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_gid_x,
   blockIdx.x,
   hipBlockIdx_x,
-  __spirv_BuiltInWorkgroupId.x,
-  __hipsycl_sscp_get_group_id_x,
+  __acpp_sscp_get_group_id_x,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_y,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_gid_y,
   blockIdx.y,
   hipBlockIdx_y,
-  __spirv_BuiltInWorkgroupId.y,
-  __hipsycl_sscp_get_group_id_y,
+  __acpp_sscp_get_group_id_y,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_z,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_gid_z,
   blockIdx.z,
   hipBlockIdx_z,
-  __spirv_BuiltInWorkgroupId.z,
-  __hipsycl_sscp_get_group_id_z,
+  __acpp_sscp_get_group_id_z,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_x,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_lsize_x,
   blockDim.x,
   hipBlockDim_x,
-  __spirv_BuiltInWorkgroupSize.x, 
-  __hipsycl_sscp_get_local_size_x,
+  __acpp_sscp_get_local_size_x,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_y,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_lsize_y,
   blockDim.y,
   hipBlockDim_y,
-  __spirv_BuiltInWorkgroupSize.y,
-  __hipsycl_sscp_get_local_size_y,
+  __acpp_sscp_get_local_size_y,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_z,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_lsize_z,
   blockDim.z,
   hipBlockDim_z,
-  __spirv_BuiltInWorkgroupSize.z,
-  __hipsycl_sscp_get_local_size_z,
+  __acpp_sscp_get_local_size_z,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_x,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_x,
   gridDim.x,
   hipGridDim_x,
-  __spirv_BuiltInNumWorkgroups.x,
-  __hipsycl_sscp_get_num_groups_x,
+  __acpp_sscp_get_num_groups_x,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_y,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_y,
   gridDim.y,
   hipGridDim_y,
-  __spirv_BuiltInNumWorkgroups.y,
-  __hipsycl_sscp_get_num_groups_y,
+  __acpp_sscp_get_num_groups_y,
   0)
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_z,
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_z,
   gridDim.z,
   hipGridDim_z,
-  __spirv_BuiltInNumWorkgroups.z,
-  __hipsycl_sscp_get_num_groups_z,
+  __acpp_sscp_get_num_groups_z,
   0)
 
-#define __hipsycl_lid_x ::hipsycl::sycl::detail::__hipsycl_get_lid_x()
-#define __hipsycl_lid_y ::hipsycl::sycl::detail::__hipsycl_get_lid_y()
-#define __hipsycl_lid_z ::hipsycl::sycl::detail::__hipsycl_get_lid_z()
+#define __acpp_lid_x ::hipsycl::sycl::detail::__acpp_get_lid_x()
+#define __acpp_lid_y ::hipsycl::sycl::detail::__acpp_get_lid_y()
+#define __acpp_lid_z ::hipsycl::sycl::detail::__acpp_get_lid_z()
 
-#define __hipsycl_gid_x ::hipsycl::sycl::detail::__hipsycl_get_gid_x()
-#define __hipsycl_gid_y ::hipsycl::sycl::detail::__hipsycl_get_gid_y()
-#define __hipsycl_gid_z ::hipsycl::sycl::detail::__hipsycl_get_gid_z()
+#define __acpp_gid_x ::hipsycl::sycl::detail::__acpp_get_gid_x()
+#define __acpp_gid_y ::hipsycl::sycl::detail::__acpp_get_gid_y()
+#define __acpp_gid_z ::hipsycl::sycl::detail::__acpp_get_gid_z()
 
-#define __hipsycl_lsize_x ::hipsycl::sycl::detail::__hipsycl_get_lsize_x()
-#define __hipsycl_lsize_y ::hipsycl::sycl::detail::__hipsycl_get_lsize_y()
-#define __hipsycl_lsize_z ::hipsycl::sycl::detail::__hipsycl_get_lsize_z()
+#define __acpp_lsize_x ::hipsycl::sycl::detail::__acpp_get_lsize_x()
+#define __acpp_lsize_y ::hipsycl::sycl::detail::__acpp_get_lsize_y()
+#define __acpp_lsize_z ::hipsycl::sycl::detail::__acpp_get_lsize_z()
 
-#define __hipsycl_ngroups_x ::hipsycl::sycl::detail::__hipsycl_get_ngroups_x()
-#define __hipsycl_ngroups_y ::hipsycl::sycl::detail::__hipsycl_get_ngroups_y()
-#define __hipsycl_ngroups_z ::hipsycl::sycl::detail::__hipsycl_get_ngroups_z()
+#define __acpp_ngroups_x ::hipsycl::sycl::detail::__acpp_get_ngroups_x()
+#define __acpp_ngroups_y ::hipsycl::sycl::detail::__acpp_get_ngroups_y()
+#define __acpp_ngroups_z ::hipsycl::sycl::detail::__acpp_get_ngroups_z()
 
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
     HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
@@ -156,9 +142,9 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_z,
 #ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
   // warpSize is not constexpr with nvc++. Hardcode to 32
   // for now
-  #define __hipsycl_warp_size 32
+  #define __acpp_warp_size 32
 #else
-  #define __hipsycl_warp_size warpSize
+  #define __acpp_warp_size warpSize
 #endif
 
 #endif
@@ -176,32 +162,32 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_z,
 // must be reversed before it can be used in a performant manner!
 inline HIPSYCL_KERNEL_TARGET size_t get_global_id_x()
 {
-  return __hipsycl_gid_x * __hipsycl_lsize_x + __hipsycl_lid_x;
+  return __acpp_gid_x * __acpp_lsize_x + __acpp_lid_x;
 }
 
 inline HIPSYCL_KERNEL_TARGET size_t get_global_id_y()
 {
-  return __hipsycl_gid_y * __hipsycl_lsize_y + __hipsycl_lid_y;
+  return __acpp_gid_y * __acpp_lsize_y + __acpp_lid_y;
 }
 
 inline HIPSYCL_KERNEL_TARGET size_t get_global_id_z()
 {
-  return __hipsycl_gid_z * __hipsycl_lsize_z + __hipsycl_lid_z;
+  return __acpp_gid_z * __acpp_lsize_z + __acpp_lid_z;
 }
 
 inline HIPSYCL_KERNEL_TARGET size_t get_global_size_x()
 {
-  return __hipsycl_ngroups_x * __hipsycl_lsize_x;
+  return __acpp_ngroups_x * __acpp_lsize_x;
 }
 
 inline HIPSYCL_KERNEL_TARGET size_t get_global_size_y()
 {
-  return __hipsycl_ngroups_y * __hipsycl_lsize_y;
+  return __acpp_ngroups_y * __acpp_lsize_y;
 }
 
 inline HIPSYCL_KERNEL_TARGET size_t get_global_size_z()
 {
-  return __hipsycl_ngroups_z * __hipsycl_lsize_z;
+  return __acpp_ngroups_z * __acpp_lsize_z;
 }
 
 
@@ -213,17 +199,17 @@ sycl::id<dimensions> get_local_id();
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::id<1> get_local_id<1>()
-{ return sycl::id<1>(__hipsycl_lid_x); }
+{ return sycl::id<1>(__acpp_lid_x); }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::id<2> get_local_id<2>()
-{ return sycl::id<2>(__hipsycl_lid_y, __hipsycl_lid_x); }
+{ return sycl::id<2>(__acpp_lid_y, __acpp_lid_x); }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::id<3> get_local_id<3>()
-{ return sycl::id<3>(__hipsycl_lid_z, __hipsycl_lid_y, __hipsycl_lid_x); }
+{ return sycl::id<3>(__acpp_lid_z, __acpp_lid_y, __acpp_lid_x); }
 
 template<int dimensions>
 HIPSYCL_KERNEL_TARGET
@@ -258,23 +244,23 @@ sycl::id<dimensions> get_group_id();
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::id<1> get_group_id<1>()
-{ return sycl::id<1>(__hipsycl_gid_x); }
+{ return sycl::id<1>(__acpp_gid_x); }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::id<2> get_group_id<2>()
 {
-  return sycl::id<2>(__hipsycl_gid_y,
-                     __hipsycl_gid_x);
+  return sycl::id<2>(__acpp_gid_y,
+                     __acpp_gid_x);
 }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::id<3> get_group_id<3>()
 {
-  return sycl::id<3>(__hipsycl_gid_z,
-                     __hipsycl_gid_y,
-                     __hipsycl_gid_x);
+  return sycl::id<3>(__acpp_gid_z,
+                     __acpp_gid_y,
+                     __acpp_gid_x);
 }
 
 template<int dimensions>
@@ -285,21 +271,21 @@ template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::range<1> get_grid_size<1>()
 {
-  return sycl::range<1>(__hipsycl_ngroups_x);
+  return sycl::range<1>(__acpp_ngroups_x);
 }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::range<2> get_grid_size<2>()
 {
-  return sycl::range<2>(__hipsycl_ngroups_y, __hipsycl_ngroups_x);
+  return sycl::range<2>(__acpp_ngroups_y, __acpp_ngroups_x);
 }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::range<3> get_grid_size<3>()
 {
-  return sycl::range<3>(__hipsycl_ngroups_z, __hipsycl_ngroups_y, __hipsycl_ngroups_x);
+  return sycl::range<3>(__acpp_ngroups_z, __acpp_ngroups_y, __acpp_ngroups_x);
 }
 
 
@@ -311,21 +297,21 @@ template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::range<1> get_local_size<1>()
 {
-  return sycl::range<1>(__hipsycl_lsize_x);
+  return sycl::range<1>(__acpp_lsize_x);
 }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::range<2> get_local_size<2>()
 {
-  return sycl::range<2>(__hipsycl_lsize_y, __hipsycl_lsize_x);
+  return sycl::range<2>(__acpp_lsize_y, __acpp_lsize_x);
 }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline sycl::range<3> get_local_size<3>()
 {
-  return sycl::range<3>(__hipsycl_lsize_z, __hipsycl_lsize_y, __hipsycl_lsize_x);
+  return sycl::range<3>(__acpp_lsize_z, __acpp_lsize_y, __acpp_lsize_x);
 }
 
 template<int dimensions>
@@ -376,13 +362,13 @@ inline size_t get_grid_size(int dimension);
 template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_grid_size<1>(int dimension)
-{ return __hipsycl_ngroups_x; }
+{ return __acpp_ngroups_x; }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_grid_size<2>(int dimension)
 {
-  return dimension == 0 ? __hipsycl_ngroups_y : __hipsycl_ngroups_x;
+  return dimension == 0 ? __acpp_ngroups_y : __acpp_ngroups_x;
 }
 
 template<>
@@ -392,11 +378,11 @@ inline size_t get_grid_size<3>(int dimension)
   switch (dimension)
   {
   case 0:
-    return __hipsycl_ngroups_z;
+    return __acpp_ngroups_z;
   case 1:
-    return __hipsycl_ngroups_y;
+    return __acpp_ngroups_y;
   case 2:
-    return __hipsycl_ngroups_x;
+    return __acpp_ngroups_x;
   }
   return 1;
 }
@@ -408,13 +394,13 @@ inline size_t get_local_size(int dimension);
 template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_local_size<1>(int dimension)
-{ return __hipsycl_lsize_x; }
+{ return __acpp_lsize_x; }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_local_size<2>(int dimension)
 {
-  return dimension == 0 ? __hipsycl_lsize_y : __hipsycl_lsize_x;
+  return dimension == 0 ? __acpp_lsize_y : __acpp_lsize_x;
 }
 
 template<>
@@ -424,11 +410,11 @@ inline size_t get_local_size<3>(int dimension)
   switch (dimension)
   {
   case 0:
-    return __hipsycl_lsize_z;
+    return __acpp_lsize_z;
   case 1:
-    return __hipsycl_lsize_y;
+    return __acpp_lsize_y;
   case 2:
-    return __hipsycl_lsize_x;
+    return __acpp_lsize_x;
   }
   return 1;
 }
@@ -470,12 +456,12 @@ inline size_t get_local_id(int dimension);
 template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_local_id<1>(int dimension)
-{ return __hipsycl_lid_x; }
+{ return __acpp_lid_x; }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_local_id<2>(int dimension)
-{ return dimension == 0 ? __hipsycl_lid_y : __hipsycl_lid_x; }
+{ return dimension == 0 ? __acpp_lid_y : __acpp_lid_x; }
 
 template<>
 HIPSYCL_KERNEL_TARGET
@@ -484,11 +470,11 @@ inline size_t get_local_id<3>(int dimension)
   switch(dimension)
   {
   case 0:
-    return __hipsycl_lid_z;
+    return __acpp_lid_z;
   case 1:
-    return __hipsycl_lid_y;
+    return __acpp_lid_y;
   case 2:
-    return __hipsycl_lid_x;
+    return __acpp_lid_x;
   }
   return 0;
 }
@@ -501,14 +487,14 @@ template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_group_id<1>(int dimension)
 {
-  return __hipsycl_gid_x;
+  return __acpp_gid_x;
 }
 
 template<>
 HIPSYCL_KERNEL_TARGET
 inline size_t get_group_id<2>(int dimension)
 {
-  return dimension == 0 ? __hipsycl_gid_y : __hipsycl_gid_x;
+  return dimension == 0 ? __acpp_gid_y : __acpp_gid_x;
 }
 
 template<>
@@ -518,11 +504,11 @@ inline size_t get_group_id<3>(int dimension)
   switch (dimension)
   {
   case 0:
-    return __hipsycl_gid_z;
+    return __acpp_gid_z;
   case 1:
-    return __hipsycl_gid_y;
+    return __acpp_gid_y;
   case 2:
-    return __hipsycl_gid_x;
+    return __acpp_gid_x;
   }
   return 0;
 }

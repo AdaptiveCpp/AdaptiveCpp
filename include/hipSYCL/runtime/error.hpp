@@ -224,6 +224,6 @@ inline result print_warning(const source_location &origin,
 }
 }
 
-#define __hipsycl_here() ::hipsycl::rt::source_location{__func__, __FILE__, __LINE__}
+#define __acpp_here() ::hipsycl::rt::source_location{__func__, __FILE__, __LINE__}
 
 #endif

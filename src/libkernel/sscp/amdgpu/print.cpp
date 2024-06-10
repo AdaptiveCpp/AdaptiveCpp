@@ -28,13 +28,13 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/print.hpp"
 
-extern "C" __hipsycl_uint64 __ockl_fprintf_stdout_begin();
-extern "C" __hipsycl_uint64
-__ockl_fprintf_append_string_n(__hipsycl_uint64 msg_desc, const char *data,
-                               __hipsycl_uint64 length,
-                               __hipsycl_uint32 is_last);
+extern "C" __acpp_uint64 __ockl_fprintf_stdout_begin();
+extern "C" __acpp_uint64
+__ockl_fprintf_append_string_n(__acpp_uint64 msg_desc, const char *data,
+                               __acpp_uint64 length,
+                               __acpp_uint32 is_last);
 
-void __hipsycl_sscp_print(const char* msg) {
+void __acpp_sscp_print(const char* msg) {
   constexpr int max_len = 1 << 16;
 
   int length = 0;
@@ -49,5 +49,5 @@ void __hipsycl_sscp_print(const char* msg) {
   }
 
   auto handle = __ockl_fprintf_stdout_begin();
-  __ockl_fprintf_append_string_n(handle, msg, static_cast<__hipsycl_uint64>(length), 1);
+  __ockl_fprintf_append_string_n(handle, msg, static_cast<__acpp_uint64>(length), 1);
 }

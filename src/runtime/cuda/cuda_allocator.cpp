@@ -45,7 +45,7 @@ void *cuda_allocator::allocate(size_t min_alignment, size_t size_bytes)
   cudaError_t err = cudaMalloc(&ptr, size_bytes);
 
   if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_allocator: cudaMalloc() failed",
                               error_code{"CUDA", err},
                               error_type::memory_allocation_error});
@@ -63,7 +63,7 @@ void *cuda_allocator::allocate_optimized_host(size_t min_alignment,
   cudaError_t err = cudaMallocHost(&ptr, bytes);
 
   if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_allocator: cudaMallocHost() failed",
                               error_code{"CUDA", err},
                               error_type::memory_allocation_error});
@@ -89,7 +89,7 @@ void cuda_allocator::free(void *mem) {
     err = cudaFree(mem);
   
   if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_allocator: cudaFree() failed",
                               error_code{"CUDA", err},
                               error_type::memory_allocation_error});
@@ -103,7 +103,7 @@ void * cuda_allocator::allocate_usm(size_t bytes)
   void *ptr;
   auto err = cudaMallocManaged(&ptr, bytes);
   if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_allocator: cudaMallocManaged() failed",
                               error_code{"CUDA", err},
                               error_type::memory_allocation_error});
@@ -127,13 +127,13 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   if (err != cudaSuccess) {
     if (err == cudaErrorInvalidValue)
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"cuda_allocator: query_pointer(): pointer is unknown by backend",
                      error_code{"CUDA", err},
                      error_type::invalid_parameter_error});
     else
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"cuda_allocator: query_pointer(): query failed",
                      error_code{"CUDA", err}});
   }
@@ -142,7 +142,7 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   // for unknown host pointers
   if (attribs.type == cudaMemoryTypeUnregistered) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"cuda_allocator: query_pointer(): pointer is unknown by backend",
                      error_code{"CUDA", err},
                      error_type::invalid_parameter_error});
@@ -163,7 +163,7 @@ result cuda_allocator::mem_advise(const void *addr, std::size_t num_bytes,
                                   static_cast<cudaMemoryAdvise>(advise), _dev);
   if(err != cudaSuccess) {
     return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{"cuda_allocator: cudaMemAdvise() failed", error_code{"CUDA", err}}
     );
   }

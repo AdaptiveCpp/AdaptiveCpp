@@ -307,7 +307,7 @@ std::size_t omp_hardware_manager::get_num_devices() const { return 1; }
 
 hardware_context* omp_hardware_manager::get_device(std::size_t index) {
   if(index != 0) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"omp_hardware_manager: Requested device " +
                                   std::to_string(index) + " does not exist.",
                               error_type::invalid_parameter_error});

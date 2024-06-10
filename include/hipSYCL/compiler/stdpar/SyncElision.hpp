@@ -38,10 +38,10 @@ namespace compiler {
 
 /// Implements the main synchronization elision logic. The idea is as follows:
 /// 1.) Detect stdpar functions using "hipsycl_stdpar_entrypoint" annotation attribute.
-/// 2.) Detect calls to __hipsycl_stdpar_optional_barrier() inside stdpar functions.
-/// 3.) Remove __hipsycl_stdpar_optional_barrier() calls, and reinsert them after the call
+/// 2.) Detect calls to __acpp_stdpar_optional_barrier() inside stdpar functions.
+/// 3.) Remove __acpp_stdpar_optional_barrier() calls, and reinsert them after the call
 /// instruction to the stdpar function (i.e. move them out of the stdpar function, and to the
-/// callsite) 4.) Move calls to __hipsycl_stdpar_optional_barrier() down the instruction flow,
+/// callsite) 4.) Move calls to __acpp_stdpar_optional_barrier() down the instruction flow,
 /// taking all routes through the control flow graph until a place is encountered where barriers
 /// must be present for correctness:
 ///  - memory accesses such as loads/stores
@@ -57,7 +57,7 @@ namespace compiler {
 /// This algorithm effectively causes synchronization to be as delayed as possible, potentially
 /// even removing synchronization entirely between two stdpar calls.
 ///
-/// In order to properly function, __hipsycl_stdpar_optional_barrier() should have an internal
+/// In order to properly function, __acpp_stdpar_optional_barrier() should have an internal
 /// counter of enqueued operations, and only synchronize if that counter is > 0. This is because
 /// in some control flow graphs it can happen that there is a path that crosses multiple
 /// synchronization points.

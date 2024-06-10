@@ -93,7 +93,7 @@ backend_hardware_manager *hip_backend::get_hardware_manager() const {
 backend_executor *hip_backend::get_executor(device_id dev) const {
   if (dev.get_full_backend_descriptor().sw_platform != api_platform::hip) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_backend: Passed device id from other backend to HIP backend"});
     return nullptr;
   }

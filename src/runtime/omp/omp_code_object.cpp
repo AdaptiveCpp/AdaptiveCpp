@@ -57,7 +57,7 @@ result make_shared_library_from_blob(void *&module, const std::string &blob,
                            "kernel cache in file "
                         << cache_file << std::endl;
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"omp_sscp_executable_object: could not store JIT kernel "
                    "library in temporary kernel cache"});
   }
@@ -67,7 +67,7 @@ result make_shared_library_from_blob(void *&module, const std::string &blob,
   module = detail::load_library(cache_file, "omp_sscp_executable");
 
   if (!module)
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"omp_sscp_executable_object: could not load "
                                  "shared kernel library"});
 
@@ -146,7 +146,7 @@ result omp_sscp_executable_object::build(
             _module, kernel_name, "omp_sscp_exectuable_object")) {
       _kernels.emplace(kernel_name, kernel);
     } else {
-      return make_error(__hipsycl_here(),
+      return make_error(__acpp_here(),
                         error_info{"omp_sscp_executable_object: could not load "
                                    "kernel from shared library"});
     }

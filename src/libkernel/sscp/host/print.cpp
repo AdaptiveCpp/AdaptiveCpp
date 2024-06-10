@@ -30,6 +30,6 @@
 
 #include <stdio.h>
 
-void __hipsycl_sscp_print(const char* msg) {
+void __acpp_sscp_print(const char* msg) {
   puts(msg);
 }

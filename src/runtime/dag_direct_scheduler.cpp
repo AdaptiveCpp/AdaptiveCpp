@@ -110,7 +110,7 @@ result ensure_allocation_exists(runtime *rt,
 
     if(!ptr)
       return register_error(
-                 __hipsycl_here(),
+                 __acpp_here(),
                  error_info{
                      "dag_direct_scheduler: Lazy memory allocation has failed.",
                      error_type::memory_allocation_error});
@@ -149,7 +149,7 @@ void for_each_explicit_operation(
 
             if (update_sources.empty()) {
               register_error(
-                  __hipsycl_here(),
+                  __acpp_here(),
                   error_info{"dag_direct_scheduler: Could not obtain data "
                              "update sources when trying to materialize "
                              "implicit requirement"});
@@ -272,7 +272,7 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
       for_each_explicit_operation(req, [&](operation *op) {
         if (!op->is_data_transfer()) {
           res = make_error(
-              __hipsycl_here(),
+              __acpp_here(),
               error_info{
                   "dag_direct_scheduler: only data transfers are supported "
                   "as operations generated from implicit requirements.",
@@ -354,7 +354,7 @@ dag_direct_scheduler::dag_direct_scheduler(runtime* rt)
 
 void dag_direct_scheduler::submit(dag_node_ptr node) {
   if (!node->get_execution_hints().has_hint<hints::bind_to_device>()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"dag_direct_scheduler: Direct scheduler does not "
                               "support DAG nodes not bound to devices.",
                               error_type::feature_not_supported});
@@ -376,7 +376,7 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
     if(auto req = weak_req.lock()) {
       if (!req->get_operation()->is_requirement()) {
         if (!req->is_submitted()) {
-          register_error(__hipsycl_here(),
+          register_error(__acpp_here(),
                     error_info{"dag_direct_scheduler: Direct scheduler does not "
                                 "support processing multiple unsubmitted nodes",
                                 error_type::feature_not_supported});

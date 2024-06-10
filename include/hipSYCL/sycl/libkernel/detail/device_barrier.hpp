@@ -41,37 +41,14 @@ namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-
-inline void spirv_barrier(access::fence_space space) {
-  uint32_t flags =  0;
-  
-  if (space == access::fence_space::global_space) {
-    flags = static_cast<uint32_t>(
-                  __spv::MemorySemanticsMask::SequentiallyConsistent |
-                  __spv::MemorySemanticsMask::CrossWorkgroupMemory);
-  } else if (space == access::fence_space::local_space){
-    flags = static_cast<uint32_t>(
-                        __spv::MemorySemanticsMask::SequentiallyConsistent |
-                        __spv::MemorySemanticsMask::WorkgroupMemory);
-  } else {
-    flags = static_cast<uint32_t>(__spv::MemorySemanticsMask::SequentiallyConsistent |
-                      __spv::MemorySemanticsMask::CrossWorkgroupMemory |
-                      __spv::MemorySemanticsMask::WorkgroupMemory);
-  }
-  __spirv_ControlBarrier(__spv::Scope::Workgroup, __spv::Scope::Workgroup,
-                          flags);
-}
-
-#endif
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
 inline void sscp_barrier(access::fence_space space) {
   if(space == access::fence_space::local_space) {
-    __hipsycl_sscp_work_group_barrier(memory_scope::work_group,
+    __acpp_sscp_work_group_barrier(memory_scope::work_group,
                                       memory_order::seq_cst);
   } else {
-    __hipsycl_sscp_work_group_barrier(memory_scope::device,
+    __acpp_sscp_work_group_barrier(memory_scope::device,
                                       memory_order::seq_cst);
   }
 }
@@ -82,12 +59,11 @@ HIPSYCL_KERNEL_TARGET
 inline void local_device_barrier(
     access::fence_space space = access::fence_space::global_and_local) {
 
-  __hipsycl_backend_switch(
+  __acpp_backend_switch(
       assert(false && "device barrier called on CPU, this should not happen"), 
       sscp_barrier(space),
       __syncthreads(),
-      __syncthreads(),
-      spirv_barrier(space));
+      __syncthreads());
 }
 
 }

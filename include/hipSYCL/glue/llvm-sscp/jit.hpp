@@ -281,7 +281,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
       ++failure_index;
     }
     
-    return rt::make_error(__hipsycl_here(),
+    return rt::make_error(__acpp_here(),
                       rt::error_info{"jit::compile: Encountered errors:\n" +
                                  translator->getErrorLogAsString()});
   }
@@ -302,14 +302,14 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
   auto images_node = hcf->root_node()->get_subnode("images");
   if(!images_node) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{
             "jit::compile: Invalid HCF, no node named 'images' was found"});
   }
 
   auto target_image_node = images_node->get_subnode(image_name);
   if(!target_image_node) {
-    return rt::make_error(__hipsycl_here(),
+    return rt::make_error(__acpp_here(),
                           rt::error_info{"jit::compile: Requested image " +
                                          image_name +
                                          " was not defined in HCF"});
@@ -317,14 +317,14 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
 
   if(!target_image_node->has_binary_data_attached()) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{"jit::compile: Image " + image_name +
                        " was defined in HCF without data"});
   }
   std::string source;
   if(!hcf->get_binary_attachment(target_image_node, source)) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{
             "jit::compile: Could not extract binary data for HCF image " +
             image_name});
@@ -344,7 +344,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
   const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
   if(!hcf) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{"jit::compile: Could not obtain HCF object"});
   }
 

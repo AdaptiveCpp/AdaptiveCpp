@@ -274,6 +274,9 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     if (dest_dev.get_full_backend_descriptor().sw_platform ==
         api_platform::cuda) {
       copy_kind = cudaMemcpyHostToDevice;
+    } else if (dest_dev.get_full_backend_descriptor().hw_platform ==
+        hardware_platform::cpu) {
+      copy_kind = cudaMemcpyHostToHost;
     } else
       assert(false && "Unknown copy destination platform");
   } else

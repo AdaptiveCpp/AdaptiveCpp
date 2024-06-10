@@ -13,22 +13,6 @@ jobs:
         cuda: [11.0.2]
         rocm: [5.4.3]
         include:
-          - clang: 11
-            os: ubuntu-20.04
-            cuda: 11.0.2
-            rocm: 4.0.1
-          - clang: 12
-            os: ubuntu-20.04
-            cuda: 11.0.2
-            rocm: 4.0.1
-          - clang: 13
-            os: ubuntu-20.04
-            cuda: 11.0.2
-            rocm: 4.0.1
-          - clang: 14
-            os: ubuntu-20.04
-            cuda: 11.0.2
-            rocm: 4.0.1
           - clang: 17
             os: ubuntu-22.04
             cuda: 11.0.2

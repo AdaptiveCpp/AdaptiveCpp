@@ -27,7 +27,7 @@
 
 #include "driver_types.h"
 #include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
@@ -274,6 +274,9 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     if (dest_dev.get_full_backend_descriptor().sw_platform ==
         api_platform::cuda) {
       copy_kind = cudaMemcpyHostToDevice;
+    } else if (dest_dev.get_full_backend_descriptor().hw_platform ==
+        hardware_platform::cpu) {
+      copy_kind = cudaMemcpyHostToHost;
     } else
       assert(false && "Unknown copy destination platform");
   } else
@@ -498,22 +501,22 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
 
   int device = _dev.get_id();
 
-  glue::kernel_configuration config;
+  kernel_configuration config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+      kernel_base_config_parameter::backend_id, backend_id::cuda);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::explicit_multipass);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::target_arch, selected_target);
+      kernel_base_config_parameter::target_arch, selected_target);
 
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, device);
+      kernel_base_config_parameter::runtime_device, device);
 
   // Will be invoked by the kernel cache in case there is a miss in the kernel
   // cache and we have to construct a new code object
@@ -583,7 +586,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     const std::string &kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
-    const glue::kernel_configuration &initial_config) {
+    const kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
   this->activate_device();
@@ -619,15 +622,15 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  static thread_local glue::kernel_configuration config;
+  static thread_local kernel_configuration config;
   config = initial_config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+      kernel_base_config_parameter::backend_id, backend_id::cuda);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   for(const auto& flag : kernel_info->get_compilation_flags())
     config.set_build_flag(flag);
@@ -635,16 +638,16 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     config.set_build_option(opt.first, opt.second);
   // TODO This is incorrect, we should attempt to find a better way to determine
   // the right ptx version
-  config.set_build_option(glue::kernel_build_option::ptx_version,
+  config.set_build_option(kernel_build_option::ptx_version,
                           compute_capability);
-  config.set_build_option(glue::kernel_build_option::ptx_target_device,
+  config.set_build_option(kernel_build_option::ptx_target_device,
                           compute_capability);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, device);
+      kernel_base_config_parameter::runtime_device, device);
 
   auto get_image_and_kernel_names =
       [&](std::vector<std::string> &contained_kernels) -> std::string {
@@ -772,7 +775,7 @@ result cuda_sscp_code_object_invoker::submit_kernel(
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, const std::string &kernel_name,
-    const glue::kernel_configuration &config) {
+    const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(
       op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,

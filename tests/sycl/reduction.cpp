@@ -35,7 +35,6 @@ using namespace cl;
 
 BOOST_FIXTURE_TEST_SUITE(reduction_tests, reset_device_fixture)
 
-#ifndef __HIPSYCL_ENABLE_LLVM_SSCP_TARGET__ // not yet supported for SSCP
 
 auto tolerance = boost::test_tools::tolerance(0.001f);
 
@@ -100,66 +99,32 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
     return input_generator<T,BinaryOp>{}(i);
   };
 
-  test_scalar_reduction(q, identity, 
-    input_size, op, input_gen,
-    [&](T* input, T* output){
-
-      q.parallel_for<reduction_kernel<T,BinaryOp,__LINE__>>(
-                  sycl::range<1>(input_size), 
-                  sycl::reduction(output, identity, op), 
-                  [=](sycl::id<1> idx, auto& reducer){
-        reducer.combine(input[idx[0]]);
+  test_scalar_reduction(
+      q, identity, input_size, op, input_gen, [&](T *input, T *output) {
+        q.parallel_for<reduction_kernel<T, BinaryOp, __LINE__>>(
+            sycl::range<1>(input_size),
+            sycl::reduction(
+                output, identity, op,
+                sycl::property_list{
+                    sycl::property::reduction::initialize_to_identity{}}),
+            [=](sycl::id<1> idx, auto &reducer) {
+              reducer.combine(input[idx[0]]);
+            });
       });
-
-    });
 
   if(input_size % local_size == 0) {
-    test_scalar_reduction(q, identity,
-      input_size, op, input_gen,
-      [&](T* input, T* output){
-
-        q.parallel_for<reduction_kernel<T,BinaryOp,__LINE__>>(
-                      sycl::nd_range(sycl::range{input_size}, 
-                                     sycl::range{local_size}), 
-                      sycl::reduction(output, identity, op), 
-                      [=](sycl::nd_item<1> idx, auto& reducer){
-          reducer.combine(input[idx.get_global_linear_id()]);
+    test_scalar_reduction(
+        q, identity, input_size, op, input_gen, [&](T *input, T *output) {
+          q.parallel_for<reduction_kernel<T, BinaryOp, __LINE__>>(
+              sycl::nd_range(sycl::range{input_size}, sycl::range{local_size}),
+              sycl::reduction(
+                  output, identity, op,
+                  sycl::property_list{
+                      sycl::property::reduction::initialize_to_identity{}}),
+              [=](sycl::nd_item<1> idx, auto &reducer) {
+                reducer.combine(input[idx.get_global_linear_id()]);
+              });
         });
-
-      });
-    
-    std::size_t num_groups = input_size / local_size;
-
-    test_scalar_reduction(q, identity,
-      input_size, op, input_gen,
-      [&](T* input, T* output){
-
-        q.submit([&](sycl::handler& cgh){
-          cgh.parallel_for_work_group<reduction_kernel<T,BinaryOp,__LINE__>>(
-                      sycl::range{num_groups}, sycl::range{local_size}, 
-                      sycl::reduction(output, identity, op), 
-                      [=](sycl::group<1> grp, auto& reducer){
-            grp.parallel_for_work_item([&](sycl::h_item<1> idx){
-              reducer.combine(input[idx.get_global_id()[0]]);
-            });
-          });
-        });
-      });
-   
-    test_scalar_reduction(q, identity,
-      input_size, op, input_gen,
-      [&](T* input, T* output){
-
-        q.parallel<reduction_kernel<T,BinaryOp,__LINE__>>(
-                      sycl::range{num_groups}, sycl::range{local_size}, 
-                      sycl::reduction(output, identity, op), 
-                      [=](auto grp, auto& reducer){
-          sycl::distribute_items(grp, [&](sycl::s_item<1> idx){
-            reducer.combine(input[idx.get_global_linear_id()]);
-          });
-        });
-      });
-    
   }
 }
 
@@ -210,71 +175,39 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     *output1 = T{};
   };
 
-  q.parallel_for<reduction_kernel<T,class MultiOp,__LINE__>>(
-              sycl::range<1>(input_size), 
-              sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-              sycl::reduction(output1, T{1}, sycl::multiplies<T>{}), 
-              [=](sycl::id<1> idx, auto& add_reducer, auto& mul_reducer){
-    add_reducer += input0[idx[0]];
-    mul_reducer *= input1[idx[0]];
-  });
+  q.parallel_for<reduction_kernel<T, class MultiOp, __LINE__>>(
+      sycl::range<1>(input_size),
+      sycl::reduction(output0, T{0}, sycl::plus<T>{},
+                      sycl::property_list{
+                          sycl::property::reduction::initialize_to_identity{}}),
+      sycl::reduction(output1, T{1}, sycl::multiplies<T>{},
+                      sycl::property_list{
+                          sycl::property::reduction::initialize_to_identity{}}),
+      [=](sycl::id<1> idx, auto &add_reducer, auto &mul_reducer) {
+        add_reducer += input0[idx[0]];
+        mul_reducer *= input1[idx[0]];
+      });
 
   verify();
 
   if(input_size % local_size == 0) {
 
-    q.parallel_for<reduction_kernel<T,class MultiOp,__LINE__>>(
-                sycl::nd_range(sycl::range{input_size},
-                               sycl::range{local_size}),
-                sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-                sycl::reduction(output1, T{1}, sycl::multiplies<T>{}),
-                [=](sycl::nd_item<1> idx, auto& add_reducer, auto& mul_reducer){
-      add_reducer += input0[idx.get_global_linear_id()];
+    q.parallel_for<reduction_kernel<T, class MultiOp, __LINE__>>(
+        sycl::nd_range(sycl::range{input_size}, sycl::range{local_size}),
+        sycl::reduction(
+            output0, T{0}, sycl::plus<T>{},
+            sycl::property_list{
+                sycl::property::reduction::initialize_to_identity{}}),
+        sycl::reduction(
+            output1, T{1}, sycl::multiplies<T>{},
+            sycl::property_list{
+                sycl::property::reduction::initialize_to_identity{}}),
+        [=](sycl::nd_item<1> idx, auto &add_reducer, auto &mul_reducer) {
+          add_reducer += input0[idx.get_global_linear_id()];
 #ifdef __HIPSYCL_USE_ACCELERATED_CPU__
-      idx.barrier(); // workaround for omp simd failure as below.
+          idx.barrier(); // workaround for omp simd failure as below.
 #endif
-      mul_reducer *= input1[idx.get_global_linear_id()];
-    });
-
-    verify();
-    
-    std::size_t num_groups = input_size / local_size;
-    
-    q.submit([&](sycl::handler& cgh) {
-      cgh.parallel_for_work_group<reduction_kernel<T,class MultiOp,__LINE__>>(
-                  sycl::range{num_groups}, sycl::range{local_size},
-                  sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-                  sycl::reduction(output1, T{1}, sycl::multiplies<T>{}), 
-                  [=](sycl::group<1> grp, auto& add_reducer, auto& mul_reducer){
-        // On omp backend, this is executed in a pragma omp simd loop.
-        // It seems clang generates incorrect code when doing two
-        // reductions inside the same simd loop, so we need to split
-        // them in two loops.
-        grp.parallel_for_work_item([&](sycl::h_item<1> idx){
-          mul_reducer *= input1[idx.get_global_id()[0]];
-        });
-
-        grp.parallel_for_work_item([&](sycl::h_item<1> idx){
-          add_reducer += input0[idx.get_global_id()[0]];
-        });
-      });
-    });
-
-    verify();
-
-    q.parallel<reduction_kernel<T, class MultiOp, __LINE__>>(
-        sycl::range{num_groups}, sycl::range{local_size},
-        sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-        sycl::reduction(output1, T{1}, sycl::multiplies<T>{}),
-        [=](auto grp, auto &add_reducer, auto &mul_reducer) {
-          sycl::distribute_items(grp, [&](sycl::s_item<1> idx) {
-            mul_reducer *= input1[idx.get_global_linear_id()];
-          });
-
-          sycl::distribute_items(
-              grp, [&](sycl::s_item<1> idx) {
-                add_reducer += input0[idx.get_global_linear_id()];
-              });
+          mul_reducer *= input1[idx.get_global_linear_id()];
         });
 
     verify();
@@ -339,29 +272,95 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
   
   sycl::buffer<int> sum_buff{1};
   sycl::buffer<int> max_buff{1};
-  
-  q.submit([&](sycl::handler
-                   &cgh) {
+
+  q.submit([&](sycl::handler &cgh) {
     auto values_acc = values_buff.get_access<sycl::access_mode::read>(
         cgh);
 
     sycl::accessor sum_acc {sum_buff, cgh};
     sycl::accessor max_acc {max_buff, cgh};
-    
-    auto sumReduction = sycl::reduction(sum_acc, sycl::plus<int>());
-    auto maxReduction = sycl::reduction(max_acc, sycl::maximum<int>());
-    
+
+    auto sumReduction = sycl::reduction(
+        sum_acc, sycl::plus<int>(),
+        sycl::property_list{
+            sycl::property::reduction::initialize_to_identity{}});
+    auto maxReduction = sycl::reduction(
+        max_acc, sycl::maximum<int>(),
+        sycl::property_list{
+            sycl::property::reduction::initialize_to_identity{}});
+
     cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
                      [=](sycl::id<1> idx, auto &sum, auto &max) {
                        sum += values_acc[idx];
                        max.combine(values_acc[idx]);
                      });
   });
-
+  
   BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }
 
-#endif
+
+BOOST_AUTO_TEST_CASE(buffer_reduction) {
+  sycl::queue q;
+  sycl::buffer<int> values_buff{1024};
+  { 
+    sycl::host_accessor a{values_buff};
+    std::iota(a.get_pointer(), a.get_pointer() + 1024, 0);
+  }
+  
+  sycl::buffer<int> sum_buff{1};
+  sycl::buffer<int> max_buff{1};
+
+  q.submit([&](sycl::handler &cgh) {
+    auto values_acc = values_buff.get_access<sycl::access_mode::read>(
+        cgh);
+
+    auto sumReduction = sycl::reduction(
+        sum_buff, cgh, sycl::plus<int>(),
+        sycl::property_list{
+            sycl::property::reduction::initialize_to_identity{}});
+    auto maxReduction = sycl::reduction(
+        max_buff, cgh, sycl::maximum<int>(),
+        sycl::property_list{
+            sycl::property::reduction::initialize_to_identity{}});
+
+    cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
+                     [=](sycl::id<1> idx, auto &sum, auto &max) {
+                       sum += values_acc[idx];
+                       max.combine(values_acc[idx]);
+                     });
+  });
+  
+  BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
+  BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
+}
+
+BOOST_AUTO_TEST_CASE(incremental_reduction) {
+  const int size = 1024;
+  sycl::queue q;
+  int* data = sycl::malloc_shared<int>(size, q);
+
+  int* result = sycl::malloc_shared<int>(1, q);
+  for(std::size_t i = 0; i < size;++i)
+    data[i] = static_cast<int>(i);
+
+  *result = 0;
+
+  // Also tests plus<> without explicit template argument
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
+
+  int expected_result = std::accumulate(data, data + size, 0);
+  BOOST_CHECK(*result == expected_result);
+
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
+
+  BOOST_CHECK(*result == 2 * expected_result);
+
+  sycl::free(data, q);
+  sycl::free(result, q);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

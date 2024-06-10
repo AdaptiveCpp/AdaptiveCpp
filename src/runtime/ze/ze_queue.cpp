@@ -33,7 +33,7 @@
 #include <vector>
 
 #include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -158,7 +158,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
 
 ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
     : _hw_manager{hw_manager}, _device_index{device_index},
-      _multipass_code_object_invoker{this}, _sscp_code_object_invoker{this},
+      _sscp_code_object_invoker{this},
       _kernel_cache{kernel_cache::get()} {
   assert(hw_manager);
 
@@ -322,7 +322,6 @@ result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
   
   rt::backend_kernel_launch_capabilities cap;
   
-  cap.provide_multipass_invoker(&_multipass_code_object_invoker);
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
 
   l->set_backend_capabilities(cap);
@@ -452,108 +451,13 @@ void ze_queue::register_submitted_op(std::shared_ptr<dag_node_event> evt) {
   _enqueued_synchronization_ops.push_back(evt);
 }
 
-result ze_queue::submit_multipass_kernel_from_code_object(
-    const kernel_operation &op, hcf_object_id hcf_object,
-    const std::string &backend_kernel_name, const rt::range<3> &num_groups,
-    const rt::range<3> &group_size, unsigned dynamic_shared_mem,
-    void **kernel_args, const std::size_t* arg_sizes, std::size_t num_args) {
-
-  ze_hardware_context *hw_ctx = static_cast<ze_hardware_context *>(
-      _hw_manager->get_device(_device_index));
-  ze_context_handle_t ctx = hw_ctx->get_ze_context();
-  ze_device_handle_t dev = hw_ctx->get_ze_device();
-
-
-  // Need to create custom config to ensure we can distinguish other
-  // kernels compiled with different values e.g. of local mem allocation size
-  glue::kernel_configuration config;
-  config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::level_zero);
-  config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
-      compilation_flow::explicit_multipass);
-  config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
-  
-  auto binary_configuration_id = config.generate_id();
-  auto code_object_configuration_id = binary_configuration_id;
-  
-  glue::kernel_configuration::extend_hash(
-      code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, dev);
-  glue::kernel_configuration::extend_hash(
-      code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_context, ctx);
-
-  auto code_object_constructor = [&]() -> code_object* {
-    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
-    if(!hcf) {
-      HIPSYCL_DEBUG_ERROR << "ze_queue: Could not retrieve SPIR-V HCF object"
-                          << std::endl;
-      return nullptr;
-    }
-    assert(hcf->root_node());
-    if(!hcf->root_node()->has_binary_data_attached())
-      return nullptr;
-    
-    std::string code;
-    if(!hcf->get_binary_attachment(hcf->root_node(), code)) {
-      HIPSYCL_DEBUG_ERROR
-          << "ze_queue: Could not extract code from HCF node; invalid HCF data?"
-          << std::endl;
-    }
-
-    ze_executable_object *exec_obj = new ze_executable_object{
-        ctx, dev, hcf_object, ze_source_format::spirv, code};
-    result r = exec_obj->get_build_result();
-
-    if(!r.is_success()) {
-      register_error(r);
-      delete exec_obj;
-      return nullptr;
-    }
-
-    return exec_obj;
-  };
-
-  const code_object *obj = _kernel_cache->get_or_construct_code_object(
-      code_object_configuration_id, code_object_constructor);
-
-  if(!obj) {
-    return make_error(__hipsycl_here(),
-                      error_info{"ze_queue: Code object construction failed"});
-  }
-
-  ze_kernel_handle_t kernel;
-  result res = static_cast<const ze_executable_object *>(obj)->get_kernel(
-      backend_kernel_name, kernel);
-  
-  if(!res.is_success())
-    return res;
-
-  std::vector<ze_event_handle_t> wait_events =
-      get_enqueued_event_handles();
-  std::shared_ptr<dag_node_event> completion_evt = create_event();
-
-  auto submission_err = submit_ze_kernel(
-      kernel, get_ze_command_list(),
-      static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
-      wait_events, group_size, num_groups, kernel_args, arg_sizes, num_args);
-
-  if(!submission_err.is_success())
-    return submission_err;
-
-  register_submitted_op(completion_evt);
-
-  return make_success();
-}
 
 result ze_queue::submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
       const std::string &kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const glue::kernel_configuration &initial_config) {
+      const kernel_configuration &initial_config) {
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
@@ -588,16 +492,16 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   // Need to create custom config to ensure we can distinguish other
   // kernels compiled with different values e.g. of local mem allocation size
-  static thread_local glue::kernel_configuration config;
+  static thread_local kernel_configuration config;
   config = initial_config;
   
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::level_zero);
+      kernel_base_config_parameter::backend_id, backend_id::level_zero);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   for(const auto& flag : kernel_info->get_compilation_flags())
     config.set_build_flag(flag);
@@ -605,20 +509,20 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     config.set_build_option(opt.first, opt.second);
 
   config.set_build_option(
-      glue::kernel_build_option::spirv_dynamic_local_mem_allocation_size,
+      kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
   config.set_build_flag(
-      glue::kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
+      kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
   
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, dev);
-  glue::kernel_configuration::extend_hash(
+      kernel_base_config_parameter::runtime_device, dev);
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_context, ctx);
+      kernel_base_config_parameter::runtime_context, ctx);
 
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);

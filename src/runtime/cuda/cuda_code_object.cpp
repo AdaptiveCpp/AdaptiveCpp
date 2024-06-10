@@ -35,7 +35,7 @@
 #include <cuda.h>
 
 #include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/cuda/cuda_code_object.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -222,7 +222,7 @@ int cuda_multipass_executable_object::get_device() const {
 cuda_sscp_executable_object::cuda_sscp_executable_object(
     const std::string &ptx_source, const std::string &target_arch,
     hcf_object_id hcf_source, const std::vector<std::string> &kernel_names,
-    int device, const glue::kernel_configuration &config)
+    int device, const kernel_configuration &config)
     : _target_arch{target_arch}, _hcf{hcf_source}, _kernel_names{kernel_names},
       _id{config.generate_id()}, _device{device}, _module{nullptr} {
   _build_result = build(ptx_source);

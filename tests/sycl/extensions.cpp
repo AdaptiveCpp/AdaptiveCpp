@@ -1177,4 +1177,57 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events) {
   }
 }
 #endif
+
+#ifdef HIPSYCL_EXT_SPECIALIZED
+BOOST_AUTO_TEST_CASE(sycl_specialized) {
+  using namespace cl;
+  sycl::queue q;
+
+  uint64_t* data = sycl::malloc_shared<uint64_t>(1, q);
+
+  //Ctor
+  {
+    *data = 1;
+    sycl::specialized<uint64_t> s{10};
+    q.submit([&](sycl::handler& cgh){
+      cgh.single_task([=](){
+        *data += s;
+      });
+    }).wait();
+
+    BOOST_CHECK(*data == 11);
+  }
+
+  //Copy assignment operator (const T&)
+  {
+    *data = 1;
+    sycl::specialized<uint64_t> s;
+    q.submit([&](sycl::handler& cgh){
+      s = 10;
+      cgh.single_task([=](){
+        *data += s;
+      });
+    }).wait();
+
+    BOOST_CHECK(*data == 11);
+  }
+
+   //Copy assignment operator (sycl::specialized)
+  {
+    *data = 1;
+    sycl::specialized<uint64_t> s_tmp{10};
+    q.submit([&](sycl::handler& cgh){
+      sycl::specialized<uint64_t> s = s_tmp;
+      cgh.single_task([=](){
+        *data += s;
+      });
+    }).wait();
+
+    BOOST_CHECK(*data == 11);
+  }
+
+  sycl::free(data, q);
+}
+#endif
+
 BOOST_AUTO_TEST_SUITE_END()

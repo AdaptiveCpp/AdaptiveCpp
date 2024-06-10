@@ -62,6 +62,7 @@ class context_property : public property {};
 class buffer_property : public property {};
 class accessor_property : public property {};
 class cg_property : public property {};
+class reduction_property : public property {};
 class unknown_property : public property {};
 
 template<class SyclObjectT>

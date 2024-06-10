@@ -28,8 +28,9 @@
 #ifndef HIPSYCL_ADAPTIVITY_ENGINE_HPP
 #define HIPSYCL_ADAPTIVITY_ENGINE_HPP
 
-#include "hipSYCL/glue/kernel_configuration.hpp"
+
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
 
@@ -50,8 +51,8 @@ public:
     std::size_t num_args,
     std::size_t local_mem_size);
 
-  glue::kernel_configuration::id_type
-  finalize_binary_configuration(glue::kernel_configuration &config);
+  kernel_configuration::id_type
+  finalize_binary_configuration(kernel_configuration &config);
 
   std::string select_image_and_kernels(std::vector<std::string>* kernel_names_out);
 private:

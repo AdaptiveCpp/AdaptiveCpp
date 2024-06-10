@@ -38,11 +38,7 @@ class PassManagerBase;
 
 namespace hipsycl::compiler {
 
-#if LLVM_VERSION_MAJOR > 13
 using OptLevel = llvm::OptimizationLevel;
-#else
-using OptLevel = llvm::PassBuilder::OptimizationLevel;
-#endif
 
 // build the CBS pipeline for the legacy PM
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM);

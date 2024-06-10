@@ -34,6 +34,7 @@ add_library(acpp-rt SHARED
   data.cpp
   inorder_executor.cpp
   kernel_cache.cpp
+  kernel_configuration.cpp
   multi_queue_executor.cpp
   dag.cpp
   dag_node.cpp
@@ -277,8 +278,23 @@ if(WITH_CPU_BACKEND)
     omp/omp_hardware_manager.cpp
     omp/omp_queue.cpp)
 
-    find_package(OpenMP REQUIRED)
+    # OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
+    if (APPLE)
+      if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
+        execute_process(COMMAND brew list libomp
+        COMMAND grep libomp.a 
+        COMMAND sed -E "s/\\/lib\\/.*//"
+        OUTPUT_VARIABLE DefaultOMP_ROOT
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+        # fater linkage will error out if it is not found
+        set(OpenMP_ROOT ${DefaultOMP_ROOT})
+        set(OMP_ROOT ${DefaultOMP_ROOT})
+      endif()
+    endif()
+
+    find_package(OpenMP REQUIRED)
+    
     target_include_directories(rt-backend-omp PRIVATE
       ${HIPSYCL_SOURCE_DIR}/include 
       ${PROJECT_BINARY_DIR}/include)

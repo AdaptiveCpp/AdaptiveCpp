@@ -30,8 +30,8 @@
 
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/s1_ir_constants.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -244,17 +244,16 @@ public:
     _params = params;
   }
 
-  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
-            typename... Reductions>
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+            Kernel k) {
 
     this->_type = type;
     this->_invoker = [=] (rt::dag_node* node) mutable {
 
       static_cast<rt::kernel_operation *>(node->get_operation())
-          ->initialize_embedded_pointers(k, reductions...);
+          ->initialize_embedded_pointers(k);
 
       auto get_grid_range = [&]() {
         for (int i = 0; i < Dim; ++i){
@@ -328,7 +327,7 @@ public:
   }
 
   virtual void invoke(rt::dag_node *node,
-                      const kernel_configuration &config) final override {
+                      const rt::kernel_configuration &config) final override {
     _configuration = &config;
     _invoker(node);
   }
@@ -441,7 +440,7 @@ private:
 
   std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
-  const kernel_configuration* _configuration = nullptr;
+  const rt::kernel_configuration* _configuration = nullptr;
   void* _params = nullptr;
 };
 

@@ -35,31 +35,13 @@
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 
 namespace hipsycl {
 namespace rt {
 
 class ze_queue;
 
-class ze_multipass_code_object_invoker : public multipass_code_object_invoker {
-public:
-  ze_multipass_code_object_invoker(ze_queue* queue)
-  : _queue{queue} {}
-
-  virtual ~ze_multipass_code_object_invoker() {}
-
-  virtual result submit_kernel(const kernel_operation& op,
-                               hcf_object_id hcf_object,
-                               const rt::range<3> &num_groups,
-                               const rt::range<3> &group_size,
-                               unsigned local_mem_size, void **args,
-                               std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name_tag,
-                               const std::string &kernel_body_name) override;
-private:
-  ze_queue* _queue;
-};
 
 class ze_sscp_code_object_invoker : public sscp_code_object_invoker {
 public:
@@ -75,7 +57,7 @@ public:
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name,
-                               const glue::kernel_configuration& config) override;
+                               const kernel_configuration& config) override;
 private:
   ze_queue* _queue;
 };
@@ -127,13 +109,13 @@ public:
   ze_sscp_executable_object(ze_context_handle_t ctx, ze_device_handle_t dev,
                             hcf_object_id source,
                             const std::string &spirv_image,
-                            const glue::kernel_configuration &config);
+                            const kernel_configuration &config);
   ~ze_sscp_executable_object() {}
 
   virtual compilation_flow source_compilation_flow() const override;
-  virtual glue::kernel_configuration::id_type configuration_id() const override;
+  virtual kernel_configuration::id_type configuration_id() const override;
 private:
-  glue::kernel_configuration::id_type _id;
+  kernel_configuration::id_type _id;
 };
 
 }

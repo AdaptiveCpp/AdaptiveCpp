@@ -51,10 +51,6 @@
 #include "generic/hiplike/group_functions.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-#include "spirv/group_functions.hpp"
-#endif
-
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/group_functions.hpp"
 #endif

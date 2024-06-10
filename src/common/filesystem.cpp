@@ -30,6 +30,8 @@
 #include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/common/debug.hpp"
 
+#include "hipSYCL/runtime/settings.hpp"
+
 #include <fstream>
 #include <random>
 #include <cassert>
@@ -184,11 +186,13 @@ tuningdb::tuningdb() {
     return false;
   };
 
-  std::string home, subdirectory;
-  if(get_home(home, subdirectory)) {
-    _base_dir = (fs::path{home} / subdirectory).string();
-  } else {
-    _base_dir = (fs::current_path() / ".acpp").string();
+  if(!rt::try_get_environment_variable("appdb_dir", _base_dir)) {
+    std::string home, subdirectory;
+    if (get_home(home, subdirectory)) {
+      _base_dir = (fs::path{home} / subdirectory).string();
+    } else {
+      _base_dir = (fs::current_path() / ".acpp").string();
+    }
   }
 
   auto get_app_path = []() -> std::string{

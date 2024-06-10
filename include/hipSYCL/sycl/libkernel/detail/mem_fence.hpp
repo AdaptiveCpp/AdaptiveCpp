@@ -45,12 +45,6 @@ struct mem_fence_impl
     __hipsycl_if_target_hiplike(
       __threadfence();
     );
-    __hipsycl_if_target_spirv(
-    __spirv_MemoryBarrier(__spv::Scope::Device,
-                          __spv::MemorySemanticsMask::SequentiallyConsistent |
-                          __spv::MemorySemanticsMask::CrossWorkgroupMemory |
-                          __spv::MemorySemanticsMask::WorkgroupMemory);
-    );
     // TODO What about CPU?
     // Empty __hipsycl_if_target_* breaks at compile time w/ nvc++ 22.7 or
     // older, so comment out that statement for now.
@@ -67,13 +61,6 @@ struct mem_fence_impl<access::fence_space::local_space, M>
   {
     __hipsycl_if_target_hiplike(
       __threadfence_block();
-    );
-    __hipsycl_if_target_spirv(
-      __spirv_MemoryBarrier(
-          __spv::Scope::Workgroup,
-          static_cast<uint32_t>(
-              __spv::MemorySemanticsMask::SequentiallyConsistent |
-              __spv::MemorySemanticsMask::WorkgroupMemory));
     );
   }
 };

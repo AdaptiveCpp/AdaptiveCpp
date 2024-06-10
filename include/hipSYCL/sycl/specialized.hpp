@@ -7,54 +7,77 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef HIPSYCL_SPECIALIZED_HPP
 #define HIPSYCL_SPECIALIZED_HPP
+
+#include <type_traits>
 
 namespace hipsycl {
 namespace sycl {
 
 namespace detail {
 
-template<class T>
+template <class T>
 struct __hipsycl_sscp_emit_param_type_annotation_specialized {
   T value;
 };
 
-}
+} // namespace detail
 
-template<class T>
-class specialized {
+template <class T> class specialized {
 public:
-  specialized(const T& value)
-  : _value{value} {}
+  template <typename U = T, typename = std::enable_if_t<
+                                std::is_default_constructible<U>::value>>
+  specialized() : _value{} {}
 
-  operator T () const {
-    return _value.value;
+  specialized(const T &value) : _value{value} {}
+
+  specialized(const specialized<T> &other) : _value{other._value.value} {}
+
+  specialized(sycl::specialized<T> &&other) { swap(*this, other); }
+
+  specialized<T> &operator=(const T &value) {
+    sycl::specialized<T> tmp{value};
+    swap(*this, tmp);
+    return *this;
   }
+
+  specialized<T> &operator=(specialized<T> other) {
+    swap(*this, other);
+    return *this;
+  }
+
+  friend void swap(specialized<T> &first, specialized<T> &second) {
+    using std::swap;
+    swap(first._value.value, second._value.value);
+  }
+
+  operator T() const { return _value.value; }
+
 private:
   detail::__hipsycl_sscp_emit_param_type_annotation_specialized<T> _value;
 };
 
-
-}
-}
+} // namespace sycl
+} // namespace hipsycl
 
 #endif

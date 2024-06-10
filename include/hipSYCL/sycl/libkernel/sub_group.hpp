@@ -67,8 +67,7 @@ public:
         return 0, 
         return __hipsycl_sscp_get_subgroup_local_id(),
         return local_tid() & get_warp_mask(),
-        return local_tid() & get_warp_mask(),
-        return __spirv_BuiltInSubgroupLocalInvocationId);
+        return local_tid() & get_warp_mask());
   }
 
   // always returns the maximum sub_group size
@@ -85,8 +84,7 @@ public:
         return __hipsycl_sscp_get_subgroup_size(),
         // TODO This is not actually correct for incomplete subgroups
         return __hipsycl_warp_size,
-        return __hipsycl_warp_size,
-        return __spirv_BuiltInSubgroupSize);
+        return __hipsycl_warp_size);
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -95,8 +93,7 @@ public:
         return range_type{1},
         return range_type{__hipsycl_sscp_get_subgroup_max_size()},
         return range_type{__hipsycl_warp_size},
-        return range_type{__hipsycl_warp_size},
-        return range_type{__spirv_BuiltInSubgroupMaxSize});
+        return range_type{__hipsycl_warp_size});
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -110,8 +107,7 @@ public:
         return 0, // TODO This is probably incorrect
         return __hipsycl_sscp_get_subgroup_id(),
         return local_tid() >> (__ffs(__hipsycl_warp_size) - 1),
-        return local_tid() >> (__ffs(__hipsycl_warp_size) - 1),
-        return __spirv_BuiltInSubgroupId);
+        return local_tid() >> (__ffs(__hipsycl_warp_size) - 1));
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -120,8 +116,7 @@ public:
         return 1,
         return __hipsycl_sscp_get_num_subgroups(),
         return hiplike_num_subgroups(),
-        return hiplike_num_subgroups(),
-        return __spirv_BuiltInNumSubgroups);
+        return hiplike_num_subgroups());
   }
 
   HIPSYCL_KERNEL_TARGET

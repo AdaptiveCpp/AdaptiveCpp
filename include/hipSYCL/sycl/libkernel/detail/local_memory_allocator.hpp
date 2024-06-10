@@ -204,8 +204,7 @@ public:
       return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr),
       return reinterpret_cast<T*>((char*)__hipsycl_sscp_get_dynamic_local_memory() + addr),
       return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
-      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
-      return nullptr /* SPIR-V not implemented */
+      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr)
     );
   }
 };

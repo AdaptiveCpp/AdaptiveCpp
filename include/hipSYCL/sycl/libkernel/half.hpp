@@ -79,7 +79,6 @@ public:
       data = __hipsycl_sscp_half_add(a._data, b._data),
       data = fp16::create(__hadd(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin addition for native _Float16 type
-      data = fp16::builtin_add(a._data, b._data),
       data = fp16::builtin_add(a._data, b._data));
     return detail::create_half(data);
   }
@@ -92,7 +91,6 @@ public:
       data = __hipsycl_sscp_half_sub(a._data, b._data),
       data = fp16::create(__hsub(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin subtraction for native _Float16 type
-      data = fp16::builtin_sub(a._data, b._data),
       data = fp16::builtin_sub(a._data, b._data));
     return detail::create_half(data);
   }
@@ -105,7 +103,6 @@ public:
       data = __hipsycl_sscp_half_mul(a._data, b._data),
       data = fp16::create(__hmul(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin mul for native _Float16 type
-      data = fp16::builtin_mul(a._data, b._data),
       data = fp16::builtin_mul(a._data, b._data));
     return detail::create_half(data);
   }
@@ -118,7 +115,6 @@ public:
       data = __hipsycl_sscp_half_div(a._data, b._data),
       data = fp16::create(__hdiv(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin div for native _Float16 type
-      data = fp16::builtin_div(a._data, b._data),
       data = fp16::builtin_div(a._data, b._data));
     return detail::create_half(data);
   }
@@ -196,7 +192,6 @@ public:
       return fp16::builtin_less_than(a._data, b._data),
       return __hipsycl_sscp_half_lt(a._data, b._data),
       return __hlt(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data)),
-      return fp16::builtin_less_than(a._data, b._data),
       return fp16::builtin_less_than(a._data, b._data))
   }
 
@@ -206,7 +201,6 @@ public:
       return fp16::builtin_less_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_lte(a._data, b._data),
       return __hle(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data)),
-      return fp16::builtin_less_than_equal(a._data, b._data),
       return fp16::builtin_less_than_equal(a._data, b._data))
   }
 
@@ -216,7 +210,6 @@ public:
       return fp16::builtin_greater_than(a._data, b._data),
       return __hipsycl_sscp_half_gt(a._data, b._data),
       return __hgt(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data)),
-      return fp16::builtin_greater_than(a._data, b._data),
       return fp16::builtin_greater_than(a._data, b._data))
   }
 
@@ -226,7 +219,6 @@ public:
       return fp16::builtin_greater_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_gte(a._data, b._data),
       return __hge(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data)),
-      return fp16::builtin_greater_than_equal(a._data, b._data),
       return fp16::builtin_greater_than_equal(a._data, b._data))
   }
 private:

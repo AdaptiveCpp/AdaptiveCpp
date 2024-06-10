@@ -39,7 +39,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/dylib_loader.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -79,7 +79,7 @@ result make_shared_library_from_blob(void *&module, const std::string &blob,
 omp_sscp_executable_object::omp_sscp_executable_object(
     const std::string &binary, hcf_object_id hcf_source,
     const std::vector<std::string> &kernel_names,
-    const glue::kernel_configuration &config)
+    const kernel_configuration &config)
     : _hcf{hcf_source}, _id{config.generate_id()}, _module{nullptr},
       _kernel_cache_path(kernel_cache::get_persistent_cache_file(_id) + ".so") {
   _build_result = build(binary, kernel_names);

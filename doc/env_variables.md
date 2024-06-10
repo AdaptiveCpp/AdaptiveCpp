@@ -7,11 +7,11 @@
 * `ACPP_RT_MQE_LANE_STATISTICS_DECAY_TIME_SEC`: The time in seconds (floating point value) after which to forget information about old submissions.
 * `ACPP_RT_SCHEDULER`: Set scheduler type. Allowed values: 
     * `direct` is a low-latency direct-submission scheduler. 
-    * `unbound` is the default scheduler and supports automatic work distribution across multiple devices. If the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension is used, the scheduler must be `unbound`.
+    * `unbound` is the default scheduler and supports automatic work distribution across multiple devices. If the `ACPP_EXT_MULTI_DEVICE_QUEUE` extension is used, the scheduler must be `unbound`.
 * `ACPP_DEFAULT_SELECTOR_BEHAVIOR`: Set behavior of default selector. Allowed values:
     * `strict` (default): Strictly behave as defined by the SYCL specification
-    * `multigpu`: Makes default selector behave like a multigpu selector from the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension
-    * `system`: Makes default selector behave like a system selector from the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension
+    * `multigpu`: Makes default selector behave like a multigpu selector from the `ACPP_EXT_MULTI_DEVICE_QUEUE` extension
+    * `system`: Makes default selector behave like a system selector from the `ACPP_EXT_MULTI_DEVICE_QUEUE` extension
 * `ACPP_HCF_DUMP_DIRECTORY`: If set, hipSYCL will dump all embedded HCF data files in this directory. HCF is hipSYCL's container format that is used by all compilation flows that are fully controlled by hipSYCL to store kernel code.
 * `ACPP_PERSISTENT_RUNTIME`: If set to 1, hipSYCL will use a persistent runtime that will continue to live even if no SYCL objects are currently in use in the application. This can be helpful if the application consists of multiple distinct phases in which SYCL is used, and multiple launches of the runtime occur.
 * `ACPP_RT_MAX_CACHED_NODES`: Maximum number of nodes that the runtime buffers before flushing work.

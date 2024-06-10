@@ -362,7 +362,7 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
     s::accessor acc1{buff, cgh, s::read_only};
     BOOST_CHECK(!acc1.is_placeholder());
     
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+#ifdef ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION
     // Conversion rw accessor<int> -> accessor<const int>, read-only
     s::accessor<const int> acc2 = s::accessor<int>{buff, cgh};
     s::accessor acc3{buff, cgh, s::read_only};

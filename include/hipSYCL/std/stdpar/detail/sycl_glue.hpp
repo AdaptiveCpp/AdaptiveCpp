@@ -70,7 +70,7 @@ inline uint64_t get_time_now() {
 inline sycl::queue construct_default_queue() {
   return sycl::queue{hipsycl::sycl::property_list{
         hipsycl::sycl::property::queue::in_order{},
-        hipsycl::sycl::property::queue::hipSYCL_coarse_grained_events{}}};
+        hipsycl::sycl::property::queue::AdaptiveCpp_coarse_grained_events{}}};
 }
 
 class stdpar_tls_runtime {
@@ -174,7 +174,7 @@ public:
   algorithms::util::allocation_group make_scratch_group() {
     algorithms::util::allocation_cache& cache = get_scratch_cache<AT>();
     return algorithms::util::allocation_group{
-        &cache, get_queue().get_device().hipSYCL_device_id()};
+        &cache, get_queue().get_device().AdaptiveCpp_device_id()};
   }
 
   static stdpar_tls_runtime& get() {

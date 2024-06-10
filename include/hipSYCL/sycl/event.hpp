@@ -223,8 +223,14 @@ public:
   friend bool operator !=(const event& lhs, const event& rhs)
   { return !(lhs == rhs); }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<void*>{}(_node.get());
+  }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
   }
 
 private:
@@ -261,7 +267,7 @@ struct hash<hipsycl::sycl::event>
 {
   std::size_t operator()(const hipsycl::sycl::event& e) const
   {
-    return e.hipSYCL_hash_code();
+    return e.AdaptiveCpp_hash_code();
   }
 };
 

@@ -43,7 +43,7 @@ namespace hipsycl {
 namespace sycl {
 
 
-#ifdef HIPSYCL_EXT_FP_ATOMICS
+#ifdef ACPP_EXT_FP_ATOMICS
   #define HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(template_param) \
     std::enable_if_t<std::is_integral<template_param>::value || std::is_floating_point<t>::value>* = nullptr
 #else

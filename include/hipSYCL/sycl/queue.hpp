@@ -494,14 +494,14 @@ public:
 
   // ---- Queue shortcuts ------
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.single_task<KernelName>(KernelFunc);
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(event dependency, const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
@@ -509,7 +509,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(const std::vector<event> &dependencies,
                     const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
@@ -518,7 +518,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, 
+  template <typename KernelName = __acpp_unnamed_kernel, 
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, 
                      const ReductionsAndKernel &... redu_kernel) {
@@ -527,7 +527,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -536,7 +536,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -546,7 +546,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -556,7 +556,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems,
                      const std::vector<event> &dependencies,
@@ -567,7 +567,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems,
                      const std::vector<event> &dependencies,
@@ -578,7 +578,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const ReductionsAndKernel& ... redu_kernel) {
@@ -588,7 +588,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      event dependency,
@@ -600,7 +600,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const std::vector<event> &dependencies,
@@ -612,7 +612,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -621,7 +621,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -631,7 +631,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const std::vector<event> &dependencies,
@@ -642,7 +642,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -652,7 +652,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize, event dependency,
@@ -663,7 +663,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,

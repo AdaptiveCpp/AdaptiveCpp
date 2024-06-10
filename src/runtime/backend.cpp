@@ -99,7 +99,7 @@ backend *backend_manager::get(backend_id id) const {
   
   if(it == _backends.end()){
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"backend_manager: Requested backend is not available.",
                    error_type::runtime_error});
 

@@ -231,7 +231,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     KernelOutliningPass KP{OutliningEntrypoints};
     KP.run(M, MAM);
 
-    // These optimizations should be run before __hipsycl_sscp_* builtins
+    // These optimizations should be run before __acpp_sscp_* builtins
     // are resolved, so before backend bitcode libraries are linked. We thus
     // run them prior to flavoring.
     KnownGroupSizeOptPass GroupSizeOptPass{KnownGroupSizeX, KnownGroupSizeY, KnownGroupSizeZ};

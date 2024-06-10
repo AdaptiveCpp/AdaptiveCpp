@@ -361,7 +361,7 @@ private:
     return parse_node_interior(lines, 0, lines.size(), _root_node);
   }
 
-  static constexpr char _binary_appendix_id [] = "__hipsycl_hcf_binary_appendix";
+  static constexpr char _binary_appendix_id [] = "__acpp_hcf_binary_appendix";
   static constexpr char _node_start_id [] = "{.";
   static constexpr char _node_end_id [] = "}.";
   static constexpr char _binary_marker [] = "__binary";

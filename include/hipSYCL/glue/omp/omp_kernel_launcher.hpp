@@ -103,9 +103,9 @@ void parallel_invocation(Function kernel) noexcept {
 }
 
 #ifdef __HIPSYCL_USE_ACCELERATED_CPU__
-extern "C" size_t __hipsycl_cbs_local_id_x;
-extern "C" size_t __hipsycl_cbs_local_id_y;
-extern "C" size_t __hipsycl_cbs_local_id_z;
+extern "C" size_t __acpp_cbs_local_id_x;
+extern "C" size_t __acpp_cbs_local_id_y;
+extern "C" size_t __acpp_cbs_local_id_z;
 
 template <int Dim, class Function>
 HIPSYCL_LOOP_SPLIT_ND_KERNEL __attribute__((noinline))
@@ -114,18 +114,18 @@ inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, con
   size_t num_local_mem_bytes, void* group_shared_memory_ptr,
   std::function<void()> &barrier_impl) noexcept {
   if constexpr (Dim == 1) {
-    sycl::id<Dim> local_id{__hipsycl_cbs_local_id_x};
+    sycl::id<Dim> local_id{__acpp_cbs_local_id_x};
     sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
       local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
     f(this_item);
   } else if constexpr (Dim == 2) {
-    sycl::id<Dim> local_id{__hipsycl_cbs_local_id_x, __hipsycl_cbs_local_id_y};
+    sycl::id<Dim> local_id{__acpp_cbs_local_id_x, __acpp_cbs_local_id_y};
     sycl::nd_item<Dim> this_item{&offset, group_id,
       local_id, local_size, num_groups,
       &barrier_impl, group_shared_memory_ptr};
     f(this_item);
   } else if constexpr (Dim == 3) {
-    sycl::id<Dim> local_id{__hipsycl_cbs_local_id_x, __hipsycl_cbs_local_id_y, __hipsycl_cbs_local_id_z};
+    sycl::id<Dim> local_id{__acpp_cbs_local_id_x, __acpp_cbs_local_id_y, __acpp_cbs_local_id_z};
     sycl::nd_item<Dim> this_item{&offset,    group_id,
       local_id,   local_size,
       num_groups, &barrier_impl, group_shared_memory_ptr};
@@ -377,7 +377,7 @@ public:
       auto get_grid_range = [&]() {
         for (int i = 0; i < Dim; ++i){
           if (global_range[i] % local_range[i] != 0) {
-            rt::register_error(__hipsycl_here(),
+            rt::register_error(__acpp_here(),
                                rt::error_info{"omp_dispatch: global range is "
                                               "not divisible by local range"});
           }

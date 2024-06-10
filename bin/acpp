@@ -117,7 +117,7 @@ class hcf_generator:
 
   # Return non-binary readable part
   def __str__(self) -> str:
-    return str(self._root) + "__hipsycl_hcf_binary_appendix"
+    return str(self._root) + "__acpp_hcf_binary_appendix"
   
   @property
   def bytes(self):
@@ -152,9 +152,9 @@ class integration_header:
 #ifndef ACPP_{capital_name}_INTEGRATION_HEADER
 #define ACPP_{capital_name}_INTEGRATION_HEADER
 
-static const std::size_t __hipsycl_local_{name}_hcf_object_id = {hcf_object_id}ull;
-const unsigned char __hipsycl_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
-HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_object_id}, {hcf_size})
+static const std::size_t __acpp_local_{name}_hcf_object_id = {hcf_object_id}ull;
+const unsigned char __acpp_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
+HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_id}, {hcf_size})
 
 #endif
 """.format(

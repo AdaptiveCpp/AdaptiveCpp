@@ -50,7 +50,7 @@ hip_event_time_delta::operator()(const dag_node_event& t0,
 
   if (err != hipSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"hip_event_time_delta: hipEventElapsedTime() failed",
                    error_code{"HIP", err}});
   }

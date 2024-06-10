@@ -7,11 +7,11 @@
 
 ## Macros to specialize code paths based on backend
 
-* `__hipsycl_if_target_host(code)` - `code` will only be compiled for the host backend.
-* `__hipsycl_if_target_device(code)` - `code` will only be compiled for device backends.
-* `__hipsycl_if_target_cuda(code)` - `code` will only be compiled for the CUDA backend.
-* `__hipsycl_if_target_hip(code)` - `code` will only be compiled for the HIP backend.
-* `__hipsycl_if_target_hiplike(code)` - `code` will only be compiled for the CUDA and HIP backend.
+* `__acpp_if_target_host(code)` - `code` will only be compiled for the host backend.
+* `__acpp_if_target_device(code)` - `code` will only be compiled for device backends.
+* `__acpp_if_target_cuda(code)` - `code` will only be compiled for the CUDA backend.
+* `__acpp_if_target_hip(code)` - `code` will only be compiled for the HIP backend.
+* `__acpp_if_target_hiplike(code)` - `code` will only be compiled for the CUDA and HIP backend.
 
 ## Information about current compiler
 

@@ -31,6 +31,6 @@
 template <typename... Args>
 extern int __spirv_ocl_printf(const char *Format, Args... args);
 
-void __hipsycl_sscp_print(const char* msg) {
+void __acpp_sscp_print(const char* msg) {
   __spirv_ocl_printf(msg);
 }

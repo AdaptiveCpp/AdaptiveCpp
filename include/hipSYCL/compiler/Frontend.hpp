@@ -168,7 +168,7 @@ inline std::string buildKernelName(clang::RecordDecl* D, clang::MangleContext *M
   assert(Mangler);
   auto DeclName = buildKernelNameFromRecordType(
       Mangler->getASTContext().getTypeDeclType(D), Mangler);
-  return "__hipsycl_kernel_" + DeclName;
+  return "__acpp_kernel_" + DeclName;
 }
 
 // Partially taken from CGCUDANV.cpp
@@ -292,7 +292,7 @@ public:
     if(!F)
       return true;
 
-    if(F->getQualifiedNameAsString() == "__hipsycl_kernel_name_template") {
+    if(F->getQualifiedNameAsString() == "__acpp_kernel_name_template") {
       return handleKernelStub(F);
     } else if (CustomAttributes::SyclKernel.isAttachedTo(F)){
 
@@ -577,7 +577,7 @@ private:
 
     if(NameTag->getDecl()) {
       return NameTag->getDecl()->getQualifiedNameAsString() ==
-             "__hipsycl_unnamed_kernel";
+             "__acpp_unnamed_kernel";
     }
 
     return true;
@@ -601,9 +601,9 @@ private:
     }
   }
 
-  // Should be invoked whenever a call to __hipsycl_hiplike_kernel stub is encountered.
+  // Should be invoked whenever a call to __acpp_hiplike_kernel stub is encountered.
   // These functions are only used to borrow demangleable kernel names in the form
-  // __hipsycl_hiplike_kernel<KernelName>
+  // __acpp_hiplike_kernel<KernelName>
   //
   // The kernel stubs are only used to generate mangled names
   // that can then be copied to the actual kernels.
@@ -709,8 +709,8 @@ private:
         SuggestionIt->second, Instance.getASTContext(), KernelNameMangler.get(),
         DeviceKernelNameMangler.get());
 
-    std::string TemplateMarker = "_Z30__hipsycl_kernel_name_template";
-    std::string Replacement = "_Z16__hipsycl_kernel";
+    std::string TemplateMarker = "_Z27__acpp_kernel_name_template";
+    std::string Replacement = "_Z13__acpp_kernel";
     assert(KernelName.size() > TemplateMarker.size());
     KernelName.erase(0, TemplateMarker.size());
     KernelName = Replacement + KernelName;

@@ -34,7 +34,7 @@
 
 namespace __spv {
 
-enum ScopeFlag : __hipsycl_uint32 {
+enum ScopeFlag : __acpp_uint32 {
   CrossDevice = 0,
   Device = 1,
   Workgroup = 2,
@@ -42,7 +42,7 @@ enum ScopeFlag : __hipsycl_uint32 {
   Invocation = 4,
 };
 
-enum MemorySemanticsMaskFlag : __hipsycl_uint32 {
+enum MemorySemanticsMaskFlag : __acpp_uint32 {
   None = 0x0,
   Acquire = 0x2,
   Release = 0x4,
@@ -60,29 +60,29 @@ enum MemorySemanticsMaskFlag : __hipsycl_uint32 {
 
 
 __attribute__((always_inline)) __spv::ScopeFlag
-inline get_spirv_scope(__hipsycl_sscp_memory_scope scope) {
+inline get_spirv_scope(__acpp_sscp_memory_scope scope) {
 
-  if(scope == __hipsycl_sscp_memory_scope::work_item)
+  if(scope == __acpp_sscp_memory_scope::work_item)
     return __spv::ScopeFlag::Invocation;
-  else if(scope == __hipsycl_sscp_memory_scope::sub_group)
+  else if(scope == __acpp_sscp_memory_scope::sub_group)
     return __spv::ScopeFlag::Subgroup;
-  else if(scope == __hipsycl_sscp_memory_scope::work_group)
+  else if(scope == __acpp_sscp_memory_scope::work_group)
     return __spv::ScopeFlag::Workgroup;
-  else if(scope == __hipsycl_sscp_memory_scope::device)
+  else if(scope == __acpp_sscp_memory_scope::device)
     return __spv::ScopeFlag::Device;
   else
     return __spv::ScopeFlag::CrossDevice;
 }
 
 __attribute__((always_inline)) __spv::MemorySemanticsMaskFlag
-inline get_spirv_memory_semantics(__hipsycl_sscp_memory_order order) {
-  if(order == __hipsycl_sscp_memory_order::seq_cst)
+inline get_spirv_memory_semantics(__acpp_sscp_memory_order order) {
+  if(order == __acpp_sscp_memory_order::seq_cst)
     return __spv::MemorySemanticsMaskFlag::SequentiallyConsistent;
-  else if(order == __hipsycl_sscp_memory_order::acq_rel)
+  else if(order == __acpp_sscp_memory_order::acq_rel)
     return __spv::MemorySemanticsMaskFlag::AcquireRelease;
-  else if(order == __hipsycl_sscp_memory_order::release)
+  else if(order == __acpp_sscp_memory_order::release)
     return __spv::MemorySemanticsMaskFlag::Release;
-  else if(order == __hipsycl_sscp_memory_order::acquire)
+  else if(order == __acpp_sscp_memory_order::acquire)
     return __spv::MemorySemanticsMaskFlag::Acquire;
   else // Relaxed
     return __spv::MemorySemanticsMaskFlag::None;

@@ -80,7 +80,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                            static_cast<uint32_t>(group_size[2]));
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_module_invoker: Could not set kernel group size",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -118,7 +118,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
     }
     if(err != ZE_RESULT_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_module_invoker: Could not set kernel argument",
                      error_code{"ze", static_cast<int>(err)}});
     }
@@ -133,7 +133,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
 
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_module_invoker: Could not set indirect access flags",
                      error_code{"ze", static_cast<int>(err)}});
   }
@@ -146,7 +146,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
 
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_module_invoker: Kernel launch failed",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -183,7 +183,7 @@ ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
 
   if(err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not create immediate command list",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -194,7 +194,7 @@ ze_queue::~ze_queue() {
   ze_result_t err = zeCommandListDestroy(_command_list);
   if(err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not destroy immediate command list",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -221,7 +221,7 @@ std::shared_ptr<dag_node_event> ze_queue::create_event() {
 
   if(err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not create event",
                    error_code{"ze", static_cast<int>(err)}});
 
@@ -293,13 +293,13 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
 
     if(err != ZE_RESULT_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_queue: zeCommandListAppendMemoryCopy() failed",
                      error_code{"ze", static_cast<int>(err)}});
     }
   } else {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ze_queue: Multidimensional memory copies are not yet supported.",
             error_type::unimplemented});
@@ -316,7 +316,7 @@ result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
       op.get_launcher().find_launcher(backend_id::level_zero);
   
   if (!l)
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
   
@@ -350,7 +350,7 @@ result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
 
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_queue: zeCommandListAppendMemoryFill() failed",
                      error_code{"ze", static_cast<int>(err)}});
   }
@@ -400,7 +400,7 @@ result ze_queue::submit_external_wait_for(dag_node_ptr node) {
         static_cast<ze_node_event *>(evt.get())->get_event_handle());
     if(err != ZE_RESULT_SUCCESS) {
       register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_queue: Couldn't signal completion of external event",
                      error_code{"ze", static_cast<int>(err)}});
     }
@@ -470,7 +470,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
             kernel_name});
   }
@@ -480,7 +480,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ze_queue: Could not map C++ arguments to kernel arguments"});
   }
@@ -565,7 +565,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       jit_compiler, code_object_constructor);
 
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ze_queue: Code object construction failed"});
   }
 
@@ -598,7 +598,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   return make_success();
 #else
   return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{"ze_queue: SSCP kernel launch was requested, but hipSYCL was "
                  "not built with Level Zero SSCP support."});
 #endif

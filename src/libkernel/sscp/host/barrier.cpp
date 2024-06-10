@@ -27,30 +27,28 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 
-extern "C" [[clang::convergent]] void __hipsycl_cbs_barrier();
+extern "C" [[clang::convergent]] void __acpp_cbs_barrier();
 
 __attribute__((always_inline)) void
-__hipsycl_cpu_mem_fence(__hipsycl_sscp_memory_scope fence_scope,
-                           __hipsycl_sscp_memory_order order) {
-// FIXME!
+__acpp_cpu_mem_fence(__acpp_sscp_memory_scope fence_scope,
+                     __acpp_sscp_memory_order order) {
+  // FIXME!
 }
 
-
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                  __hipsycl_sscp_memory_order order) {
+__acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                               __acpp_sscp_memory_order order) {
 
   // TODO: Correctly take into account memory order for local_barrier
-  __hipsycl_cbs_barrier();
-  if(fence_scope != __hipsycl_sscp_memory_scope::work_group) {
-    __hipsycl_cpu_mem_fence(fence_scope, order);
+  __acpp_cbs_barrier();
+  if(fence_scope != __acpp_sscp_memory_scope::work_group) {
+    __acpp_cpu_mem_fence(fence_scope, order);
   }
 }
 
-
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                 __hipsycl_sscp_memory_order order) {
-  
-  __hipsycl_cpu_mem_fence(fence_scope, order);
+__acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                              __acpp_sscp_memory_order order) {
+
+  __acpp_cpu_mem_fence(fence_scope, order);
 }

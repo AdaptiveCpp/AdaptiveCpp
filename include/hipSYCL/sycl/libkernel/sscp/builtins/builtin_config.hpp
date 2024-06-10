@@ -38,11 +38,11 @@
 #define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
 #define HIPSYCL_SSCP_CONVERGENT_BUILTIN HIPSYCL_SSCP_BUILTIN __attribute__((convergent))
 
-using __hipsycl_sscp_memory_scope = hipsycl::sycl::memory_scope;
-using __hipsycl_sscp_memory_order = hipsycl::sycl::memory_order;
-using __hipsycl_sscp_address_space = hipsycl::sycl::access::address_space;
+using __acpp_sscp_memory_scope = hipsycl::sycl::memory_scope;
+using __acpp_sscp_memory_order = hipsycl::sycl::memory_order;
+using __acpp_sscp_address_space = hipsycl::sycl::access::address_space;
 
-enum class __hipsycl_sscp_algorithm_op : __hipsycl_int32 {
+enum class __acpp_sscp_algorithm_op : __acpp_int32 {
   plus,
   multiply,
   min,
@@ -55,28 +55,28 @@ enum class __hipsycl_sscp_algorithm_op : __hipsycl_int32 {
 };
 
 
-// Note: __hipsycl_native_f16 should only be used for backend-specific SSCP builtin
+// Note: __acpp_native_f16 should only be used for backend-specific SSCP builtin
 // interfaces, e.g. to declare CUDA libdevice functions or AMD ocml builtins. It
 // should not be used in generic hipSYCL headers - those should use
-// hipsycl::fp16::half_storage/__hipsycl_f16 of sycl::half instead.
-using __hipsycl_native_f16 = hipsycl::fp16::native_t;
-using __hipsycl_f16 = hipsycl::fp16::half_storage;
-using __hipsycl_f32 = float;
-using __hipsycl_f64 = double;
+// hipsycl::fp16::half_storage/__acpp_f16 of sycl::half instead.
+using __acpp_native_f16 = hipsycl::fp16::native_t;
+using __acpp_f16 = hipsycl::fp16::half_storage;
+using __acpp_f32 = float;
+using __acpp_f64 = double;
 
 #define HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(base_type) \
     using base_type##_2 = base_type __attribute__((ext_vector_type(2))); \
     using base_type##_4 = base_type __attribute__((ext_vector_type(4))); \
 
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_native_f16)
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_f32)
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_f64)
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_int16);
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_uint16);
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_int32);
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_uint32);
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_int64);
-HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_uint64);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_native_f16)
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_f32)
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_f64)
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_int16);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_uint16);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_int32);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_uint32);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_int64);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__acpp_uint64);
 
 
 

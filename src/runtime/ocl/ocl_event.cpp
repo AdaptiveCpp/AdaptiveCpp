@@ -46,7 +46,7 @@ bool ocl_node_event::is_complete() const {
   cl_int err = _evt.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
 
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_node_event: Couldn't query event status",
                               error_code{"CL", err}});
     return false;
@@ -54,7 +54,7 @@ bool ocl_node_event::is_complete() const {
 
   if(status < 0) {
     // Command was abnormally terminated
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_node_event: Event status indicates that "
                               "device operation was abnormally terminated",
                               error_code{"CL", err}});
@@ -70,7 +70,7 @@ void ocl_node_event::wait() {
 
   cl_int err = _evt.wait();
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_node_event: Waiting for event failed",
                               error_code{"CL", err}});
   }

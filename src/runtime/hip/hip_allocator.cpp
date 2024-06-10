@@ -44,7 +44,7 @@ void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
   hipError_t err = hipMalloc(&ptr, size_bytes);
 
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_allocator: hipMalloc() failed",
                               error_code{"HIP", err},
                               error_type::memory_allocation_error});
@@ -62,7 +62,7 @@ void *hip_allocator::allocate_optimized_host(size_t min_alignment,
   hipError_t err = hipHostMalloc(&ptr, bytes, hipHostMallocDefault);
 
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_allocator: hipHostMalloc() failed",
                               error_code{"HIP", err},
                               error_type::memory_allocation_error});
@@ -88,7 +88,7 @@ void hip_allocator::free(void *mem) {
     err = hipFree(mem);
   
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_allocator: hipFree() failed",
                               error_code{"HIP", err},
                               error_type::memory_allocation_error});
@@ -102,7 +102,7 @@ void * hip_allocator::allocate_usm(size_t bytes)
   void *ptr;
   auto err = hipMallocManaged(&ptr, bytes);
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_allocator: hipMallocManaged() failed",
                               error_code{"HIP", err},
                               error_type::memory_allocation_error});
@@ -128,13 +128,13 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
   if (err != hipSuccess) {
     if (err == hipErrorInvalidValue)
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"hip_allocator: query_pointer(): pointer is unknown by backend",
                      error_code{"HIP", err},
                      error_type::invalid_parameter_error});
     else
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"hip_allocator: query_pointer(): query failed",
                      error_code{"HIP", err}});
   }
@@ -167,7 +167,7 @@ result hip_allocator::mem_advise(const void *addr, std::size_t num_bytes,
                                 static_cast<hipMemoryAdvise>(advise), _dev);
   if(err != hipSuccess) {
     return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{"hip_allocator: hipMemAdvise() failed", error_code{"HIP", err}}
     );
   }

@@ -45,7 +45,7 @@ namespace queue
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(context, sycl::context);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(device, sycl::device);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(hipSYCL_node_group, std::size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(AdaptiveCpp_node_group, std::size_t);
 };
 
 }

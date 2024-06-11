@@ -35,7 +35,7 @@
 namespace hipsycl::glue::sscp {
 
 template <class T>
-struct __hipsycl_sscp_emit_param_type_annotation_fcall_specialized_config {
+struct __acpp_sscp_emit_param_type_annotation_fcall_specialized_config {
   T value;
 };
 
@@ -45,7 +45,7 @@ struct fcall_specialized_config {
 };
 
 using fcall_config_kernel_property_t =
-    __hipsycl_sscp_emit_param_type_annotation_fcall_specialized_config<
+    __acpp_sscp_emit_param_type_annotation_fcall_specialized_config<
         const fcall_specialized_config *>;
 }
 

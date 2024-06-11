@@ -263,6 +263,7 @@ private:
   }
   
   void autogenerate_fcall_id() {
+    _config.unique_hash = 0;
     for(auto& entry : _config.function_call_map) {
       common::stable_running_hash hash;
       hash(entry.first.data(), entry.first.size());
@@ -274,9 +275,9 @@ private:
 
   void prepare_for_submission() {
     _config.function_call_map.clear();
-    for(const auto& entry : _entries)
+    for(const auto& entry : _entries) {
       _config.function_call_map.push_back(entry);
-
+    }
     autogenerate_fcall_id();
     _is_ready = true;
   }

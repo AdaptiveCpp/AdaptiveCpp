@@ -29,6 +29,7 @@
 #define HIPSYCL_SYCL_JIT_HPP
 
 #include <vector>
+#include <unordered_map>
 
 #include "backend.hpp"
 
@@ -146,7 +147,7 @@ class dynamic_function_config {
 public:
 
   void define(dynamic_function_id function, dynamic_function_id definition) {
-    _has_id = false;
+    _is_ready = false;
 
     const char* function_name = reinterpret_cast<const char*>(function.get_handle());
     const char* definition_name = reinterpret_cast<const char*>(definition.get_handle());
@@ -155,10 +156,7 @@ public:
       throw sycl::exception{make_error_code(errc::invalid),
                             "dynamic_function_config: Invalid dynamic_function_id"};
 
-    // TODO: What should happen if we already have an entry for that function?
-
-    _config.function_call_map.push_back(std::make_pair(
-        std::string(function_name), std::vector<std::string>{definition_name}));
+    set_entry(function_name, std::vector<std::string>{definition_name});
   }
 
   template <class Ret, typename... Args>
@@ -181,7 +179,7 @@ public:
   void
   define_as_call_sequence(dynamic_function_id call,
                           const std::vector<dynamic_function_id> &definitions) {
-    _has_id = false;
+    _is_ready = false;
 
     const char* function_name = reinterpret_cast<const char*>(call.get_handle());
     if(!function_name)
@@ -199,8 +197,8 @@ public:
       }
       definition_names.emplace_back(std::string{definition_name});
     }
-    _config.function_call_map.push_back(
-        std::make_pair(std::string{function_name}, definition_names));
+
+    set_entry(function_name, definition_names);
   }
 
   template <typename... Args>
@@ -237,8 +235,8 @@ public:
 
   template<class Kernel>
   auto apply(Kernel k) {
-    if(!_has_id)
-      autogenerate_fcall_id();
+    if(!_is_ready)
+      prepare_for_submission();
 
     glue::sscp::fcall_config_kernel_property_t prop{&_config};
     return [prop, k](auto&&... args){
@@ -247,6 +245,11 @@ public:
   }
 
 private:
+
+  void set_entry(const char* function_name, const std::vector<std::string>& data) {
+    _entries[function_name] = data;
+  }
+
   template<class Ret, typename... Args>
   dynamic_function_id pointer_to_dynamic_function_id(Ret (*func)(Args...)) const {
     const char* function_name = glue::reflection::resolve_function_name(func);
@@ -267,15 +270,24 @@ private:
         hash(entry.second.data(), entry.second.size());
       _config.unique_hash ^= hash.get_current_hash();
     }
-    _has_id = true;
   }
 
-  bool _has_id = false;
+  void prepare_for_submission() {
+    _config.function_call_map.clear();
+    for(const auto& entry : _entries)
+      _config.function_call_map.push_back(entry);
+
+    autogenerate_fcall_id();
+    _is_ready = true;
+  }
+
+  bool _is_ready = false;
   glue::sscp::fcall_specialized_config _config;
-  
+  std::unordered_map<const char*, std::vector<std::string>> _entries;
 };
 
 }
+
 
 #endif // IS_DEVICE_PASS_SSCP
 

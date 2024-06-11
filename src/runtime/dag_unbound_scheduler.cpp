@@ -66,7 +66,7 @@ void dag_unbound_scheduler::submit(dag_node_ptr node) {
 
     if(eligible_devices.empty()) {
       register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"dag_unbound_scheduler: No devices available to "
                      "dispatch operation; this indicates that the "
                      "device selector did not find appropriate devices."});

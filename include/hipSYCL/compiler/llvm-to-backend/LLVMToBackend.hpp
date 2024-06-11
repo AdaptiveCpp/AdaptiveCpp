@@ -74,7 +74,7 @@ public:
     static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>,
                   "Unsupported type for S2 IR constant");
 
-    std::string name = typeid(__hipsycl_sscp_s2_ir_constant<ConstantName, T>).name();
+    std::string name = typeid(__acpp_sscp_s2_ir_constant<ConstantName, T>).name();
     setS2IRConstant<T>(name, value);
   }
 

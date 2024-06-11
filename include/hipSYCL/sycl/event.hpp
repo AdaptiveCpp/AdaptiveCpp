@@ -135,7 +135,7 @@ public:
   typename Param::return_type get_profiling_info() const
   {
     if(!_node) {
-      const auto error = rt::make_error(__hipsycl_here(),
+      const auto error = rt::make_error(__acpp_here(),
                                         {"Operation not profiled: node is invalid.",
                                          rt::error_type::invalid_object_error});
       throw exception{make_error_code(errc::invalid), error.what()};
@@ -160,14 +160,14 @@ public:
         hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>();
 
     if(!was_full_profiling_requested) {
-      const auto error = rt::make_error(__hipsycl_here(),
+      const auto error = rt::make_error(__acpp_here(),
                                         {"Operation not profiled: "
                                          "Profiling was not requested by user.",
                                          rt::error_type::invalid_object_error});
       throw exception{make_error_code(errc::invalid), error.what()};
     }
     if(_node->get_operation()->is_requirement()) {
-      const auto error = rt::make_error(__hipsycl_here(),
+      const auto error = rt::make_error(__acpp_here(),
                                         {"Operation not profiled: "
                                          "hipSYCL currently does not support "
                                          "profiling explicit requirements "

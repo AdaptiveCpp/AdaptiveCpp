@@ -60,11 +60,6 @@
 
 #include "hipSYCL/common/debug.hpp"
 
-#ifndef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
-#if LLVM_VERSION_MAJOR == 11
-#define HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
-#endif
-#endif
 
 namespace hipsycl {
 namespace compiler {
@@ -173,11 +168,10 @@ inline std::string buildKernelName(clang::RecordDecl* D, clang::MangleContext *M
   assert(Mangler);
   auto DeclName = buildKernelNameFromRecordType(
       Mangler->getASTContext().getTypeDeclType(D), Mangler);
-  return "__hipsycl_kernel_" + DeclName;
+  return "__acpp_kernel_" + DeclName;
 }
 
 // Partially taken from CGCUDANV.cpp
-#if LLVM_VERSION_MAJOR >= 13 && !defined(HIPSYCL_NO_DEVICE_MANGLER)
 inline std::string
 getDeviceSideName(clang::NamedDecl *ND, clang::ASTContext &Ctx,
                   clang::MangleContext *RegularMangleContext,
@@ -211,7 +205,6 @@ getDeviceSideName(clang::NamedDecl *ND, clang::ASTContext &Ctx,
 
   return DeviceSideName;
 }
-#endif
 }
 
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
@@ -226,14 +219,6 @@ public:
     clang::MangleContext* NameMangler = nullptr;
     clang::MangleContext* DeviceNameMangler = nullptr;
 
-#ifdef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
-    // Construct unique name mangler if supported
-    NameMangler = clang::ItaniumMangleContext::create(
-      instance.getASTContext(), instance.getASTContext().getDiagnostics(), true);
-#elif  LLVM_VERSION_MAJOR < 13 || defined(HIPSYCL_NO_DEVICE_MANGLER)
-    NameMangler = clang::ItaniumMangleContext::create(
-      instance.getASTContext(), instance.getASTContext().getDiagnostics());
-#else
     // On clang 13+, we rely on kernel name mangling powered by CUDA/HIP
     // support in clang and __builtin_get_device_side_mangled_name() in client code.
     // For this, we need to have a regular mangling context in the device pass,
@@ -256,19 +241,9 @@ public:
       DeviceNameMangler =
           instance.getASTContext().createMangleContext(instance.getASTContext().getAuxTargetInfo());
     }
-#endif
 
     KernelNameMangler.reset(NameMangler);
     DeviceKernelNameMangler.reset(DeviceNameMangler);
-#ifdef _WIN32
-#if LLVM_VERSION_MAJOR == 11 || LLVM_VERSION_MAJOR == 12
-    // necessary, to rely on device mangling. API introduced in 
-    // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
-    KernelNameMangler->setDeviceMangleContext(
-      Instance.getASTContext().getTargetInfo().getCXXABI().isMicrosoft()
-      && Instance.getASTContext().getAuxTargetInfo()->getCXXABI().isItaniumFamily());
-#endif
-#endif // _WIN32
   }
 
   ~FrontendASTVisitor()
@@ -317,7 +292,7 @@ public:
     if(!F)
       return true;
 
-    if(F->getQualifiedNameAsString() == "__hipsycl_kernel_name_template") {
+    if(F->getQualifiedNameAsString() == "__acpp_kernel_name_template") {
       return handleKernelStub(F);
     } else if (CustomAttributes::SyclKernel.isAttachedTo(F)){
 
@@ -602,7 +577,7 @@ private:
 
     if(NameTag->getDecl()) {
       return NameTag->getDecl()->getQualifiedNameAsString() ==
-             "__hipsycl_unnamed_kernel";
+             "__acpp_unnamed_kernel";
     }
 
     return true;
@@ -626,9 +601,9 @@ private:
     }
   }
 
-  // Should be invoked whenever a call to __hipsycl_hiplike_kernel stub is encountered.
+  // Should be invoked whenever a call to __acpp_hiplike_kernel stub is encountered.
   // These functions are only used to borrow demangleable kernel names in the form
-  // __hipsycl_hiplike_kernel<KernelName>
+  // __acpp_hiplike_kernel<KernelName>
   //
   // The kernel stubs are only used to generate mangled names
   // that can then be copied to the actual kernels.
@@ -721,7 +696,6 @@ private:
     nameKernelUsingTypes(F, true);
   }
 
-#if LLVM_VERSION_MAJOR >= 13 && !defined(HIPSYCL_NO_DEVICE_MANGLER)
   void nameKernelUsingKernelManglingStub(clang::FunctionDecl* F) {
     const clang::RecordType* NamingComponent = getRelevantKernelNamingComponent(F);
     auto SuggestionIt = KernelManglingNameTemplates.find(NamingComponent);
@@ -735,46 +709,19 @@ private:
         SuggestionIt->second, Instance.getASTContext(), KernelNameMangler.get(),
         DeviceKernelNameMangler.get());
 
-    std::string TemplateMarker = "_Z30__hipsycl_kernel_name_template";
-    std::string Replacement = "_Z16__hipsycl_kernel";
+    std::string TemplateMarker = "_Z27__acpp_kernel_name_template";
+    std::string Replacement = "_Z13__acpp_kernel";
     assert(KernelName.size() > TemplateMarker.size());
     KernelName.erase(0, TemplateMarker.size());
     KernelName = Replacement + KernelName;
 
     setKernelName(F, KernelName);
   }
-#endif
 
   void nameKernel(clang::FunctionDecl* F) {
 
     auto KernelFunctorType = KernelBodies[F];
 
-#if LLVM_VERSION_MAJOR < 10
-    // LLVM < 10 cannot support unnamed kernel lambdas due to inconsistend
-    // lambda numbering across host and device
-
-    if (isKernelUnnamed(F) && KernelFunctorType->getAsCXXRecordDecl() &&
-          KernelFunctorType->getAsCXXRecordDecl()->isLambda())
-    {
-      auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
-          KernelFunctorType->getDecl())->getSourceRange().getBegin();
-      auto ID = Instance.getASTContext().getDiagnostics()
-        .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
-            "Optional kernel lambda naming requires clang >= 10");
-      Instance.getASTContext().getDiagnostics().Report(SL, ID);
-    } else {
-      nameKernelUsingTypes(F, false);
-    }
-#elif LLVM_VERSION_MAJOR == 10
-    // The "false" indicates that unnamed lambdas do not need to be
-    // renamed - on clang 10, we let clang handle this by itself
-    nameKernelUsingTypes(F, false);
-#elif LLVM_VERSION_MAJOR == 11
-    nameKernelUsingUniqueMangler(F);
-#elif LLVM_VERSION_MAJOR == 12 || defined(HIPSYCL_NO_DEVICE_MANGLER)
-    // Starting with clang 12, we rename all kernels
-    nameKernelUsingTypes(F, true);
-#else
     // Starting with clang 13, we rely on mangling by borrowing
     // the name from a mangling stub in the glue code, which
     // has the advantage that it
@@ -821,7 +768,6 @@ private:
     else {
       nameKernelUsingKernelManglingStub(F);
     }
-#endif
   }
 
 };

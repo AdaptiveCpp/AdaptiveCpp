@@ -44,10 +44,10 @@ class omp_thread_info_query {
 public:
   int get_max_num_threads() const noexcept {
 #ifdef _OPENMP
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return omp_get_max_threads();
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return 1;
     );
 #else
@@ -57,10 +57,10 @@ public:
 
   int get_my_thread_id() const noexcept {
 #ifdef _OPENMP
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return omp_get_thread_num();
     )
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return 0;
     )
 #else
@@ -70,10 +70,10 @@ public:
 
   int get_num_threads() const noexcept {
 #ifdef _OPENMP
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return omp_get_num_threads();
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return 1;
     );
 #else

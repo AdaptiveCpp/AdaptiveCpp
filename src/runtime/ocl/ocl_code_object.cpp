@@ -27,7 +27,7 @@
 
 #include "hipSYCL/runtime/ocl/ocl_code_object.hpp"
 #include "hipSYCL/common/string_utils.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/ocl/ocl_queue.hpp"
@@ -40,7 +40,7 @@ result ocl_sscp_code_object_invoker::submit_kernel(
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, const std::string &kernel_name,
-    const glue::kernel_configuration &config) {
+    const kernel_configuration &config) {
 
   assert(_queue);
 
@@ -50,7 +50,7 @@ result ocl_sscp_code_object_invoker::submit_kernel(
 }
 
 ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device& dev,
-    hcf_object_id source, const std::string& code_image, const glue::kernel_configuration &config)
+    hcf_object_id source, const std::string& code_image, const kernel_configuration &config)
 : _source{source}, _ctx{ctx}, _dev{dev}, _id{config.generate_id()} {
 
   std::vector<char> ir(code_image.size());
@@ -61,7 +61,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
 
   if(err != CL_SUCCESS) {
     _build_status = register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ocl_code_object: Construction of CL program failed",
                    error_code{"CL", static_cast<int>(err)}});
     return;
@@ -69,7 +69,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
   
   std::string options_string="-cl-uniform-work-group-size";
   for(const auto& flag : config.build_flags()) {
-    if(flag == glue::kernel_build_flag::fast_math) {
+    if(flag == kernel_build_flag::fast_math) {
       options_string += " -cl-fast-relaxed-math";
     }
   }
@@ -87,7 +87,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
       msg += " Build log: " + build_log;
     
     _build_status = register_error(
-        __hipsycl_here(), error_info{msg,
+        __acpp_here(), error_info{msg,
                                      error_code{"CL", static_cast<int>(err)}});
     return;
   }
@@ -99,7 +99,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
   
   if(err != CL_SUCCESS) {
     _build_status = register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_code_object: Could not obtain kernel names in program",
             error_code{"CL", static_cast<int>(err)}});
@@ -113,7 +113,7 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
     cl::Kernel k{_program, name.c_str(), &err};
     if(err != CL_SUCCESS) {
       _build_status = register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_code_object: Could not construct kernel object for kernel "+name,
             error_code{"CL", static_cast<int>(err)}});
@@ -172,7 +172,7 @@ compilation_flow ocl_executable_object::source_compilation_flow() const {
   return compilation_flow::sscp;
 }
 
-glue::kernel_configuration::id_type
+kernel_configuration::id_type
 ocl_executable_object::configuration_id() const {
   return _id;
 }
@@ -190,7 +190,7 @@ result ocl_executable_object::get_kernel(const std::string& name, cl::Kernel& ou
     return _build_status;
   auto it = _kernel_handles.find(name);
   if(it == _kernel_handles.end())
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ocl_executable_object: Unknown kernel name"});
   out = it->second;
   return make_success();

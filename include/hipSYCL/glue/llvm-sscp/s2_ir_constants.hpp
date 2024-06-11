@@ -37,9 +37,9 @@
 /// programmatically by the user.
 
 // S2 IR constants can be identified from their usage of
-// __hipsycl_sscp_s2_ir_constant
+// __acpp_sscp_s2_ir_constant
 template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
+struct __acpp_sscp_s2_ir_constant {
   static ValueT get(ValueT default_value) noexcept;
 
   using value_type = ValueT;

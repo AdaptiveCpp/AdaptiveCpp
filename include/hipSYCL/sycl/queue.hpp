@@ -381,8 +381,13 @@ public:
     // Should always have node_group hint from default hints
     assert(hints.has_hint<rt::hints::node_group>());
 
-    handler cgh{get_context(), _handler, hints, _requires_runtime.get()};
-    
+    handler cgh{get_context(),
+                _handler,
+                hints,
+                _requires_runtime.get(),
+                _allocation_cache.get(),
+                _most_recent_reduction_kernel.get()};
+
     apply_preferred_group_size<1>(prop_list, cgh);
     apply_preferred_group_size<2>(prop_list, cgh);
     apply_preferred_group_size<3>(prop_list, cgh);
@@ -478,14 +483,14 @@ public:
 
   // ---- Queue shortcuts ------
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.single_task<KernelName>(KernelFunc);
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(event dependency, const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
@@ -493,7 +498,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(const std::vector<event> &dependencies,
                     const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
@@ -502,7 +507,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, 
+  template <typename KernelName = __acpp_unnamed_kernel, 
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, 
                      const ReductionsAndKernel &... redu_kernel) {
@@ -511,7 +516,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -520,7 +525,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -530,7 +535,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -540,7 +545,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems,
                      const std::vector<event> &dependencies,
@@ -551,7 +556,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems,
                      const std::vector<event> &dependencies,
@@ -562,7 +567,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const ReductionsAndKernel& ... redu_kernel) {
@@ -572,7 +577,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      event dependency,
@@ -584,7 +589,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const std::vector<event> &dependencies,
@@ -596,7 +601,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -605,7 +610,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -615,7 +620,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const std::vector<event> &dependencies,
@@ -626,7 +631,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -636,7 +641,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize, event dependency,
@@ -647,7 +652,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -1013,6 +1018,10 @@ private:
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
     _previous_submission = std::make_shared<rt::dag_node_ptr>(nullptr);
+    _allocation_cache = std::make_shared<algorithms::util::allocation_cache>(
+        algorithms::util::allocation_type::device);
+    _most_recent_reduction_kernel =
+        std::make_shared<std::weak_ptr<rt::dag_node>>();
 
     if(_is_in_order && get_devices().size() == 1) {
       int priority = 0;
@@ -1058,6 +1067,11 @@ private:
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
   std::shared_ptr<rt::backend_executor> _dedicated_inorder_executor;
+  
+  // These fields are exclusively hauled around for SYCL 2020 reductions
+  // due to the incredible ingenuity of this API...
+  std::shared_ptr<algorithms::util::allocation_cache> _allocation_cache;
+  std::shared_ptr<std::weak_ptr<rt::dag_node>> _most_recent_reduction_kernel;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

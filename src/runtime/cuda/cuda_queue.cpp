@@ -27,7 +27,7 @@
 
 #include "driver_types.h"
 #include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
@@ -74,7 +74,7 @@ void host_synchronization_callback(cudaStream_t stream, cudaError_t status,
   dag_node_ptr* node = static_cast<dag_node_ptr*>(userData);
   
   if(status != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_queue callback: CUDA returned error code.",
                               error_code{"CUDA", status}});
   }
@@ -155,7 +155,7 @@ result launch_kernel_from_module(CUmodule module,
   CUresult err = cuModuleGetFunction(&f, module, kernel_name.c_str());
 
   if (err != CUDA_SUCCESS) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: could not extract kernel from module",
                                  error_code{"CU", static_cast<int>(err)}});
   }
@@ -169,7 +169,7 @@ result launch_kernel_from_module(CUmodule module,
                        shared_memory, stream, kernel_args, nullptr);
 
   if (err != CUDA_SUCCESS) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: could not submit kernel from module",
                                  error_code{"CU", static_cast<int>(err)}});
   }
@@ -198,7 +198,7 @@ cuda_queue::cuda_queue(cuda_backend *be, device_id dev, int priority)
     err = cudaStreamCreateWithPriority(&_stream, cudaStreamNonBlocking, priority);
   }
   if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_queue: Couldn't construct backend stream",
                               error_code{"CUDA", err}});
     return;
@@ -212,7 +212,7 @@ CUstream_st* cuda_queue::get_stream() const { return _stream; }
 cuda_queue::~cuda_queue() {
   auto err = cudaStreamDestroy(_stream);
   if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_queue: Couldn't destroy stream",
                               error_code{"CUDA", err}});
   }
@@ -231,7 +231,7 @@ std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   cudaError_t err = cudaEventRecord(evt, this->get_stream());
   if (err != cudaSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_queue: Couldn't record event", error_code{"CUDA", err}});
     return nullptr;
   }
@@ -274,6 +274,9 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     if (dest_dev.get_full_backend_descriptor().sw_platform ==
         api_platform::cuda) {
       copy_kind = cudaMemcpyHostToDevice;
+    } else if (dest_dev.get_full_backend_descriptor().hw_platform ==
+        hardware_platform::cpu) {
+      copy_kind = cudaMemcpyHostToHost;
     } else
       assert(false && "Unknown copy destination platform");
   } else
@@ -346,7 +349,7 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
   }
 
   if (err != cudaSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: Couldn't submit memcpy",
                                   error_code{"CUDA", err}});
   }
@@ -360,7 +363,7 @@ result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::cuda);
   if (!l)
-    return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
+    return make_error(__acpp_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
 
   rt::backend_kernel_launch_capabilities cap;
@@ -390,7 +393,7 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
 
 
   if (err != cudaSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: cudaMemPrefetchAsync() failed",
                                  error_code{"CUDA", err}});
   }
@@ -410,7 +413,7 @@ result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
   
 
   if (err != cudaSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: cudaMemsetAsync() failed",
                                  error_code{"CUDA", err}});
   }
@@ -429,7 +432,7 @@ result cuda_queue::submit_queue_wait_for(dag_node_ptr node) {
   
   auto err = cudaStreamWaitEvent(_stream, cuda_evt->request_backend_event(), 0);
   if (err != cudaSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: cudaStreamWaitEvent() failed",
                                  error_code{"CUDA", err}});
   }
@@ -448,7 +451,7 @@ result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
                            reinterpret_cast<void *>(user_data), 0);
 
   if (err != cudaSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: Couldn't submit stream callback",
                                  error_code{"CUDA", err}});
   }
@@ -461,7 +464,7 @@ result cuda_queue::wait() {
   auto err = cudaStreamSynchronize(_stream);
 
   if(err != cudaSuccess) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: Couldn't synchronize with stream",
                                  error_code{"CUDA", err}});
   }
@@ -484,7 +487,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
         rt::hcf_cache::get().get_hcf(hcf_object);
   if (!hcf)
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_queue: Could not access requested HCF object"});
 
   assert(hcf->root_node());
@@ -498,22 +501,22 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
 
   int device = _dev.get_id();
 
-  glue::kernel_configuration config;
+  kernel_configuration config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+      kernel_base_config_parameter::backend_id, backend_id::cuda);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::explicit_multipass);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::target_arch, selected_target);
+      kernel_base_config_parameter::target_arch, selected_target);
 
   auto binary_configuration_id = config.generate_id();
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, device);
+      kernel_base_config_parameter::runtime_device, device);
 
   // Will be invoked by the kernel cache in case there is a miss in the kernel
   // cache and we have to construct a new code object
@@ -550,7 +553,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
       code_object_configuration_id, code_object_constructor);
 
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: Code object construction failed"});
   }
 
@@ -568,7 +571,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
     }
   }
   if(full_kernel_name.empty())
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: Could not discover full kernel "
                                  "name from partial backend kernel name"});
 
@@ -583,7 +586,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     const std::string &kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
-    const glue::kernel_configuration &initial_config) {
+    const kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
   this->activate_device();
@@ -600,7 +603,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_queue: Could not obtain hcf kernel info for kernel " +
             kernel_name});
   }
@@ -610,7 +613,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "cuda_queue: Could not map C++ arguments to kernel arguments"});
   }
@@ -619,15 +622,15 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  static thread_local glue::kernel_configuration config;
+  static thread_local kernel_configuration config;
   config = initial_config;
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::backend_id, backend_id::cuda);
+      kernel_base_config_parameter::backend_id, backend_id::cuda);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::compilation_flow,
+      kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
   config.append_base_configuration(
-      glue::kernel_base_config_parameter::hcf_object_id, hcf_object);
+      kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   for(const auto& flag : kernel_info->get_compilation_flags())
     config.set_build_flag(flag);
@@ -635,16 +638,16 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     config.set_build_option(opt.first, opt.second);
   // TODO This is incorrect, we should attempt to find a better way to determine
   // the right ptx version
-  config.set_build_option(glue::kernel_build_option::ptx_version,
+  config.set_build_option(kernel_build_option::ptx_version,
                           compute_capability);
-  config.set_build_option(glue::kernel_build_option::ptx_target_device,
+  config.set_build_option(kernel_build_option::ptx_target_device,
                           compute_capability);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
   auto code_object_configuration_id = binary_configuration_id;
-  glue::kernel_configuration::extend_hash(
+  kernel_configuration::extend_hash(
       code_object_configuration_id,
-      glue::kernel_base_config_parameter::runtime_device, device);
+      kernel_base_config_parameter::runtime_device, device);
 
   auto get_image_and_kernel_names =
       [&](std::vector<std::string> &contained_kernels) -> std::string {
@@ -699,7 +702,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       jit_compiler, code_object_constructor);
 
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: Code object construction failed"});
   }
 
@@ -712,7 +715,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
 
 #else
   return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{
           "cuda_queue: SSCP kernel launch was requested, but hipSYCL was "
           "not built with CUDA SSCP support."});
@@ -738,7 +741,7 @@ result cuda_queue::query_status(inorder_queue_status &status) {
   } else if(err == cudaErrorNotReady) {
     status = inorder_queue_status{false};
   } else {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"cuda_queue: Could not query stream status",
                                  error_code{"CU", static_cast<int>(err)}});
   }
@@ -759,7 +762,7 @@ result cuda_multipass_code_object_invoker::submit_kernel(
   assert(_queue);
 
   std::string kernel_name = kernel_body_name;
-  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
+  if(kernel_name_tag.find("__acpp_unnamed_kernel") == std::string::npos)
     kernel_name = kernel_name_tag;
 
   return _queue->submit_multipass_kernel_from_code_object(
@@ -772,7 +775,7 @@ result cuda_sscp_code_object_invoker::submit_kernel(
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, const std::string &kernel_name,
-    const glue::kernel_configuration &config) {
+    const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(
       op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,

@@ -88,7 +88,7 @@ GlobalSizesFitInI32OptPass::GlobalSizesFitInI32OptPass(bool FitsInInt, int Group
 
 llvm::PreservedAnalyses GlobalSizesFitInI32OptPass::run(llvm::Module &M,
                                                         llvm::ModuleAnalysisManager &MAM) {
-  static const char* IfFitsInIntBuiltinName = "__hipsycl_sscp_if_global_sizes_fit_in_int";
+  static const char* IfFitsInIntBuiltinName = "__acpp_sscp_if_global_sizes_fit_in_int";
   if(auto* F = M.getFunction(IfFitsInIntBuiltinName)) {
     // Add definition
     if(F->size() == 0) {
@@ -110,29 +110,29 @@ llvm::PreservedAnalyses GlobalSizesFitInI32OptPass::run(llvm::Module &M,
   if(GlobalSizesFitInInt) {
 
     if (KnownGroupSizeX > 0) {
-      insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_x", 0,
+      insertRangeAssumptionForBuiltinCalls(M, "__acpp_sscp_get_num_groups_x", 0,
                                                 MaxInt / KnownGroupSizeX, true);
     }
     if (KnownGroupSizeY > 0) {
-      insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_y", 0,
+      insertRangeAssumptionForBuiltinCalls(M, "__acpp_sscp_get_num_groups_y", 0,
                                                 MaxInt / KnownGroupSizeY, true);
     }
     if (KnownGroupSizeZ > 0) {
-      insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_num_groups_z", 0,
+      insertRangeAssumptionForBuiltinCalls(M, "__acpp_sscp_get_num_groups_z", 0,
                                                 MaxInt / KnownGroupSizeZ, true);
     }
 
 
     if (KnownGroupSizeX > 0) {
-      insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_x", 0,
+      insertRangeAssumptionForBuiltinCalls(M, "__acpp_sscp_get_group_id_x", 0,
                                                 MaxInt / KnownGroupSizeX);
     }
     if (KnownGroupSizeY > 0) {
-      insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_y", 0,
+      insertRangeAssumptionForBuiltinCalls(M, "__acpp_sscp_get_group_id_y", 0,
                                                 MaxInt / KnownGroupSizeY);
     }
     if (KnownGroupSizeZ > 0) {
-      insertRangeAssumptionForBuiltinCalls(M, "__hipsycl_sscp_get_group_id_z", 0,
+      insertRangeAssumptionForBuiltinCalls(M, "__acpp_sscp_get_group_id_z", 0,
                                                 MaxInt / KnownGroupSizeZ);
     }
 

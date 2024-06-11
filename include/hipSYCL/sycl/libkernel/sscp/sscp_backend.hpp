@@ -48,12 +48,12 @@
  #endif
  #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 1
 
- #define __hipsycl_if_target_host(...)                                         \
-  if (__hipsycl_sscp_is_host) {                                                \
+ #define __acpp_if_target_host(...)                                         \
+  if (__acpp_sscp_is_host) {                                                \
     __VA_ARGS__                                                                \
   }
- #define __hipsycl_if_target_device(...)                                       \
-  if (__hipsycl_sscp_is_device) {                                              \
+ #define __acpp_if_target_device(...)                                       \
+  if (__acpp_sscp_is_device) {                                              \
     __VA_ARGS__                                                                \
   }
 

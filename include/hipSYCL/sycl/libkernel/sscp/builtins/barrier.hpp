@@ -30,12 +30,11 @@
 #ifndef HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
 #define HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
 
-
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                  __hipsycl_sscp_memory_order);
+__acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                               __acpp_sscp_memory_order);
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                 __hipsycl_sscp_memory_order);
+__acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                              __acpp_sscp_memory_order);
 
 #endif

@@ -91,15 +91,15 @@ class half;
 // \todo Better use uint32_t etc
 namespace detail {
 // Define types in analogy to OpenCL cl_* types
-using u_char = __hipsycl_uint8;
-using u_short = __hipsycl_uint16;
-using u_int = __hipsycl_uint32;
-using u_long = __hipsycl_uint64;
+using u_char = __acpp_uint8;
+using u_short = __acpp_uint16;
+using u_int = __acpp_uint32;
+using u_long = __acpp_uint64;
 
-using s_char = __hipsycl_int8;
-using s_short = __hipsycl_int16;
-using s_int = __hipsycl_int32;
-using s_long = __hipsycl_int64;
+using s_char = __acpp_int8;
+using s_short = __acpp_int16;
+using s_int = __acpp_int32;
+using s_long = __acpp_int64;
 
 
 using hp_float = sycl::half;

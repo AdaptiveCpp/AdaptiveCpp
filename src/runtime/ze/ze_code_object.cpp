@@ -42,31 +42,12 @@
 namespace hipsycl {
 namespace rt {
 
-
-result ze_multipass_code_object_invoker::submit_kernel(
-    const kernel_operation &op, hcf_object_id hcf_object,
-    const rt::range<3> &num_groups, const rt::range<3> &group_size,
-    unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name_tag,
-    const std::string &kernel_body_name) {
-
-  assert(_queue);
-
-  std::string kernel_name = kernel_body_name;
-  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
-    kernel_name = kernel_name_tag;
-
-  return _queue->submit_multipass_kernel_from_code_object(
-      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
-      arg_sizes, num_args);
-}
-
 result ze_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, const std::string &kernel_name,
-    const glue::kernel_configuration &config) {
+    const kernel_configuration &config) {
 
   assert(_queue);
 
@@ -91,7 +72,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
     desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
   } else {
     _build_status = register_error(
-        __hipsycl_here(), error_info{"ze_executable_object: Invalid module format"});
+        __acpp_here(), error_info{"ze_executable_object: Invalid module format"});
     return;
   }
   
@@ -124,7 +105,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
       msg += "\nBuild log: ";
       msg += build_log_content;
     }
-    _build_status = register_error(__hipsycl_here(),
+    _build_status = register_error(__acpp_here(),
                    error_info{msg,
                               error_code{"ze", static_cast<int>(err)}});
     zeModuleBuildLogDestroy(build_log);
@@ -142,7 +123,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
   err = zeModuleGetKernelNames(_module, &num_kernels, nullptr);
   if (err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_executable_object: Couldn't obtain number of kernels",
                    error_code{"ze", static_cast<int>(err)}});
     return;
@@ -153,7 +134,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
 
   if (err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_executable_object: Couldn't obtain kernel names",
                    error_code{"ze", static_cast<int>(err)}});
     return;
@@ -167,7 +148,7 @@ ze_executable_object::~ze_executable_object() {
   if(_module) {
     ze_result_t err = zeModuleDestroy(_module);
     if(err != ZE_RESULT_SUCCESS) {
-      register_error(__hipsycl_here(),
+      register_error(__acpp_here(),
                    error_info{"ze_executable_object: Couldn't destroy module handle",
                               error_code{"ze", static_cast<int>(err)}});
     }
@@ -252,7 +233,7 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
       HIPSYCL_DEBUG_INFO << K << std::endl;
     }
 
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ze_executable_object: Couldn't construct kernel",
                                  error_code{"ze", static_cast<int>(err)}});
   }
@@ -269,7 +250,7 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
 ze_sscp_executable_object::ze_sscp_executable_object(ze_context_handle_t ctx, ze_device_handle_t dev,
                           hcf_object_id source,
                           const std::string &spirv_image,
-                          const glue::kernel_configuration &config)
+                          const kernel_configuration &config)
     : ze_executable_object(ctx, dev, source, ze_source_format::spirv,
                             spirv_image),
       _id{config.generate_id()} {}
@@ -279,7 +260,7 @@ compilation_flow ze_sscp_executable_object::source_compilation_flow() const {
   return compilation_flow::sscp;
 }
 
-glue::kernel_configuration::id_type ze_sscp_executable_object::configuration_id() const{
+kernel_configuration::id_type ze_sscp_executable_object::configuration_id() const{
   return _id;
 }
 

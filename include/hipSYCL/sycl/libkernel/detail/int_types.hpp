@@ -29,14 +29,14 @@
 #ifndef HIPSYCL_INT_TYPES_HPP
 #define HIPSYCL_INT_TYPES_HPP
 
-using __hipsycl_int8 = signed char;
-using __hipsycl_uint8 = unsigned char;
-using __hipsycl_int16 = short;
-using __hipsycl_uint16 = unsigned short;
-using __hipsycl_int32 = int;
-using __hipsycl_uint32 = unsigned int;
-using __hipsycl_int64 = long long;
-using __hipsycl_uint64 = unsigned long long;
+using __acpp_int8 = signed char;
+using __acpp_uint8 = unsigned char;
+using __acpp_int16 = short;
+using __acpp_uint16 = unsigned short;
+using __acpp_int32 = int;
+using __acpp_uint32 = unsigned int;
+using __acpp_int64 = long long;
+using __acpp_uint64 = unsigned long long;
 
 
 #endif

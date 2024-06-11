@@ -1339,7 +1339,7 @@ private:
   void bind_to_buffer(BufferType &buff,
                       sycl::id<adj_dimensions> accessOffset,
                       sycl::range<adj_dimensions> accessRange) {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       auto buffer_region = detail::extract_buffer_data_region(buff);
       this->detail::accessor::
           conditional_buffer_pointer_storage<has_buffer_pointer>::attempt_set(

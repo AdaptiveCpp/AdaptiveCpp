@@ -48,7 +48,7 @@ bool hip_node_event::is_complete() const
 {
   hipError_t err = hipEventQuery(_evt);
   if (err != hipErrorNotReady && err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_node_event: Couldn't query event status",
                               error_code{"HIP", err}});
   }
@@ -59,7 +59,7 @@ void hip_node_event::wait()
 {
   auto err = hipEventSynchronize(_evt);
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"hip_node_event: hipEventSynchronize() failed",
                               error_code{"HIP", err}});
   }

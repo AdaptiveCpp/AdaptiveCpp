@@ -45,7 +45,7 @@ ResultT info_query(const cl::Device& dev) {
   cl_int err = dev.getInfo(Query, &r);
   if(err != CL_SUCCESS) {
     register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_usm: Could not obtain device info",
                     error_code{"CL", err}});
   }
@@ -296,7 +296,7 @@ private:
     out = (Func)clGetExtensionFunctionAddressForPlatform(id, name);
     if (!out) {
       print_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_usm_extension: Platform advertises USM support, but "
                      "extracting function address for " +
                      std::string{name} + " failed."});

@@ -32,34 +32,34 @@
 
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int8 __hipsycl_sscp_work_group_broadcast_i8(__hipsycl_int32 sender,
-                                                      __hipsycl_int8 x);
+__acpp_int8 __acpp_sscp_work_group_broadcast_i8(__acpp_int32 sender,
+                                                      __acpp_int8 x);
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int16 __hipsycl_sscp_work_group_broadcast_i16(__hipsycl_int32 sender,
-                                                        __hipsycl_int16 x);
+__acpp_int16 __acpp_sscp_work_group_broadcast_i16(__acpp_int32 sender,
+                                                        __acpp_int16 x);
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int32 __hipsycl_sscp_work_group_broadcast_i32(__hipsycl_int32 sender,
-                                                        __hipsycl_int32 x);
+__acpp_int32 __acpp_sscp_work_group_broadcast_i32(__acpp_int32 sender,
+                                                        __acpp_int32 x);
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int64 __hipsycl_sscp_work_group_broadcast_i64(__hipsycl_int32 sender,
-                                                        __hipsycl_int64 x);
+__acpp_int64 __acpp_sscp_work_group_broadcast_i64(__acpp_int32 sender,
+                                                        __acpp_int64 x);
 
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int8 __hipsycl_sscp_sub_group_broadcast_i8(__hipsycl_int32 sender,
-                                                     __hipsycl_int8 x);
+__acpp_int8 __acpp_sscp_sub_group_broadcast_i8(__acpp_int32 sender,
+                                                     __acpp_int8 x);
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int16 __hipsycl_sscp_sub_group_broadcast_i16(__hipsycl_int32 sender,
-                                                       __hipsycl_int16 x);
+__acpp_int16 __acpp_sscp_sub_group_broadcast_i16(__acpp_int32 sender,
+                                                       __acpp_int16 x);
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int32 __hipsycl_sscp_sub_group_broadcast_i32(__hipsycl_int32 sender,
-                                                       __hipsycl_int32 x);
+__acpp_int32 __acpp_sscp_sub_group_broadcast_i32(__acpp_int32 sender,
+                                                       __acpp_int32 x);
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
-__hipsycl_int64 __hipsycl_sscp_sub_group_broadcast_i64(__hipsycl_int32 sender,
-                                                       __hipsycl_int64 x);
+__acpp_int64 __acpp_sscp_sub_group_broadcast_i64(__acpp_int32 sender,
+                                                       __acpp_int64 x);
 
 #endif

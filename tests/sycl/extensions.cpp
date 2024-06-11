@@ -554,8 +554,8 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 HIPSYCL_KERNEL_TARGET
 int get_total_group_size() {
   int group_size = 0;
-  __hipsycl_if_target_device(
-    group_size = __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+  __acpp_if_target_device(
+    group_size = __acpp_lsize_x * __acpp_lsize_y * __acpp_lsize_z;
   );
   return group_size;
 }
@@ -586,10 +586,10 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
                 sycl::range{1000}, [=](sycl::id<1> idx) {
                   if (idx[0] == 0) {
 #if defined(DEVICE_MODEL)
-                    __hipsycl_if_target_device(
+                    __acpp_if_target_device(
                       gsize[0] = get_total_group_size();
                     );
-                    __hipsycl_if_target_host(
+                    __acpp_if_target_host(
                       gsize[0] = 1;
                     );
 #else
@@ -606,10 +606,10 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
                  sycl::range{30,30}, [=](sycl::id<2> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
 #if defined(DEVICE_MODEL)
-                    __hipsycl_if_target_device(
+                    __acpp_if_target_device(
                       gsize[1] = get_total_group_size();
                     );
-                    __hipsycl_if_target_host(
+                    __acpp_if_target_host(
                       gsize[1] = 2;
                     );
 #else
@@ -627,10 +627,10 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
                  sycl::range{10,10,10}, [=](sycl::id<3> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
 #if defined(DEVICE_MODEL)
-                    __hipsycl_if_target_device(
+                    __acpp_if_target_device(
                      gsize[2] = get_total_group_size();
                     );
-                    __hipsycl_if_target_host(
+                    __acpp_if_target_host(
                      gsize[2] = 3;
                     );
 #else

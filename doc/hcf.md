@@ -11,7 +11,7 @@ The AdaptiveCpp runtime can be instructed to dump the HCF data embedded in the a
 ## HCF definition
 
 ```
-<HCF> ::= <ReadableHeader>'__hipsycl_hcf_binary_appendix'<BinaryAppendix>
+<HCF> ::= <ReadableHeader>'__acpp_hcf_binary_appendix'<BinaryAppendix>
 <ReadableHeader> ::= <NodeContentLines>
 <NodeContentLines> ::= <KeyValueLine> | <Subnode> | <KeyValueLine><NodeContentLines> | <Subnode><NodeContentLines> | ø
 <KeyValueLine> ::= [<Whitespaces>]<Key>[<Whitespaces>] '=' [<Whitespaces>]<Value>[<Whitespaces>]'\n'
@@ -48,5 +48,5 @@ b = asd64
 {.MySubnode2
   keyname = Turtle
 }.MySubnode2
-__hipsycl_hcf_binary_appendixABC
+__acpp_hcf_binary_appendixABC
 ```

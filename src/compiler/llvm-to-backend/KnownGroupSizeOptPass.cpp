@@ -90,18 +90,18 @@ KnownGroupSizeOptPass::KnownGroupSizeOptPass(int GroupSizeX, int GroupSizeY, int
 llvm::PreservedAnalyses KnownGroupSizeOptPass::run(llvm::Module &M,
                                                         llvm::ModuleAnalysisManager &MAM) {
   if (KnownGroupSizeX > 0) {
-    applyKnownGroupSize(M, KnownGroupSizeX, "__hipsycl_sscp_get_local_size_x",
-                        "__hipsycl_sscp_get_local_id_x");
+    applyKnownGroupSize(M, KnownGroupSizeX, "__acpp_sscp_get_local_size_x",
+                        "__acpp_sscp_get_local_id_x");
   }
 
   if (KnownGroupSizeY > 0) {
-    applyKnownGroupSize(M, KnownGroupSizeY, "__hipsycl_sscp_get_local_size_y",
-                        "__hipsycl_sscp_get_local_id_y");
+    applyKnownGroupSize(M, KnownGroupSizeY, "__acpp_sscp_get_local_size_y",
+                        "__acpp_sscp_get_local_id_y");
   }
 
   if (KnownGroupSizeZ > 0) {
-    applyKnownGroupSize(M, KnownGroupSizeZ, "__hipsycl_sscp_get_local_size_z",
-                        "__hipsycl_sscp_get_local_id_z");
+    applyKnownGroupSize(M, KnownGroupSizeZ, "__acpp_sscp_get_local_size_z",
+                        "__acpp_sscp_get_local_id_z");
   }
 
   return llvm::PreservedAnalyses::none();

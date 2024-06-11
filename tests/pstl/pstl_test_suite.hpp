@@ -50,12 +50,12 @@ struct non_trivial_copy {
 
   non_trivial_copy(const non_trivial_copy& other){
     x = other.x;
-    __hipsycl_if_target_host(++counter;)
+    __acpp_if_target_host(++counter;)
   }
 
   non_trivial_copy& operator=(const non_trivial_copy& other) {
     x = other.x;
-    __hipsycl_if_target_host(++counter;)
+    __acpp_if_target_host(++counter;)
     return *this;
   }
 

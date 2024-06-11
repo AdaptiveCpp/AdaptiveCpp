@@ -6,13 +6,13 @@
 static int num_outstanding_operations = 0;
 
 __attribute__((noinline))
-extern "C" void __hipsycl_stdpar_optional_barrier() noexcept {
+extern "C" void __acpp_stdpar_optional_barrier() noexcept {
   num_outstanding_operations = 0;
 }
 
 STDPAR_ENTRYPOINT static void stdpar_call() {
   ++num_outstanding_operations;
-  __hipsycl_stdpar_optional_barrier();
+  __acpp_stdpar_optional_barrier();
 };
 
 // This is a hack: If we just directly access num_outstanding_operations for testing,

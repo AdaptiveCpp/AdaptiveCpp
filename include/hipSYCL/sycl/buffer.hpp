@@ -132,10 +132,10 @@ class use_optimized_host_memory : public detail::buffer_property
 {};
 
 template<int Dim>
-class hipSYCL_page_size : public detail::buffer_property
+class AdaptiveCpp_page_size : public detail::buffer_property
 {
 public:
-  hipSYCL_page_size(const sycl::range<Dim>& page_size)
+  AdaptiveCpp_page_size(const sycl::range<Dim>& page_size)
   : _page_size{page_size} {}
 
   sycl::range<Dim> get_page_size() const
@@ -146,10 +146,10 @@ private:
   sycl::range<Dim> _page_size;
 };
 
-class hipSYCL_write_back_node_group : public detail::buffer_property
+class AdaptiveCpp_write_back_node_group : public detail::buffer_property
 {
 public:
-  hipSYCL_write_back_node_group(std::size_t group)
+  AdaptiveCpp_write_back_node_group(std::size_t group)
   : _node_group{group} {}
 
   std::size_t get_node_group() const {
@@ -158,6 +158,19 @@ public:
 private:
   std::size_t _node_group;
 };
+
+using AdaptiveCpp_buffer_uses_external_storage =
+    detail::buffer_policy::use_external_storage;
+using AdaptiveCpp_buffer_writes_back =
+    detail::buffer_policy::writes_back;
+using AdaptiveCpp_buffer_destructor_blocks =
+    detail::buffer_policy::destructor_waits;
+
+
+// backwards-compatibiliy
+
+template<int Dim>
+using hipSYCL_page_size = AdaptiveCpp_page_size<Dim>;
 
 using hipSYCL_buffer_uses_external_storage =
     detail::buffer_policy::use_external_storage;
@@ -720,7 +733,7 @@ public:
   template <access_mode mode = access_mode::read_write,
             access::target target = access::target::device>
   auto get_access(handler &commandGroupHandler) {
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+#ifdef ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION
     constexpr accessor_variant variant = accessor_variant::unranged;
 #else
     constexpr accessor_variant variant = accessor_variant::false_t;
@@ -742,7 +755,7 @@ public:
   auto get_access(handler &commandGroupHandler, range<dimensions> accessRange,
              id<dimensions> accessOffset = {}) {
 
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+#ifdef ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION
     constexpr accessor_variant variant = accessor_variant::ranged;
 #else
     constexpr accessor_variant variant = accessor_variant::false_t;
@@ -844,14 +857,24 @@ public:
     return !(lhs == rhs);
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<void*>{}(_impl.get());
   }
 
-  rt::runtime* hipSYCL_runtime() const {
+  rt::runtime* AdaptiveCpp_runtime() const {
     return _impl->requires_runtime.get();
   }
 
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_runtime()")]]
+  auto hipSYCL_runtime() const {
+    return AdaptiveCpp_runtime();
+  }
+  
   // --- The following methods are part the hipSYCL buffer introspection API
   // which is part of the hipSYCL buffer-USM interoperability framework.
 
@@ -1092,9 +1115,9 @@ private:
     _impl->use_external_storage = get_policy_from_property_or_default<
         detail::buffer_policy::use_external_storage>(dpol.use_external_storage);
 
-    if(this->has_property<property::buffer::hipSYCL_write_back_node_group>()){
+    if(this->has_property<property::buffer::AdaptiveCpp_write_back_node_group>()){
       _impl->write_back_node_group =
-          this->get_property<property::buffer::hipSYCL_write_back_node_group>()
+          this->get_property<property::buffer::AdaptiveCpp_write_back_node_group>()
               .get_node_group();
     } else {
       this->_impl->write_back_node_group =
@@ -1120,9 +1143,9 @@ private:
     this->_range = range;
 
     rt::range<3> page_size = rt::embed_in_range3(range);
-    if (this->has_property<property::buffer::hipSYCL_page_size<dimensions>>()) {
+    if (this->has_property<property::buffer::AdaptiveCpp_page_size<dimensions>>()) {
       page_size = rt::embed_in_range3(
-          this->get_property<property::buffer::hipSYCL_page_size<dimensions>>()
+          this->get_property<property::buffer::AdaptiveCpp_page_size<dimensions>>()
               .get_page_size());
     }
 
@@ -1315,7 +1338,7 @@ struct hash<hipsycl::sycl::buffer<T, dimensions, AllocatorT>>
 {
   std::size_t
   operator()(const hipsycl::sycl::buffer<T, dimensions, AllocatorT> &b) const {
-    return b.hipSYCL_hash_code();
+    return b.AdaptiveCpp_hash_code();
   }
 };
 

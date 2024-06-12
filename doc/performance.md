@@ -88,7 +88,7 @@ Clearing the cache can be accomplished by simply clearing the cache directory, e
 * The alternative instant task submission mode can be used, which can substantially lower task launch latencies. Define the macro `HIPSYCL_ALLOW_INSTANT_SUBMISSION=1` before including `sycl.hpp` to enable it. Instant submission is possible with operations that do not use buffers (USM only), have no dependencies on non-instant tasks, do not use SYCL 2020 reductions and use in-order queues. In the stdpar model, instant submission is active by default.
 * SYCL 2020 `in_order` queues bypass certain scheduling layers and may thus display lower submission latency.
 * The USM pointer-based memory management model typically has less overheads and lower latency compared to SYCL's traditional buffer-accessor model.
-* Consider using the `HIPSYCL_EXT_COARSE_GRAINED_EVENTS` [(extension documentation)](extensions.md) extension if you rarely use events returned from the `queue`. This extension allows the runtime to elide backend event creation.
+* Consider using the `ACPP_EXT_COARSE_GRAINED_EVENTS` [(extension documentation)](extensions.md) extension if you rarely use events returned from the `queue`. This extension allows the runtime to elide backend event creation.
 * Stdpar kernels typically have lower submission latency compared to SYCL kernels.
 
 ## Stdpar

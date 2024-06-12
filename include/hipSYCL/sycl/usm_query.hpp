@@ -76,7 +76,7 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
           << std::endl;
     }
     auto backend_it = devs.find_first_backend([&](rt::backend_id b) {
-      return ctx.hipSYCL_runtime()->backends().get(b)->get_hardware_platform() !=
+      return ctx.AdaptiveCpp_runtime()->backends().get(b)->get_hardware_platform() !=
              rt::hardware_platform::cpu;
     });
     assert(backend_it != devs.backends_end());
@@ -93,7 +93,7 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
           << std::endl;
     }
     auto backend_it = devs.find_first_backend([&](rt::backend_id b) {
-      return ctx.hipSYCL_runtime()->backends().get(b)->get_hardware_platform() ==
+      return ctx.AdaptiveCpp_runtime()->backends().get(b)->get_hardware_platform() ==
              rt::hardware_platform::cpu;
     });
     assert(backend_it != devs.backends_end());
@@ -122,7 +122,7 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
   rt::backend &backend_object =
-      *ctx.hipSYCL_runtime()->backends().get(selected_backend);
+      *ctx.AdaptiveCpp_runtime()->backends().get(selected_backend);
 
   if (backend_object.get_hardware_manager()->get_num_devices() == 0)
     throw exception{make_error_code(errc::memory_allocation),
@@ -139,7 +139,7 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx,
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
   rt::backend &backend_object =
-      *ctx.hipSYCL_runtime()->backends().get(selected_backend);
+      *ctx.AdaptiveCpp_runtime()->backends().get(selected_backend);
   rt::device_id d = detail::extract_rt_device(dev);
   
   if(d.get_backend() == selected_backend)
@@ -153,7 +153,7 @@ inline rt::backend_allocator *select_device_allocator(const device &dev) {
   rt::device_id d = detail::extract_rt_device(dev);
 
   rt::backend &backend_object =
-      *dev.hipSYCL_runtime()->backends().get(d.get_backend());
+      *dev.AdaptiveCpp_runtime()->backends().get(d.get_backend());
   return backend_object.get_allocator(d);
 }
 }

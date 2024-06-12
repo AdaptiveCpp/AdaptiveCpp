@@ -12,9 +12,9 @@ Buffer policies can be enabled by passing buffer policy property to the `propert
 
 | Policy property | Behavior if set to true | Behavior if set to false |
 | ------ | ----- | ----- |
-| `property::buffer::hipSYCL_buffer_uses_external_storage(bool)` | Instruct the buffer to act as view and operate directly on provided input pointers. Pointer should not be used by the user during the lifetime of the buffer. | Only use supplied pointer as input argument and copy data to internal storage. Pointer can be used by used as desired after buffer construction. |
-| `property::buffer::hipSYCL_buffer_writes_back(bool)` | Submit writeback to supplied user pointer at buffer destruction. If no data needs to be transferred, the writeback may be optimized away by the runtime. | Do not submit writeback in destructor. |
-| `property::buffer::hipSYCL_buffer_destructor_blocks(bool)` | buffer destructor blocks until all tasks operating on the buffer have completed. | buffer destructor does not block. The user is responsible for making sure that all kernels and other operations working on the buffer are synchronized, e.g. using `queue::wait()` or `event::wait()`. It is allowed for the buffer to be destroyed before operations have completed because operations will retain references to the buffer's data storage. |
+| `property::buffer::AdaptiveCpp_buffer_uses_external_storage(bool)` | Instruct the buffer to act as view and operate directly on provided input pointers. Pointer should not be used by the user during the lifetime of the buffer. | Only use supplied pointer as input argument and copy data to internal storage. Pointer can be used by used as desired after buffer construction. |
+| `property::buffer::AdaptiveCpp_buffer_writes_back(bool)` | Submit writeback to supplied user pointer at buffer destruction. If no data needs to be transferred, the writeback may be optimized away by the runtime. | Do not submit writeback in destructor. |
+| `property::buffer::AdaptiveCpp_buffer_destructor_blocks(bool)` | buffer destructor blocks until all tasks operating on the buffer have completed. | buffer destructor does not block. The user is responsible for making sure that all kernels and other operations working on the buffer are synchronized, e.g. using `queue::wait()` or `event::wait()`. It is allowed for the buffer to be destroyed before operations have completed because operations will retain references to the buffer's data storage. |
 
 To describe buffers and their behavior better, AdaptiveCpp adopts the following terminology:
 
@@ -33,16 +33,16 @@ These are logical data types, they are still expressed using regular `buffer<T>`
 namespace sycl {
 namespace property::buffer {
 
-struct hipSYCL_buffer_uses_external_storage {
-  hipSYCL_buffer_uses_external_storage(bool toggle);
+struct AdaptiveCpp_buffer_uses_external_storage {
+  AdaptiveCpp_buffer_uses_external_storage(bool toggle);
 };
 
-struct hipSYCL_buffer_writes_back {
-  hipSYCL_buffer_writes_back(bool toggle);
+struct AdaptiveCpp_buffer_writes_back {
+  AdaptiveCpp_buffer_writes_back(bool toggle);
 };
 
-struct hipSYCL_buffer_destructor_blocks {
-  hipSYCL_buffer_destructor_blocks(bool toggle);
+struct AdaptiveCpp_buffer_destructor_blocks {
+  AdaptiveCpp_buffer_destructor_blocks(bool toggle);
 };
 
 } // namespace property buffer

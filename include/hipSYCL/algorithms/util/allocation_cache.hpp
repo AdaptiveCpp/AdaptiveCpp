@@ -165,7 +165,7 @@ public:
 
   allocation_group(allocation_cache *parent_cache, const sycl::device &dev)
       : _parent{parent_cache},
-        _dev{dev.hipSYCL_device_id()} {}
+        _dev{dev.AdaptiveCpp_device_id()} {}
 
   allocation_group() = default;
   allocation_group(const allocation_group&) = delete;

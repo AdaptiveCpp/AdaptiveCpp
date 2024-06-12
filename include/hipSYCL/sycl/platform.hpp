@@ -134,9 +134,16 @@ public:
     return !(lhs == rhs);
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<rt::platform_id>{}(_platform);
   }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
 
 private:
   rt::platform_id _platform;
@@ -185,7 +192,7 @@ struct hash<hipsycl::sycl::platform>
 {
   std::size_t operator()(const hipsycl::sycl::platform& p) const
   {
-    return p.hipSYCL_hash_code();
+    return p.AdaptiveCpp_hash_code();
   }
 };
 

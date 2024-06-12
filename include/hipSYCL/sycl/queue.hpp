@@ -76,28 +76,35 @@ using queue_submission_hooks_ptr =
 namespace property::command_group {
 
 template<int Dim>
-struct hipSYCL_prefer_group_size : public detail::cg_property{
-  hipSYCL_prefer_group_size(range<Dim> r)
+struct AdaptiveCpp_prefer_group_size : public detail::cg_property{
+  AdaptiveCpp_prefer_group_size(range<Dim> r)
   : size{r} {}
 
   const range<Dim> size;
 };
 
-struct hipSYCL_retarget : public detail::cg_property{
-  hipSYCL_retarget(const device& d)
+struct AdaptiveCpp_retarget : public detail::cg_property{
+  AdaptiveCpp_retarget(const device& d)
   : dev{d} {}
 
   const sycl::device dev;
 };
 
-struct hipSYCL_prefer_execution_lane : public detail::cg_property{
-  hipSYCL_prefer_execution_lane(std::size_t lane_id)
+struct AdaptiveCpp_prefer_execution_lane : public detail::cg_property{
+  AdaptiveCpp_prefer_execution_lane(std::size_t lane_id)
   : lane{lane_id} {}
 
   const std::size_t lane;
 };
 
-struct hipSYCL_coarse_grained_events : public detail::cg_property {};
+struct AdaptiveCpp_coarse_grained_events : public detail::cg_property {};
+
+// backwards compatibility
+template<int Dim>
+using hipSYCL_prefer_group_size = AdaptiveCpp_prefer_group_size<Dim>;
+using hipSYCL_retarget = AdaptiveCpp_retarget;
+using hipSYCL_prefer_execution_lane = AdaptiveCpp_prefer_execution_lane;
+using hipSYCL_coarse_grained_events = AdaptiveCpp_coarse_grained_events;
 
 }
 
@@ -110,15 +117,19 @@ class in_order : public detail::queue_property
 class enable_profiling : public detail::property
 {};
 
-class hipSYCL_coarse_grained_events : public detail::queue_property
+class AdaptiveCpp_coarse_grained_events : public detail::queue_property
 {};
 
-struct hipSYCL_priority : public detail::queue_property {
-  hipSYCL_priority(int queue_execution_priority)
+struct AdaptiveCpp_priority : public detail::queue_property {
+  AdaptiveCpp_priority(int queue_execution_priority)
   : priority{queue_execution_priority} {}
 
   int priority;
 };
+
+// backwards compatibility
+using hipSYCL_coarse_grained_events = AdaptiveCpp_coarse_grained_events;
+using hipSYCL_priority = AdaptiveCpp_priority;
 
 }
 
@@ -346,10 +357,10 @@ public:
 
     rt::execution_hints hints = *_default_hints;
     
-    if(prop_list.has_property<property::command_group::hipSYCL_retarget>()) {
+    if(prop_list.has_property<property::command_group::AdaptiveCpp_retarget>()) {
 
       rt::device_id dev = detail::extract_rt_device(
-          prop_list.get_property<property::command_group::hipSYCL_retarget>()
+          prop_list.get_property<property::command_group::AdaptiveCpp_retarget>()
               .dev);
 
       if(!detail::extract_context_devices(_ctx).contains_device(dev)) {
@@ -364,18 +375,18 @@ public:
       hints.set_hint(rt::hints::bind_to_device{dev});
     }
     if (prop_list.has_property<
-            property::command_group::hipSYCL_prefer_execution_lane>()) {
+            property::command_group::AdaptiveCpp_prefer_execution_lane>()) {
 
       std::size_t lane_id =
           prop_list
               .get_property<
-                  property::command_group::hipSYCL_prefer_execution_lane>()
+                  property::command_group::AdaptiveCpp_prefer_execution_lane>()
               .lane;
 
       hints.set_hint(rt::hints::prefer_execution_lane{lane_id});
     }
     if (prop_list.has_property<
-            property::command_group::hipSYCL_coarse_grained_events>()) {
+            property::command_group::AdaptiveCpp_coarse_grained_events>()) {
       hints.set_hint(rt::hints::coarse_grained_synchronization{});
     }
     // Should always have node_group hint from default hints
@@ -816,28 +827,48 @@ public:
   }
 
   template<class InteropFunction>
-  event hipSYCL_enqueue_custom_operation(InteropFunction op) {
+  event AdaptiveCpp_enqueue_custom_operation(InteropFunction op) {
     return this->submit([&](sycl::handler &cgh) {
-      cgh.hipSYCL_enqueue_custom_operation(op);
+      cgh.AdaptiveCpp_enqueue_custom_operation(op);
     });
   }
 
   template <class InteropFunction>
-  event hipSYCL_enqueue_custom_operation(InteropFunction op, event dependency) {
+  event AdaptiveCpp_enqueue_custom_operation(InteropFunction op, event dependency) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
-      cgh.hipSYCL_enqueue_custom_operation(op);
+      cgh.AdaptiveCpp_enqueue_custom_operation(op);
     });
   }
 
   template <class InteropFunction>
   event
-  hipSYCL_enqueue_custom_operation(InteropFunction op,
+  AdaptiveCpp_enqueue_custom_operation(InteropFunction op,
                                    const std::vector<event> &dependencies) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependencies);
-      cgh.hipSYCL_enqueue_custom_operation(op);
+      cgh.AdaptiveCpp_enqueue_custom_operation(op);
     });
+  }
+
+  template<class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  event hipSYCL_enqueue_custom_operation(InteropFunction op) {
+    return AdaptiveCpp_enqueue_custom_operation(op);
+  }
+
+  template <class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  event hipSYCL_enqueue_custom_operation(InteropFunction op, event dependency) {
+    return AdaptiveCpp_enqueue_custom_operation(op, dependency);
+  }
+
+  template <class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  event
+  hipSYCL_enqueue_custom_operation(InteropFunction op,
+                                   const std::vector<event> &dependencies) {
+    return AdaptiveCpp_enqueue_custom_operation(op, dependencies);
   }
 
   /// Placeholder accessor shortcuts
@@ -923,23 +954,34 @@ public:
     });  
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return _node_group_id;
   }
 
-  rt::inorder_executor* hipSYCL_inorder_executor() const {
+  rt::inorder_executor* AdaptiveCpp_inorder_executor() const {
     if(!_dedicated_inorder_executor)
       return nullptr;
     return static_cast<rt::inorder_executor*>(_dedicated_inorder_executor.get());
   }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_inorder_executor()")]]
+  auto hipSYCL_inorder_executor() const {
+    return AdaptiveCpp_inorder_executor();
+  }
 private:
   template<int Dim>
   void apply_preferred_group_size(const property_list& prop_list, handler& cgh) {
-    if(prop_list.has_property<property::command_group::hipSYCL_prefer_group_size<Dim>>()){
+    if(prop_list.has_property<property::command_group::AdaptiveCpp_prefer_group_size<Dim>>()){
       sycl::range<Dim> preferred_group_size =
           prop_list
               .get_property<
-                  property::command_group::hipSYCL_prefer_group_size<Dim>>()
+                  property::command_group::AdaptiveCpp_prefer_group_size<Dim>>()
               .size;
       cgh.set_preferred_group_size(preferred_group_size);
     }
@@ -1010,7 +1052,7 @@ private:
       _default_hints->set_hint(
               rt::hints::request_instrumentation_finish_timestamp{});
     }
-    if(this->has_property<property::queue::hipSYCL_coarse_grained_events>()){
+    if(this->has_property<property::queue::AdaptiveCpp_coarse_grained_events>()){
       _default_hints->set_hint(
           rt::hints::coarse_grained_synchronization{});
     }
@@ -1025,8 +1067,8 @@ private:
 
     if(_is_in_order && get_devices().size() == 1) {
       int priority = 0;
-      if(this->has_property<property::queue::hipSYCL_priority>()) {
-        priority = this->get_property<property::queue::hipSYCL_priority>().priority;
+      if(this->has_property<property::queue::AdaptiveCpp_priority>()) {
+        priority = this->get_property<property::queue::AdaptiveCpp_priority>().priority;
       }
 
       rt::device_id rt_dev = detail::extract_rt_device(this->get_device());
@@ -1089,7 +1131,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
   return 1;
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(queue, hipSYCL_node_group)
+HIPSYCL_SPECIALIZE_GET_INFO(queue, AdaptiveCpp_node_group)
 {
   return _node_group_id;
 }
@@ -1221,7 +1263,7 @@ struct hash<hipsycl::sycl::queue>
 {
   std::size_t operator()(const hipsycl::sycl::queue& q) const
   {
-    return q.hipSYCL_hash_code();
+    return q.AdaptiveCpp_hash_code();
   }
 };
 

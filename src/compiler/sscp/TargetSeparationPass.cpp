@@ -32,6 +32,7 @@
 #include "hipSYCL/compiler/sscp/HostKernelNameExtractionPass.hpp"
 #include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
 #include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
+#include "hipSYCL/compiler/sscp/StdAtomicRemapperPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
@@ -234,6 +235,9 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   // std math functions can be thrown away during kernel outlining.
   StdBuiltinRemapperPass SBMP;
   SBMP.run(*DeviceModule, DeviceMAM);
+  // Remap atomics
+  StdAtomicRemapperPass SAMP;
+  SAMP.run(*DeviceModule, DeviceMAM);
 
   // Fix attributes for generic IR representation
   llvm::SmallVector<llvm::Attribute::AttrKind, 16> AttrsToRemove;

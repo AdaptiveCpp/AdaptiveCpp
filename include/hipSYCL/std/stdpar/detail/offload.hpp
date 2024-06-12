@@ -121,10 +121,10 @@ bool validate_all_pointers(const Args&... args){
   
   auto& q = detail::single_device_dispatch::get_queue();
   auto* allocator = q.get_context()
-      .hipSYCL_runtime()
+      .AdaptiveCpp_runtime()
       ->backends()
       .get(q.get_device().get_backend())
-      ->get_allocator(q.get_device().hipSYCL_device_id());
+      ->get_allocator(q.get_device().AdaptiveCpp_device_id());
 
   auto f = [&](const void* ptr){
     if(ptr) {
@@ -180,7 +180,7 @@ inline prefetch_mode get_prefetch_mode() noexcept {
 }
 
 inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcept {
-  auto* inorder_executor = q.hipSYCL_inorder_executor();
+  auto* inorder_executor = q.AdaptiveCpp_inorder_executor();
   if(inorder_executor) {
     // Attempt to invoke backend functionality directly -
     // in general we might have to issue multiple prefetches for

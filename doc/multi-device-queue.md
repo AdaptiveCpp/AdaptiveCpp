@@ -1,4 +1,4 @@
-# `HIPSYCL_EXT_MULTI_DEVICE_QUEUE`
+# `ACPP_EXT_MULTI_DEVICE_QUEUE`
 
 This extension allows `sycl::queue` to automatically distribute work across multiple devices. The functionality from this extension requires that the scheduler type is set to `unbound` (default).
 
@@ -27,7 +27,7 @@ In multi-device mode, the following operations are currently unsupported, althou
 * the USM-related member functions of `sycl::handler` such as `memcpy`, `memset`, `fill`, `prefetch` and `prefetch_host`;
 * If kernels use USM pointers, the user is responsible for making sure that the USM pointer is valid on all devices that the queue might dispatch to;
 * All variants of `handler::copy()`;
-* `handler::update()` from the `HIPSYCL_EXT_UPDATE_DEVICE` extension
+* `handler::update()` from the `ACPP_EXT_UPDATE_DEVICE` extension
 
 ## API Reference
 

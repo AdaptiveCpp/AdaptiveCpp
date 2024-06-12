@@ -151,7 +151,7 @@ public:
                     "context::get_info() is unimplemented"};
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<void*>{}(_impl.get());
   }
 
@@ -161,8 +161,19 @@ public:
   friend bool operator!=(const context& lhs, const context &rhs)
   { return !(lhs == rhs); }
 
-  rt::runtime* hipSYCL_runtime() const {
+  rt::runtime* AdaptiveCpp_runtime() const {
     return _impl->requires_runtime.get();
+  }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_runtime()")]]
+  auto hipSYCL_runtime() const {
+    return AdaptiveCpp_runtime();
   }
 private:
   void init(async_handler handler) {
@@ -253,7 +264,7 @@ struct hash<hipsycl::sycl::context>
 {
   std::size_t operator()(const hipsycl::sycl::context& c) const
   {
-    return c.hipSYCL_hash_code();
+    return c.AdaptiveCpp_hash_code();
   }
 };
 

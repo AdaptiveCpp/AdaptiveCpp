@@ -46,7 +46,7 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 
 ## Extension feature test macros
 
-* `HIPSYCL_EXT_<NAME>` - defined if the AdaptiveCpp extension `<NAME>` is available.
+* `ACPP_EXT_<NAME>` - defined if the AdaptiveCpp extension `<NAME>` is available.
 
 ## Deprecated macros
 

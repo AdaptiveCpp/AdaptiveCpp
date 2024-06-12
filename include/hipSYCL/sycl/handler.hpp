@@ -720,7 +720,7 @@ public:
 
 
   template <class InteropFunction>
-  void hipSYCL_enqueue_custom_operation(InteropFunction f) {
+  void AdaptiveCpp_enqueue_custom_operation(InteropFunction f) {
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
                       "handler: submitting custom operations is unsupported "
@@ -737,6 +737,12 @@ public:
     rt::dag_node_ptr node = create_task(std::move(custom_kernel_op), _execution_hints);
     
     _command_group_nodes.push_back(node);
+  }
+
+  template<class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  void hipSYCL_enqueue_custom_operation(InteropFunction f) {
+    AdaptiveCpp_enqueue_custom_operation(f);
   }
   
   detail::local_memory_allocator& get_local_memory_allocator()

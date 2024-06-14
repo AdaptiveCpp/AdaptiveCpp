@@ -32,7 +32,6 @@
 #include "hipSYCL/common/debug.hpp"
 
 
-#include <llvm-15/llvm/IR/Instructions.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/Support/AtomicOrdering.h>
@@ -70,6 +69,9 @@ enum class address_space : int
   private_space,
   generic_space
 };
+
+enum class rmw_op : int { op_and, op_or, op_xor, op_add, op_sub, op_min, op_max };
+enum class rmw_data_type : int { signed_int, unsigned_int, floating_type };
 
 memory_order llvmOrderingToAcppOrdering(llvm::AtomicOrdering AO) {
   if (AO == llvm::AtomicOrdering::NotAtomic || AO == llvm::AtomicOrdering::Unordered ||
@@ -121,7 +123,46 @@ llvm::Value* ptrcastToIntNPtr(llvm::Module &M, llvm::Value *V, int BitSize,
       V, getPointerType(TargetType, V->getType()->getPointerAddressSpace()), "", InsertBefore);
 }
 
+bool llvmBinOpToAcppBinOp(llvm::AtomicRMWInst::BinOp Op, rmw_op& Out) {
+  
+  using LLVMBinOp = llvm::AtomicRMWInst::BinOp;
+  if(Op == LLVMBinOp::Add)
+    Out = rmw_op::op_add;
+  else if(Op == LLVMBinOp::And)
+    Out = rmw_op::op_and;
+  else if(Op == LLVMBinOp::FAdd)
+    Out = rmw_op::op_add;
+#if LLVM_VERSION_MAJOR > 14
+  else if(Op == LLVMBinOp::FMax)
+    Out = rmw_op::op_max;
+  else if(Op == LLVMBinOp::FMin)
+    Out = rmw_op::op_min;
+#endif
+  else if(Op == LLVMBinOp::FSub)
+    Out = rmw_op::op_sub;
+  else if(Op == LLVMBinOp::Max)
+    Out = rmw_op::op_max;
+  else if(Op == LLVMBinOp::Min)
+    Out = rmw_op::op_min;
+  else if(Op == LLVMBinOp::Or)
+    Out = rmw_op::op_or;
+  else if(Op == LLVMBinOp::Sub)
+    Out = rmw_op::op_sub;
+  else if(Op == LLVMBinOp::UMax)
+    Out = rmw_op::op_max;
+  else if(Op == LLVMBinOp::UMin)
+    Out = rmw_op::op_min;
+  else if(Op == LLVMBinOp::Xor)
+    Out = rmw_op::op_xor;
+  else
+    return false;
+
+  return true;
+}
+
+// ----------------------------------------------------------------------------
 // These functions obtain SSCP builtin declarations in IR
+// ----------------------------------------------------------------------------
 
 llvm::Function* getAtomicStoreBuiltin(llvm::Module& M, int BitSize) {
   std::string BuiltinName = "__acpp_sscp_atomic_store_i"+std::to_string(BitSize);
@@ -161,7 +202,74 @@ llvm::Function* getAtomicExchangeBuiltin(llvm::Module& M, int BitSize) {
       M.getOrInsertFunction(BuiltinName, OpTy, I32Ty, I32Ty, I32Ty, PtrTy, OpTy).getCallee());
 }
 
+llvm::Function* getAtomicCmpExchangeBuiltin(llvm::Module& M, bool Strong, int BitSize) {
+  std::string BuiltinName;
+  if(Strong)
+    BuiltinName = "__acpp_sscp_atomic_cmp_exch_strong_i"+std::to_string(BitSize);
+  else
+    BuiltinName = "__acpp_sscp_atomic_cmp_exch_weak_i"+std::to_string(BitSize);
+
+  llvm::Type* I32Ty = llvm::Type::getInt32Ty(M.getContext());
+  llvm::Type* OpTy = llvm::Type::getIntNTy(M.getContext(), BitSize);
+  llvm::Type* PtrTy = getPointerType(OpTy, 0);
+
+  return static_cast<llvm::Function *>(
+      M.getOrInsertFunction(BuiltinName, llvm::Type::getInt1Ty(M.getContext()),
+        I32Ty, I32Ty, I32Ty, I32Ty, PtrTy, PtrTy, OpTy)
+          .getCallee());
+}
+
+llvm::Function* getAtomicFetchOpBuiltin(llvm::Module& M, rmw_op Op, int BitSize, rmw_data_type TypeCategory) {
+  std::string OpName;
+  if(Op == rmw_op::op_add)
+    OpName = "add";
+  else if(Op == rmw_op::op_and)
+    OpName = "and";
+  else if(Op == rmw_op::op_max)
+    OpName = "max";
+  else if(Op == rmw_op::op_min)
+    OpName = "min";
+  else if(Op == rmw_op::op_or)
+    OpName = "or";
+  else if(Op == rmw_op::op_sub)
+    OpName = "sub";
+  else if(Op == rmw_op::op_xor)
+    OpName = "xor";
+  else
+    return nullptr;
+
+  std::string BuiltinName = "__acpp_sscp_atomic_fetch_" + OpName + "_";
+  if(TypeCategory == rmw_data_type::floating_type)
+    BuiltinName += "f"+std::to_string(BitSize);
+  else if(TypeCategory == rmw_data_type::signed_int)
+    BuiltinName += "i"+std::to_string(BitSize);
+  else if(TypeCategory == rmw_data_type::unsigned_int)
+    BuiltinName += "u"+std::to_string(BitSize);
+
+  llvm::Type* I32Ty = llvm::Type::getInt32Ty(M.getContext());
+  llvm::Type* OpTy = nullptr;
+  if(TypeCategory == rmw_data_type::floating_type) {
+    if(BitSize == 32)
+      OpTy = llvm::Type::getFloatTy(M.getContext());
+    else if(BitSize == 64)
+      OpTy = llvm::Type::getDoubleTy(M.getContext());
+    else
+      return nullptr;
+  } else {
+    OpTy = llvm::Type::getIntNTy(M.getContext(), BitSize);
+  }
+
+  llvm::Type* PtrTy = getPointerType(OpTy, 0);
+  return static_cast<llvm::Function *>(
+      M.getOrInsertFunction(BuiltinName, OpTy,
+        I32Ty, I32Ty, I32Ty, PtrTy, OpTy)
+          .getCallee());
+}
+
+// ----------------------------------------------------------------------------
 // These functions generate calls to corresponding SSCP builtin declarations
+// ----------------------------------------------------------------------------
+
 
 llvm::Value *createAtomicStore(llvm::Module &M, llvm::Value *Value, llvm::Value *Addr,
                                memory_order Order, memory_scope Scope,
@@ -214,7 +322,107 @@ llvm::Value *createAtomicLoad(llvm::Module &M, llvm::Type* DataType, llvm::Value
                                 llvm::ArrayRef<llvm::Value *>{Args}, "", InsertBefore);
 }
 
+llvm::Value *createAtomicExchange(llvm::Module &M, llvm::Value* Value, llvm::Value *Addr,
+                               memory_order Order, memory_scope Scope,
+                               llvm::Instruction *InsertBefore) {
+  int BitSize = M.getDataLayout().getTypeSizeInBits(Value->getType());
+  llvm::Type* DataType = Value->getType();
+  if(!isSizeSupportedByBuiltins(M, DataType))
+    return nullptr;
 
+  if(needsBitcastsForIntAtomics(M, DataType)) {
+    auto* TargetType = llvm::IntegerType::get(M.getContext(), BitSize);
+    Value = bitcastToIntN(M, Value, BitSize, InsertBefore);
+    Addr = ptrcastToIntNPtr(M, Addr, BitSize, InsertBefore);
+  }
+
+  llvm::SmallVector<llvm::Value*> Args {
+    getIntConstant(M, address_space::generic_space),
+    getIntConstant(M, Order),
+    getIntConstant(M, Scope),
+    Addr,
+    Value
+  };
+
+  llvm::Function *Builtin = getAtomicExchangeBuiltin(M, BitSize);
+  return llvm::CallInst::Create(llvm::FunctionCallee(Builtin->getFunctionType(), Builtin),
+                                llvm::ArrayRef<llvm::Value *>{Args}, "", InsertBefore);
+}
+
+llvm::Value *createAtomicCmpExchange(llvm::Module &M, bool IsStrong, llvm::Value *Value,
+                                     llvm::Value *Addr, llvm::Value *ExpectedAddr,
+                                     memory_order SuccessOrder, memory_order FailureOrder,
+                                     memory_scope Scope, llvm::Instruction *InsertBefore) {
+  int BitSize = M.getDataLayout().getTypeSizeInBits(Value->getType());
+  llvm::Type* DataType = Value->getType();
+  if(!isSizeSupportedByBuiltins(M, DataType))
+    return nullptr;
+
+  if(needsBitcastsForIntAtomics(M, DataType)) {
+    auto* TargetType = llvm::IntegerType::get(M.getContext(), BitSize);
+    Value = bitcastToIntN(M, Value, BitSize, InsertBefore);
+    Addr = ptrcastToIntNPtr(M, Addr, BitSize, InsertBefore);
+    ExpectedAddr = ptrcastToIntNPtr(M, ExpectedAddr, BitSize, InsertBefore);
+  }
+
+  llvm::SmallVector<llvm::Value*> Args {
+    getIntConstant(M, address_space::generic_space),
+    getIntConstant(M, SuccessOrder),
+    getIntConstant(M, FailureOrder),
+    getIntConstant(M, Scope),
+    Addr,
+    Value
+  };
+
+  llvm::Function *Builtin = getAtomicCmpExchangeBuiltin(M, IsStrong, BitSize);
+  return llvm::CallInst::Create(llvm::FunctionCallee(Builtin->getFunctionType(), Builtin),
+                                llvm::ArrayRef<llvm::Value *>{Args}, "", InsertBefore);
+}
+
+llvm::Value *createAtomicFetchOp(llvm::Module &M, llvm::AtomicRMWInst::BinOp LLVMOp,
+                                 llvm::Value *Value, llvm::Value *Addr, memory_order Order,
+                                 memory_scope Scope, llvm::Instruction *InsertBefore) {
+  int BitSize = M.getDataLayout().getTypeSizeInBits(Value->getType());
+  llvm::Type* DataType = Value->getType();
+  if(!isSizeSupportedByBuiltins(M, DataType))
+    return nullptr;
+
+  llvm::SmallVector<llvm::Value*> Args {
+    getIntConstant(M, address_space::generic_space),
+    getIntConstant(M, Order),
+    getIntConstant(M, Scope),
+    Addr,
+    Value
+  };
+  
+  bool IsFloat = DataType->isFloatingPointTy();
+
+  rmw_op Op;
+  if(!llvmBinOpToAcppBinOp(LLVMOp, Op))
+    return nullptr;
+
+  if(IsFloat) {
+    if(Op == rmw_op::op_and || Op == rmw_op::op_or || Op == rmw_op::op_xor)
+      return nullptr;
+  }
+
+  rmw_data_type TypeCategory;
+  if(IsFloat)
+    TypeCategory = rmw_data_type::floating_type;
+  else {
+    if (LLVMOp == llvm::AtomicRMWInst::BinOp::UMax || LLVMOp == llvm::AtomicRMWInst::BinOp::UMin)
+      TypeCategory = rmw_data_type::unsigned_int;
+    else
+      TypeCategory = rmw_data_type::signed_int;
+  }
+
+  llvm::Function *Builtin = getAtomicFetchOpBuiltin(M, Op, BitSize, TypeCategory);
+  if(!Builtin)
+    return nullptr;
+
+  return llvm::CallInst::Create(llvm::FunctionCallee(Builtin->getFunctionType(), Builtin),
+                                llvm::ArrayRef<llvm::Value *>{Args}, "", InsertBefore);
+}
 }
 
 llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
@@ -222,7 +430,9 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
 
   llvm::SmallVector<llvm::StoreInst*> AtomicStores;
   llvm::SmallVector<llvm::LoadInst*> AtomicLoads;
-  
+  llvm::SmallVector<llvm::AtomicRMWInst*> AtomicExchanges;
+  llvm::SmallVector<llvm::AtomicCmpXchgInst*> AtomicCmpExchanges;
+  llvm::SmallVector<llvm::AtomicRMWInst*> AtomicFetchOps;
 
   for(auto& F : M) {
     for(auto& BB : F){
@@ -233,8 +443,14 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
         } else if(auto* LI = llvm::dyn_cast<llvm::LoadInst>(&I)) {
           if(LI->isAtomic())
             AtomicLoads.push_back(LI);
-        } else if(auto* XI = llvm::dyn_cast<llvm::AtomicRMWInst>(&I)) {
-          
+        } else if(auto* RMWI = llvm::dyn_cast<llvm::AtomicRMWInst>(&I)) {
+          if(RMWI->getOperation() == llvm::AtomicRMWInst::BinOp::Xchg) {
+            AtomicExchanges.push_back(RMWI);
+          } else {
+            AtomicFetchOps.push_back(RMWI);
+          }
+        } else if(auto *CI = llvm::dyn_cast<llvm::AtomicCmpXchgInst>(&I)) {
+          AtomicCmpExchanges.push_back(CI);
         }
       }
     }
@@ -257,6 +473,51 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
                               llvmOrderingToAcppOrdering(Order), memory_scope::device, AL)) {
       AL->replaceNonMetadataUsesWith(NewI);
       ReplacedInstructions.push_back(AL);
+    }
+  }
+  for(auto* XI : AtomicExchanges) {
+    llvm::AtomicOrdering Order = XI->getOrdering();
+    if (auto *NewI =
+            createAtomicExchange(M, XI->getValOperand(), XI->getPointerOperand(),
+                              llvmOrderingToAcppOrdering(Order), memory_scope::device, XI)) {
+      XI->replaceNonMetadataUsesWith(NewI);
+      ReplacedInstructions.push_back(XI);
+    }
+  }
+  for(auto* CI : AtomicCmpExchanges) {
+    llvm::AtomicOrdering SuccessOrder = CI->getSuccessOrdering();
+    llvm::AtomicOrdering FailureOrder = CI->getFailureOrdering();
+
+    llvm::AllocaInst* ExpectedAI = new llvm::AllocaInst(CI->getCompareOperand()->getType(), 0, "", CI);
+    llvm::StoreInst *ExpectedStore = new llvm::StoreInst(CI->getCompareOperand(), ExpectedAI, CI);
+    if (auto *NewI = createAtomicCmpExchange(
+            M, !CI->isWeak(), CI->getNewValOperand(), CI->getPointerOperand(), ExpectedAI,
+            llvmOrderingToAcppOrdering(SuccessOrder), llvmOrderingToAcppOrdering(FailureOrder),
+            memory_scope::device, CI)) {
+
+      llvm::Value* RetVal = llvm::UndefValue::get(CI->getType());
+      llvm::Value *ExpectedLoad =
+          new llvm::LoadInst(CI->getCompareOperand()->getType(), ExpectedAI, "", CI);
+      
+      llvm::SmallVector<unsigned int> InsertExpectedArgs{0};
+      llvm::InsertValueInst::Create(
+          RetVal, ExpectedLoad, llvm::ArrayRef<unsigned int>{InsertExpectedArgs}, "", CI);
+      InsertExpectedArgs = {1};
+      llvm::InsertValueInst::Create(
+          RetVal, NewI, llvm::ArrayRef<unsigned int>{InsertExpectedArgs}, "", CI);
+      
+      CI->replaceNonMetadataUsesWith(RetVal);
+      ReplacedInstructions.push_back(CI);
+    }
+  }
+  for(auto* FI : AtomicFetchOps) {
+    llvm::AtomicOrdering Order = FI->getOrdering();
+
+    if (auto *NewI =
+            createAtomicFetchOp(M, FI->getOperation(), FI->getValOperand(), FI->getPointerOperand(),
+                                llvmOrderingToAcppOrdering(Order), memory_scope::device, FI)) {
+      FI->replaceNonMetadataUsesWith(NewI);
+      ReplacedInstructions.push_back(FI);
     }
   }
 

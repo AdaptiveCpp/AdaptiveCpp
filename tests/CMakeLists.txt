@@ -126,6 +126,7 @@ if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
     pstl/pstl_test_suite.cpp
     pstl/std_math.cpp
+    pstl/std_atomic.cpp
     pstl/all_of.cpp
     pstl/any_of.cpp
     pstl/copy.cpp

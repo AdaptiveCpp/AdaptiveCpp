@@ -205,9 +205,9 @@ llvm::Function* getAtomicExchangeBuiltin(llvm::Module& M, int BitSize) {
 llvm::Function* getAtomicCmpExchangeBuiltin(llvm::Module& M, bool Strong, int BitSize) {
   std::string BuiltinName;
   if(Strong)
-    BuiltinName = "__acpp_sscp_atomic_cmp_exch_strong_i"+std::to_string(BitSize);
+    BuiltinName = "__acpp_sscp_cmp_exch_strong_i"+std::to_string(BitSize);
   else
-    BuiltinName = "__acpp_sscp_atomic_cmp_exch_weak_i"+std::to_string(BitSize);
+    BuiltinName = "__acpp_sscp_cmp_exch_weak_i"+std::to_string(BitSize);
 
   llvm::Type* I32Ty = llvm::Type::getInt32Ty(M.getContext());
   llvm::Type* OpTy = llvm::Type::getIntNTy(M.getContext(), BitSize);
@@ -371,6 +371,7 @@ llvm::Value *createAtomicCmpExchange(llvm::Module &M, bool IsStrong, llvm::Value
     getIntConstant(M, FailureOrder),
     getIntConstant(M, Scope),
     Addr,
+    ExpectedAddr,
     Value
   };
 
@@ -488,6 +489,8 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
     llvm::AtomicOrdering SuccessOrder = CI->getSuccessOrdering();
     llvm::AtomicOrdering FailureOrder = CI->getFailureOrdering();
 
+    // Create alloca and store expected value - this we can later use
+    // as pointer argument for the builtin
     llvm::AllocaInst* ExpectedAI = new llvm::AllocaInst(CI->getCompareOperand()->getType(), 0, "", CI);
     llvm::StoreInst *ExpectedStore = new llvm::StoreInst(CI->getCompareOperand(), ExpectedAI, CI);
     if (auto *NewI = createAtomicCmpExchange(
@@ -500,13 +503,13 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
           new llvm::LoadInst(CI->getCompareOperand()->getType(), ExpectedAI, "", CI);
       
       llvm::SmallVector<unsigned int> InsertExpectedArgs{0};
-      llvm::InsertValueInst::Create(
+      auto* I1 = llvm::InsertValueInst::Create(
           RetVal, ExpectedLoad, llvm::ArrayRef<unsigned int>{InsertExpectedArgs}, "", CI);
       InsertExpectedArgs = {1};
-      llvm::InsertValueInst::Create(
-          RetVal, NewI, llvm::ArrayRef<unsigned int>{InsertExpectedArgs}, "", CI);
+      auto* I2 = llvm::InsertValueInst::Create(
+          I1, NewI, llvm::ArrayRef<unsigned int>{InsertExpectedArgs}, "", CI);
       
-      CI->replaceNonMetadataUsesWith(RetVal);
+      CI->replaceNonMetadataUsesWith(I2);
       ReplacedInstructions.push_back(CI);
     }
   }

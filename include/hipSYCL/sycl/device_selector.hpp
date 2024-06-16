@@ -84,7 +84,7 @@ inline int select_gpu(const device& dev) {
     // Would be good to prefer a device for which
     // we have actually compiled kernel code, because,
     // I don't know, a user might try to run kernels..
-    if (dev.hipSYCL_has_compiled_kernels())
+    if (dev.AdaptiveCpp_has_compiled_kernels())
       return 2;
     else
       return 1;
@@ -94,7 +94,7 @@ inline int select_gpu(const device& dev) {
 
 inline int select_accelerator(const device& dev) {
   if(dev.is_accelerator()) {
-    if(dev.hipSYCL_has_compiled_kernels())
+    if(dev.AdaptiveCpp_has_compiled_kernels())
       return 2;
     else
       return 1;
@@ -115,10 +115,9 @@ inline int select_host(const device& dev) {
 inline int select_default(const device& dev) {
 #if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
     defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
-    defined(__HIPSYCL_ENABLE_SPIRV_TARGET__) ||                                \
     defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
   // Add 2 to make sure that, if no GPU is found
-  if(!dev.is_cpu() && dev.hipSYCL_has_compiled_kernels()) {
+  if(!dev.is_cpu() && dev.AdaptiveCpp_has_compiled_kernels()) {
     // Prefer GPUs (or other accelerators) that have been targeted
     // and have compiled kernels
     return 2;

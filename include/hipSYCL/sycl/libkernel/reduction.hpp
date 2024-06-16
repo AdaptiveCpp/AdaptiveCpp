@@ -31,53 +31,43 @@
 #include <type_traits>
 #include "backend.hpp"
 #include "functional.hpp"
+#include "accessor.hpp"
+#include "hipSYCL/sycl/property.hpp"
+
+#include "hipSYCL/algorithms/reduction/reduction_descriptor.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
 namespace detail {
 
-template <class T, typename BinaryOperation>
-struct pointer_reduction_descriptor {
-  using value_type = T;
-  using combiner_type = BinaryOperation;
+//struct reduction_binary_operator<T, BinaryOp, false>
 
-  HIPSYCL_UNIVERSAL_TARGET
-  pointer_reduction_descriptor(value_type *output_data, value_type op_identity,
-                               BinaryOperation op)
-      : data{output_data}, identity{op_identity}, combiner{op} {}
-
-  value_type* data;
-  value_type identity;
-  BinaryOperation combiner;
-
-  HIPSYCL_UNIVERSAL_TARGET
-  value_type *get_pointer() const {
-    return data;
+template<class T, class BinaryOp>
+auto construct_reduction_op(BinaryOp op) {
+  if constexpr(has_known_identity_v<BinaryOp, T>) {
+    return algorithms::reduction::reduction_binary_operator<T, BinaryOp, true>{
+        op, sycl::known_identity<BinaryOp, T>::value};
+  } else {
+    return algorithms::reduction::reduction_binary_operator<T, BinaryOp, false>{op};
   }
-};
+}
 
-template <class AccessorT, typename BinaryOperation>
-struct accessor_reduction_descriptor {
-  using value_type = typename AccessorT::value_type;
-  using combiner_type = BinaryOperation;
-
-  HIPSYCL_UNIVERSAL_TARGET
-  accessor_reduction_descriptor(AccessorT output_data, value_type op_identity,
-                                BinaryOperation op)
-      : acc{output_data}, identity{op_identity}, combiner{op} {}
-
-  AccessorT acc;
-  value_type identity;
-  BinaryOperation combiner;
-
-  HIPSYCL_UNIVERSAL_TARGET
-  value_type *get_pointer() const {
-    return acc.get_pointer();
-  }
-};
+template<class T, class BinaryOp>
+auto construct_reduction_op(BinaryOp op, const T& identity) {
+  return algorithms::reduction::reduction_binary_operator<T, BinaryOp, true>{
+        op, identity};
+}
 
 } // namespace detail
+
+
+namespace property::reduction {
+
+class initialize_to_identity : public detail::reduction_property
+{};
+
+}
 
 /// Reducer implementation, builds on \c BackendReducerImpl concept.
 /// \c BackendReducerImpl concept:
@@ -85,7 +75,8 @@ struct accessor_reduction_descriptor {
 ///   - defines combiner_type for the binary combiner operation
 ///   - defines value_type identity() const
 ///   - defines void combine(const value_type&)
-template <class BackendReducerImpl> class reducer {
+template <class BackendReducerImpl>
+class reducer {
 public:
   
   using value_type    = typename BackendReducerImpl::value_type;
@@ -124,9 +115,14 @@ private:
 
 #define HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(T)                                   \
   class Op = typename reducer<BackendReducerImpl>::combiner_type,              \
-  std::enable_if_t<std::is_same_v<                                             \
-            Op, T<typename reducer<BackendReducerImpl>::value_type>>> * =      \
-            nullptr
+        std::enable_if_t <                                                     \
+                std::is_same_v<                                                \
+                    Op,                                                        \
+                    T<typename reducer<BackendReducerImpl>::value_type>> ||    \
+                std::is_same_v <                                               \
+                    Op,                                                        \
+                    T<void>>                                                   \
+                > * = nullptr
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::plus)>
@@ -176,33 +172,79 @@ void operator++(reducer<BackendReducerImpl> &r) {
 }
 
 
-template <typename AccessorT, typename BinaryOperation>
-detail::accessor_reduction_descriptor<AccessorT, BinaryOperation>
-reduction(AccessorT vars, BinaryOperation combiner) {
+class handler;
 
-  auto identity = typename AccessorT::value_type{};
-  return detail::accessor_reduction_descriptor{vars, identity, combiner};
+template <typename AccessorT, typename BinaryOperation>
+auto
+reduction(AccessorT vars, BinaryOperation combiner, const property_list& propList = {}) {
+  auto reduction_op =
+      detail::construct_reduction_op<typename AccessorT::value_type, BinaryOperation>(
+          combiner);
+
+  if(propList.has_property<property::reduction::initialize_to_identity>()) {
+    return algorithms::reduction::reduction_descriptor{reduction_op, reduction_op.get_identity(), vars};
+  } else {
+    return algorithms::reduction::reduction_descriptor{reduction_op, vars};
+  } 
 }
 
 template <typename AccessorT, typename BinaryOperation>
-detail::accessor_reduction_descriptor<AccessorT, BinaryOperation>
+auto
 reduction(AccessorT vars, const typename AccessorT::value_type &identity,
-          BinaryOperation combiner) {
+          BinaryOperation combiner, const property_list& propList = {}) {
+  auto reduction_op =
+      detail::construct_reduction_op<typename AccessorT::value_type, BinaryOperation>(
+          combiner, identity);
+  
+  if(propList.has_property<property::reduction::initialize_to_identity>()) {
+    return algorithms::reduction::reduction_descriptor{reduction_op, identity, vars};
+  } else {
+    return algorithms::reduction::reduction_descriptor{reduction_op, vars};
+  }
+}
 
-  return detail::accessor_reduction_descriptor{vars, identity, combiner};
+template <typename BufferT, typename BinaryOperation>
+auto reduction(BufferT vars, handler &cgh, BinaryOperation combiner,
+               const property_list &propList = {}) {
+  sycl::accessor acc{vars, cgh};
+  return reduction(acc, combiner, propList);
+}
+
+template <typename BufferT, typename BinaryOperation>
+auto reduction(BufferT vars, handler& cgh,
+                const typename BufferT::value_type& identity,
+                BinaryOperation combiner,
+                const property_list& propList = {}) {
+  sycl::accessor acc{vars, cgh};
+  return reduction(acc, identity, combiner, propList);
 }
 
 template <typename T, typename BinaryOperation>
-detail::pointer_reduction_descriptor<T, BinaryOperation>
-reduction(T *var, BinaryOperation combiner) {
+auto reduction(T *var, BinaryOperation combiner,
+              const property_list &propList = {}) {
 
-  return detail::pointer_reduction_descriptor{var, T{}, combiner};
+  auto reduction_op =
+      detail::construct_reduction_op<T, BinaryOperation>(combiner);
+
+  if(propList.has_property<property::reduction::initialize_to_identity>()) {
+    return algorithms::reduction::reduction_descriptor{reduction_op, reduction_op.get_identity(), var};
+  } else {
+    return algorithms::reduction::reduction_descriptor{reduction_op, var};
+  }
 }
 
 template <typename T, typename BinaryOperation>
-detail::pointer_reduction_descriptor<T, BinaryOperation>
-reduction(T *var, const T &identity, BinaryOperation combiner) {
-  return detail::pointer_reduction_descriptor{var, identity, combiner};
+auto reduction(T *var, const T &identity, BinaryOperation combiner,
+              const property_list &propList = {}) {
+  
+  auto reduction_op =
+      detail::construct_reduction_op<T, BinaryOperation>(combiner, identity);
+
+  if(propList.has_property<property::reduction::initialize_to_identity>()) {
+    return algorithms::reduction::reduction_descriptor{reduction_op, identity, var};
+  } else {
+    return algorithms::reduction::reduction_descriptor{reduction_op, var};
+  }
 }
 
 /* Unsupported until we have span

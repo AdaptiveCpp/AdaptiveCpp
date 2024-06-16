@@ -61,7 +61,7 @@ namespace hipsycl::fp16 {
 
 // Do not use a class to ensure consistent ABI between SSCP bitcode libraries
 // and client code, which will have different LLVM target triple initially.
-using half_storage = __hipsycl_uint16;
+using half_storage = __acpp_uint16;
 
 namespace detail {
 // Currently we cannot call sycl::bit_cast directly, since we do not
@@ -76,21 +76,21 @@ Tout bit_cast(Tin x) {
 
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-inline __hipsycl_uint16 native_float16_to_int(_Float16 x) noexcept {
-  return bit_cast<__hipsycl_uint16>(x);
+inline __acpp_uint16 native_float16_to_int(_Float16 x) noexcept {
+  return bit_cast<__acpp_uint16>(x);
 }
 
-static _Float16 int_to_native_float16(__hipsycl_uint16 x) noexcept {
+static _Float16 int_to_native_float16(__acpp_uint16 x) noexcept {
   return bit_cast<_Float16>(x);
 }
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
-inline __hipsycl_uint16 cuda_half_to_int(__half x) noexcept {
-  return bit_cast<__hipsycl_uint16>(x);
+inline __acpp_uint16 cuda_half_to_int(__half x) noexcept {
+  return bit_cast<__acpp_uint16>(x);
 }
 
-inline __half int_to_cuda_half(__hipsycl_uint16 x) noexcept {
+inline __half int_to_cuda_half(__acpp_uint16 x) noexcept {
   return bit_cast<__half>(x);
 }
 #endif
@@ -123,7 +123,7 @@ inline half_storage create(double f) noexcept {
   return truncate_from(f);
 }
 
-inline half_storage create(__hipsycl_uint16 i) noexcept {
+inline half_storage create(__acpp_uint16 i) noexcept {
   return i;
 }
 
@@ -148,7 +148,7 @@ inline __half as_cuda_half(half_storage h) noexcept {
 }
 #endif
 
-inline __hipsycl_uint16 as_integer(half_storage h) noexcept {
+inline __acpp_uint16 as_integer(half_storage h) noexcept {
   return h;
 }
 

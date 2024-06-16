@@ -31,7 +31,7 @@
 #include "sycl_glue.hpp"
 #include "stdpar_defs.hpp"
 
-inline void __hipsycl_stdpar_barrier() noexcept {
+inline void __acpp_stdpar_barrier() noexcept {
   auto& rt = hipsycl::stdpar::detail::stdpar_tls_runtime::get();
   int num_ops = rt.get_num_outstanding_operations();
   if(num_ops > 0) {
@@ -49,8 +49,8 @@ inline void __hipsycl_stdpar_barrier() noexcept {
 // The compiler detects calls to this function and tries to postpone
 // its calls within the control flow for as long as possible.
 HIPSYCL_STDPAR_NOINLINE
-extern "C" void __hipsycl_stdpar_optional_barrier() noexcept {
-  __hipsycl_stdpar_barrier();
+extern "C" void __acpp_stdpar_optional_barrier() noexcept {
+  __acpp_stdpar_barrier();
 }
 
 

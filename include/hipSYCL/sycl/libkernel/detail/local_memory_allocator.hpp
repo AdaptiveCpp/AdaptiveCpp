@@ -180,11 +180,11 @@ private:
 
 HIPSYCL_KERNEL_TARGET
 inline void* hiplike_dynamic_local_memory() {
-  __hipsycl_if_target_cuda(
+  __acpp_if_target_cuda(
     extern __shared__ int local_mem [];
     return static_cast<void*>(local_mem);
   );
-  __hipsycl_if_target_hip(
+  __acpp_if_target_hip(
     return __amdgcn_get_dynamicgroupbaseptr();
   );
   
@@ -200,12 +200,11 @@ public:
   HIPSYCL_KERNEL_TARGET
   static T* get_ptr(const address addr)
   {
-    __hipsycl_backend_switch(
+    __acpp_backend_switch(
       return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr),
-      return reinterpret_cast<T*>((char*)__hipsycl_sscp_get_dynamic_local_memory() + addr),
+      return reinterpret_cast<T*>((char*)__acpp_sscp_get_dynamic_local_memory() + addr),
       return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
-      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
-      return nullptr /* SPIR-V not implemented */
+      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr)
     );
   }
 };

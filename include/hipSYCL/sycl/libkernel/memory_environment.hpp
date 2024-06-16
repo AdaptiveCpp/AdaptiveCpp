@@ -125,10 +125,10 @@ T* aligned_alloca_offset(void* allocation) {
 }
 
 #define HIPSYCL_MAKE_ALIGNED_ALLOCA(T, num_elements, alloc_name)               \
-  void *__hipsycl_alloca_allocation##alloc_name =                              \
+  void *__acpp_alloca_allocation##alloc_name =                              \
       alloca(aligned_alloca_size<T>(num_elements));                            \
   T *alloc_name =                                                              \
-      aligned_alloca_offset<T>(__hipsycl_alloca_allocation##alloc_name);
+      aligned_alloca_offset<T>(__acpp_alloca_allocation##alloc_name);
 
 
 
@@ -220,7 +220,7 @@ void memory_environment_device(const Group &g, FirstArg &&first,
         allocation_type::local_mem){
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
       __shared__ value_type memory_declaration;
-#else // HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+#else // SSCP
       // TODO
       value_type memory_declaration;
 #endif
@@ -303,10 +303,10 @@ template <class Group, class FirstArg, typename... RestArgs>
 HIPSYCL_KERNEL_TARGET
 void memory_environment(const Group &g, FirstArg &&first,
                         RestArgs &&...rest) noexcept {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     detail::memory_environment::memory_environment_device(g, first, rest...);
   );
-  __hipsycl_if_target_host(
+  __acpp_if_target_host(
     detail::memory_environment::memory_environment_host(g, first, rest...);
   );
 }

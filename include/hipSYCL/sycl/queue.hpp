@@ -76,28 +76,35 @@ using queue_submission_hooks_ptr =
 namespace property::command_group {
 
 template<int Dim>
-struct hipSYCL_prefer_group_size : public detail::cg_property{
-  hipSYCL_prefer_group_size(range<Dim> r)
+struct AdaptiveCpp_prefer_group_size : public detail::cg_property{
+  AdaptiveCpp_prefer_group_size(range<Dim> r)
   : size{r} {}
 
   const range<Dim> size;
 };
 
-struct hipSYCL_retarget : public detail::cg_property{
-  hipSYCL_retarget(const device& d)
+struct AdaptiveCpp_retarget : public detail::cg_property{
+  AdaptiveCpp_retarget(const device& d)
   : dev{d} {}
 
   const sycl::device dev;
 };
 
-struct hipSYCL_prefer_execution_lane : public detail::cg_property{
-  hipSYCL_prefer_execution_lane(std::size_t lane_id)
+struct AdaptiveCpp_prefer_execution_lane : public detail::cg_property{
+  AdaptiveCpp_prefer_execution_lane(std::size_t lane_id)
   : lane{lane_id} {}
 
   const std::size_t lane;
 };
 
-struct hipSYCL_coarse_grained_events : public detail::cg_property {};
+struct AdaptiveCpp_coarse_grained_events : public detail::cg_property {};
+
+// backwards compatibility
+template<int Dim>
+using hipSYCL_prefer_group_size = AdaptiveCpp_prefer_group_size<Dim>;
+using hipSYCL_retarget = AdaptiveCpp_retarget;
+using hipSYCL_prefer_execution_lane = AdaptiveCpp_prefer_execution_lane;
+using hipSYCL_coarse_grained_events = AdaptiveCpp_coarse_grained_events;
 
 }
 
@@ -110,15 +117,19 @@ class in_order : public detail::queue_property
 class enable_profiling : public detail::property
 {};
 
-class hipSYCL_coarse_grained_events : public detail::queue_property
+class AdaptiveCpp_coarse_grained_events : public detail::queue_property
 {};
 
-struct hipSYCL_priority : public detail::queue_property {
-  hipSYCL_priority(int queue_execution_priority)
+struct AdaptiveCpp_priority : public detail::queue_property {
+  AdaptiveCpp_priority(int queue_execution_priority)
   : priority{queue_execution_priority} {}
 
   int priority;
 };
+
+// backwards compatibility
+using hipSYCL_coarse_grained_events = AdaptiveCpp_coarse_grained_events;
+using hipSYCL_priority = AdaptiveCpp_priority;
 
 }
 
@@ -346,10 +357,10 @@ public:
 
     rt::execution_hints hints = *_default_hints;
     
-    if(prop_list.has_property<property::command_group::hipSYCL_retarget>()) {
+    if(prop_list.has_property<property::command_group::AdaptiveCpp_retarget>()) {
 
       rt::device_id dev = detail::extract_rt_device(
-          prop_list.get_property<property::command_group::hipSYCL_retarget>()
+          prop_list.get_property<property::command_group::AdaptiveCpp_retarget>()
               .dev);
 
       if(!detail::extract_context_devices(_ctx).contains_device(dev)) {
@@ -364,25 +375,30 @@ public:
       hints.set_hint(rt::hints::bind_to_device{dev});
     }
     if (prop_list.has_property<
-            property::command_group::hipSYCL_prefer_execution_lane>()) {
+            property::command_group::AdaptiveCpp_prefer_execution_lane>()) {
 
       std::size_t lane_id =
           prop_list
               .get_property<
-                  property::command_group::hipSYCL_prefer_execution_lane>()
+                  property::command_group::AdaptiveCpp_prefer_execution_lane>()
               .lane;
 
       hints.set_hint(rt::hints::prefer_execution_lane{lane_id});
     }
     if (prop_list.has_property<
-            property::command_group::hipSYCL_coarse_grained_events>()) {
+            property::command_group::AdaptiveCpp_coarse_grained_events>()) {
       hints.set_hint(rt::hints::coarse_grained_synchronization{});
     }
     // Should always have node_group hint from default hints
     assert(hints.has_hint<rt::hints::node_group>());
 
-    handler cgh{get_context(), _handler, hints, _requires_runtime.get()};
-    
+    handler cgh{get_context(),
+                _handler,
+                hints,
+                _requires_runtime.get(),
+                _allocation_cache.get(),
+                _most_recent_reduction_kernel.get()};
+
     apply_preferred_group_size<1>(prop_list, cgh);
     apply_preferred_group_size<2>(prop_list, cgh);
     apply_preferred_group_size<3>(prop_list, cgh);
@@ -478,14 +494,14 @@ public:
 
   // ---- Queue shortcuts ------
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.single_task<KernelName>(KernelFunc);
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(event dependency, const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
@@ -493,7 +509,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   event single_task(const std::vector<event> &dependencies,
                     const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
@@ -502,7 +518,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, 
+  template <typename KernelName = __acpp_unnamed_kernel, 
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, 
                      const ReductionsAndKernel &... redu_kernel) {
@@ -511,7 +527,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -520,7 +536,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -530,7 +546,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -540,7 +556,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems,
                      const std::vector<event> &dependencies,
@@ -551,7 +567,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   event parallel_for(range<1> NumWorkItems,
                      const std::vector<event> &dependencies,
@@ -562,7 +578,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const ReductionsAndKernel& ... redu_kernel) {
@@ -572,7 +588,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      event dependency,
@@ -584,7 +600,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const std::vector<event> &dependencies,
@@ -596,7 +612,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -605,7 +621,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -615,7 +631,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const std::vector<event> &dependencies,
@@ -626,7 +642,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -636,7 +652,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize, event dependency,
@@ -647,7 +663,7 @@ public:
     });
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -811,28 +827,48 @@ public:
   }
 
   template<class InteropFunction>
-  event hipSYCL_enqueue_custom_operation(InteropFunction op) {
+  event AdaptiveCpp_enqueue_custom_operation(InteropFunction op) {
     return this->submit([&](sycl::handler &cgh) {
-      cgh.hipSYCL_enqueue_custom_operation(op);
+      cgh.AdaptiveCpp_enqueue_custom_operation(op);
     });
   }
 
   template <class InteropFunction>
-  event hipSYCL_enqueue_custom_operation(InteropFunction op, event dependency) {
+  event AdaptiveCpp_enqueue_custom_operation(InteropFunction op, event dependency) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
-      cgh.hipSYCL_enqueue_custom_operation(op);
+      cgh.AdaptiveCpp_enqueue_custom_operation(op);
     });
   }
 
   template <class InteropFunction>
   event
-  hipSYCL_enqueue_custom_operation(InteropFunction op,
+  AdaptiveCpp_enqueue_custom_operation(InteropFunction op,
                                    const std::vector<event> &dependencies) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependencies);
-      cgh.hipSYCL_enqueue_custom_operation(op);
+      cgh.AdaptiveCpp_enqueue_custom_operation(op);
     });
+  }
+
+  template<class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  event hipSYCL_enqueue_custom_operation(InteropFunction op) {
+    return AdaptiveCpp_enqueue_custom_operation(op);
+  }
+
+  template <class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  event hipSYCL_enqueue_custom_operation(InteropFunction op, event dependency) {
+    return AdaptiveCpp_enqueue_custom_operation(op, dependency);
+  }
+
+  template <class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  event
+  hipSYCL_enqueue_custom_operation(InteropFunction op,
+                                   const std::vector<event> &dependencies) {
+    return AdaptiveCpp_enqueue_custom_operation(op, dependencies);
   }
 
   /// Placeholder accessor shortcuts
@@ -918,23 +954,34 @@ public:
     });  
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return _node_group_id;
   }
 
-  rt::inorder_executor* hipSYCL_inorder_executor() const {
+  rt::inorder_executor* AdaptiveCpp_inorder_executor() const {
     if(!_dedicated_inorder_executor)
       return nullptr;
     return static_cast<rt::inorder_executor*>(_dedicated_inorder_executor.get());
   }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_inorder_executor()")]]
+  auto hipSYCL_inorder_executor() const {
+    return AdaptiveCpp_inorder_executor();
+  }
 private:
   template<int Dim>
   void apply_preferred_group_size(const property_list& prop_list, handler& cgh) {
-    if(prop_list.has_property<property::command_group::hipSYCL_prefer_group_size<Dim>>()){
+    if(prop_list.has_property<property::command_group::AdaptiveCpp_prefer_group_size<Dim>>()){
       sycl::range<Dim> preferred_group_size =
           prop_list
               .get_property<
-                  property::command_group::hipSYCL_prefer_group_size<Dim>>()
+                  property::command_group::AdaptiveCpp_prefer_group_size<Dim>>()
               .size;
       cgh.set_preferred_group_size(preferred_group_size);
     }
@@ -1005,7 +1052,7 @@ private:
       _default_hints->set_hint(
               rt::hints::request_instrumentation_finish_timestamp{});
     }
-    if(this->has_property<property::queue::hipSYCL_coarse_grained_events>()){
+    if(this->has_property<property::queue::AdaptiveCpp_coarse_grained_events>()){
       _default_hints->set_hint(
           rt::hints::coarse_grained_synchronization{});
     }
@@ -1013,11 +1060,15 @@ private:
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
     _previous_submission = std::make_shared<rt::dag_node_ptr>(nullptr);
+    _allocation_cache = std::make_shared<algorithms::util::allocation_cache>(
+        algorithms::util::allocation_type::device);
+    _most_recent_reduction_kernel =
+        std::make_shared<std::weak_ptr<rt::dag_node>>();
 
     if(_is_in_order && get_devices().size() == 1) {
       int priority = 0;
-      if(this->has_property<property::queue::hipSYCL_priority>()) {
-        priority = this->get_property<property::queue::hipSYCL_priority>().priority;
+      if(this->has_property<property::queue::AdaptiveCpp_priority>()) {
+        priority = this->get_property<property::queue::AdaptiveCpp_priority>().priority;
       }
 
       rt::device_id rt_dev = detail::extract_rt_device(this->get_device());
@@ -1058,6 +1109,11 @@ private:
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
   std::shared_ptr<rt::backend_executor> _dedicated_inorder_executor;
+  
+  // These fields are exclusively hauled around for SYCL 2020 reductions
+  // due to the incredible ingenuity of this API...
+  std::shared_ptr<algorithms::util::allocation_cache> _allocation_cache;
+  std::shared_ptr<std::weak_ptr<rt::dag_node>> _most_recent_reduction_kernel;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
@@ -1075,7 +1131,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
   return 1;
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(queue, hipSYCL_node_group)
+HIPSYCL_SPECIALIZE_GET_INFO(queue, AdaptiveCpp_node_group)
 {
   return _node_group_id;
 }
@@ -1207,7 +1263,7 @@ struct hash<hipsycl::sycl::queue>
 {
   std::size_t operator()(const hipsycl::sycl::queue& q) const
   {
-    return q.hipSYCL_hash_code();
+    return q.AdaptiveCpp_hash_code();
   }
 };
 

@@ -361,7 +361,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
     });
   } else {
     return register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"omp_queue: OpenMP CPU backend cannot transfer data between "
                    "host and accelerators.",
                    error_type::feature_not_supported});
@@ -378,7 +378,7 @@ result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
 
   if (!launcher) {
     return register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"omp_queue: Could not find required kernel launcher",
                    error_type::runtime_error});
   }
@@ -414,7 +414,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if (!kernel_info) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"omp_queue: Could not obtain hcf kernel info for kernel " +
                    kernel_name});
   }
@@ -424,7 +424,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
                                             num_args};
   if (!arg_mapper.mapping_available()) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "omp_queue: Could not map C++ arguments to kernel arguments"});
   }
@@ -501,7 +501,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
       code_object_constructor);
 
   if (!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"omp_queue: Code object construction failed"});
   }
 
@@ -514,7 +514,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
 
 #else
   return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{"omp_queue: SSCP kernel launch was requested, but hipSYCL was "
                  "not built with CPU SSCP support."});
 #endif
@@ -543,7 +543,7 @@ result omp_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
   if (!ptr) {
     return register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "omp_queue: submit_memset(): Invalid argument, pointer is null."});
   }
@@ -566,7 +566,7 @@ result omp_queue::submit_queue_wait_for(dag_node_ptr node) {
   auto evt = node->get_event();
   if (!evt) {
     return register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"omp_queue: event for synchronization is null.",
                    error_type::invalid_parameter_error});
   }
@@ -592,7 +592,7 @@ result omp_queue::submit_external_wait_for(dag_node_ptr node) {
 
   if (!node) {
     return register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"omp_queue: node for synchronization is null.",
                    error_type::invalid_parameter_error});
   }

@@ -97,8 +97,8 @@ make_async_writeback_view(T* host_view_ptr, sycl::range<Dim> r, const sycl::queu
       r, property_list{detail::buffer_policy::use_external_storage{true},
                        detail::buffer_policy::writes_back{true},
                        detail::buffer_policy::destructor_waits{false},
-                       property::buffer::hipSYCL_write_back_node_group{
-                         q.get_info<info::queue::hipSYCL_node_group>()
+                       property::buffer::AdaptiveCpp_write_back_node_group{
+                         q.get_info<info::queue::AdaptiveCpp_node_group>()
                        }}};
 }
 

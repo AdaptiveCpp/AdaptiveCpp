@@ -32,20 +32,19 @@
 
 __attribute__((convergent)) extern "C" void
 __spirv_ControlBarrier(__spv::ScopeFlag Execution, __spv::ScopeFlag Memory,
-                       __hipsycl_uint32 Semantics);
-
+                       __acpp_uint32 Semantics);
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-    __hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                  __hipsycl_sscp_memory_order mem_order) {
+__acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                               __acpp_sscp_memory_order mem_order) {
 
-  __hipsycl_uint32 flags = get_spirv_memory_semantics(mem_order);
+  __acpp_uint32 flags = get_spirv_memory_semantics(mem_order);
 
-  if(fence_scope == __hipsycl_sscp_memory_scope::sub_group)
+  if(fence_scope == __acpp_sscp_memory_scope::sub_group)
     flags |= __spv::MemorySemanticsMaskFlag::SubgroupMemory;
-  else if(fence_scope == __hipsycl_sscp_memory_scope::work_group)
+  else if(fence_scope == __acpp_sscp_memory_scope::work_group)
     flags |= __spv::MemorySemanticsMaskFlag::WorkgroupMemory;
-  else if(fence_scope == __hipsycl_sscp_memory_scope::device)
+  else if(fence_scope == __acpp_sscp_memory_scope::device)
     flags |= __spv::MemorySemanticsMaskFlag::CrossWorkgroupMemory;
 
   __spv::ScopeFlag mem_fence_scope = get_spirv_scope(fence_scope);
@@ -54,21 +53,18 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN void
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
-    __hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
-                                  __hipsycl_sscp_memory_order mem_order) {
-  __hipsycl_uint32 flags = get_spirv_memory_semantics(mem_order);
+__acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
+                              __acpp_sscp_memory_order mem_order) {
+  __acpp_uint32 flags = get_spirv_memory_semantics(mem_order);
 
-  if(fence_scope == __hipsycl_sscp_memory_scope::sub_group)
+  if(fence_scope == __acpp_sscp_memory_scope::sub_group)
     flags |= __spv::MemorySemanticsMaskFlag::SubgroupMemory;
-  else if(fence_scope == __hipsycl_sscp_memory_scope::work_group)
+  else if(fence_scope == __acpp_sscp_memory_scope::work_group)
     flags |= __spv::MemorySemanticsMaskFlag::WorkgroupMemory;
-  else if(fence_scope == __hipsycl_sscp_memory_scope::device)
+  else if(fence_scope == __acpp_sscp_memory_scope::device)
     flags |= __spv::MemorySemanticsMaskFlag::CrossWorkgroupMemory;
 
   __spv::ScopeFlag mem_fence_scope = get_spirv_scope(fence_scope);
 
   __spirv_ControlBarrier(__spv::ScopeFlag::Subgroup, mem_fence_scope, flags);
-  
 }
-
-

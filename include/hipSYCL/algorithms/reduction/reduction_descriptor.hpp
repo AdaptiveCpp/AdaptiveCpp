@@ -28,6 +28,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 #ifndef HIPSYCL_REDUCTION_DESCRIPTOR_HPP
 #define HIPSYCL_REDUCTION_DESCRIPTOR_HPP
@@ -43,12 +44,14 @@ template <class ReductionDescriptor>
 void set_reduction_result(
     const ReductionDescriptor &desc,
     typename ReductionDescriptor::value_type result,
-    bool is_result_initialized /* may be unused if identity is known */) {
+    // may be unused if identity is known. For unknown identities, this
+    // stores whether there have been contributions from the reduction.
+    bool is_result_initialized) {
   using value_type = typename ReductionDescriptor::value_type;
 
   value_type *output = desc.get_final_output_destination();
 
-  if constexpr (ReductionDescriptor::has_init_value()) {
+  if (desc.has_init_value()) {
     if constexpr (ReductionDescriptor::has_known_identity()) {
       *output = desc.get_operator()(desc.get_init_vaue(), result);
     } else {
@@ -76,6 +79,7 @@ struct reduction_binary_operator {
   : _op{op}, _identity{identity} {}
 
   using value_type = T;
+  using combiner_type = BinaryOp;
 
   static constexpr bool has_known_identity() noexcept { return true; }
 
@@ -96,6 +100,7 @@ struct reduction_binary_operator<T, BinaryOp, false> {
   : _op{op} {}
 
   using value_type = T;
+  using combiner_type = BinaryOp;
 
   static constexpr bool has_known_identity() noexcept { return false; }
 
@@ -111,7 +116,7 @@ private:
 /// In addition to the operator, provides information about
 /// the reduction as configured by the user. This object
 /// will be provided by the user.
-template<class ReductionOperator, bool PerformsInitialization=true>
+template<class ReductionOperator, class OutputT>
 class reduction_descriptor {
 public:
   using value_type = typename ReductionOperator::value_type;
@@ -122,65 +127,41 @@ public:
   }
 
   reduction_descriptor(const ReductionOperator &op,
-                       const value_type &initialization_value,
-                       value_type *output)
-      : _op{op}, _output{output}, _initialization_value{initialization_value} {}
+                       const OutputT &output)
+      : _op{op}, _output{output},
+        _has_initialization_value{false} {}
 
+  reduction_descriptor(const ReductionOperator &op,
+                       const value_type &initialization_value,
+                       const OutputT &output)
+      : _op{op}, _output{output}, _initialization_value{initialization_value},
+        _has_initialization_value{true} {}
+
+  // Should only be called inside device code
   value_type* get_final_output_destination() const noexcept {
-    return _output;
+    if constexpr(std::is_pointer_v<OutputT>)
+      return _output;
+    else
+      return _output.get_pointer();
   }
 
-  static constexpr bool has_init_value() noexcept {
-    return true;
+  bool has_init_value() const noexcept {
+    return _has_initialization_value;
   }
 
   value_type get_init_vaue() const noexcept {
     return _initialization_value;
   }
+
   const ReductionOperator& get_operator() const noexcept {
     return _op;
   }
 private:
   ReductionOperator _op;
-  value_type* _output;
+  OutputT _output;
   value_type _initialization_value;
+  bool _has_initialization_value;
 };
-
-// Specialization that does not perform initialization of the result, i.e.
-// the reduction will just add to whatever value is already there.
-template<class ReductionOperator>
-class reduction_descriptor<ReductionOperator, false> {
-public:
-  using value_type = typename ReductionOperator::value_type;
-  using op_type = ReductionOperator;
-
-  static constexpr bool has_known_identity() noexcept {
-    return ReductionOperator::has_known_identity();
-  }
-
-  reduction_descriptor(const ReductionOperator &op, value_type *output)
-      : _op{op}, _output{output} {}
-
-  value_type* get_final_output_destination() const noexcept {
-    return _output;
-  }
-
-  static constexpr bool has_init_value() noexcept {
-    return false;
-  }
-
-  value_type get_init_value() const noexcept {
-    return value_type{};
-  }
-
-  const ReductionOperator& get_operator() const noexcept {
-    return _op;
-  }
-private:
-  ReductionOperator _op;
-  value_type* _output;
-};
-
 
 
 }

@@ -53,28 +53,28 @@ extern "C" hipError_t __hipPushCallConfiguration(dim3 gridDim, dim3 blockDim,
 #endif // __CUDA__
 
 #ifdef __CUDA__
-static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, cudaStream_t stream)
+static inline void __acpp_push_kernel_call(dim3 grid, dim3 block, size_t shared, cudaStream_t stream)
 {
   __cudaPushCallConfiguration(grid, block, shared, stream);
 }
 
-#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+#define __acpp_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
                                            ...)                                \
-  __hipsycl_push_kernel_call(grid, block, shared_mem,                          \
+  __acpp_push_kernel_call(grid, block, shared_mem,                          \
                              static_cast<CUstream_st *>(stream));              \
   f(__VA_ARGS__);
 
 #else
 
-static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_t stream)
+static inline void __acpp_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_t stream)
 {
   hipError_t err = __hipPushCallConfiguration(grid, block, shared, stream);
   assert(err == hipSuccess);
 }
 
-#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+#define __acpp_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
                                            ...)                                \
-  __hipsycl_push_kernel_call(grid, block, shared_mem,                          \
+  __acpp_push_kernel_call(grid, block, shared_mem,                          \
                              static_cast<hipStream_t>(stream));                \
   f(__VA_ARGS__);
 

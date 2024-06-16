@@ -49,7 +49,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
           application::get_settings().get<setting::visibility_mask>(),
           backend_id::cuda)) {
     print_warning(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "cuda_hardware_manager: CUDA backend does not support device "
             "visibility masks. Use CUDA_VISIBILE_DEVICES instead."});
@@ -63,7 +63,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
 
     if(err != cudaErrorNoDevice) {
       print_warning(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"cuda_hardware_manager: Could not obtain number of devices",
                     error_code{"CUDA", err}});
     }
@@ -82,7 +82,7 @@ std::size_t cuda_hardware_manager::get_num_devices() const {
 
 hardware_context *cuda_hardware_manager::get_device(std::size_t index) {
   if (index >= _devices.size()){
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_hardware_manager: Attempt to access invalid "
                               "device detected."});
     return nullptr;
@@ -93,7 +93,7 @@ hardware_context *cuda_hardware_manager::get_device(std::size_t index) {
 
 device_id cuda_hardware_manager::get_device_id(std::size_t index) const {
   if (index >= _devices.size()){
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_hardware_manager: Attempt to access invalid "
                               "device detected."});
   }
@@ -110,7 +110,7 @@ cuda_hardware_context::cuda_hardware_context(int dev)
 
   if (err != cudaSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_hardware_manager: Could not query device properties ",
                    error_code{"CUDA", err}});
   }
@@ -396,7 +396,7 @@ std::string cuda_hardware_context::get_driver_version() const {
   auto err = cudaDriverGetVersion(&driver_version);
   if (err != cudaSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_hardware_manager: Querying driver version failed",
                    error_code{"CUDA", err}});
   }

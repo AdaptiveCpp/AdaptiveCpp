@@ -39,7 +39,7 @@ ocl_allocator::ocl_allocator(ocl_usm* usm)
 
 void* ocl_allocator::allocate(size_t min_alignment, size_t size_bytes) {
   if(!_usm->is_available()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: OpenCL device does not have valid USM provider",
                               error_type::memory_allocation_error});
     return nullptr;
@@ -48,7 +48,7 @@ void* ocl_allocator::allocate(size_t min_alignment, size_t size_bytes) {
   cl_int err;
   void* ptr = _usm->malloc_device(size_bytes, min_alignment, err);
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: USM device allocation failed",
                               error_code{"CL", err},
                               error_type::memory_allocation_error});
@@ -60,7 +60,7 @@ void* ocl_allocator::allocate(size_t min_alignment, size_t size_bytes) {
 void *ocl_allocator::allocate_optimized_host(size_t min_alignment,
                                              size_t bytes) {
   if(!_usm->is_available()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: OpenCL device does not have valid USM provider",
                               error_type::memory_allocation_error});
     return nullptr;
@@ -68,7 +68,7 @@ void *ocl_allocator::allocate_optimized_host(size_t min_alignment,
   cl_int err;
   void* ptr = _usm->malloc_host(bytes, min_alignment, err);
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: USM host allocation failed",
                               error_code{"CL", err},
                               error_type::memory_allocation_error});
@@ -79,14 +79,14 @@ void *ocl_allocator::allocate_optimized_host(size_t min_alignment,
 
 void ocl_allocator::free(void *mem) {
   if(!_usm->is_available()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: OpenCL device does not have valid USM provider",
                               error_type::memory_allocation_error});
     return;
   }
   cl_int err = _usm->free(mem);
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: USM memory free() failed",
                               error_code{"CL", err},
                               error_type::memory_allocation_error});
@@ -95,7 +95,7 @@ void ocl_allocator::free(void *mem) {
 
 void *ocl_allocator::allocate_usm(size_t bytes) {
   if(!_usm->is_available()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: OpenCL device does not have valid USM provider",
                               error_type::memory_allocation_error});
     return nullptr;
@@ -103,7 +103,7 @@ void *ocl_allocator::allocate_usm(size_t bytes) {
   cl_int err;
   void* ptr = _usm->malloc_shared(bytes, 0, err);
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_allocator: USM shared allocation failed",
                               error_code{"CL", err},
                               error_type::memory_allocation_error});
@@ -122,7 +122,7 @@ bool ocl_allocator::is_usm_accessible_from(backend_descriptor b) const {
 
 result ocl_allocator::query_pointer(const void* ptr, pointer_info& out) const {
   if(!_usm->is_available()) {
-    auto err = make_error(__hipsycl_here(),
+    auto err = make_error(__acpp_here(),
                    error_info{"ocl_allocator: OpenCL device does not have valid USM provider",
                               error_type::memory_allocation_error});
     register_error(err);
@@ -131,7 +131,7 @@ result ocl_allocator::query_pointer(const void* ptr, pointer_info& out) const {
   cl_int err = _usm->get_alloc_info(ptr, out);
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_allocator: query_pointer(): query failed",
                      error_code{"CL", err}});
   }

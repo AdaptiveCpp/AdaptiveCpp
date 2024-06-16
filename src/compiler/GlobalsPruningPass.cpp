@@ -42,7 +42,7 @@ bool hipsycl::compiler::GlobalsPruningPassLegacy::runOnModule(llvm::Module &M) {
   return true;
 }
 
-#if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
+#if !defined(_WIN32)
 llvm::PreservedAnalyses
 hipsycl::compiler::GlobalsPruningPass::run(llvm::Module &M,
                                            llvm::ModuleAnalysisManager &AM) {
@@ -54,6 +54,6 @@ hipsycl::compiler::GlobalsPruningPass::run(llvm::Module &M,
   // todo: be a bit more granular
   return llvm::PreservedAnalyses::none();
 }
-#endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11
+#endif // !_WIN32
 
 char hipsycl::compiler::GlobalsPruningPassLegacy::ID = 0;

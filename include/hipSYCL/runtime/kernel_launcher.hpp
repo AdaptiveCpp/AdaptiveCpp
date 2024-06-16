@@ -134,7 +134,7 @@ public:
     }
     if(!selected_launcher){
       register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"No kernel launcher is present for requested backend",
                     error_type::invalid_parameter_error});
     }

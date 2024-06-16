@@ -63,12 +63,11 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   linear_id_type get_local_linear_id() const {
-    __hipsycl_backend_switch(
+    __acpp_backend_switch(
         return 0, 
-        return __hipsycl_sscp_get_subgroup_local_id(),
+        return __acpp_sscp_get_subgroup_local_id(),
         return local_tid() & get_warp_mask(),
-        return local_tid() & get_warp_mask(),
-        return __spirv_BuiltInSubgroupLocalInvocationId);
+        return local_tid() & get_warp_mask());
   }
 
   // always returns the maximum sub_group size
@@ -80,23 +79,21 @@ public:
   // always returns the maximum sub_group size
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_local_linear_range() const {
-    __hipsycl_backend_switch(
+    __acpp_backend_switch(
         return 1, 
-        return __hipsycl_sscp_get_subgroup_size(),
+        return __acpp_sscp_get_subgroup_size(),
         // TODO This is not actually correct for incomplete subgroups
-        return __hipsycl_warp_size,
-        return __hipsycl_warp_size,
-        return __spirv_BuiltInSubgroupSize);
+        return __acpp_warp_size,
+        return __acpp_warp_size);
   }
 
   HIPSYCL_KERNEL_TARGET
   range_type get_max_local_range() const {
-    __hipsycl_backend_switch(
+    __acpp_backend_switch(
         return range_type{1},
-        return range_type{__hipsycl_sscp_get_subgroup_max_size()},
-        return range_type{__hipsycl_warp_size},
-        return range_type{__hipsycl_warp_size},
-        return range_type{__spirv_BuiltInSubgroupMaxSize});
+        return range_type{__acpp_sscp_get_subgroup_max_size()},
+        return range_type{__acpp_warp_size},
+        return range_type{__acpp_warp_size});
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -106,22 +103,20 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   linear_id_type get_group_linear_id() const {
-    __hipsycl_backend_switch(
+    __acpp_backend_switch(
         return 0, // TODO This is probably incorrect
-        return __hipsycl_sscp_get_subgroup_id(),
-        return local_tid() >> (__ffs(__hipsycl_warp_size) - 1),
-        return local_tid() >> (__ffs(__hipsycl_warp_size) - 1),
-        return __spirv_BuiltInSubgroupId);
+        return __acpp_sscp_get_subgroup_id(),
+        return local_tid() >> (__ffs(__acpp_warp_size) - 1),
+        return local_tid() >> (__ffs(__acpp_warp_size) - 1));
   }
 
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_group_linear_range() const {
-    __hipsycl_backend_switch(
+    __acpp_backend_switch(
         return 1,
-        return __hipsycl_sscp_get_num_subgroups(),
+        return __acpp_sscp_get_num_subgroups(),
         return hiplike_num_subgroups(),
-        return hiplike_num_subgroups(),
-        return __spirv_BuiltInNumSubgroups);
+        return hiplike_num_subgroups());
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -141,20 +136,20 @@ public:
   }
 private:
   int hiplike_num_subgroups() const {
-    __hipsycl_if_target_hiplike(
+    __acpp_if_target_hiplike(
         int local_range =
-            __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
-        return (local_range + __hipsycl_warp_size - 1) / __hipsycl_warp_size;
+            __acpp_lsize_x * __acpp_lsize_y * __acpp_lsize_z;
+        return (local_range + __acpp_warp_size - 1) / __acpp_warp_size;
     );
     return 0;
   }
 
   HIPSYCL_KERNEL_TARGET
   int local_tid() const {
-    __hipsycl_if_target_device(
-      int tid = __hipsycl_lid_x 
-              + __hipsycl_lid_y * __hipsycl_lsize_x 
-              + __hipsycl_lid_z * __hipsycl_lsize_x * __hipsycl_lsize_y;
+    __acpp_if_target_device(
+      int tid = __acpp_lid_x 
+              + __acpp_lid_y * __acpp_lsize_x 
+              + __acpp_lid_z * __acpp_lsize_x * __acpp_lsize_y;
       return tid;
     );
     return 0;
@@ -162,9 +157,9 @@ private:
 
   HIPSYCL_KERNEL_TARGET
   int get_warp_mask() const {
-    // Assumes that __hipsycl_warp_size is a power of two
-    __hipsycl_if_target_hiplike(
-      return __hipsycl_warp_size - 1;
+    // Assumes that __acpp_warp_size is a power of two
+    __acpp_if_target_hiplike(
+      return __acpp_warp_size - 1;
     );
     return 0;
   }

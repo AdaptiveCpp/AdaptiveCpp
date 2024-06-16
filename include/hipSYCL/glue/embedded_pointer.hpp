@@ -68,7 +68,7 @@ struct unique_id {
 
   HIPSYCL_UNIVERSAL_TARGET
   unique_id() {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       uint64_t ns =
           std::chrono::duration_cast<std::chrono::nanoseconds>(
               std::chrono::high_resolution_clock::now().time_since_epoch())
@@ -101,7 +101,7 @@ struct unique_id {
     return !(a == b);
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return id[0] ^ id[1];
   }
 
@@ -122,7 +122,7 @@ public:
   static_assert(sizeof(unique_id) == 2 * sizeof(void*));
 
   embedded_pointer() {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       unique_id uid;
       std::memcpy(&_ptrs[0], &uid, sizeof(unique_id));
     );

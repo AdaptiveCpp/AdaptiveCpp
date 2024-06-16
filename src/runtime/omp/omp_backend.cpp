@@ -94,7 +94,7 @@ backend_hardware_manager* omp_backend::get_hardware_manager() const {
 
 backend_executor* omp_backend::get_executor(device_id dev) const {
   if(dev.get_backend() != this->get_unique_backend_id()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"omp_backend: Device id from other backend requested",
                               error_type::invalid_parameter_error});
     return nullptr;
@@ -105,7 +105,7 @@ backend_executor* omp_backend::get_executor(device_id dev) const {
 
 backend_allocator* omp_backend::get_allocator(device_id dev) const {
   if(dev.get_backend() != this->get_unique_backend_id()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"omp_backend: Device id from other backend requested",
                               error_type::invalid_parameter_error});
     return nullptr;

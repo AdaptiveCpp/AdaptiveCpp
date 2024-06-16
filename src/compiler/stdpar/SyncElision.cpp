@@ -184,7 +184,7 @@ bool allAreSucceedingInBB(llvm::Instruction* From,
   return true;
 }
 
-constexpr const char* BarrierBuiltinName = "__hipsycl_stdpar_optional_barrier";
+constexpr const char* BarrierBuiltinName = "__acpp_stdpar_optional_barrier";
 constexpr const char* EntrypointMarker = "hipsycl_stdpar_entrypoint";
 
 template<class Handler>

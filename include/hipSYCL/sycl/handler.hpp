@@ -36,19 +36,17 @@
 #include "exception.hpp"
 #include "access.hpp"
 #include "context.hpp"
-#include "hipSYCL/runtime/dag_node.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/executor.hpp"
-#include "hipSYCL/runtime/util.hpp"
-#include "libkernel/backend.hpp"
 #include "device.hpp"
 #include "event.hpp"
+#include "libkernel/sscp/builtins/print.hpp"
 #include "types.hpp"
 #include "usm_query.hpp"
 #include "libkernel/accessor.hpp"
+#include "libkernel/backend.hpp"
 #include "libkernel/builtin_kernels.hpp"
 #include "libkernel/id.hpp"
 #include "libkernel/range.hpp"
+#include "libkernel/reduction.hpp"
 #include "libkernel/nd_range.hpp"
 #include "libkernel/item.hpp"
 #include "libkernel/nd_item.hpp"
@@ -63,13 +61,25 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/executor.hpp"
+#include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/glue/embedded_pointer.hpp"
 #include "hipSYCL/glue/kernel_launcher_factory.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
 
-#ifndef HIPSYCL_ALLOW_INSTANT_SUBMISSION
-#define HIPSYCL_ALLOW_INSTANT_SUBMISSION 0
+#include "hipSYCL/algorithms/reduction/reduction_engine.hpp"
+#include "hipSYCL/algorithms/util/memory_streaming.hpp"
+#include "hipSYCL/algorithms/util/allocation_cache.hpp"
+
+#if defined(HIPSYCL_ALLOW_INSTANT_SUBMISSION) && !defined(ACPP_ALLOW_INSTANT_SUBMISSION)
+#define ACPP_ALLOW_INSTANT_SUBMISSION HIPSYCL_ALLOW_INSTANT_SUBMISSION
+#endif
+
+#ifndef ACPP_ALLOW_INSTANT_SUBMISSION
+#define ACPP_ALLOW_INSTANT_SUBMISSION 0
 #endif
 
 namespace hipsycl {
@@ -299,14 +309,14 @@ public:
   }
 
 
-  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
+  template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
       sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -321,7 +331,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -336,7 +346,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
@@ -351,7 +361,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     id<1> workItemOffset,
@@ -366,7 +376,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -384,7 +394,7 @@ public:
 
   /// \todo flexible ranges are currently unsupported
   /*
-  template <typename KernelName= __hipsycl_unnamed_kernel,
+  template <typename KernelName= __acpp_unnamed_kernel,
             typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                WorkgroupFunctionType kernelFunc)
@@ -395,7 +405,7 @@ public:
   }
   */
 
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
@@ -411,7 +421,7 @@ public:
 
   // Scoped parallelism API
   
-  template <typename KernelName = __hipsycl_unnamed_kernel,
+  template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -546,7 +556,7 @@ public:
                   "host_image targets are unsupported");
 
 
-    this->submit_kernel<__hipsycl_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
+    this->submit_kernel<__acpp_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         sycl::id<dim>{}, get_range(dest),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
@@ -624,7 +634,7 @@ public:
                         "handler: USM fill() is unsupported for queues not "
                         "bound to devices"};
 
-      this->submit_kernel<__hipsycl_unnamed_kernel,
+      this->submit_kernel<__acpp_unnamed_kernel,
                           rt::kernel_type::basic_parallel_for>(
           sycl::id<1>{}, sycl::range<1>{count},
           get_preferred_group_size<1>(),
@@ -714,7 +724,7 @@ public:
 
 
   template <class InteropFunction>
-  void hipSYCL_enqueue_custom_operation(InteropFunction f) {
+  void AdaptiveCpp_enqueue_custom_operation(InteropFunction f) {
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
                       "handler: submitting custom operations is unsupported "
@@ -731,6 +741,12 @@ public:
     rt::dag_node_ptr node = create_task(std::move(custom_kernel_op), _execution_hints);
     
     _command_group_nodes.push_back(node);
+  }
+
+  template<class InteropFunction>
+  [[deprecated("Use AdaptiveCpp_enqueue_custom_operation()")]]
+  void hipSYCL_enqueue_custom_operation(InteropFunction f) {
+    AdaptiveCpp_enqueue_custom_operation(f);
   }
   
   detail::local_memory_allocator& get_local_memory_allocator()
@@ -789,29 +805,212 @@ private:
     _command_group_nodes.push_back(node);
   }
 
+  template <class KernelName, class KernelFuncType, int Dim,
+            typename... Reductions>
+  rt::dag_node_ptr submit_ndrange_reduction_kernel(
+      sycl::range<Dim> global_range, sycl::range<Dim> local_range,
+      KernelFuncType f, Reductions... reductions) {
+
+    const std::size_t local_size = local_range.size();
+
+    rt::dag_node_ptr previous_event;
+    auto ndrange_launcher = [&](std::size_t num_groups, std::size_t wg_size,
+                                std::size_t global_size, std::size_t local_mem,
+                                auto kernel) {
+      rt::requirements_list req_list{_rt};
+      
+      if(previous_event)
+        req_list.add_node_requirement(previous_event);
+      // Also need to add existing memory requirements, so that
+      // additional kernels will also create dependencies on
+      // buffers for buffer-accessor reductions
+      for(const rt::dag_node_ptr& req : _requirements.get()) {
+        auto* op = req->get_operation();
+        if(op->is_requirement())
+          req_list.add_node_requirement(req);
+      }
+      
+      previous_event =
+          this->submit_kernel_impl<__acpp_unnamed_kernel,
+                                   rt::kernel_type::ndrange_parallel_for>(
+              {}, sycl::range{num_groups * wg_size}, sycl::range{wg_size},
+              kernel, local_mem, req_list);
+    };
+
+    using group_reduction_type =
+        algorithms::reduction::wg_model::group_reductions::generic_local_memory<
+            std::decay_t<decltype(reductions)>...>;
+    
+    // The reduction engine will update this value with the
+    // appropriate amount of local memory for the main kernel.
+    std::size_t main_kernel_local_mem = _local_mem_allocator.get_allocation_size();
+    rt::device_id dev =
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+
+    algorithms::util::allocation_group scratch_allocations {
+        _allocation_cache, dev};
+
+    algorithms::reduction::wg_model::group_horizontal_reducer<
+        group_reduction_type>
+        horizontal_reducer{
+            group_reduction_type{main_kernel_local_mem, local_size}};
+
+    algorithms::reduction::wg_hierarchical_reduction_engine engine{
+        horizontal_reducer, &scratch_allocations};
+
+    const std::size_t dispatched_global_size = global_range.size();
+
+    auto plan = engine.create_plan(dispatched_global_size, local_size,
+                                  reductions...);
+    
+    auto generate_sycl_reducer = [](auto& wg_model_reducer) {
+      using reducer_t = std::decay_t<decltype(wg_model_reducer)>;
+
+      return reducer<reducer_t>{wg_model_reducer};
+    };
+
+    auto make_lvalue_reducers = [](auto func, auto idx, auto... reducers){
+      func(idx, reducers...);
+    };
+
+    auto main_kernel = engine.make_main_reducing_kernel(
+        [=](sycl::nd_item<Dim> idx, auto &...reducers) {
+          make_lvalue_reducers(f, idx, generate_sycl_reducer(reducers)...);
+        },
+        plan);
+
+    // (For non-inorder queue) main kernel needs dependency
+    // on most recent preceding reduction last event
+    if(_most_recent_reduction_kernel) {
+      if(auto node = _most_recent_reduction_kernel->lock()) {
+        _requirements.add_node_requirement(node);
+      }
+    }
+    previous_event =
+        this->submit_kernel_impl<__acpp_unnamed_kernel,
+                                 rt::kernel_type::ndrange_parallel_for>(
+            {}, global_range, local_range, main_kernel, main_kernel_local_mem,
+            _requirements);
+
+    engine.run_additional_kernels(ndrange_launcher, plan);
+
+    return previous_event;
+  }
+
+  // Kernel submission with reductions
   template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
             int Dim, typename... Reductions>
   void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
                      sycl::range<Dim> local_range, KernelFuncType f,
                      Reductions... reductions) {
-    std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
+    static_assert(sizeof...(reductions) > 0,
+                  "Overload resolution should never pick this overload without "
+                  "reductions");
 
-    if(sizeof...(reductions) > 0)
-      this->_operation_uses_reductions = true;
+    this->_operation_uses_reductions = true;
+
+    if constexpr(KernelType == rt::kernel_type::ndrange_parallel_for) {
+      _command_group_nodes.push_back(
+          submit_ndrange_reduction_kernel<KernelName>(global_range, local_range,
+                                                      f, reductions...));
+    }
+    else if constexpr(KernelType == rt::kernel_type::basic_parallel_for) {
+      auto default_local_range = [](){
+        if constexpr(Dim == 3)
+          return sycl::range<3>{1,1,128};
+        else if constexpr(Dim == 2)
+          return sycl::range<2>{1,128};
+        else
+          return sycl::range<1>{128};
+      };
+
+      local_range = default_local_range();
+
+      bool can_use_data_streamer = 
+        (Dim == 1) && _execution_hints.has_hint<rt::hints::bind_to_device>();
+
+      if (can_use_data_streamer) {
+        const std::size_t desired_global_range = global_range.size();
+
+        algorithms::util::data_streamer streamer{
+            _execution_hints.get_hint<rt::hints::bind_to_device>()
+              ->get_device_id(), desired_global_range, local_range.size()};
+        std::size_t dispatched_global_range = streamer.get_required_global_size();
+
+        auto wrapped_f = [desired_global_range, f](sycl::nd_item<1> idx, auto &...reducers) {
+          algorithms::util::data_streamer::run(
+              desired_global_range, idx, [&](sycl::id<1> i) {
+                auto this_item = sycl::detail::make_item<1>(
+                    i, sycl::range{desired_global_range});
+                if constexpr (Dim == 1) {
+                  f(this_item, reducers...);
+                }
+              });
+        };
+
+        // Ensure everything is submitted as 1D since data streaming
+        // can only work for 1D kernels.
+        _command_group_nodes.push_back(
+            submit_ndrange_reduction_kernel<KernelName>(
+                sycl::range<1>{dispatched_global_range},
+                sycl::range<1>{local_range.size()}, wrapped_f, reductions...));
+      } else {
+        auto wrapped_f = [=](sycl::nd_item<Dim> idx, auto &...reducers) {
+          auto gid = idx.get_global_id();
+          auto this_item = sycl::detail::make_item<Dim>(gid, global_range);
+
+          for (int i = 0; i < Dim; ++i)
+            if (gid[i] >= global_range[i])
+              return;
+          f(this_item, reducers...);
+        };
+
+        sycl::range<Dim> num_groups;
+        for(int i = 0; i < Dim; ++i)
+          num_groups[i] = (global_range[i] + local_range[i] - 1)/local_range[i];
+
+        _command_group_nodes.push_back(
+            submit_ndrange_reduction_kernel<KernelName>(
+                num_groups * local_range, local_range, wrapped_f,
+                reductions...));
+      }
+    }
+  }
+
+  // Plain kernel submission without reductions
+  template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
+            int Dim>
+  void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
+                     sycl::range<Dim> local_range, KernelFuncType f) {
+
+    std::size_t local_mem_size = _local_mem_allocator.get_allocation_size();
+    rt::dag_node_ptr node = submit_kernel_impl<KernelName, KernelType>(
+        offset, global_range, local_range, f, local_mem_size, _requirements);
+    _command_group_nodes.push_back(node);
+  }
+
+  template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
+            int Dim>
+  rt::dag_node_ptr
+  submit_kernel_impl(sycl::id<Dim> offset, sycl::range<Dim> global_range,
+                     sycl::range<Dim> local_range, KernelFuncType f,
+                     std::size_t local_mem_size,
+                     const rt::requirements_list &req_list) {
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(KernelFuncType).name(),
         glue::make_kernel_launchers<KernelName, KernelType>(
-            offset, local_range, global_range, shared_mem_size, f,
-            reductions...),
+            offset, local_range, global_range, local_mem_size, f),
         _requirements);
 
-    rt::dag_node_ptr node = create_task(std::move(kernel_op), _execution_hints);
-    _command_group_nodes.push_back(node);
+    rt::dag_node_ptr node =
+        create_task(std::move(kernel_op), _execution_hints, req_list);
 
     // This registers the kernel with the runtime when the application
     // launches, and allows us to introspect available kernels.
     HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelFuncType);
+
+    return node;
   }
 
   template<class T>
@@ -925,11 +1124,15 @@ private:
 
   
   handler(const context &ctx, async_handler handler,
-          const rt::execution_hints &hints, rt::runtime* rt)
+          const rt::execution_hints &hints, rt::runtime* rt,
+          algorithms::util::allocation_cache* cache,
+          std::weak_ptr<rt::dag_node>* most_recent_reduction_kernel)
       : _ctx{ctx}, _handler{handler}, _execution_hints{hints},
         _preferred_group_size1d{}, _preferred_group_size2d{},
         _preferred_group_size3d{}, _rt{rt}, _requirements{rt},
-        _kernel_cache{rt::kernel_cache::get()} {}
+        _kernel_cache{rt::kernel_cache::get()},
+        _allocation_cache{cache},
+        _most_recent_reduction_kernel{most_recent_reduction_kernel}{}
 
   template<int Dim>
   range<Dim>& get_preferred_group_size() {
@@ -958,14 +1161,16 @@ private:
     get_preferred_group_size<Dim>() = r;
   }
 
+
   rt::dag_node_ptr create_task(std::unique_ptr<rt::operation> op,
-                               rt::execution_hints &hints) {
+                               rt::execution_hints &hints,
+                               const rt::requirements_list& requirements) {
 
     bool uses_buffers = false;
     bool has_non_instant_dependency = false;
     bool is_unbound = !hints.has_hint<rt::hints::bind_to_device>();
 
-    for(const auto& req : _requirements.get()) {
+    for(const auto& req : requirements.get()) {
       if(req->get_operation()->is_requirement())
         uses_buffers = true;
       if (!req->get_execution_hints()
@@ -982,27 +1187,32 @@ private:
     if(executor && executor->is_inorder_queue())
       is_dedicated_in_order_queue = true;
 
-    if (!HIPSYCL_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
+    if (!ACPP_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
         has_non_instant_dependency || is_unbound ||
         !is_dedicated_in_order_queue || _operation_uses_reductions ||
         op->is_requirement()) {
       // traditional submission
       rt::dag_build_guard build{_rt->dag()};
-      return build.builder()->add_command_group(std::move(op), _requirements, hints);
+      return build.builder()->add_command_group(std::move(op), requirements, hints);
     } else {
       // instant submission
       hints.set_hint(rt::hints::instant_execution{});
 
       rt::dag_node_ptr node = std::make_shared<rt::dag_node>(
-          hints, _requirements.get(), std::move(op), _rt);
+          hints, requirements.get(), std::move(op), _rt);
       node->assign_to_device(
           hints.get_hint<rt::hints::bind_to_device>()->get_device_id());
       node->assign_to_executor(executor);
-      executor->submit_directly(node, node->get_operation(), _requirements.get());
+      executor->submit_directly(node, node->get_operation(), requirements.get());
       // Signal that instrumentation setup phase is complete
       node->get_operation()->get_instrumentations().mark_set_complete();
       return node;
     }
+  }
+
+  rt::dag_node_ptr create_task(std::unique_ptr<rt::operation> op,
+                               rt::execution_hints &hints) {
+    return create_task(std::move(op), hints, _requirements);
   }
 
   const context _ctx;
@@ -1022,6 +1232,9 @@ private:
   bool _operation_uses_reductions = false;
 
   std::shared_ptr<rt::kernel_cache> _kernel_cache;
+  algorithms::util::allocation_cache* _allocation_cache;
+
+  std::weak_ptr<rt::dag_node>* _most_recent_reduction_kernel;
 };
 
 namespace detail::handler {

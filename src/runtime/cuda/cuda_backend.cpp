@@ -84,7 +84,7 @@ backend_hardware_manager *cuda_backend::get_hardware_manager() const {
 backend_executor *cuda_backend::get_executor(device_id dev) const {
   if (dev.get_full_backend_descriptor().sw_platform != api_platform::cuda) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_backend: Passed device id from other backend to CUDA backend"});
     return nullptr;
   }

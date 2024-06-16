@@ -39,6 +39,10 @@ namespace hipsycl::algorithms::util {
 
 class data_streamer {
 public:
+  data_streamer(rt::device_id dev, std::size_t problem_size,
+                std::size_t group_size)
+      : data_streamer{sycl::device{dev}, problem_size, group_size} {}
+
   data_streamer(const sycl::device &dev, std::size_t problem_size,
                 std::size_t group_size)
       : _problem_size{problem_size}, _group_size{group_size} {
@@ -74,7 +78,7 @@ public:
   template <class F>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,
                   F &&f) noexcept {
-    __hipsycl_if_target_sscp(
+    __acpp_if_target_sscp(
       if(sycl::jit::introspect<sycl::jit::current_backend, int>() == sycl::jit::backend::host) {
         run_host(problem_size, idx, f);
       } else {
@@ -82,10 +86,10 @@ public:
       }
       return;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       run_device(problem_size, idx, f);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       run_host(problem_size, idx, f);
     );
   };

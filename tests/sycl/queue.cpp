@@ -40,8 +40,8 @@ BOOST_AUTO_TEST_CASE(queue_wait) {
   auto evt1 = q1.single_task([=](){});
   auto evt2 = q2.single_task([=](){});
 
-  BOOST_CHECK(q1.get_info<sycl::info::queue::hipSYCL_node_group>() !=
-              q2.get_info<sycl::info::queue::hipSYCL_node_group>());
+  BOOST_CHECK(q1.get_info<sycl::info::queue::AdaptiveCpp_node_group>() !=
+              q2.get_info<sycl::info::queue::AdaptiveCpp_node_group>());
 
   q1.wait();
   BOOST_CHECK(evt1.get_info<sycl::info::event::command_execution_status>() ==
@@ -49,6 +49,22 @@ BOOST_AUTO_TEST_CASE(queue_wait) {
   q2.wait();
   BOOST_CHECK(evt2.get_info<sycl::info::event::command_execution_status>() ==
               sycl::info::event_command_status::complete);
+}
+
+BOOST_AUTO_TEST_CASE(queue_memcpy_host_to_host) {
+  try {
+    sycl::queue q{sycl::gpu_selector_v, sycl::property::queue::in_order{}};
+
+    auto source = sycl::malloc_host(sizeof(int), q);
+    auto dest = malloc(sizeof(int));
+
+    q.memcpy(dest, source, sizeof(int)).wait();
+
+    sycl::free(source, q);
+    free(dest);
+  } catch (sycl::exception e) {
+    BOOST_CHECK(true); // Skip the test if no GPU available
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

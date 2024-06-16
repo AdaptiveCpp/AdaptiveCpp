@@ -148,7 +148,7 @@ public:
     return false;
   }
 
-  bool hipSYCL_has_compiled_kernels() const {
+  bool AdaptiveCpp_has_compiled_kernels() const {
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
     if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
@@ -164,17 +164,17 @@ public:
       return true;
 #endif
 
-#if defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
-    if(_device_id.get_backend() == rt::backend_id::level_zero)
-      return true;
-#endif
-
 #if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
     if (get_rt_device()->has(rt::device_support_aspect::sscp_kernels))
       return true;
 #endif
 
     return false;
+  }
+
+  [[deprecated("Use AdaptveCpp_has_compiled_kernels()")]]
+  auto hipSYCL_hash_compiled_kernels() const {
+    return AdaptiveCpp_has_compiled_kernels();
   }
 
   // Implemented in platform.hpp
@@ -267,16 +267,32 @@ public:
     return _device_id.get_backend();
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<hipsycl::rt::device_id>{}(_device_id);
   }
 
-  rt::runtime* hipSYCL_runtime() const {
+  rt::runtime* AdaptiveCpp_runtime() const {
     return _requires_runtime.get();
   }
 
-  rt::device_id hipSYCL_device_id() const {
+  rt::device_id AdaptiveCpp_device_id() const {
     return _device_id;
+  }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_runtime()")]]
+  auto hipSYCL_runtime() const {
+    return AdaptiveCpp_runtime();
+  }
+
+  [[deprecated("Use AdaptiveCpp_device_id()")]]
+  auto hipSYCL_device_id() const {
+    return AdaptiveCpp_device_id();
   }
 private:
   rt::device_id _device_id;
@@ -778,7 +794,7 @@ struct hash<hipsycl::sycl::device>
 {
   std::size_t operator()(const hipsycl::sycl::device& d) const
   {
-    return d.hipSYCL_hash_code();
+    return d.AdaptiveCpp_hash_code();
   }
 };
 

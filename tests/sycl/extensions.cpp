@@ -43,7 +43,7 @@
 
 BOOST_FIXTURE_TEST_SUITE(extension_tests, reset_device_fixture)
 
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+#ifdef ACPP_EXT_AUTO_PLACEHOLDER_REQUIRE
 BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
   namespace s = cl::sycl;
 
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
   }
 }
 #endif
-#ifdef HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
+#ifdef ACPP_EXT_CUSTOM_PFWI_SYNCHRONIZATION
 BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
   namespace sync = cl::sycl::vendor::hipsycl::synchronization;
 
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
   }
 }
 #endif
-#if defined(HIPSYCL_EXT_SCOPED_PARALLELISM_V2) &&                              \
+#if defined(ACPP_EXT_SCOPED_PARALLELISM_V2) &&                              \
     !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX) // nvc++ currently crashed with sp code
 
 template<class KernelName, int N>
@@ -428,7 +428,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
 }
 
 #endif
-#ifdef HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
+#ifdef ACPP_EXT_ENQUEUE_CUSTOM_OPERATION
 
 template<cl::sycl::backend B>
 void test_interop(cl::sycl::queue& q) {
@@ -445,7 +445,7 @@ void test_interop(cl::sycl::queue& q) {
   q.submit([&](sycl::handler &cgh) {
     auto acc = buff.get_access<sycl::access::mode::read>(cgh);
 
-    cgh.hipSYCL_enqueue_custom_operation([=](sycl::interop_handle &h) {
+    cgh.AdaptiveCpp_enqueue_custom_operation([=](sycl::interop_handle &h) {
       // All backends support obtaining native memory
       void *native_mem = h.get_native_mem<B>(acc);
 
@@ -508,7 +508,7 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
     test_interop<sycl::backend::omp>(q);
 }
 #endif
-#ifdef HIPSYCL_EXT_CG_PROPERTY_RETARGET
+#ifdef ACPP_EXT_CG_PROPERTY_RETARGET
 BOOST_AUTO_TEST_CASE(cg_property_retarget) {
   using namespace cl;
 
@@ -516,7 +516,7 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 
   std::vector<sycl::device> target_devices;
   for(const auto& dev : all_devices) {
-    if (dev.hipSYCL_has_compiled_kernels() && dev.is_gpu()) {
+    if (dev.AdaptiveCpp_has_compiled_kernels() && dev.is_gpu()) {
       target_devices.push_back(dev);
     }
   }
@@ -534,7 +534,7 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
         ++ptr[0];
     });
 
-    q.submit({sycl::property::command_group::hipSYCL_retarget{host_device}},
+    q.submit({sycl::property::command_group::AdaptiveCpp_retarget{host_device}},
       [&](sycl::handler& cgh){
         cgh.single_task<class retarget_host_kernel>([=](){
           ++ptr[0];
@@ -554,14 +554,14 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 HIPSYCL_KERNEL_TARGET
 int get_total_group_size() {
   int group_size = 0;
-  __hipsycl_if_target_device(
-    group_size = __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+  __acpp_if_target_device(
+    group_size = __acpp_lsize_x * __acpp_lsize_y * __acpp_lsize_z;
   );
   return group_size;
 }
 
 
-#ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
+#ifdef ACPP_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
 BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   using namespace cl;
 
@@ -579,17 +579,17 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 #define DEVICE_MODEL
 #endif
 
-  q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
+  q.submit({sycl::property::command_group::AdaptiveCpp_prefer_group_size{
                group_size1d}},
            [&](sycl::handler &cgh) {
              cgh.parallel_for<class property_preferred_group_size1>(
                 sycl::range{1000}, [=](sycl::id<1> idx) {
                   if (idx[0] == 0) {
 #if defined(DEVICE_MODEL)
-                    __hipsycl_if_target_device(
+                    __acpp_if_target_device(
                       gsize[0] = get_total_group_size();
                     );
-                    __hipsycl_if_target_host(
+                    __acpp_if_target_host(
                       gsize[0] = 1;
                     );
 #else
@@ -599,17 +599,17 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
                 });
            });
 
-  q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
+  q.submit({sycl::property::command_group::AdaptiveCpp_prefer_group_size{
                group_size2d}},
            [&](sycl::handler &cgh) {
              cgh.parallel_for<class property_preferred_group_size2>(
                  sycl::range{30,30}, [=](sycl::id<2> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
 #if defined(DEVICE_MODEL)
-                    __hipsycl_if_target_device(
+                    __acpp_if_target_device(
                       gsize[1] = get_total_group_size();
                     );
-                    __hipsycl_if_target_host(
+                    __acpp_if_target_host(
                       gsize[1] = 2;
                     );
 #else
@@ -620,17 +620,17 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
            });
 
 
-  q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
+  q.submit({sycl::property::command_group::AdaptiveCpp_prefer_group_size{
                group_size3d}},
            [&](sycl::handler &cgh) {
              cgh.parallel_for<class property_preferred_group_size3>(
                  sycl::range{10,10,10}, [=](sycl::id<3> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
 #if defined(DEVICE_MODEL)
-                    __hipsycl_if_target_device(
+                    __acpp_if_target_device(
                      gsize[2] = get_total_group_size();
                     );
-                    __hipsycl_if_target_host(
+                    __acpp_if_target_host(
                      gsize[2] = 3;
                     );
 #else
@@ -662,7 +662,7 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 }
 #endif
 
-#ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
+#ifdef ACPP_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
 
 BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
 
@@ -671,7 +671,7 @@ BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
   // Only compile testing for now
   for(std::size_t i = 0; i < 100; ++i) {
     q.submit(
-        {cl::sycl::property::command_group::hipSYCL_prefer_execution_lane{i}},
+        {cl::sycl::property::command_group::AdaptiveCpp_prefer_execution_lane{i}},
         [&](cl::sycl::handler &cgh) {
           cgh.single_task<class prefer_execution_lane_test>([=]() {});
         });
@@ -681,7 +681,7 @@ BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
 
 #endif
 
-#ifdef HIPSYCL_EXT_PREFETCH_HOST
+#ifdef ACPP_EXT_PREFETCH_HOST
 BOOST_AUTO_TEST_CASE(prefetch_host) {
   using namespace cl;
 
@@ -705,7 +705,7 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
   sycl::free(shared_mem, q);
 }
 #endif
-#ifdef HIPSYCL_EXT_BUFFER_USM_INTEROP
+#ifdef ACPP_EXT_BUFFER_USM_INTEROP
 BOOST_AUTO_TEST_CASE(buffer_introspection) {
   using namespace cl;
 
@@ -844,7 +844,7 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
 }
 
 #endif
-#ifdef HIPSYCL_EXT_BUFFER_PAGE_SIZE
+#ifdef ACPP_EXT_BUFFER_PAGE_SIZE
 
 BOOST_AUTO_TEST_CASE(buffer_page_size) {
   using namespace cl;
@@ -856,7 +856,7 @@ BOOST_AUTO_TEST_CASE(buffer_page_size) {
   const std::size_t size = 1000;
   const std::size_t page_size = 512;
   sycl::buffer<int, 2> buff{sycl::range{size, size},
-                            sycl::property::buffer::hipSYCL_page_size<2>{
+                            sycl::property::buffer::AdaptiveCpp_page_size<2>{
                                 sycl::range{page_size, page_size}}};
 
   // We have 4 pages
@@ -899,7 +899,7 @@ BOOST_AUTO_TEST_CASE(buffer_page_size) {
 }
 
 #endif
-#ifdef HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
+#ifdef ACPP_EXT_EXPLICIT_BUFFER_POLICIES
 BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
   using namespace cl;
   sycl::queue q;
@@ -984,8 +984,8 @@ BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
 
 }
 #endif
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANTS
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+#ifdef ACPP_EXT_ACCESSOR_VARIANTS
+#ifdef ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION
 
 template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
           cl::sycl::accessor_variant V>
@@ -1060,8 +1060,8 @@ BOOST_AUTO_TEST_CASE(accessor_variants) {
 
 #endif
 #endif
-#if defined(HIPSYCL_EXT_UPDATE_DEVICE) &&                                      \
-    defined(HIPSYCL_EXT_BUFFER_USM_INTEROP)
+#if defined(ACPP_EXT_UPDATE_DEVICE) &&                                      \
+    defined(ACPP_EXT_BUFFER_USM_INTEROP)
 BOOST_AUTO_TEST_CASE(update_device) {
   using namespace cl;
   sycl::queue q;
@@ -1095,7 +1095,7 @@ BOOST_AUTO_TEST_CASE(update_device) {
     BOOST_CHECK(target_buff[i] == static_cast<int>(i));
 }
 #endif
-#ifdef HIPSYCL_EXT_QUEUE_WAIT_LIST
+#ifdef ACPP_EXT_QUEUE_WAIT_LIST
 
 BOOST_AUTO_TEST_CASE(queue_wait_list) {
   using namespace cl;
@@ -1121,7 +1121,7 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
 }
 
 #endif
-#ifdef HIPSYCL_EXT_MULTI_DEVICE_QUEUE
+#ifdef ACPP_EXT_MULTI_DEVICE_QUEUE
 
 BOOST_AUTO_TEST_CASE(multi_device_queue) {
   using namespace cl;
@@ -1152,16 +1152,16 @@ BOOST_AUTO_TEST_CASE(multi_device_queue) {
   BOOST_CHECK(hacc[0] == 102);
 }
 #endif
-#ifdef HIPSYCL_EXT_COARSE_GRAINED_EVENTS
+#ifdef ACPP_EXT_COARSE_GRAINED_EVENTS
 BOOST_AUTO_TEST_CASE(coarse_grained_events) {
   using namespace cl;
-  sycl::queue q{sycl::property::queue::hipSYCL_coarse_grained_events{}};
+  sycl::queue q{sycl::property::queue::AdaptiveCpp_coarse_grained_events{}};
   
   auto e1 = q.single_task([=](){});
   std::vector<sycl::event> events;
   for(int i=0; i < 10; ++i) {
     auto e = q.submit(
-        {sycl::property::command_group::hipSYCL_prefer_execution_lane{
+        {sycl::property::command_group::AdaptiveCpp_prefer_execution_lane{
             static_cast<std::size_t>(
                 i)}}, // Make sure we alternate across all lanes/streams
         [&](sycl::handler &cgh) {
@@ -1178,7 +1178,7 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events) {
 }
 #endif
 
-#ifdef HIPSYCL_EXT_SPECIALIZED
+#ifdef ACPP_EXT_SPECIALIZED
 BOOST_AUTO_TEST_CASE(sycl_specialized) {
   using namespace cl;
   sycl::queue q;

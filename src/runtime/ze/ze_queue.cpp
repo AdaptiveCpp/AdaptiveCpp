@@ -80,7 +80,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                            static_cast<uint32_t>(group_size[2]));
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_module_invoker: Could not set kernel group size",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -118,7 +118,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
     }
     if(err != ZE_RESULT_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_module_invoker: Could not set kernel argument",
                      error_code{"ze", static_cast<int>(err)}});
     }
@@ -133,7 +133,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
 
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_module_invoker: Could not set indirect access flags",
                      error_code{"ze", static_cast<int>(err)}});
   }
@@ -146,7 +146,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
 
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_module_invoker: Kernel launch failed",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -158,7 +158,7 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
 
 ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
     : _hw_manager{hw_manager}, _device_index{device_index},
-      _multipass_code_object_invoker{this}, _sscp_code_object_invoker{this},
+      _sscp_code_object_invoker{this},
       _kernel_cache{kernel_cache::get()} {
   assert(hw_manager);
 
@@ -183,7 +183,7 @@ ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
 
   if(err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not create immediate command list",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -194,7 +194,7 @@ ze_queue::~ze_queue() {
   ze_result_t err = zeCommandListDestroy(_command_list);
   if(err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not destroy immediate command list",
                    error_code{"ze", static_cast<int>(err)}});
   }
@@ -221,7 +221,7 @@ std::shared_ptr<dag_node_event> ze_queue::create_event() {
 
   if(err != ZE_RESULT_SUCCESS) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not create event",
                    error_code{"ze", static_cast<int>(err)}});
 
@@ -293,13 +293,13 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
 
     if(err != ZE_RESULT_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_queue: zeCommandListAppendMemoryCopy() failed",
                      error_code{"ze", static_cast<int>(err)}});
     }
   } else {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ze_queue: Multidimensional memory copies are not yet supported.",
             error_type::unimplemented});
@@ -316,13 +316,12 @@ result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
       op.get_launcher().find_launcher(backend_id::level_zero);
   
   if (!l)
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
   
   rt::backend_kernel_launch_capabilities cap;
   
-  cap.provide_multipass_invoker(&_multipass_code_object_invoker);
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
 
   l->set_backend_capabilities(cap);
@@ -351,7 +350,7 @@ result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
 
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_queue: zeCommandListAppendMemoryFill() failed",
                      error_code{"ze", static_cast<int>(err)}});
   }
@@ -401,7 +400,7 @@ result ze_queue::submit_external_wait_for(dag_node_ptr node) {
         static_cast<ze_node_event *>(evt.get())->get_event_handle());
     if(err != ZE_RESULT_SUCCESS) {
       register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_queue: Couldn't signal completion of external event",
                      error_code{"ze", static_cast<int>(err)}});
     }
@@ -452,101 +451,6 @@ void ze_queue::register_submitted_op(std::shared_ptr<dag_node_event> evt) {
   _enqueued_synchronization_ops.push_back(evt);
 }
 
-result ze_queue::submit_multipass_kernel_from_code_object(
-    const kernel_operation &op, hcf_object_id hcf_object,
-    const std::string &backend_kernel_name, const rt::range<3> &num_groups,
-    const rt::range<3> &group_size, unsigned dynamic_shared_mem,
-    void **kernel_args, const std::size_t* arg_sizes, std::size_t num_args) {
-
-  ze_hardware_context *hw_ctx = static_cast<ze_hardware_context *>(
-      _hw_manager->get_device(_device_index));
-  ze_context_handle_t ctx = hw_ctx->get_ze_context();
-  ze_device_handle_t dev = hw_ctx->get_ze_device();
-
-
-  // Need to create custom config to ensure we can distinguish other
-  // kernels compiled with different values e.g. of local mem allocation size
-  kernel_configuration config;
-  config.append_base_configuration(
-      kernel_base_config_parameter::backend_id, backend_id::level_zero);
-  config.append_base_configuration(
-      kernel_base_config_parameter::compilation_flow,
-      compilation_flow::explicit_multipass);
-  config.append_base_configuration(
-      kernel_base_config_parameter::hcf_object_id, hcf_object);
-  
-  auto binary_configuration_id = config.generate_id();
-  auto code_object_configuration_id = binary_configuration_id;
-  
-  kernel_configuration::extend_hash(
-      code_object_configuration_id,
-      kernel_base_config_parameter::runtime_device, dev);
-  kernel_configuration::extend_hash(
-      code_object_configuration_id,
-      kernel_base_config_parameter::runtime_context, ctx);
-
-  auto code_object_constructor = [&]() -> code_object* {
-    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
-    if(!hcf) {
-      HIPSYCL_DEBUG_ERROR << "ze_queue: Could not retrieve SPIR-V HCF object"
-                          << std::endl;
-      return nullptr;
-    }
-    assert(hcf->root_node());
-    if(!hcf->root_node()->has_binary_data_attached())
-      return nullptr;
-    
-    std::string code;
-    if(!hcf->get_binary_attachment(hcf->root_node(), code)) {
-      HIPSYCL_DEBUG_ERROR
-          << "ze_queue: Could not extract code from HCF node; invalid HCF data?"
-          << std::endl;
-    }
-
-    ze_executable_object *exec_obj = new ze_executable_object{
-        ctx, dev, hcf_object, ze_source_format::spirv, code};
-    result r = exec_obj->get_build_result();
-
-    if(!r.is_success()) {
-      register_error(r);
-      delete exec_obj;
-      return nullptr;
-    }
-
-    return exec_obj;
-  };
-
-  const code_object *obj = _kernel_cache->get_or_construct_code_object(
-      code_object_configuration_id, code_object_constructor);
-
-  if(!obj) {
-    return make_error(__hipsycl_here(),
-                      error_info{"ze_queue: Code object construction failed"});
-  }
-
-  ze_kernel_handle_t kernel;
-  result res = static_cast<const ze_executable_object *>(obj)->get_kernel(
-      backend_kernel_name, kernel);
-  
-  if(!res.is_success())
-    return res;
-
-  std::vector<ze_event_handle_t> wait_events =
-      get_enqueued_event_handles();
-  std::shared_ptr<dag_node_event> completion_evt = create_event();
-
-  auto submission_err = submit_ze_kernel(
-      kernel, get_ze_command_list(),
-      static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
-      wait_events, group_size, num_groups, kernel_args, arg_sizes, num_args);
-
-  if(!submission_err.is_success())
-    return submission_err;
-
-  register_submitted_op(completion_evt);
-
-  return make_success();
-}
 
 result ze_queue::submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
@@ -566,7 +470,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
             kernel_name});
   }
@@ -576,7 +480,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ze_queue: Could not map C++ arguments to kernel arguments"});
   }
@@ -661,7 +565,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       jit_compiler, code_object_constructor);
 
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ze_queue: Code object construction failed"});
   }
 
@@ -694,7 +598,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   return make_success();
 #else
   return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{"ze_queue: SSCP kernel launch was requested, but hipSYCL was "
                  "not built with Level Zero SSCP support."});
 #endif

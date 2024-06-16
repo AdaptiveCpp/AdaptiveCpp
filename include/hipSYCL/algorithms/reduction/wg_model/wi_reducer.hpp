@@ -55,6 +55,7 @@ template<class ReductionBinaryOp>
 class sequential_reducer {
 public:
   using operator_type = ReductionBinaryOp;
+  using combiner_type = typename ReductionBinaryOp::combiner_type;
   using value_type = typename ReductionBinaryOp::value_type;
   static constexpr bool is_identity_known =
       ReductionBinaryOp::has_known_identity();
@@ -66,6 +67,11 @@ public:
     if constexpr(is_identity_known) {
       _data.current_value = op.get_identity();
     }
+  }
+
+  // Only available if identity is known
+  auto identity() const {
+    return _op.get_identity();
   }
 
   void combine(const value_type& val) noexcept {

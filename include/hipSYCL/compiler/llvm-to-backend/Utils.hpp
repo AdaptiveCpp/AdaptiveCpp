@@ -343,7 +343,7 @@ private:
     if(it != PointerWrapperTypes.end())
       return it->second;
     
-    std::string Name = "__hipsycl_sscp_pointer_wrapper." + std::to_string(++WrapperCounter);
+    std::string Name = "__acpp_sscp_pointer_wrapper." + std::to_string(++WrapperCounter);
     llvm::SmallVector<llvm::Type*> Elements {WrappedType};
     
     llvm::Type* NewType = llvm::StructType::create(M.getContext(), Elements, Name);

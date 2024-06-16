@@ -204,16 +204,24 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     removeDynamicLocalMemorySupport(M);
   }
 
-  // llvm-spirv translator does not like llvm.lifetime.start/end operate on generic
-  // pointers. TODO: We should only remove them when we actually need to, and attempt
-  // to fix them otherwise.
+  
   llvm::SmallVector<llvm::CallBase*, 16> Calls;
   for(auto& F : M) {
     for(auto& BB : F) {
       for(auto& I : BB) {
         if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
+          // llvm-spirv translator does not like llvm.lifetime.start/end operate on generic
+          // pointers. TODO: We should only remove them when we actually need to, and attempt
+          // to fix them otherwise.
+          //
+          // Also, llvm-spirv does not support llvm.stacksave/stackrestore, which
+          // can enter as a byproduct of some optimizations. They are not needed for proper
+          // stack memory management in device code since we don't support dynamic allocas
+          // anyway
           if (CB->getCalledFunction()->getName().startswith("llvm.lifetime.start") ||
-              CB->getCalledFunction()->getName().startswith("llvm.lifetime.end")) {
+              CB->getCalledFunction()->getName().startswith("llvm.lifetime.end") ||
+              CB->getCalledFunction()->getName().startswith("llvm.stacksave") ||
+              CB->getCalledFunction()->getName().startswith("llvm.stackrestore")) {
             Calls.push_back(CB);
           }
         }
@@ -221,6 +229,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
   for(auto CB : Calls) {
+    CB->replaceAllUsesWith(llvm::UndefValue::get(CB->getType()));
     CB->eraseFromParent();
   }
 

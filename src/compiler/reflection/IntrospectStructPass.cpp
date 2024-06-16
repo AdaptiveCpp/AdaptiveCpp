@@ -179,6 +179,14 @@ llvm::AllocaInst *recurseOperandUntilAlloca(llvm::Instruction *I) {
   }
 }
 
+llvm::Type* getPointerType(llvm::Type* PointeeT, int AddressSpace) {
+#if LLVM_VERSION_MAJOR < 16
+    return llvm::PointerType::get(PointeeT, AddressSpace);
+#else
+    return llvm::PointerType::get(PointeeT->getContext(), AddressSpace);
+#endif
+}
+
 } // anonymous namespace
 
 llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleAnalysisManager& AM) {
@@ -228,8 +236,13 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
                 << " is invalid; argument is not a pointer type. Ingoring call.\n";
                 return;
               }
+              // In case of non-opaque pointers, we need a bitcast since the stored
+              // vaue may be pointer-to-array, while the argument may be pointer-to-pointer.
+              auto* StoreTarget = CI->getArgOperand(ArgIndex);
+              auto *BCInst =
+                  new llvm::BitCastInst(StoreTarget, getPointerType(GV->getType(), 0), "", CI);
               [[maybe_unused]] llvm::StoreInst *S =
-                new llvm::StoreInst(GV, CI->getArgOperand(ArgIndex), CI);
+                new llvm::StoreInst(GV, BCInst, CI);
             };
 
             createStoreOp(1, GVs.FlattenedNumMembers);

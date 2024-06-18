@@ -570,8 +570,14 @@ public:
 
     default_policies dpol;
     dpol.destructor_waits = true;
-    dpol.use_external_storage = true;
-    dpol.writes_back = true;
+
+    if (hostData.use_count() != 0) {
+      dpol.use_external_storage = true;
+      dpol.writes_back = true;
+    } else {
+      dpol.use_external_storage = false;
+      dpol.writes_back = false;
+    }
     init_policies_from_properties_or_default(dpol);
 
     if(_impl->use_external_storage) {
@@ -579,11 +585,50 @@ public:
       this->init(bufferRange, hostData.get());
     } else {
       this->init(bufferRange);
-      this->copy_host_content(hostData.get());
+
+      if (hostData.use_count() != 0)
+	this->copy_host_content(hostData.get());
     }
   }
 
-  buffer(const shared_ptr_class<T> &hostData,
+  buffer(const std::shared_ptr<T> &hostData,
+         const range<dimensions> &bufferRange,
+         const property_list &propList = {})
+  : buffer(hostData, bufferRange, AllocatorT(), propList)
+  {}
+
+  buffer(const std::shared_ptr<T[]> &hostData,
+         const range<dimensions> &bufferRange, AllocatorT allocator,
+         const property_list &propList = {})
+    : detail::property_carrying_object{propList}
+  {
+    _impl = std::make_shared<detail::buffer_impl>();
+    _alloc = allocator;
+
+    default_policies dpol;
+    dpol.destructor_waits = true;
+
+    if (hostData.use_count() != 0) {
+      dpol.use_external_storage = true;
+      dpol.writes_back = true;
+    } else {
+      dpol.use_external_storage = false;
+      dpol.writes_back = false;
+    }
+    init_policies_from_properties_or_default(dpol);
+
+    if(_impl->use_external_storage) {
+      _impl->shared_host_data = hostData;
+      this->init(bufferRange, hostData.get());
+    } else {
+      this->init(bufferRange);
+
+      if (hostData.use_count() != 0)
+	this->copy_host_content(hostData.get());
+    }
+  }
+
+  buffer(const std::shared_ptr<T[]> &hostData,
          const range<dimensions> &bufferRange,
          const property_list &propList = {})
   : buffer(hostData, bufferRange, AllocatorT(), propList)

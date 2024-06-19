@@ -214,7 +214,7 @@ if(WITH_OPENCL_BACKEND)
   include(FetchContent)
   FetchContent_Declare(ocl-headers
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-Headers
-    GIT_TAG main
+    GIT_TAG c860bb551eeef9a47d56286a70cea903db3d6ed2
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
   )
@@ -228,7 +228,7 @@ if(WITH_OPENCL_BACKEND)
   
   FetchContent_Declare(ocl-cxx-headers
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-CLHPP
-    GIT_TAG main
+    GIT_TAG 0bdbbfe5ecda42cff50c96cc5e33527f42fcbd45
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
   )

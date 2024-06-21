@@ -109,6 +109,6 @@ If you are on a system that supports system-level USM, i.e. a system where every
 
 ## Functionality supported in device code
 
-The functionality supported in device code aligns with the kernel restrictions from SYCL. This means that no exceptions, dynamic polymorphism, dynamic memory management, or calls to external shared libraries are allowed. Note that this functionality might already be pohibited in the C++ `par_unseq` model anyway.
+The functionality supported in device code aligns with the kernel restrictions from SYCL. This means that no exceptions, dynamic polymorphism, dynamic memory management, or calls to external shared libraries are allowed. Note that this functionality might already be prohibited in the C++ `par_unseq` model anyway.
 
 The `std::` math functions are supported in device code in an experimental state when using the generic SSCP compilation flow (`--acpp-targets=generic`). This is accomplished using a dedicated compiler pass that maps standard functions to our SSCP builtins.

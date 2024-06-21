@@ -266,6 +266,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   if(UseIntelLLVMSpirvArgs)
     appendIntelLLVMSpirvOptions(Args);
   else {
+    Args.push_back("-spirv-max-version=1.3");
     Args.push_back("-spirv-ext=+SPV_EXT_relaxed_printf_string_address_space");
   }
 

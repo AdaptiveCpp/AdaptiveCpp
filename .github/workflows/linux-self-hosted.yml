@@ -163,4 +163,4 @@ jobs:
       if: matrix.clang_version >= 14
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests

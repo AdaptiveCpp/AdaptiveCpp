@@ -140,7 +140,7 @@ bool exists(const std::string& path) {
 }
 
 std::string absolute(const std::string& path) {
-  return fs::absolute(path);
+  return fs::absolute(path).string();
 }
 
 bool atomic_write(const std::string &filename, const std::string &data) {

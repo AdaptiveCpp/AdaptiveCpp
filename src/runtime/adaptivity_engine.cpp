@@ -38,6 +38,15 @@ namespace rt {
 
 namespace {
 
+bool has_annotation(const hcf_kernel_info *info, int param_index,
+                    hcf_kernel_info::annotation_type annotation) {
+  for(auto a : info->get_known_annotations(param_index)) {
+    if(a == annotation)
+      return true;
+  }
+  return false;
+}
+
 bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
                                   int param_index, std::size_t application_run,
                                   uint64_t current_value) {
@@ -126,15 +135,13 @@ kernel_adaptivity_engine::finalize_binary_configuration(
 
     // Handle kernel parameter optimization hints
     for(int i = 0; i < _kernel_info->get_num_parameters(); ++i) {
-      auto& annotations = _kernel_info->get_known_annotations(i);
       std::size_t arg_size = _kernel_info->get_argument_size(i);
-      for(auto annotation : annotations) {
-        if (annotation == hcf_kernel_info::annotation_type::specialized &&
-            arg_size <= sizeof(uint64_t)) {
-          uint64_t buffer_value = 0;
-          std::memcpy(&buffer_value, _arg_mapper.get_mapped_args()[i], arg_size);
-          config.set_specialized_kernel_argument(i, buffer_value);
-        } 
+      if (has_annotation(_kernel_info, i,
+                         hcf_kernel_info::annotation_type::specialized) &&
+          arg_size <= sizeof(uint64_t)) {
+        uint64_t buffer_value = 0;
+        std::memcpy(&buffer_value, _arg_mapper.get_mapped_args()[i], arg_size);
+        config.set_specialized_kernel_argument(i, buffer_value);
       }
     }
   }
@@ -158,8 +165,12 @@ kernel_adaptivity_engine::finalize_binary_configuration(
         std::memcpy(&arg_value, _arg_mapper.get_mapped_args()[i],
                     _kernel_info->get_argument_size(i));
         // TODO: Don't specialize if specialized<> is already used
-        if(_kernel_info->get_argument_type(i) != hcf_kernel_info::argument_type::pointer &&
-          is_likely_invariant_argument(kernel_entry, i, data.content_version, arg_value)) {
+        if (_kernel_info->get_argument_type(i) !=
+                hcf_kernel_info::argument_type::pointer &&
+            is_likely_invariant_argument(kernel_entry, i, data.content_version,
+                                         arg_value) &&
+            !has_annotation(_kernel_info, i,
+                            hcf_kernel_info::annotation_type::specialized)) {
           HIPSYCL_DEBUG_INFO << "adaptivity_engine: Kernel argument " << i
                              << " is invariant or common, specializing."
                              << std::endl;

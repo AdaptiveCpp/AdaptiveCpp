@@ -63,9 +63,15 @@ int main(int argc, char** argv) {
   if(is_appdb(path)) {
     appdb_path = path;
   } else {
+#ifndef _WIN32
     appdb_path =
         hipsycl::common::filesystem::persistent_storage::get()
             .generate_appdb_path(hipsycl::common::filesystem::absolute(path));
+#else
+    appdb_path =
+        hipsycl::common::filesystem::persistent_storage::get()
+            .generate_appdb_path("");
+#endif
   }
 
   std::string command = argv[2];

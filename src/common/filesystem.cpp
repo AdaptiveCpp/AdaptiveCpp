@@ -229,7 +229,11 @@ persistent_storage::persistent_storage() {
   fs::create_directories(_this_app_dir);
   fs::create_directories(_jit_cache_dir);
 
+#ifndef _WIN32
   _this_app_db = std::make_unique<db::appdb>(generate_appdb_path(app_path));
+#else
+  _this_app_db = std::make_unique<db::appdb>(generate_appdb_path(""));
+#endif
 }
 
 std::string persistent_storage::generate_app_dir(const std::string& app_path) const {

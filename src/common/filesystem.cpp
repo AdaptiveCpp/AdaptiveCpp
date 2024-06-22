@@ -33,6 +33,7 @@
 #include "hipSYCL/runtime/settings.hpp"
 
 #include <fstream>
+#include <memory>
 #include <random>
 #include <cassert>
 
@@ -134,6 +135,14 @@ std::vector<std::string> list_regular_files(const std::string& directory,
   return result;
 }
 
+bool exists(const std::string& path) {
+  return fs::exists(path);
+}
+
+std::string absolute(const std::string& path) {
+  return fs::absolute(path);
+}
+
 bool atomic_write(const std::string &filename, const std::string &data) {
   fs::path p{filename};
 
@@ -160,7 +169,7 @@ bool remove(const std::string &filename) {
   return false;
 }
 
-tuningdb::tuningdb() {
+persistent_storage::persistent_storage() {
 #ifndef _WIN32
 
   auto get_home = [](std::string &home_out, std::string &subdirectory) -> bool {
@@ -207,16 +216,7 @@ tuningdb::tuningdb() {
   };
 
   std::string app_path = get_app_path();
-  std::string app_subdirectory = "global";
-  if(!app_path.empty()) {
-    std::string app_filename = fs::path{app_path}.filename().string();
-
-    stable_running_hash h;
-    h(app_path.data(), app_path.size());
-    app_subdirectory = app_filename + "-" + std::to_string(h.get_current_hash());
-  }
-
-  _this_app_dir = (fs::path{_base_dir} / "apps" / app_subdirectory).string();
+  _this_app_dir = generate_app_dir(app_path);
   
 #else
   _base_dir = (fs::current_path() / ".acpp").string();
@@ -228,6 +228,25 @@ tuningdb::tuningdb() {
   fs::create_directories(_base_dir);
   fs::create_directories(_this_app_dir);
   fs::create_directories(_jit_cache_dir);
+
+  _this_app_db = std::make_unique<db::appdb>(generate_appdb_path(app_path));
+}
+
+std::string persistent_storage::generate_app_dir(const std::string& app_path) const {
+  std::string app_subdirectory = "global";
+  if(!app_path.empty()) {
+    std::string app_filename = fs::path{app_path}.filename().string();
+
+    stable_running_hash h;
+    h(app_path.data(), app_path.size());
+    app_subdirectory = app_filename + "-" + std::to_string(h.get_current_hash());
+  }
+
+  return (fs::path{_base_dir} / "apps" / app_subdirectory).string();
+}
+
+std::string persistent_storage::generate_appdb_path(const std::string& app_path) const {
+  return join_path(generate_app_dir(app_path), "app.db");
 }
 
 }

@@ -26,13 +26,61 @@
  */
 
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
+#include "hipSYCL/common/appdb.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 
 
 namespace hipsycl {
 namespace rt {
+
+namespace {
+
+bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
+                                  int param_index, std::size_t application_run,
+                                  uint64_t current_value) {
+  auto& args = kernel_entry.kernel_args;
+  
+  // In case we find an empty slot, this stores its index.
+  int empty_slot = -1;
+  for(int i = 0; i < common::db::kernel_arg_entry::max_tracked_values; ++i) {
+    // How many times the current kernel parameter was set to
+    // args[param_index].common_values[i]
+    std::size_t& arg_value_count = args[param_index].common_values_count[i];
+    // Is the argument the same as an argument from a previous submission that we
+    // are tracking as commonly used?
+    if(args[param_index].common_values[i] == current_value && arg_value_count > 0) {
+      // Yep, we've hit it again, increase counter
+      ++arg_value_count;
+
+      double fraction_of_all_invocations = static_cast<double>(arg_value_count) /
+               kernel_entry.num_registered_invocations;
+
+      if (arg_value_count > 128 ||
+          ((fraction_of_all_invocations >
+           0.8) && application_run > 0))
+        return true;
+      else
+        return false;
+    } else if(arg_value_count == 0) {
+      // Remember that we have hit an unused slot in case we don't find any
+      // matches with values that are know to be commonly occuring
+      empty_slot = i; 
+    }
+  }
+
+  if(empty_slot >= 0) {
+    // If we have an empty slot, store the current argument in case
+    // it gets used a lot by future kernel invocations.
+    args[param_index].common_values_count[empty_slot] = 1;
+    args[param_index].common_values[empty_slot] = current_value;
+  }
+
+  return false;
+}
+}
 
 kernel_adaptivity_engine::kernel_adaptivity_engine(
     hcf_object_id hcf_object, const std::string &backend_kernel_name,
@@ -86,9 +134,42 @@ kernel_adaptivity_engine::finalize_binary_configuration(
           uint64_t buffer_value = 0;
           std::memcpy(&buffer_value, _arg_mapper.get_mapped_args()[i], arg_size);
           config.set_specialized_kernel_argument(i, buffer_value);
-        }
+        } 
       }
     }
+  }
+
+  if(_adaptivity_level > 1) {
+    auto base_id = config.generate_id();
+    
+    // Automatic application of specialization constants by detecting
+    // invariant kernel arguments
+    auto& appdb = common::filesystem::persistent_storage::get().get_this_app_db();
+    appdb.read_write_access([&](common::db::appdb_data& data){
+      auto& kernel_entry = data.kernels[base_id];
+      ++kernel_entry.num_registered_invocations;
+
+      std::size_t num_kernel_args = _kernel_info->get_num_parameters();
+      if(kernel_entry.kernel_args.size() != num_kernel_args)
+        kernel_entry.kernel_args.resize(num_kernel_args);
+
+      for(int i = 0; i < num_kernel_args; ++i) {
+        uint64_t arg_value = 0;
+        std::memcpy(&arg_value, _arg_mapper.get_mapped_args()[i],
+                    _kernel_info->get_argument_size(i));
+        // TODO: Don't specialize if specialized<> is already used
+        if(_kernel_info->get_argument_type(i) != hcf_kernel_info::argument_type::pointer &&
+          is_likely_invariant_argument(kernel_entry, i, data.content_version, arg_value)) {
+          HIPSYCL_DEBUG_INFO << "adaptivity_engine: Kernel argument " << i
+                             << " is invariant or common, specializing."
+                             << std::endl;
+          config.set_specialized_kernel_argument(i, arg_value);
+        } else {
+          HIPSYCL_DEBUG_INFO << "adaptivity_engine: Not specializing kernel argument " << i
+                             << std::endl;
+        }
+      }
+    });
   }
 
   return config.generate_id();

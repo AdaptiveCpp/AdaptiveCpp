@@ -29,10 +29,10 @@
 #define HIPSYCL_COMMON_APP_DB_HPP
 
 #include <unordered_map>
-#include <mutex>
+#include <atomic>
 #include <vector>
 #include <string>
-#include <fstream>
+#include <ostream>
 
 #include "msgpack/msgpack.hpp"
 
@@ -43,52 +43,112 @@ namespace hipsycl::common::db {
 struct kernel_arg_entry {
   static constexpr int max_tracked_values = 8;
 
-  std::array<uint64_t, max_tracked_values> common_values;
-  std::array<uint64_t, max_tracked_values> common_values_count;
+  std::array<uint64_t, max_tracked_values> common_values = {};
+  std::array<uint64_t, max_tracked_values> common_values_count = {};
+
+  template<class T>
+  void pack(T &pack) {
+    pack(common_values);
+    pack(common_values_count);
+  }
+
+  void dump(std::ostream& ostr, int indentation_level=0) const;
 };
 
 struct kernel_entry {
+
   template<class T>
-  void msgpack(T &pack) {
+  void pack(T &pack) {
     pack(kernel_args);
+    pack(num_registered_invocations);
   }
 
+  void dump(std::ostream& ostr, int indentation_level=0) const;
+
   std::vector<kernel_arg_entry> kernel_args;
+  std::size_t num_registered_invocations;
 };
 
 struct appdb_data {
   std::unordered_map<rt::kernel_configuration::id_type, kernel_entry,
                      rt::kernel_id_hash>
       kernels;
+  std::size_t content_version = 0;
 
   template<class T>
-  void msgpack(T &pack) {
+  void pack(T &pack) {
     pack(kernels);
+    pack(content_version);
   }
+
+  void dump(std::ostream& ostr, int indentation_level=0) const;
 };
 
 
 class appdb  {
 public:
-  appdb(const std::string& db_path, bool read_only = false);
+  appdb(const std::string& db_path);
   ~appdb();
 
   template<class F>
-  void access(F&& handler) {
-    if (_read_only) {
-      std::lock_guard<std::mutex> lock{_mutex};
-      handler(_data);
-    } else {
-      handler(_data);
-    }
+  void read_access(F&& handler) const{
+    read_lock lock {_lock};
+    handler(_data);
   }
+
+  template<class F>
+  void read_write_access(F&& handler) {
+    write_lock lock {_lock};
+    handler(_data);
+    _was_modified = true;
+  }
+
 private:
-  std::mutex _mutex;
+  
+  struct write_lock {
+  public:
+    write_lock(std::atomic<int>& op_counter)
+    : _op_counter{op_counter} {
+      int expected = 0;
+      while (!_op_counter.compare_exchange_strong(
+          expected, -1, std::memory_order_release, std::memory_order_relaxed)) {
+        expected = 0;
+      }
+    }
+
+    ~write_lock() {
+      _op_counter.store(0, std::memory_order_release);
+    }
+  private:
+    std::atomic<int>& _op_counter;
+  };
+
+  struct read_lock {
+  public:
+    read_lock(std::atomic<int>& op_counter)
+    : _op_counter{op_counter} {
+      int expected = std::max(0, _op_counter.load(std::memory_order_acquire));
+      while (!_op_counter.compare_exchange_strong(
+          expected, expected+1, std::memory_order_release,
+          std::memory_order_relaxed)) {
+        if(expected < 0)
+          expected = 0;
+      }
+    }
+
+    ~read_lock() {
+      _op_counter.fetch_sub(1, std::memory_order_acq_rel);
+    }
+  private:
+   std::atomic<int>& _op_counter;
+  };
+
+  mutable std::atomic<int> _lock;
+  bool _was_modified;
+
   std::string _db_path;
 
   appdb_data _data;
-
-  bool _read_only;
 };
 
 

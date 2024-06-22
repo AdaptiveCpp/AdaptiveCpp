@@ -54,6 +54,8 @@ This optimization process is complete when the following warning is no longer pr
 
 The extent of this can be controlled using the environment variable `ACPP_ADAPTIITY_LEVEL`. A value of 0 disables the feature. The default is 1. Higher levels are expected to result in higher peak performance, but may require more application runs to converge to this performance. The default level of 1 usually guarantees peak performance for the second application run.
 
+The maximum adaptivity level currently implemented is 2. At this level, AdaptiveCpp will attempt to detect invariant kernel arguments, and hardwire those as constants during JIT time. In some cases, this can result in substantial performance increases. It is thus advisable to try setting `ACPP_ADAPTIVITY_LEVEL=2` and running the application a couple of times.
+
 **For peak performance, you should not disable adaptivity, and run the application until the warning above is no longer printed.**
 
 *Note: Adaptivity levels higher than 1 are currently not implemented.*

@@ -177,6 +177,17 @@ class Packer {
       pack_map(value);
     } else if constexpr (is_container<T>::value || is_stdarray<T>::value) {
       pack_array(value);
+    } else if constexpr (std::is_same_v<T, long>) {
+      // On platforms where long is distinct from int32_t or int64_t, we land here
+      if constexpr (sizeof(long) == 4)
+        pack_type(reinterpret_cast<const int32_t &>(value));
+      else
+        pack_type(reinterpret_cast<const int64_t &>(value));
+    } else if constexpr (std::is_same_v<T, unsigned long>) {
+      if constexpr (sizeof(long) == 4)
+        pack_type(reinterpret_cast<const uint32_t &>(value));
+      else
+        pack_type(reinterpret_cast<const uint64_t &>(value));
     } else {
       auto recursive_packer = Packer{};
       const_cast<T &>(value).pack(recursive_packer);
@@ -555,6 +566,17 @@ class Unpacker {
       unpack_array(value);
     } else if constexpr (is_stdarray<T>::value) {
       unpack_stdarray(value);
+    } else if constexpr (std::is_same_v<T, long>) {
+      // On platforms where long is distinct from int32_t or int64_t, we land here
+      if constexpr (sizeof(long) == 4)
+        unpack_type(reinterpret_cast<int32_t &>(value));
+      else
+        unpack_type(reinterpret_cast<int64_t &>(value));
+    } else if constexpr (std::is_same_v<T, unsigned long>) {
+      if constexpr (sizeof(long) == 4)
+        unpack_type(reinterpret_cast<uint32_t &>(value));
+      else
+        unpack_type(reinterpret_cast<uint64_t &>(value));
     } else {
       auto recursive_data = std::vector<uint8_t>{};
       unpack_type(recursive_data);

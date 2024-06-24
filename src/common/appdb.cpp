@@ -29,6 +29,7 @@
 #include "hipSYCL/common/appdb.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include <fstream>
+#include <type_traits>
 
 namespace hipsycl::common::db {
 
@@ -41,28 +42,38 @@ void print_key_value_pair(std::ostream &ostr, const std::string &key,
     ostr << "  ";
   ostr << key << ": " << val << std::endl;
 }
+
+template <class ArrayT>
+void print_array(std::ostream &ostr, const std::string &name, const ArrayT &a,
+                 const std::string &element_type_name, int indentation_level) {
+  print_key_value_pair(ostr, name, "<array>", indentation_level);
+  for(int i = 0; i < a.size(); ++i) {
+    if constexpr(std::is_fundamental_v<typename ArrayT::value_type>)
+      print_key_value_pair(ostr, std::to_string(i), a[i], indentation_level+1);
+    else {
+      print_key_value_pair(ostr, std::to_string(i), "<" + element_type_name + ">",
+                         indentation_level + 1);
+      a[i].dump(ostr, indentation_level + 2);
+    }
+  }
+}
+}
+
+void kernel_arg_value_statistics::dump(std::ostream& ostr, int indentation_level) const {
+  print_key_value_pair(ostr, "value", value, indentation_level);
+  print_key_value_pair(ostr, "count", count, indentation_level);
+  print_key_value_pair(ostr, "last_used", last_used, indentation_level);
 }
 
 void kernel_arg_entry::dump(std::ostream& ostr, int indentation_level) const {
-  print_key_value_pair(ostr, "common_values", "<array>", indentation_level);
-  for(int i = 0; i < common_values.size(); ++i)
-    print_key_value_pair(ostr, std::to_string(i), common_values[i], indentation_level+1);
-
-  print_key_value_pair(ostr, "common_values_count", "<array>", indentation_level);
-  for(int i = 0; i < common_values_count.size(); ++i)
-    print_key_value_pair(ostr, std::to_string(i), common_values_count[i],
-                         indentation_level + 1);
+  print_array(ostr, "common_values", common_values, "arg_statistics", indentation_level);
+  print_array(ostr, "was_specialized", was_specialized, "bool", indentation_level);
 }
 
 void kernel_entry::dump(std::ostream& ostr, int indentation_level) const {
   print_key_value_pair(ostr, "num_registered_invocations",
                        num_registered_invocations, indentation_level);
-  print_key_value_pair(ostr, "kernel_args", "<array>", indentation_level);
-  for(int i = 0; i < kernel_args.size(); ++i) {
-    print_key_value_pair(ostr, std::to_string(i), "<arg-entry>", indentation_level+1);
-
-    kernel_args[i].dump(ostr, indentation_level+2);
-  }
+  print_array(ostr, "kernel_args", kernel_args, "arg_entry", indentation_level);
 }
 
 void appdb_data::dump(std::ostream& ostr, int indentation_level) const {

@@ -40,7 +40,9 @@ void usage() {
 }
 
 bool is_appdb(const std::string& path) {
-  std::string ending = "/app.db";
+  std::string ending =
+      "/" + hipsycl::common::filesystem::persistent_storage::get()
+                .generate_app_db_filename();
   return path.find(ending) == path.size() - ending.size();
 }
 

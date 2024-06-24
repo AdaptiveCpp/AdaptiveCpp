@@ -88,6 +88,9 @@ public:
   db::appdb& get_this_app_db() {
     return *_this_app_db;
   }
+
+  // Generates just the expected name of the file, without directories.
+  std::string generate_app_db_filename() const;
 private:
 
   persistent_storage();

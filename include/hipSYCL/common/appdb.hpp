@@ -40,16 +40,32 @@
 
 namespace hipsycl::common::db {
 
+struct kernel_arg_value_statistics {
+  uint64_t value; // The kernel argument value
+  uint64_t count; // How many times we have seen this value
+  uint64_t last_used; // The number of the kernel invocation where this value
+                      // was last used
+
+  void dump(std::ostream& ostr, int indentation_level=0) const;
+
+  template<class T>
+  void pack(T &pack) {
+    pack(value);
+    pack(count);
+    pack(last_used);
+  }
+};
+
 struct kernel_arg_entry {
   static constexpr int max_tracked_values = 8;
 
-  std::array<uint64_t, max_tracked_values> common_values = {};
-  std::array<uint64_t, max_tracked_values> common_values_count = {};
+  std::array<kernel_arg_value_statistics, max_tracked_values> common_values = {};
+  std::array<bool, max_tracked_values> was_specialized = {};
 
   template<class T>
   void pack(T &pack) {
     pack(common_values);
-    pack(common_values_count);
+    pack(was_specialized);
   }
 
   void dump(std::ostream& ostr, int indentation_level=0) const;
@@ -70,10 +86,11 @@ struct kernel_entry {
 };
 
 struct appdb_data {
+  std::size_t content_version = 0;
+
   std::unordered_map<rt::kernel_configuration::id_type, kernel_entry,
                      rt::kernel_id_hash>
       kernels;
-  std::size_t content_version = 0;
 
   template<class T>
   void pack(T &pack) {
@@ -87,6 +104,10 @@ struct appdb_data {
 
 class appdb  {
 public:
+  // DO NOT FORGET TO INCREMENT THIS WHEN ADDING/REMOVING
+  // FIELDS OR OTHERWISE CHANGING THE DATA LAYOUT!
+  static const uint64_t format_version = 1;
+
   appdb(const std::string& db_path);
   ~appdb();
 

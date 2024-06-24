@@ -31,12 +31,22 @@
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include <limits>
 
 
 namespace hipsycl {
 namespace rt {
 
 namespace {
+
+template<class F>
+void access_appdb(common::db::appdb& db, bool needs_write_access, F&& handler) {
+  if(needs_write_access) {
+    db.read_write_access(handler);
+  } else {
+    db.read_access(handler);
+  }
+}
 
 bool has_annotation(const hcf_kernel_info *info, int param_index,
                     hcf_kernel_info::annotation_type annotation) {
@@ -47,44 +57,84 @@ bool has_annotation(const hcf_kernel_info *info, int param_index,
   return false;
 }
 
+// Estimates whether kernel arguments might be invariant. This also updates
+// the statistics in the appdb, so if this function returns true,
+// a specialization should be carried out by the calling code in order
+// to ensure consistency of the appdb with what is actually happening.
 bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
                                   int param_index, std::size_t application_run,
                                   uint64_t current_value) {
   auto& args = kernel_entry.kernel_args;
   
+  const int static_specialization_trigger = 128;
+
   // In case we find an empty slot, this stores its index.
   int empty_slot = -1;
+  // This stores the index of the least recently used slot, in case
+  // we need to evict an entry.
+  int least_recently_used_slot = -1;
+  uint64_t least_recently_used_time = std::numeric_limits<uint64_t>::max();
+
   for(int i = 0; i < common::db::kernel_arg_entry::max_tracked_values; ++i) {
     // How many times the current kernel parameter was set to
     // args[param_index].common_values[i]
-    std::size_t& arg_value_count = args[param_index].common_values_count[i];
+
+    auto& arg_statistics = args[param_index].common_values[i];
+    uint64_t& arg_value_count = arg_statistics.count;
     // Is the argument the same as an argument from a previous submission that we
     // are tracking as commonly used?
-    if(args[param_index].common_values[i] == current_value && arg_value_count > 0) {
+    if(arg_statistics.value == current_value && arg_value_count > 0) {
       // Yep, we've hit it again, increase counter
       ++arg_value_count;
+      arg_statistics.last_used = kernel_entry.num_registered_invocations;
+
+      bool& is_already_specialized = args[param_index].was_specialized[i];
+      // If we already have specialized in the past, continue to specialize.
+      // This prevents performance regressions if the first the value is specialized,
+      // then not used for a long while and we are now seeing it again.
+      if(is_already_specialized)
+        return true;
 
       double fraction_of_all_invocations = static_cast<double>(arg_value_count) /
                kernel_entry.num_registered_invocations;
 
-      if (arg_value_count > 128 ||
+      if (arg_value_count > static_specialization_trigger ||
           ((fraction_of_all_invocations >
-           0.8) && application_run > 0))
+           0.8) && application_run > 0)) {
+        is_already_specialized = true;
         return true;
-      else
+      } else
         return false;
     } else if(arg_value_count == 0) {
       // Remember that we have hit an unused slot in case we don't find any
       // matches with values that are know to be commonly occuring
       empty_slot = i; 
+    } else if(arg_statistics.last_used < least_recently_used_time) {
+      // Update least-recently-used so that we can find potential entries to evict
+      least_recently_used_slot = i;
+      least_recently_used_time = arg_statistics.last_used;
     }
   }
+
+  auto create_new_entry = [&](int slot_index) {
+    common::db::kernel_arg_value_statistics new_arg_entry;
+    new_arg_entry.value = current_value;
+    new_arg_entry.count = 1;
+    new_arg_entry.last_used = 0;
+    args[param_index].common_values[slot_index] = new_arg_entry;
+    args[param_index].was_specialized[slot_index] = false;
+  };
 
   if(empty_slot >= 0) {
     // If we have an empty slot, store the current argument in case
     // it gets used a lot by future kernel invocations.
-    args[param_index].common_values_count[empty_slot] = 1;
-    args[param_index].common_values[empty_slot] = current_value;
+    create_new_entry(empty_slot);
+  } else if(least_recently_used_slot >= 0) {
+    // Otherwise, we may repurpose slots that have not been used in a long time.
+    if ((kernel_entry.num_registered_invocations - least_recently_used_time) >
+        static_specialization_trigger) {
+      create_new_entry(least_recently_used_slot);
+    }
   }
 
   return false;

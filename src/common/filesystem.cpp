@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/appdb.hpp"
 #include "hipSYCL/common/config.hpp"
 #include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/common/debug.hpp"
@@ -249,8 +250,13 @@ std::string persistent_storage::generate_app_dir(const std::string& app_path) co
   return (fs::path{_base_dir} / "apps" / app_subdirectory).string();
 }
 
+std::string persistent_storage::generate_app_db_filename() const {
+  auto version = db::appdb::format_version;
+  return "app.v"+std::to_string(version)+".db";
+}
+
 std::string persistent_storage::generate_appdb_path(const std::string& app_path) const {
-  return join_path(generate_app_dir(app_path), "app.db");
+  return join_path(generate_app_dir(app_path), generate_app_db_filename());
 }
 
 }

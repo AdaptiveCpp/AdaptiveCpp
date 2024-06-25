@@ -30,7 +30,7 @@ Two meta-packages in order to keep consistent with the previous packages:
 * `hipSYCL-full<-nightly>` -> `hipSYCL-omp-rocm-cuda<-nightly>`
 * `hipSYCL<-nightly>` -> `hipSYCL-omp-rocm-cuda<-nightly>`
 
-We require some additional software repos to be enabled (for example, `release-scl` and `epel` for centos 7 ). To make adding these easier, we provide scripts in the `install/scripts/add-hipsyc-repo` for all supported distributions that handles adding these repositories, as well as adding the hipSYCL repo.
+We require some additional software repos to be enabled (for example, `release-scl` and `epel` for centos 7 ). To make adding these easier, we provide scripts in the `install/scripts/add-hipsycl-repo` for all supported distributions that handles adding these repositories, as well as adding the hipSYCL repo.
 
 ## Installing by script
 Note that the installation scripts may require the installation of some packages, depending on your distributions. We recommend first looking at the singularity definition files `*.def` for your distribution and installing everything that is installed there. Afterwards, run
@@ -46,7 +46,7 @@ The installation prefix can be changed using the environment variable `INSTALL_P
 If you change the `INSTALL_PREFIX` to a directory that is writable by your user, `sudo` is not required.
 
 ## Building a singularity container
-We also provide singularity definition files in order to create singularity container images. Building an image consits of building a writable base image and afterwards installaing the dependencies and hipsycl into the container
+We also provide singularity definition files in order to create singularity container images. Building an image consists of building a writable base image and afterwards installing the dependencies and hipsycl into the container
 
 ```
 singularity build --fakeroot --sandbox base-ubuntu-18.04.sif base-definitions/base-ubuntu-18.04.def
@@ -57,7 +57,7 @@ singularity exec hipsycl-ubuntu-18.04.def install-llvm.sh
 singularity exec hipsycl-ubuntu-18.04.def install-rocm.sh
 singularity exec hipsycl-ubuntu-18.04.def install-cuda.sh
 ```
-Note that there are two type of installation scripts available at the moment the regular ones loacted in the `install/scripts/` directory, and scripts that use spack to install the dependencies located in `install/scripts/spack-install/`. The spack install scripts are well tested, therfore we recommend using those for the installation. The regular install scripts might need some changes to work flawlessly.
+Note that there are two type of installation scripts available at the moment the regular ones located in the `install/scripts/` directory, and scripts that use spack to install the dependencies located in `install/scripts/spack-install/`. The spack install scripts are well tested, therefore we recommend using those for the installation. The regular install scripts might need some changes to work flawlessly.
 
 ## Pre-built singularity containers
 

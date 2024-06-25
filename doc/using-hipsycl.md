@@ -116,7 +116,7 @@ Options are:
   [can also be set with environment variable: ACPP_CUDA_PATH=<value>]
   [default value provided by field 'default-cuda-path' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
-  The path to the CUDA toolkit installation directry
+  The path to the CUDA toolkit installation directory
 
 --acpp-rocm-path=<value>
   [can also be set with environment variable: ACPP_ROCM_PATH=<value>]
@@ -144,13 +144,13 @@ Options are:
   [current value: NOT SET]
   The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm.
 
---acpp-squential-link-line=<value>
+--acpp-sequential-link-line=<value>
   [can also be set with environment variable: ACPP_SEQUENTIAL_LINK_LINE=<value>]
   [default value provided by field 'default-sequential-link-line' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
  The arguments passed to the linker for the sequential backend
 
---acpp-squential-cxx-flags=<value>
+--acpp-sequential-cxx-flags=<value>
   [can also be set with environment variable: ACPP_SEQUENTIAL_CXX_FLAGS=<value>]
   [default value provided by field 'default-sequential-cxx-flags' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
@@ -235,7 +235,7 @@ Options are:
   [can also be set with environment variable: ACPP_STDPAR_PREFETCH_MODE=<value>]
   [default value provided by field 'default-stdpar-prefetch-mode' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
-  AdaptiveCpp supports issuing automati USM prefetch operations for allocations used inside offloaded C++ PSTL
+  AdaptiveCpp supports issuing automatic USM prefetch operations for allocations used inside offloaded C++ PSTL
     algorithms. This flags determines the strategy for submitting such prefetches.
     Supported values are:
       * always      - Prefetches every allocation used by every stdpar kernel

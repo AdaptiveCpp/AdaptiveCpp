@@ -73,10 +73,6 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
 
   // In case we find an empty slot, this stores its index.
   int empty_slot = -1;
-  // This stores the index of the least recently used slot, in case
-  // we need to evict an entry.
-  int eviction_candidate_slot = -1;
-  uint64_t eviction_candidate_last_used_time = std::numeric_limits<uint64_t>::max();
 
   for(int i = 0; i < common::db::kernel_arg_entry::max_tracked_values; ++i) {
     // How many times the current kernel parameter was set to
@@ -112,10 +108,6 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
       // Remember that we have hit an unused slot in case we don't find any
       // matches with values that are know to be commonly occuring
       empty_slot = i; 
-    } else if(arg_statistics.last_used < eviction_candidate_last_used_time) {
-      // Update least-recently-used so that we can find potential entries to evict
-      eviction_candidate_slot = i;
-      eviction_candidate_last_used_time = arg_statistics.last_used;
     }
   }
 
@@ -123,19 +115,41 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
     common::db::kernel_arg_value_statistics new_arg_entry;
     new_arg_entry.value = current_value;
     new_arg_entry.count = 1;
-    new_arg_entry.last_used = 0;
+    new_arg_entry.last_used = kernel_entry.num_registered_invocations;
     args[param_index].common_values[slot_index] = new_arg_entry;
     args[param_index].was_specialized[slot_index] = false;
   };
 
+  // If we arrive here, we are dealing with a value that we have
+  // not encountered before.
   if(empty_slot >= 0) {
     // If we have an empty slot, store the current argument in case
     // it gets used a lot by future kernel invocations.
     create_new_entry(empty_slot);
-  } else if(eviction_candidate_slot >= 0) {
-    // Otherwise, we may repurpose slots that have not been used in a long time.
-    if ((kernel_entry.num_registered_invocations - eviction_candidate_last_used_time) >
-        static_specialization_trigger) {
+  } else {
+    // Try to find an old entry that we can evict.
+    int eviction_candidate_slot = -1;
+    uint64_t eviction_candidate_last_used_time = std::numeric_limits<uint64_t>::max();
+
+    for(int i = 0; i < common::db::kernel_arg_entry::max_tracked_values; ++i) {
+      auto& arg_statistics = args[param_index].common_values[i];
+      
+      if(arg_statistics.last_used < eviction_candidate_last_used_time) {
+        auto age = kernel_entry.num_registered_invocations - arg_statistics.last_used;
+        double fraction_of_all_invocations = static_cast<double>(arg_statistics.count) /
+               kernel_entry.num_registered_invocations;
+
+        if (age > static_specialization_trigger &&
+            fraction_of_all_invocations < relative_specialization_trigger) {
+          
+          // Update least-recently-used so that we can find potential entries to evict
+          eviction_candidate_slot = i;
+          eviction_candidate_last_used_time = arg_statistics.last_used;
+        }
+      }
+    }
+    
+    if (eviction_candidate_slot >= 0) {
       create_new_entry(eviction_candidate_slot);
     }
   }

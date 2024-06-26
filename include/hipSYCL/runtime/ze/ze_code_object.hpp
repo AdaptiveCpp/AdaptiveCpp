@@ -56,7 +56,7 @@ public:
                                const rt::range<3> &group_size,
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name,
+                               const char* kernel_name,
                                const kernel_configuration& config) override;
 private:
   ze_queue* _queue;

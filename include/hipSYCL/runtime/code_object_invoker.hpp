@@ -59,7 +59,7 @@ public:
                                const rt::range<3> &group_size,
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name,
+                               const char* kernel_name,
                                const kernel_configuration& config) = 0;
 
   virtual rt::range<3> select_group_size(const rt::range<3> &global_range,

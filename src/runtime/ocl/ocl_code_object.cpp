@@ -39,7 +39,7 @@ result ocl_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name,
+    std::size_t num_args, const char* kernel_name,
     const kernel_configuration &config) {
 
   assert(_queue);

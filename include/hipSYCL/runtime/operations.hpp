@@ -266,8 +266,7 @@ public:
   /// Given a kernel blob, identifies embedded pointers that are bound
   /// to this requirement and initializes them
   /// \return Whether an embedded pointer was found and initialized
-  template<class KernelBlob>
-  bool initialize_bound_embedded_pointers(KernelBlob& blob) {
+  bool initialize_bound_embedded_pointers(void* blob, std::size_t blob_size) {
     if(is_bound()) {
       if(!has_device_ptr()) {
         register_error(
@@ -282,10 +281,16 @@ public:
                            << this << std::endl;
 
         return glue::kernel_blob::initialize_embedded_pointer(
-                blob, _bound_embedded_ptr_id, get_device_ptr());
+                blob, blob_size, _bound_embedded_ptr_id, get_device_ptr());
       }
     }
     return false;
+  }
+
+  template<class KernelBlob>
+  bool initialize_bound_embedded_pointers(KernelBlob& blob) {
+    return initialize_bound_embedded_pointers(static_cast<void *>(&blob),
+                                              sizeof(KernelBlob));
   }
   
   void dump(std::ostream & ostr, int indentation=0) const override;
@@ -364,6 +369,33 @@ public:
           bool found =
               (bmem_req->initialize_bound_embedded_pointers(kernel_components) ||
                ...);
+          if(!found) {
+            HIPSYCL_DEBUG_WARNING
+              << "kernel_operation: Could not find embedded pointer "
+                 "in kernel blob for this requirement; do you have unnecessary "
+                 "accessors that are unused in your kernel?"
+              << std::endl;
+          }
+        }
+      }
+    }
+  }
+
+  void initialize_embedded_pointers(void* blob, std::size_t blob_size) {
+    for(auto req_node : _requirements) {
+
+      memory_requirement *req =
+          static_cast<memory_requirement *>(req_node->get_operation());
+
+      if(req->is_buffer_requirement()){
+        buffer_memory_requirement *bmem_req =
+            static_cast<buffer_memory_requirement *>(req);
+
+        if(bmem_req->is_bound()) {
+          // Initialize all arguments
+          bool found =
+              bmem_req->initialize_bound_embedded_pointers(blob, blob_size);
+
           if(!found) {
             HIPSYCL_DEBUG_WARNING
               << "kernel_operation: Could not find embedded pointer "

@@ -41,7 +41,7 @@ const instrumentation_set &operation::get_instrumentations() const {
 }
 
 kernel_operation::kernel_operation(
-    const std::string &kernel_name,
+    const char* kernel_name,
     common::auto_small_vector<
         std::unique_ptr<backend_kernel_launcher>> kernels,
     const requirements_list &reqs)

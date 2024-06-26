@@ -54,9 +54,14 @@ This optimization process is complete when the following warning is no longer pr
 
 The extent of this can be controlled using the environment variable `ACPP_ADAPTIVITY_LEVEL`. A value of 0 disables the feature. The default is 1. Higher levels are expected to result in higher peak performance, but may require more application runs to converge to this performance. The default level of 1 usually guarantees peak performance for the second application run.
 
+At adaptivity level >= 2, AdaptiveCpp will enable additional, aggressive optimizations.
+In particular, AdaptiveCpp will attempt to detect invariant kernel arguments, and hardwire those as constants during JIT time. In some cases, this can result in substantial performance increases. It is thus advisable to try setting `ACPP_ADAPTIVITY_LEVEL=2` and running the application a couple of times (typically 3-4 times).
+
+Note: Applications that are highly latency-sensitive may notice a slightly increased kernel launch latency at adaptivity level >= 2 due to the additional analysis steps at runtime.
+
 **For peak performance, you should not disable adaptivity, and run the application until the warning above is no longer printed.**
 
-*Note: Adaptivity levels higher than 1 are currently not implemented.*
+*Note: Adaptivity levels higher than 2 are currently not implemented.*
 
 ### Empty the kernel cache when upgrading the stack
 
@@ -90,6 +95,7 @@ Clearing the cache can be accomplished by simply clearing the cache directory, e
 * The USM pointer-based memory management model typically has less overheads and lower latency compared to SYCL's traditional buffer-accessor model.
 * Consider using the `ACPP_EXT_COARSE_GRAINED_EVENTS` [(extension documentation)](extensions.md) extension if you rarely use events returned from the `queue`. This extension allows the runtime to elide backend event creation.
 * Stdpar kernels typically have lower submission latency compared to SYCL kernels.
+* If you are using `ACPP_ADAPTIVITY_LEVEL >= 2`, try also with lower adaptivity levels. The aggressive optimizations enabled at `ACPP_ADAPTIVITY_LEVEL >= 2` may come with a slight increase in kernel launch latency.
 
 ## Stdpar
 

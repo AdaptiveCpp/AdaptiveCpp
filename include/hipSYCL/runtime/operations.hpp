@@ -331,7 +331,7 @@ class kernel_operation : public operation
 {
 public:
   kernel_operation(
-      const std::string &kernel_name,
+      const char* kernel_name,
       common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
           kernels,
       const requirements_list &requirements);
@@ -376,11 +376,11 @@ public:
     }
   }
 
-  const std::string& get_global_kernel_name() const {
+  const char* get_global_kernel_name() const {
     return _kernel_name;
   }
 private:
-  std::string _kernel_name;
+  const char* _kernel_name;
   kernel_launcher _launcher;
   // We store shared_ptr to the memory requirement nodes to make sure
   // that they are alive as long as kernel operations live.

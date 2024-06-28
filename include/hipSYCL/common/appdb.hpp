@@ -87,16 +87,31 @@ struct kernel_entry {
   std::vector<int> retained_argument_indices;
 };
 
+struct binary_entry {
+  std::string jit_cache_filename;
+
+  template<class T>
+  void pack(T &pack) {
+    pack(jit_cache_filename);
+  }
+
+  void dump(std::ostream& ostr, int indentation_level=0) const;
+};
+
 struct appdb_data {
   std::size_t content_version = 0;
 
   std::unordered_map<rt::kernel_configuration::id_type, kernel_entry,
                      rt::kernel_id_hash>
       kernels;
+  std::unordered_map<rt::kernel_configuration::id_type, binary_entry,
+                     rt::kernel_id_hash>
+      binaries;
 
   template<class T>
   void pack(T &pack) {
     pack(kernels);
+    pack(binaries);
     pack(content_version);
   }
 

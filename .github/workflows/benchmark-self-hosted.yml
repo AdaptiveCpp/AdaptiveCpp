@@ -11,6 +11,7 @@ jobs:
   run-benchmark:
     if: contains(github.event.pull_request.labels.*.name, 'benchmark')
     runs-on: [self-hosted, gpu-nvidia]
+    permissions: write-all
     strategy:
       matrix:
         clang_version: ['15']

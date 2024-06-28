@@ -213,9 +213,11 @@ protected:
   // if they want to do something more specific.
   virtual bool optimizeFlavoredIR(llvm::Module& M, PassHandler& PH);
 
-  // transfers kernel properties (e.g. kernel call conventions, additional metadata) from one kernel
+  // Transfers kernel properties (e.g. kernel call conventions, additional metadata) from one kernel
   // "From" to another "To". This is useful e.g. for dead argument elimination, where a new
   // kernel entrypoint with different signature will be created post optimizations.
+  // This assumes that To has been created with a matching function signature from From,
+  // including function and parameter attributes.
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) = 0;
 
   void registerError(const std::string& E) {

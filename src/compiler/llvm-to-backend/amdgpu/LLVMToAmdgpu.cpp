@@ -521,8 +521,12 @@ void LLVMToAmdgpuTranslator::applyKernelProperties(llvm::Function* F) {
 }
 
 void LLVMToAmdgpuTranslator::removeKernelProperties(llvm::Function* F) {
-  if(F->getCallingConv() == llvm::CallingConv::AMDGPU_KERNEL)
+  if(F->getCallingConv() == llvm::CallingConv::AMDGPU_KERNEL) {
     F->setCallingConv(llvm::CallingConv::C);
+    for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i)
+      if(F->getArg(i)->hasAttribute(llvm::Attribute::ByRef))
+        F->getArg(i)->removeAttr(llvm::Attribute::ByRef);
+  }
   if(F->hasFnAttribute("amdgpu-flat-work-group-size"))
     F->removeFnAttr("amdgpu-flat-work-group-size");
 }

@@ -56,7 +56,6 @@ protected:
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
 private:
   void applyKernelProperties(llvm::Function* F);
-  void clearKernelProperties(llvm::Module& M);
 
   std::vector<std::string> KernelNames;
   unsigned PtxVersion = 30;

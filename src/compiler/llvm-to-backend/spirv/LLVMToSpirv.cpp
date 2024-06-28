@@ -388,6 +388,9 @@ void LLVMToSpirvTranslator::applyKernelProperties(llvm::Function* F) {
 
 void LLVMToSpirvTranslator::removeKernelProperties(llvm::Function* F) {
   F->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+  for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i)
+    if(F->getArg(i)->hasAttribute(llvm::Attribute::ByVal))
+      F->getArg(i)->removeAttr(llvm::Attribute::ByVal);
   F->clearMetadata();
 }
 

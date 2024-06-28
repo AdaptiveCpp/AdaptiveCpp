@@ -326,7 +326,14 @@ createLLVMToPtxTranslator(const std::vector<std::string> &KernelNames) {
 
 void LLVMToPtxTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {
   llvm::Module& M = *From->getParent();
-  clearKernelProperties(M);
+  
+  if(auto* MD = M.getNamedMetadata("nvvm.annotations")) {
+    MD->eraseFromParent();
+  }
+  for (int i = 0; i < From->getFunctionType()->getNumParams(); ++i)
+    if (From->getArg(i)->hasAttribute(llvm::Attribute::ByVal))
+      From->getArg(i)->removeAttr(llvm::Attribute::ByVal);
+
   From->setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
   for(const auto& KN : KernelNames) {
     if(KN != To->getName() && KN != From->getName())
@@ -373,12 +380,6 @@ void LLVMToPtxTranslator::applyKernelProperties(llvm::Function* F) {
   F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
 }
 
-void LLVMToPtxTranslator::clearKernelProperties(llvm::Module& M) {
-  
-  if(auto* MD = M.getNamedMetadata("nvvm.annotations")) {
-    MD->eraseFromParent();
-  }
-}
 
 }
 }

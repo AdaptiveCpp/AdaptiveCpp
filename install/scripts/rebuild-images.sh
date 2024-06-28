@@ -6,7 +6,7 @@ if [ "$#" -ne 2 ]; then
   echo "
   Usage: <distro> <[script to run] OR build>
     distro: the distro to install the software for
-    script_to_run: Execute the install script loacted in HIPSYCL_PKG_SCRIPT_DIR, ( by defauld install/scripts)
+    script_to_run: Execute the install script located in HIPSYCL_PKG_SCRIPT_DIR, ( by defauld install/scripts)
     build: Build the base image into the HIPSYCL_PKG_CONTAINER_DIR folder. the scripts that are necessary are copid to the image
         during the build time the definition file is located at: HIPSYCL_PKG_SCRIPT_DIR/base-<distro>.def
 

@@ -217,6 +217,69 @@ BOOST_AUTO_TEST_CASE(buffer_external_writeback_nullptr) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_const_ptr) {
+  namespace s = cl::sycl;
+
+  int initial_val = 1;
+  int test_val = 42;
+
+  std::size_t size = 1024;
+  std::vector<int> host_buff(size, initial_val);
+  {
+    const int* host_ptr = host_buff.data();
+    s::buffer<int> buff{host_ptr, size};
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      auto acc =
+        buff.get_access<s::access::mode::write>(cgh);
+
+      cgh.parallel_for(s::range{size}, [=](auto idx) {
+        acc[idx] = test_val;
+      });
+    });
+  }
+
+  // Here, host_buff should still contain the original data, since we passed
+  // a const ptr to the buffer constructor.
+  for (auto val : host_buff)
+    BOOST_CHECK(val == initial_val);
+
+  // Now do the same thing, but set a valid final data address
+  {
+    const int* host_ptr = host_buff.data();
+    s::buffer<int> buff{host_ptr, size};
+
+    int* no_const_host_ptr = host_buff.data();
+    buff.set_final_data(no_const_host_ptr);
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      auto acc =
+        buff.get_access<s::access::mode::write>(cgh);
+
+      cgh.parallel_for(s::range{size}, [=](auto idx) {
+        acc[idx] = test_val;
+      });
+    });
+  }
+
+  // Here, host_buff should now contain the new data
+  for (auto val : host_buff)
+    BOOST_CHECK(val == test_val);
+}
+
+BOOST_AUTO_TEST_CASE(buffer_const_T_constructor) {
+  namespace s = cl::sycl;
+
+  std::size_t size = 1024;
+  std::vector<int> host_buff(size);
+
+  const int* host_ptr = host_buff.data();
+  s::buffer<const int> buff{host_ptr, size};
+
+  int *host_ptr2 = host_buff.data();
+  s::buffer<const int> buff2{host_ptr2, size};
+}
+
 BOOST_AUTO_TEST_CASE(buffer_container_constructor) {
   cl::sycl::queue q;
 
@@ -276,6 +339,163 @@ BOOST_AUTO_TEST_CASE(buffer_container_constructor_no_def_constr) {
     BOOST_CHECK(data1[i].val == testVal.val);
   for(int i = 0; i < data2.size(); ++i)
     BOOST_CHECK(data2[i].val == testVal.val);
+}
+
+BOOST_AUTO_TEST_CASE(buffer_shared_ptr) {
+  namespace s = cl::sycl;
+  s::queue q{};
+
+  const std::size_t size = 1024;
+  int testVal = 42;
+
+  // Constructor that takes non-empty shared_ptr
+  {
+    std::shared_ptr<int> hostptr{new int[size], std::default_delete<int[]>{}};
+
+    {
+      s::buffer<int> buf{hostptr, size};
+
+      // buffer must copy the shared_ptr, so its ref count should be two now
+      BOOST_CHECK(hostptr.use_count() == 2);
+
+      q.submit([&](auto &cgh) {
+        auto acc = buf.get_access<s::access::mode::write>(cgh);
+        cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+      });
+    }
+
+    std::vector<int> hostdata(hostptr.get(), hostptr.get() + size);
+    for (auto val : hostdata)
+      BOOST_CHECK(val == testVal);
+  }
+
+  // Constructor that takes empty shared_ptr
+  {
+    std::shared_ptr<int> hostptr;
+    s::buffer<int> buf{hostptr, size};
+  }
+
+  // Constructor that takes empty shared_ptr, but set final data pointer
+  {
+    std::vector<int> hostdata(size, -1);
+    std::shared_ptr<int> hostptr;
+
+    {
+      s::buffer<int> buf{hostptr, size};
+      buf.set_final_data(hostdata.data());
+
+      q.submit([&](auto &cgh) {
+        auto acc = buf.get_access<s::access::mode::write>(cgh);
+        cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+      });
+    }
+
+    for (auto val : hostdata)
+      BOOST_CHECK(val == testVal);
+  }
+
+  // Constructor that takes a unique ptr
+  {
+    std::unique_ptr<int, std::default_delete<int[]>> hostptr{
+        new int[size], std::default_delete<int[]>{}};
+
+    s::buffer<int> buf{std::move(hostptr), size};
+
+    BOOST_CHECK(!hostptr);
+
+    q.submit([&](auto &cgh) {
+      auto acc = buf.get_access<s::access::mode::write>(cgh);
+      cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+    });
+
+    auto ha = buf.get_host_access();
+    for (auto val : ha)
+      BOOST_CHECK(val == testVal);
+  }
+
+  // Set final data with shared_ptr
+  {
+    std::shared_ptr<int> hostptr{new int[size], std::default_delete<int[]>{}};
+
+    {
+      s::buffer<int> buf{size};
+      buf.set_final_data(hostptr);
+
+      q.submit([&](auto &cgh) {
+        auto acc = buf.get_access<s::access::mode::write>(cgh);
+        cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+      });
+    }
+
+    for (int i = 0; i != size; ++i)
+      BOOST_CHECK(hostptr.get()[i] == testVal);
+  }
+
+  // Test buffer construction with std::shared_ptr<T[]>
+  {
+    std::shared_ptr<int[]> hostptr{new int[size]};
+
+    {
+      s::buffer<int> buf{hostptr, size};
+
+      // buffer must copy the shared_ptr, so its ref count should be two now
+      BOOST_CHECK(hostptr.use_count() == 2);
+
+      q.submit([&](auto &cgh) {
+        auto acc = buf.get_access<s::access::mode::write>(cgh);
+        cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+      });
+    }
+
+    for (int i = 0; i != size; ++i)
+      BOOST_CHECK(hostptr.get()[i] == testVal);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(buffer_uninitialized) {
+  namespace s = cl::sycl;
+
+  struct bad_type {
+    bad_type() {
+      BOOST_ERROR(
+          "The buffer dared to call the constructor that shall not be called");
+    }
+
+    // This is okay
+    bad_type(int val) : val{val} {}
+
+    int val;
+  };
+
+  const std::size_t size = 1024;
+  int testVal = 42;
+
+  { // Check "normal" uninitialized buffer
+    s::buffer<bad_type> buf{size};
+
+    s::queue{}.submit([&](auto &cgh) {
+      auto acc = buf.get_access<s::access::mode::write>(cgh);
+      cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+    });
+
+    auto ha = buf.get_host_access();
+    for (auto val : ha)
+      BOOST_CHECK(val.val == testVal);
+  }
+
+  { // Check shared_ptr uninitialized buffer
+    std::shared_ptr<bad_type> hostptr;
+    s::buffer<bad_type> buf{hostptr, size};
+
+    s::queue{}.submit([&](auto &cgh) {
+      auto acc = buf.get_access<s::access::mode::write>(cgh);
+      cgh.parallel_for(size, [=](auto idx) { acc[idx] = testVal; });
+    });
+
+    auto ha = buf.get_host_access();
+    for (auto val : ha)
+      BOOST_CHECK(val.val == testVal);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

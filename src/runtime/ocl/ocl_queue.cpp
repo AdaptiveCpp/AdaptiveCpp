@@ -463,6 +463,10 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   config.set_build_option(
       kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
+  if(hw_ctx->has_intel_extension_profile()) {
+    config.set_build_flag(
+      kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
+  }
 
   // TODO: Enable this if we are on Intel
   // config.set_build_flag(kernel_build_flag::spirv_enable_intel_llvm_spirv_options);

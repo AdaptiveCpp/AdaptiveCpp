@@ -28,7 +28,7 @@ jobs:
         git clone https://github.com/bcosenza/sycl-bench.git
         cd sycl-bench
         mkdir build && cd build
-        cmake .. -DSYCL_IMPL=hipSYCL -DhipSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/hipSYCL/ -DHIPSYCL_TARGETS=cuda:sm_61
+        cmake .. -DSYCL_IMPL=AdaptiveCpp -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp/ -DACPP_TARGETS=cuda:sm_61
         make $SYCL_BENCH_BENCHMARKS
         
     - name: Run SYCL-Bench

@@ -27,6 +27,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/DeadArgumentEliminationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/GlobalSizesFitInI32OptPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/KnownGroupSizeOptPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
@@ -50,6 +51,7 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <string>
 
 namespace hipsycl {
@@ -273,6 +275,31 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
         this->registerError("LLVMToBackend: Optimization failed");
       }
 
+      for(const auto& Entry : FunctionsForDeadArgumentElimination) {
+        if(auto* F = M.getFunction(Entry.first)) {
+          llvm::SmallVector<int> RetainedArgumentIndices;
+          DeadArgumentEliminationPass DAE{F, &RetainedArgumentIndices};
+          DAE.run(M, MAM);
+          auto* DAEOutput = Entry.second;
+          if(DAEOutput) {
+            DAEOutput->resize(RetainedArgumentIndices.size());
+            std::copy(RetainedArgumentIndices.begin(), RetainedArgumentIndices.end(),
+                      DAEOutput->begin());
+            
+            std::string RetainedArgsStr;
+            for(int i = 0; i < DAEOutput->size(); ++i) {
+              RetainedArgsStr += std::to_string(DAEOutput->at(i)) + " ";
+            }
+            HIPSYCL_DEBUG_INFO << "LLVMToBackend: Dead argument elimination for " << Entry.first
+                               << " has resulted in these arguments being retained: "
+                               << RetainedArgsStr << "\n";
+          }
+        }
+      }
+      // DAE needs an additional inlining pass
+      llvm::AlwaysInlinerPass AIP;
+      AIP.run(M, MAM);
+
       S2IRConstant::forEachS2IRConstant(M, [&](S2IRConstant C) {
         if (C.isValid()) {
           if (!C.isInitialized()) {
@@ -494,6 +521,17 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
       UnresolvedSymbolsSet = NewUnresolvedSymbolsSet;
     }
   }
+}
+
+void LLVMToBackendTranslator::enableDeadArgumentElminiation(
+    const std::string &FunctionName, std::vector<int> *RetainedArgumentIndices) {
+  this->FunctionsForDeadArgumentElimination.push_back(
+      std::make_pair(FunctionName, RetainedArgumentIndices));
+}
+
+const std::vector<std::pair<std::string, std::vector<int> *>> &
+LLVMToBackendTranslator::getDeadArgumentEliminationConfig() const {
+  return FunctionsForDeadArgumentElimination;
 }
 
 void LLVMToBackendTranslator::setFailedIR(llvm::Module& M) {

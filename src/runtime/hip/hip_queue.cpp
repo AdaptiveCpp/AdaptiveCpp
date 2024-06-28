@@ -657,8 +657,6 @@ result hip_queue::submit_sscp_kernel_from_code_object(
   };
 
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
-    const common::hcf_container *hcf =
-        rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
     std::string selected_image_name = get_image_and_kernel_names(kernel_names);
@@ -668,8 +666,15 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       compiler::createLLVMToAmdgpuTranslator(kernel_names);
 
     // Lower kernels
-    auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, compiled_image);
+    rt::result err;
+    if(kernel_names.size() == 1) {
+      err = glue::jit::dead_argument_elimination::compile_kernel(
+          translator.get(), hcf_object, selected_image_name, config,
+          binary_configuration_id, compiled_image);
+    } else {
+      err = glue::jit::compile(translator.get(),
+        hcf_object, selected_image_name, config, compiled_image);
+    }
     
     if(!err.is_success()) {
       register_error(err);
@@ -698,6 +703,11 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
+    if(kernel_names.size() == 1)
+      exec_obj->get_jit_output_metadata().kernel_retained_arguments_indices =
+          glue::jit::dead_argument_elimination::
+              retrieve_retained_arguments_mask(binary_configuration_id);
+
     return exec_obj;
   };
 
@@ -709,6 +719,12 @@ result hip_queue::submit_sscp_kernel_from_code_object(
   if(!obj) {
     return make_error(__acpp_here(),
                       error_info{"hip_queue: Code object construction failed"});
+  }
+
+  if(obj->get_jit_output_metadata().kernel_retained_arguments_indices.has_value()) {
+    arg_mapper.apply_dead_argument_elimination_mask(
+        obj->get_jit_output_metadata()
+            .kernel_retained_arguments_indices.value());
   }
 
   ihipModule_t *module =

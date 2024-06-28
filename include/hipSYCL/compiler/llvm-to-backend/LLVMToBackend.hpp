@@ -176,6 +176,12 @@ public:
 
   void provideExternalSymbolResolver(ExternalSymbolResolver Resolver);
 
+  // Enable dead argument elimination. If non-null, RetainedArgumentIndices will be filled
+  // with the indices of the parameters that were not removed in ascending order.
+  void enableDeadArgumentElminiation(const std::string &FunctionName,
+                                     std::vector<int> *RetainedArgumentIndices = nullptr);
+
+  const std::vector<std::pair<std::string, std::vector<int>*>>& getDeadArgumentEliminationConfig() const;
 protected:
   virtual AddressSpaceMap getAddressSpaceMap() const = 0;
   virtual bool isKernelAfterFlavoring(llvm::Function& F) = 0;
@@ -240,6 +246,8 @@ private:
 
   // In case an error occurs, the code will be stored here
   std::string ErroringCode;
+
+  std::vector<std::pair<std::string, std::vector<int>*>> FunctionsForDeadArgumentElimination;
 
 };
 

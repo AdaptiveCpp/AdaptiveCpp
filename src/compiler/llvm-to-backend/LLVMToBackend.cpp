@@ -277,14 +277,16 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
 
       for(const auto& Entry : FunctionsForDeadArgumentElimination) {
         if(auto* F = M.getFunction(Entry.first)) {
+          bool IsKernel = isKernelAfterFlavoring(*F);
           llvm::SmallVector<int> RetainedArgumentIndices;
           DeadArgumentEliminationPass DAE{F, &RetainedArgumentIndices};
           DAE.run(M, MAM);
           
           // DAE may result in a new function being generated
           auto* NewF = M.getFunction(Entry.first);
-          if(F != NewF && isKernelAfterFlavoring(*F))
+          if(F != NewF && IsKernel) {
             this->migrateKernelProperties(F, NewF);
+          }
 
           auto* DAEOutput = Entry.second;
           if(DAEOutput) {

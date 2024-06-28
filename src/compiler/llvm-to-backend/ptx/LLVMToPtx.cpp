@@ -329,8 +329,9 @@ void LLVMToPtxTranslator::migrateKernelProperties(llvm::Function* From, llvm::Fu
   clearKernelProperties(M);
   From->setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
   for(const auto& KN : KernelNames) {
-    if(KN != To->getName() && KN != From->getName());
-      applyKernelProperties(M.getFunction(KN));
+    if(KN != To->getName() && KN != From->getName())
+      if(auto* F = M.getFunction(KN))
+        applyKernelProperties(F);
   }
   applyKernelProperties(To);
 }

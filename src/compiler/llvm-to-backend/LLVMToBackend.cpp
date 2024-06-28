@@ -280,6 +280,12 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
           llvm::SmallVector<int> RetainedArgumentIndices;
           DeadArgumentEliminationPass DAE{F, &RetainedArgumentIndices};
           DAE.run(M, MAM);
+          
+          // DAE may result in a new function being generated
+          auto* NewF = M.getFunction(Entry.first);
+          if(F != NewF && isKernelAfterFlavoring(*F))
+            this->migrateKernelProperties(F, NewF);
+
           auto* DAEOutput = Entry.second;
           if(DAEOutput) {
             DAEOutput->resize(RetainedArgumentIndices.size());

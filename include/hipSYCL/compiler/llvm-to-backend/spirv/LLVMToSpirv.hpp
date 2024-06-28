@@ -52,7 +52,11 @@ protected:
   virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
   virtual AddressSpaceMap getAddressSpaceMap() const override;
   virtual bool optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) override;
+  virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
 private:
+  void applyKernelProperties(llvm::Function* F);
+  void removeKernelProperties(llvm::Function* F);
+
   std::vector<std::string> KernelNames;
   unsigned DynamicLocalMemSize = 0;
   bool UseIntelLLVMSpirvArgs = false;

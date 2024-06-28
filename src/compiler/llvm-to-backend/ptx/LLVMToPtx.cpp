@@ -167,38 +167,7 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
-      
-      llvm::SmallVector<llvm::Metadata*, 4> Operands;
-      Operands.push_back(llvm::ValueAsMetadata::get(F));
-      Operands.push_back(llvm::MDString::get(M.getContext(), "kernel"));
-      Operands.push_back(llvm::ValueAsMetadata::getConstant(
-          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 1)));
-
-      M.getOrInsertNamedMetadata("nvvm.annotations")
-          ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
-
-      if(KnownGroupSizeX > 0 && KnownGroupSizeY > 0 && KnownGroupSizeZ > 0) {
-
-        llvm::SmallVector<llvm::Metadata*, 7> KnownGroupSizeOperands;
-        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::get(F));
-        
-        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidx"));
-        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
-          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
-
-        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidy"));
-        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
-          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
-        
-        KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidz"));
-        KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
-          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
-        
-        M.getOrInsertNamedMetadata("nvvm.annotations")
-          ->addOperand(llvm::MDTuple::get(M.getContext(), KnownGroupSizeOperands));
-      }
-
-      F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
+      applyKernelProperties(F);
     }
   }
 
@@ -353,6 +322,61 @@ AddressSpaceMap LLVMToPtxTranslator::getAddressSpaceMap() const {
 std::unique_ptr<LLVMToBackendTranslator>
 createLLVMToPtxTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToPtxTranslator>(KernelNames);
+}
+
+void LLVMToPtxTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {
+  llvm::Module& M = *From->getParent();
+  clearKernelProperties(M);
+  From->setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
+  for(const auto& KN : KernelNames) {
+    if(KN != To->getName() && KN != From->getName());
+      applyKernelProperties(M.getFunction(KN));
+  }
+  applyKernelProperties(To);
+}
+
+void LLVMToPtxTranslator::applyKernelProperties(llvm::Function* F) {
+  llvm::Module& M = *F->getParent();
+
+  llvm::SmallVector<llvm::Metadata*, 4> Operands;
+  Operands.push_back(llvm::ValueAsMetadata::get(F));
+  Operands.push_back(llvm::MDString::get(M.getContext(), "kernel"));
+  Operands.push_back(llvm::ValueAsMetadata::getConstant(
+      llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 1)));
+
+
+  M.getOrInsertNamedMetadata("nvvm.annotations")
+      ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+
+  if(KnownGroupSizeX > 0 && KnownGroupSizeY > 0 && KnownGroupSizeZ > 0) {
+
+    llvm::SmallVector<llvm::Metadata*, 7> KnownGroupSizeOperands;
+    KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::get(F));
+    
+    KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidx"));
+    KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+      llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+
+    KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidy"));
+    KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+      llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+    
+    KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidz"));
+    KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
+      llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+    
+    M.getOrInsertNamedMetadata("nvvm.annotations")
+      ->addOperand(llvm::MDTuple::get(M.getContext(), KnownGroupSizeOperands));
+  }
+
+  F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
+}
+
+void LLVMToPtxTranslator::clearKernelProperties(llvm::Module& M) {
+  
+  if(auto* MD = M.getNamedMetadata("nvvm.annotations")) {
+    MD->eraseFromParent();
+  }
 }
 
 }

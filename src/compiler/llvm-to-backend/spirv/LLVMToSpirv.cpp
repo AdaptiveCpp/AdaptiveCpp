@@ -151,20 +151,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
-      F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
-
-      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
-        llvm::SmallVector<llvm::Metadata *> MDs;
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
-
-        static const char* ReqdWGSize = "reqd_work_group_size";
-        F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
-      }
+      applyKernelProperties(F);
     }
   }
 
@@ -373,6 +360,35 @@ bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH)
     I->eraseFromParent();
   
   return Result;
+}
+
+void LLVMToSpirvTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {
+  removeKernelProperties(From);
+  applyKernelProperties(To);
+}
+
+void LLVMToSpirvTranslator::applyKernelProperties(llvm::Function* F) {
+  F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+
+  llvm::Module& M = *F->getParent();
+
+  if (KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+    llvm::SmallVector<llvm::Metadata *> MDs;
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+
+    static const char *ReqdWGSize = "reqd_work_group_size";
+    F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
+  }
+}
+
+void LLVMToSpirvTranslator::removeKernelProperties(llvm::Function* F) {
+  F->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+  F->clearMetadata();
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

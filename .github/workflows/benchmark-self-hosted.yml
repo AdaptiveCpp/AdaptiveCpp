@@ -2,15 +2,14 @@ name: Benchmark on self-hosted runners
 
 on:
   pull_request:
-    types:
-      - labeled
+    types: [opened,edited,synchronize,labeled]
 
 env:
   SYCL_BENCH_BENCHMARKS: scalar_prod 2DConvolution
 
 jobs:
   run-benchmark:
-    if: (${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/run-benchmark')) || ${{ github.event.label.name == 'benchmark' }}
+    if: contains(github.event.pull_request.labels.*.name, 'benchmark')
     runs-on: [self-hosted, gpu-nvidia]
     strategy:
       matrix:
@@ -59,4 +58,5 @@ jobs:
         comment-on-alert: true
         summary-always: true
         comment-always: true
+
 

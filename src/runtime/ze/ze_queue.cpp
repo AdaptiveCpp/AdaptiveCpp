@@ -563,11 +563,16 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
-    if(exec_obj->supported_backend_kernel_names().size() == 1)
+    // On Level Zero, exec_obj->supported_backend_kernel_names() also returns
+    // some internal Intel kernels, so we cannot use that to test if there's only a single
+    // kernel.
+    std::vector<std::string> kernel_names;
+    adaptivity_engine.select_image_and_kernels(&kernel_names);
+
+    if(kernel_names.size() == 1)
       exec_obj->get_jit_output_metadata().kernel_retained_arguments_indices =
           glue::jit::dead_argument_elimination::
               retrieve_retained_arguments_mask(binary_configuration_id);
-
 
     return exec_obj;
   };

@@ -124,6 +124,17 @@ bool removeDynamicLocalMemorySupport(llvm::Module& M) {
   return true;
 }
 
+void assignSPIRCallConvention(llvm::Function *F) {
+  if (F->getCallingConv() != llvm::CallingConv::SPIR_FUNC)
+    F->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+
+  // All callers must use spir_func calling convention
+  for (auto U : F->users()) {
+    if (auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
+      CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+    }
+  }
+}
 }
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
@@ -158,15 +169,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   for(auto& F : M) {
     if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL){
       // All functions must be marked as spir_func
-      if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
-        F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
-      
-      // All callers must use spir_func calling convention
-      for(auto U : F.users()) {
-        if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
-          CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
-        }
-      }
+      assignSPIRCallConvention(&F);
     }
   }
 
@@ -387,10 +390,12 @@ void LLVMToSpirvTranslator::applyKernelProperties(llvm::Function* F) {
 }
 
 void LLVMToSpirvTranslator::removeKernelProperties(llvm::Function* F) {
-  F->setCallingConv(llvm::CallingConv::SPIR_FUNC);
-  for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i)
-    if(F->getArg(i)->hasAttribute(llvm::Attribute::ByVal))
+  assignSPIRCallConvention(F);
+  for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+    if(F->getArg(i)->hasAttribute(llvm::Attribute::ByVal)) {
       F->getArg(i)->removeAttr(llvm::Attribute::ByVal);
+    }
+  }
   F->clearMetadata();
 }
 

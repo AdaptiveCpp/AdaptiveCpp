@@ -277,37 +277,12 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
 
       for(const auto& Entry : FunctionsForDeadArgumentElimination) {
         if(auto* F = M.getFunction(Entry.first)) {
-          bool IsKernel = isKernelAfterFlavoring(*F);
-          llvm::SmallVector<int> RetainedArgumentIndices;
-          DeadArgumentEliminationPass DAE{F, &RetainedArgumentIndices};
-          DAE.run(M, MAM);
-          
-          // DAE may result in a new function being generated
-          auto* NewF = M.getFunction(Entry.first);
-          if(F != NewF && IsKernel) {
-            this->migrateKernelProperties(F, NewF);
-          }
-
-          auto* DAEOutput = Entry.second;
-          if(DAEOutput) {
-            DAEOutput->resize(RetainedArgumentIndices.size());
-            std::copy(RetainedArgumentIndices.begin(), RetainedArgumentIndices.end(),
-                      DAEOutput->begin());
-            
-            std::string RetainedArgsStr;
-            for(int i = 0; i < DAEOutput->size(); ++i) {
-              RetainedArgsStr += std::to_string(DAEOutput->at(i)) + " ";
-            }
-            HIPSYCL_DEBUG_INFO << "LLVMToBackend: Dead argument elimination for " << Entry.first
-                               << " has resulted in these arguments being retained: "
-                               << RetainedArgsStr << "\n";
+          if(isKernelAfterFlavoring(*F)) {
+            runKernelDeadArgumentElimination(M, F, PH, *Entry.second);
           }
         }
       }
-      // DAE needs an additional inlining pass
-      llvm::AlwaysInlinerPass AIP;
-      AIP.run(M, MAM);
-
+      
       S2IRConstant::forEachS2IRConstant(M, [&](S2IRConstant C) {
         if (C.isValid()) {
           if (!C.isInitialized()) {
@@ -547,6 +522,33 @@ void LLVMToBackendTranslator::setFailedIR(llvm::Module& M) {
   llvm::WriteBitcodeToFile(M, Stream);
 }
 
+void LLVMToBackendTranslator::runKernelDeadArgumentElimination(
+    llvm::Module &M, llvm::Function *F, PassHandler &PH, std::vector<int> &RetainedIndicesOut) {
+  std::string FName = F->getName().str();
+
+  llvm::SmallVector<int> RetainedArgumentIndices;
+  std::function<void(llvm::Function *, llvm::Function *)> KernelMigrationHandler =
+      [&, this](llvm::Function *Old, llvm::Function *New) {
+        this->migrateKernelProperties(Old, New);
+      };
+  DeadArgumentEliminationPass DAE{F, &RetainedArgumentIndices, &KernelMigrationHandler};
+  DAE.run(M, *PH.ModuleAnalysisManager);
+
+  auto *DAEOutput = &RetainedIndicesOut;
+  if (DAEOutput) {
+    DAEOutput->resize(RetainedArgumentIndices.size());
+    std::copy(RetainedArgumentIndices.begin(), RetainedArgumentIndices.end(), DAEOutput->begin());
+
+    std::string RetainedArgsStr;
+    for (int i = 0; i < DAEOutput->size(); ++i) {
+      RetainedArgsStr += std::to_string(DAEOutput->at(i)) + " ";
+    }
+
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Dead argument elimination for " << FName
+                       << " has resulted in these arguments being retained: " << RetainedArgsStr
+                       << "\n";
+  }
+}
 }
 }
 

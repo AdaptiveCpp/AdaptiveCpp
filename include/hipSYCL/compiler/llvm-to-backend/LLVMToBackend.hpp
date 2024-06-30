@@ -240,6 +240,8 @@ private:
 
   void resolveExternalSymbols(llvm::Module& M);
   void setFailedIR(llvm::Module& M);
+  void runKernelDeadArgumentElimination(llvm::Module &M, llvm::Function *F, PassHandler &PH,
+                                        std::vector<int>& RetainedIndicesOut);
 
   int S2IRConstantBackendId;
   

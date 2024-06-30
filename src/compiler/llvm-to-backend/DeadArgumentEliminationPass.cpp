@@ -30,6 +30,7 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/Transforms/Utils/Cloning.h>
 
 namespace hipsycl {
 namespace compiler {
@@ -37,7 +38,9 @@ namespace compiler {
 namespace {
 
 void removeUnusedFunctionParameters(llvm::Function *F, llvm::Module &M,
-                                    llvm::SmallVector<int> *RetainedParameterIndices = nullptr) {
+                                    llvm::SmallVector<int> *RetainedParameterIndices,
+                                    std::function<void(llvm::Function *, llvm::Function *)>
+                                        *ReplacementFunctionAttributeTransfer) {
 
   std::string FunctionName = F->getName().str();
   F->setName(FunctionName+".old");
@@ -94,8 +97,6 @@ void removeUnusedFunctionParameters(llvm::Function *F, llvm::Module &M,
     else
       llvm::ReturnInst::Create(M.getContext(), Call, BB);
 
-    if(!F->hasFnAttribute(llvm::Attribute::AlwaysInline))
-      F->addFnAttr(llvm::Attribute::AlwaysInline);
     F->setLinkage(llvm::GlobalValue::InternalLinkage);
 
     if(RetainedParameterIndices) {
@@ -104,19 +105,39 @@ void removeUnusedFunctionParameters(llvm::Function *F, llvm::Module &M,
       for(auto Index : OriginalParameterIndex)
         RetainedParameterIndices->push_back(Index);
     }
+
+    if(ReplacementFunctionAttributeTransfer)
+      (*ReplacementFunctionAttributeTransfer)(F, NewF);
+
+    llvm::SmallVector<llvm::CallBase*> CallsToInline;
+    for(auto* U : F->users())
+      if(auto* CB = llvm::dyn_cast<llvm::CallBase>(U))
+        CallsToInline.push_back(CB);
+    for(auto* CB : CallsToInline) {
+      llvm::InlineFunctionInfo IFI;
+      if(llvm::InlineFunction(*CB, IFI).isSuccess()) {
+        F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
+        F->dropAllReferences();
+        F->eraseFromParent();
+      }
+    }
   }
 }
 }
 
 DeadArgumentEliminationPass::DeadArgumentEliminationPass(
-    llvm::Function* F, llvm::SmallVector<int>* RetainedArgs)
-    : TargetFunction{F}, RetainedArguments{RetainedArgs} {}
+    llvm::Function *F, llvm::SmallVector<int> *RetainedArgs,
+    std::function<void(llvm::Function *, llvm::Function *)>
+        *ReplacementFunctionAttributeTransferHandler)
+    : TargetFunction{F}, RetainedArguments{RetainedArgs},
+      ReplacementFunctionAttributeTransfer{ReplacementFunctionAttributeTransferHandler} {}
 
 llvm::PreservedAnalyses DeadArgumentEliminationPass::run(llvm::Module &M,
                                                         llvm::ModuleAnalysisManager &MAM) {
   
   if(TargetFunction)
-    removeUnusedFunctionParameters(TargetFunction, M, RetainedArguments);
+    removeUnusedFunctionParameters(TargetFunction, M, RetainedArguments,
+                                   ReplacementFunctionAttributeTransfer);
   return llvm::PreservedAnalyses::none();
 }
 }

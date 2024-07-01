@@ -28,15 +28,15 @@
 #ifndef HIPSYCL_PSTL_OFFLOAD_HPP
 #define HIPSYCL_PSTL_OFFLOAD_HPP
 
-#include "hipSYCL/runtime/operations.hpp"
-#include "hipSYCL/runtime/settings.hpp"
-#include "hipSYCL/std/stdpar/detail/execution_fwd.hpp"
-#include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
-#include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
-#include "hipSYCL/std/stdpar/detail/offload_heuristic_db.hpp"
+#include "../../../runtime/operations.hpp"
+#include "../../../runtime/settings.hpp"
+#include "../../../std/stdpar/detail/execution_fwd.hpp"
+#include "../../../std/stdpar/detail/stdpar_builtins.hpp"
+#include "../../../std/stdpar/detail/sycl_glue.hpp"
+#include "../../../std/stdpar/detail/offload_heuristic_db.hpp"
 
-#include "hipSYCL/glue/reflection.hpp"
-#include "hipSYCL/common/stable_running_hash.hpp"
+#include "../../../glue/reflection.hpp"
+#include "../../../common/stable_running_hash.hpp"
 
 
 #include <atomic>

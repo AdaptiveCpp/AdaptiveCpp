@@ -32,7 +32,7 @@
 #include <atomic>
 
 #include "executor.hpp"
-#include "hipSYCL/runtime/operations.hpp"
+#include "../runtime/operations.hpp"
 #include "inorder_queue.hpp"
 
 namespace hipsycl {

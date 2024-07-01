@@ -35,7 +35,7 @@
 #include <sstream>
 #include <memory>
 
-#include "hipSYCL/common/debug.hpp"
+#include "../common/debug.hpp"
 
 namespace hipsycl {
 namespace rt {

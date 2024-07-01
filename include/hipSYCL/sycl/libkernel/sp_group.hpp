@@ -28,13 +28,13 @@
 #ifndef HIPSYCL_SP_GROUP_HPP
 #define HIPSYCL_SP_GROUP_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
-#include "hipSYCL/sycl/libkernel/group.hpp"
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
-#include "hipSYCL/sycl/libkernel/sp_item.hpp"
-#include "hipSYCL/sycl/libkernel/sub_group.hpp"
-#include "hipSYCL/glue/generic/host/iterate_range.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/detail/data_layout.hpp"
+#include "../../sycl/libkernel/group.hpp"
+#include "../../sycl/libkernel/host/host_backend.hpp"
+#include "../../sycl/libkernel/sp_item.hpp"
+#include "../../sycl/libkernel/sub_group.hpp"
+#include "../../glue/generic/host/iterate_range.hpp"
 #include <type_traits>
 
 namespace hipsycl {

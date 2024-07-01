@@ -33,13 +33,13 @@
 #include <vector>
 #include <memory>
 
-#include "hipSYCL/common/small_vector.hpp"
-#include "hipSYCL/runtime/dag_node.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/hints.hpp"
-#include "hipSYCL/runtime/util.hpp"
-#include "hipSYCL/runtime/kernel_configuration.hpp"
+#include "../common/small_vector.hpp"
+#include "../runtime/dag_node.hpp"
+#include "../runtime/application.hpp"
+#include "../runtime/error.hpp"
+#include "../runtime/hints.hpp"
+#include "../runtime/util.hpp"
+#include "../runtime/kernel_configuration.hpp"
 
 #include "backend.hpp"
 

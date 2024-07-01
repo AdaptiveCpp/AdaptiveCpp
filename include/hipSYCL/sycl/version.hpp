@@ -31,7 +31,7 @@
 
 #include <string>
 
-#include "hipSYCL/common/config.hpp"
+#include "../common/config.hpp"
 
 namespace hipsycl {
 namespace sycl {

@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 #define HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/detail/bit_cast.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/detail/bit_cast.hpp"
 #include "int_types.hpp"
 
 #ifdef __clang__

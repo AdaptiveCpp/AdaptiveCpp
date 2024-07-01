@@ -30,7 +30,7 @@
 
 #include <cstdint>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 #include "detail/thread_hierarchy.hpp"
 #include "id.hpp"
 #include "range.hpp"

@@ -33,7 +33,7 @@
 #include "backend.hpp"
 #include "backend_interop.hpp"
 
-#include "hipSYCL/runtime/executor.hpp"
+#include "../runtime/executor.hpp"
 
 namespace hipsycl {
 namespace sycl {

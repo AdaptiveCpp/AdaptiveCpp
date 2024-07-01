@@ -28,9 +28,9 @@
 #ifndef HIPSYCL_ATOMIC_HIPLIKE_BUILTINS_HPP
 #define HIPSYCL_ATOMIC_HIPLIKE_BUILTINS_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/memory.hpp"
-#include "hipSYCL/sycl/libkernel/bit_cast.hpp"
+#include "../../../../sycl/libkernel/backend.hpp"
+#include "../../../../sycl/libkernel/memory.hpp"
+#include "../../../../sycl/libkernel/bit_cast.hpp"
 
 #include <type_traits>
 

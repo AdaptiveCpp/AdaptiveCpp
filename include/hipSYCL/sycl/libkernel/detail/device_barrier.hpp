@@ -30,11 +30,11 @@
 
 #include <cassert>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/access.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
+#include "../../../sycl/access.hpp"
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
-#include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
+#include "../../../sycl/libkernel/sscp/builtins/barrier.hpp"
 #endif
 
 namespace hipsycl {

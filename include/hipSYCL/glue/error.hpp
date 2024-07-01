@@ -31,13 +31,13 @@
 #include <exception>
 #include <vector>
 
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/common/small_vector.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/async_errors.hpp"
-#include "hipSYCL/sycl/exception.hpp"
-#include "hipSYCL/sycl/types.hpp"
+#include "../common/debug.hpp"
+#include "../common/small_vector.hpp"
+#include "../runtime/error.hpp"
+#include "../runtime/application.hpp"
+#include "../runtime/async_errors.hpp"
+#include "../sycl/exception.hpp"
+#include "../sycl/types.hpp"
 
 namespace hipsycl {
 namespace glue {

@@ -28,10 +28,10 @@
 #ifndef HIPSYCL_DUMP_INTERFACE_HPP
 #define HIPSYCL_DUMP_INTERFACE_HPP
 
-#include "hipSYCL/sycl.hpp"
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/item.hpp"
-#include "hipSYCL/sycl/range.hpp"
+#include "../../sycl.hpp"
+#include "../../sycl/id.hpp"
+#include "../../sycl/item.hpp"
+#include "../../sycl/range.hpp"
 
 #include <ostream>
 #include <map>

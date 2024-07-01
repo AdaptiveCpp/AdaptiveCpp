@@ -30,8 +30,8 @@
 #define HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 
 #include "../../memory.hpp"
-#include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
-#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
+#include "../../../../sycl/libkernel/detail/half_representation.hpp"
+#include "../../../../sycl/libkernel/detail/int_types.hpp"
 
 #define HIPSYCL_SSCP_BUILTIN_ATTRIBUTES __attribute__((always_inline))
 #define HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE extern "C"

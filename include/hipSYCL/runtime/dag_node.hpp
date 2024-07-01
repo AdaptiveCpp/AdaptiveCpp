@@ -33,7 +33,7 @@
 
 #include "hints.hpp"
 #include "event.hpp"
-#include "hipSYCL/common/small_vector.hpp"
+#include "../common/small_vector.hpp"
 
 
 namespace hipsycl {

@@ -71,7 +71,7 @@
   #define HIPSYCL_HOST_TARGET
  #endif
 
- #include "hipSYCL/glue/llvm-sscp/ir_constants.hpp"
+ #include "../../../glue/llvm-sscp/ir_constants.hpp"
  #include "builtins/core.hpp"
  
 #else

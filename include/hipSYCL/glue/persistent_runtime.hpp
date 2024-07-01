@@ -29,7 +29,7 @@
 #define HIPSYCL_PERSISTENT_RUNTIME_HPP
 
 #include <memory>
-#include "hipSYCL/runtime/application.hpp"
+#include "../runtime/application.hpp"
 
 namespace hipsycl {
 namespace glue {

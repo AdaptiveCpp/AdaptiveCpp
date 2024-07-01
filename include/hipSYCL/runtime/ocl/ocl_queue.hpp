@@ -34,9 +34,9 @@
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 
-#include "hipSYCL/runtime/event.hpp"
-#include "hipSYCL/runtime/generic/async_worker.hpp"
-#include "hipSYCL/runtime/ocl/ocl_code_object.hpp"
+#include "../../runtime/event.hpp"
+#include "../../runtime/generic/async_worker.hpp"
+#include "../../runtime/ocl/ocl_code_object.hpp"
 
 namespace hipsycl {
 namespace rt {

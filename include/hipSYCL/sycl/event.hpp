@@ -29,17 +29,17 @@
 #ifndef HIPSYCL_EVENT_HPP
 #define HIPSYCL_EVENT_HPP
 
-#include "hipSYCL/glue/error.hpp"
-#include "hipSYCL/runtime/hints.hpp"
-#include "hipSYCL/sycl/info/event.hpp"
+#include "../glue/error.hpp"
+#include "../runtime/hints.hpp"
+#include "../sycl/info/event.hpp"
 #include "types.hpp"
 #include "libkernel/backend.hpp"
 #include "exception.hpp"
 #include "info/info.hpp"
 
-#include "hipSYCL/runtime/dag_node.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/instrumentation.hpp"
+#include "../runtime/dag_node.hpp"
+#include "../runtime/application.hpp"
+#include "../runtime/instrumentation.hpp"
 #include <cstddef>
 
 namespace hipsycl {

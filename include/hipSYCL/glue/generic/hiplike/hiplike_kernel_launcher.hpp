@@ -33,11 +33,11 @@
 #include <cstdlib>
 #include <string>
 
-#include "hipSYCL/runtime/kernel_configuration.hpp"
-#include "hipSYCL/runtime/allocator.hpp"
-#include "hipSYCL/runtime/hints.hpp"
-#include "hipSYCL/runtime/operations.hpp"
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../runtime/kernel_configuration.hpp"
+#include "../../../runtime/allocator.hpp"
+#include "../../../runtime/hints.hpp"
+#include "../../../runtime/operations.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
     HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
@@ -45,25 +45,25 @@
 #endif
 
 
-#include "hipSYCL/sycl/libkernel/range.hpp"
-#include "hipSYCL/sycl/libkernel/id.hpp"
-#include "hipSYCL/sycl/libkernel/item.hpp"
-#include "hipSYCL/sycl/libkernel/nd_item.hpp"
-#include "hipSYCL/sycl/libkernel/group.hpp"
-#include "hipSYCL/sycl/libkernel/sp_group.hpp"
-#include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
-#include "hipSYCL/sycl/interop_handle.hpp"
+#include "../../../sycl/libkernel/range.hpp"
+#include "../../../sycl/libkernel/id.hpp"
+#include "../../../sycl/libkernel/item.hpp"
+#include "../../../sycl/libkernel/nd_item.hpp"
+#include "../../../sycl/libkernel/group.hpp"
+#include "../../../sycl/libkernel/sp_group.hpp"
+#include "../../../sycl/libkernel/detail/local_memory_allocator.hpp"
+#include "../../../sycl/interop_handle.hpp"
 
-#include "hipSYCL/runtime/runtime.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/cuda/cuda_backend.hpp"
-#include "hipSYCL/runtime/util.hpp"
-#include "hipSYCL/runtime/dag_node.hpp"
+#include "../../../runtime/runtime.hpp"
+#include "../../../runtime/device_id.hpp"
+#include "../../../runtime/kernel_cache.hpp"
+#include "../../../runtime/error.hpp"
+#include "../../../runtime/cuda/cuda_backend.hpp"
+#include "../../../runtime/util.hpp"
+#include "../../../runtime/dag_node.hpp"
 
-#include "hipSYCL/glue/kernel_names.hpp"
-#include "hipSYCL/glue/generic/code_object.hpp"
+#include "../../../glue/kernel_names.hpp"
+#include "../../../glue/generic/code_object.hpp"
 
 
 #if defined(HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE)
@@ -74,7 +74,7 @@
   #include "nvcxx.hpp"
  #endif
  
- #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
+ #include "../../../sycl/libkernel/detail/thread_hierarchy.hpp"
  
 #else
 

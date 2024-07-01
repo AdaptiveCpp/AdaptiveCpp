@@ -34,9 +34,9 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
-#include "hipSYCL/runtime/code_object_invoker.hpp"
-#include "hipSYCL/runtime/event.hpp"
-#include "hipSYCL/runtime/hints.hpp"
+#include "../../runtime/code_object_invoker.hpp"
+#include "../../runtime/event.hpp"
+#include "../../runtime/hints.hpp"
 #include "ze_code_object.hpp"
 
 

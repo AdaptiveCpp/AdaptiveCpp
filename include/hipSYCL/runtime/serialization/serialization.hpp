@@ -29,8 +29,8 @@
 #define HIPSYCL_DUMP_RUNTIME_HPP
 
 #define HIPSYCL_DUMP_INDENTATION "   "
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/util.hpp"
+#include "../../runtime/backend.hpp"
+#include "../../runtime/util.hpp"
 
 #include <ostream>
 #include <sstream>

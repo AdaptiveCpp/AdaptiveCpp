@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_LOCAL_MEM_ALLOCATOR_HPP
 #define HIPSYCL_LOCAL_MEM_ALLOCATOR_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/exception.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
+#include "../../../sycl/exception.hpp"
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "../sscp/builtins/localmem.hpp"

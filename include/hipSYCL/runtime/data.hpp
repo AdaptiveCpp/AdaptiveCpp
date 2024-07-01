@@ -35,8 +35,8 @@
 #include <algorithm>
 #include <limits>
 
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/sycl/access.hpp"
+#include "../common/debug.hpp"
+#include "../sycl/access.hpp"
 #include "dag_node.hpp"
 #include "device_id.hpp"
 #include "util.hpp"

@@ -34,11 +34,11 @@
 #include <utility>
 #include <vector>
 
-#include "hipSYCL/common/small_vector.hpp"
+#include "../../common/small_vector.hpp"
 
-#include "hipSYCL/algorithms/reduction/threading_model/cache_line.hpp"
-#include "hipSYCL/algorithms/util/allocation_cache.hpp"
-#include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
+#include "../../algorithms/reduction/threading_model/cache_line.hpp"
+#include "../../algorithms/util/allocation_cache.hpp"
+#include "../../sycl/libkernel/detail/data_layout.hpp"
 
 #include "reduction_descriptor.hpp"
 #include "reduction_plan.hpp"

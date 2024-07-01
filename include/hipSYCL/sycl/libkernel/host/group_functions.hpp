@@ -37,7 +37,7 @@
 #include "../id.hpp"
 #include "../sub_group.hpp"
 #include "../vec.hpp"
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
+#include "../../../sycl/libkernel/host/host_backend.hpp"
 #include <type_traits>
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST

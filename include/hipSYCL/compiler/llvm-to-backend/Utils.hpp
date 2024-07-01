@@ -30,8 +30,8 @@
 
 #include <atomic>
 
-#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
-#include "hipSYCL/common/debug.hpp"
+#include "../../compiler/llvm-to-backend/LLVMToBackend.hpp"
+#include "../../common/debug.hpp"
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/ADT/SmallSet.h>

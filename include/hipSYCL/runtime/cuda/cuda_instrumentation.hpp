@@ -32,7 +32,7 @@
 #include "../generic/host_timestamped_event.hpp"
 #include "../generic/timestamp_delta_instrumentation.hpp"
 #include "../instrumentation.hpp"
-#include "hipSYCL/runtime/event.hpp"
+#include "../../runtime/event.hpp"
 #include <chrono>
 
 namespace hipsycl {

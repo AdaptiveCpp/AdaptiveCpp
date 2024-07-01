@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_GROUP_HPP
 #define HIPSYCL_GROUP_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/access.hpp"
+#include "../../sycl/libkernel/backend.hpp"
+#include "../../sycl/access.hpp"
 
 #include "id.hpp"
 #include "range.hpp"

@@ -33,7 +33,7 @@
 #include <tuple>
 #include <utility>
 #include <cstring>
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 
 
 namespace hipsycl {

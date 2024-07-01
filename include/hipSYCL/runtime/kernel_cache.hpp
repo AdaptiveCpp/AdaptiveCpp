@@ -30,11 +30,11 @@
 #include <mutex>
 #include <cassert>
 #include <memory>
-#include "hipSYCL/common/hcf_container.hpp"
-#include "hipSYCL/common/small_map.hpp"
-#include "hipSYCL/runtime/kernel_configuration.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/error.hpp"
+#include "../common/hcf_container.hpp"
+#include "../common/small_map.hpp"
+#include "../runtime/kernel_configuration.hpp"
+#include "../runtime/device_id.hpp"
+#include "../runtime/error.hpp"
 
 #ifndef HIPSYCL_RT_KERNEL_CACHE_HPP
 #define HIPSYCL_RT_KERNEL_CACHE_HPP

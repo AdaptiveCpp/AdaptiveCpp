@@ -43,7 +43,7 @@
 #include <string>
 
 #ifndef HIPSYCL_COMPILER_COMPONENT
-#include "hipSYCL/runtime/application.hpp"
+#include "../runtime/application.hpp"
 #endif
 
 namespace hipsycl {

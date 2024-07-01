@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_DEVICE_EVENT_HPP
 #define HIPSYCL_DEVICE_EVENT_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../sycl/libkernel/backend.hpp"
 
 namespace hipsycl {
 namespace sycl {

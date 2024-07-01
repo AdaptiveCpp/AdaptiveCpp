@@ -30,9 +30,9 @@
 
 #include <type_traits>
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/memory.hpp"
-#include "hipSYCL/sycl/detail/util.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/memory.hpp"
+#include "../../../sycl/detail/util.hpp"
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
 

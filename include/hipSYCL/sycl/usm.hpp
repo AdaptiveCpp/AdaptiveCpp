@@ -38,11 +38,11 @@
 #include "exception.hpp"
 #include "usm_query.hpp"
 
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/glue/error.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/allocator.hpp"
+#include "../common/debug.hpp"
+#include "../glue/error.hpp"
+#include "../runtime/application.hpp"
+#include "../runtime/backend.hpp"
+#include "../runtime/allocator.hpp"
 
 namespace hipsycl {
 namespace sycl {

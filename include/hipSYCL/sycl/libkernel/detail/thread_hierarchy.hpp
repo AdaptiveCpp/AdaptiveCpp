@@ -29,7 +29,7 @@
 #ifndef HIPSYCL_THREAD_HIERARCHY_HPP
 #define HIPSYCL_THREAD_HIERARCHY_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 
 #include "../id.hpp"
 #include "../range.hpp"

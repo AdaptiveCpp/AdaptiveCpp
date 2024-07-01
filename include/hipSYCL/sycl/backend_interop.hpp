@@ -26,7 +26,7 @@
  */
 
 
-#include "hipSYCL/glue/backend_interop.hpp"
+#include "../glue/backend_interop.hpp"
 
 #include "backend.hpp"
 #include "access.hpp"

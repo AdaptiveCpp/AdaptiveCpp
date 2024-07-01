@@ -29,9 +29,9 @@
 #define HIPSYCL_MOBILE_SHARED_PTR_HPP
 
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
-#include "hipSYCL/sycl/types.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/host/host_backend.hpp"
+#include "../../../sycl/types.hpp"
 
 namespace hipsycl {
 namespace sycl {

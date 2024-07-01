@@ -31,9 +31,9 @@
 
 #include <vector>
 
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../runtime/application.hpp"
+#include "../runtime/backend.hpp"
+#include "../runtime/device_id.hpp"
 
 #include "types.hpp"
 #include "device_selector.hpp"

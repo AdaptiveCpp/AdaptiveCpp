@@ -33,11 +33,11 @@
 #include <vector>
 #include <mutex>
 
-#include "hipSYCL/common/small_vector.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/runtime.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/sycl/device.hpp"
+#include "../../common/small_vector.hpp"
+#include "../../runtime/device_id.hpp"
+#include "../../runtime/runtime.hpp"
+#include "../../runtime/application.hpp"
+#include "../../sycl/device.hpp"
 
 namespace hipsycl::rt {
   class runtime;

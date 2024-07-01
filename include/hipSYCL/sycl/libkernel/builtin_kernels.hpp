@@ -34,7 +34,7 @@
 #include "accessor.hpp"
 #include "id.hpp"
 
-#include "hipSYCL/sycl/access.hpp"
+#include "../../sycl/access.hpp"
 
 namespace hipsycl {
 namespace sycl {

@@ -33,7 +33,7 @@
 #include <cstddef>
 #include <type_traits>
 
-#include "hipSYCL/runtime/util.hpp"
+#include "../../runtime/util.hpp"
 
 #include "backend.hpp"
 #include "detail/device_array.hpp"

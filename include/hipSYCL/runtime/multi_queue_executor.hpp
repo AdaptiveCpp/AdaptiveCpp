@@ -37,7 +37,7 @@
 #include "backend.hpp"
 #include "device_id.hpp"
 #include "executor.hpp"
-#include "hipSYCL/runtime/hints.hpp"
+#include "../runtime/hints.hpp"
 #include "inorder_executor.hpp"
 #include "generic/multi_event.hpp"
 

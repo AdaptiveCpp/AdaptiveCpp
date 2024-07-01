@@ -28,9 +28,9 @@
 #ifndef HIPSYCL_LIBKERNEL_HOST_BUILTINS_HPP
 #define HIPSYCL_LIBKERNEL_HOST_BUILTINS_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "../../../sycl/libkernel/backend.hpp"
 #ifndef HIPSYCL_SSCP_LIBKERNEL_LIBRARY
-#include "hipSYCL/sycl/libkernel/vec.hpp"
+#include "../../../sycl/libkernel/vec.hpp"
 #endif
 
 #include <bitset>

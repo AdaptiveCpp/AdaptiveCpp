@@ -58,7 +58,7 @@
 #include "CompilationState.hpp"
 #include "Attributes.hpp"
 
-#include "hipSYCL/common/debug.hpp"
+#include "../common/debug.hpp"
 
 
 namespace hipsycl {

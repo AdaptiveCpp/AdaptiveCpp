@@ -29,9 +29,9 @@
 #ifndef HIPSYCL_EMBEDDED_POINTER_HPP
 #define HIPSYCL_EMBEDDED_POINTER_HPP
 
-#include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
+#include "../common/debug.hpp"
+#include "../sycl/libkernel/backend.hpp"
+#include "../sycl/libkernel/host/host_backend.hpp"
 
 #include <cstring>
 #include <iterator>

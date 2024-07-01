@@ -50,8 +50,8 @@
 
 #include "allocation_map.hpp"
 #include "offload_heuristic_db.hpp"
-#include "hipSYCL/runtime/settings.hpp"
-#include "hipSYCL/sycl/info/device.hpp"
+#include "../../../runtime/settings.hpp"
+#include "../../../sycl/info/device.hpp"
 
 extern "C" void *__libc_malloc(size_t);
 extern "C" void __libc_free(void*);

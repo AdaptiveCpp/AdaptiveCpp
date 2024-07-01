@@ -30,7 +30,7 @@
 #define HIPSYCL_CODE_OBJECT_INVOKER_HPP
 
 #include "error.hpp"
-#include "hipSYCL/runtime/kernel_configuration.hpp"
+#include "../runtime/kernel_configuration.hpp"
 #include "util.hpp"
 #include "kernel_cache.hpp"
 #include "operations.hpp"

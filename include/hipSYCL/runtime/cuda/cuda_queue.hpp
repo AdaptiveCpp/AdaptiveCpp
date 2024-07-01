@@ -34,8 +34,8 @@
 
 #include "cuda_instrumentation.hpp"
 #include "cuda_code_object.hpp"
-#include "hipSYCL/runtime/code_object_invoker.hpp"
-#include "hipSYCL/runtime/cuda/cuda_event.hpp"
+#include "../../runtime/code_object_invoker.hpp"
+#include "../../runtime/cuda/cuda_event.hpp"
 
 
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.

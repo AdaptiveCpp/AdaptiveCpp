@@ -66,6 +66,22 @@ ResultT info_query(const cl::Device& dev) {
   return r;
 }
 
+template<int Query, class ResultT>
+ResultT platform_info_query(const cl::Device& dev) {
+  cl_platform_id platform = info_query<CL_DEVICE_PLATFORM, cl_platform_id>(dev);
+  cl::Platform p{platform};
+
+  ResultT r{};
+  cl_int err = p.getInfo(Query, &r);
+  if(err != CL_SUCCESS) {
+    register_error(
+          __acpp_here(),
+          error_info{"ocl_hardware_context: Could not obtain platform info",
+                    error_code{"CL", err}});
+  }
+  return r;
+}
+
 bool parse_ocl_version_string(const std::string& s, int& major_version_out) {
   const std::string identifier = "OpenCL ";
   const auto pos = s.find(identifier);
@@ -173,7 +189,14 @@ bool should_include_device(const std::string& dev_name, const cl::Device& dev) {
 ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
                                            const cl::Context &ctx, int dev_id,
                                            int platform_id)
-    : _dev_id{dev_id}, _platform_id{platform_id}, _ctx{ctx}, _dev{dev}, _alloc{} {}
+    : _dev_id{dev_id}, _platform_id{platform_id}, _ctx{ctx}, _dev{dev},
+      _alloc{}, _has_intel_extension_profile{false} {
+  std::string platform_name =
+      platform_info_query<CL_PLATFORM_NAME, std::string>(_dev);
+
+  if(platform_name == "Intel(R) OpenCL Graphics" || platform_name == "Intel(R) OpenCL")
+    _has_intel_extension_profile = true;
+}
 
 bool ocl_hardware_context::is_cpu() const {
   return info_query<CL_DEVICE_TYPE, cl_device_type>(_dev) & CL_DEVICE_TYPE_CPU;
@@ -201,6 +224,10 @@ std::string ocl_hardware_context::get_vendor_name() const {
 
 std::string ocl_hardware_context::get_device_arch() const {
   return "OpenCL " + info_query<CL_DEVICE_OPENCL_C_VERSION, std::string>(_dev);
+}
+
+bool ocl_hardware_context::has_intel_extension_profile() const {
+  return _has_intel_extension_profile;
 }
 
 bool ocl_hardware_context::has(device_support_aspect aspect) const {

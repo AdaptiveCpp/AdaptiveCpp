@@ -16,7 +16,7 @@ namespace sycl {
 
 namespace buffer_allocation {
 /// Describes a buffer memory allocation represented by a USM pointer 
-/// and additional meta-nformation.
+/// and additional meta-information.
 template <class T> struct descriptor {
   /// the USM pointer
   T *ptr;

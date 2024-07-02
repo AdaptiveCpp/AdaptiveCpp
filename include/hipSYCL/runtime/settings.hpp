@@ -122,6 +122,8 @@ enum class setting {
   ocl_show_all_devices,
   no_jit_cache_population,
   adaptivity_level,
+  jitopt_iads_static_trigger,
+  jitopt_iads_relative_trigger
 };
 
 template <setting S> struct setting_trait {};
@@ -155,6 +157,8 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_no_shared_context, "rt_ocl_no_shared_
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_show_all_devices, "rt_ocl_show_all_devices", bool)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::no_jit_cache_population, "rt_no_jit_cache_population", bool)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::adaptivity_level, "adaptivity_level", int)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_static_trigger, "jitopt_iads_static_trigger", std::size_t)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_trigger, "jitopt_iads_relative_trigger", double)
 
 class settings
 {
@@ -193,6 +197,10 @@ public:
       return _no_jit_cache_population;
     } else if constexpr(S == setting::adaptivity_level) {
       return _adaptivity_level;
+    } else if constexpr(S == setting::jitopt_iads_static_trigger) {
+      return _jitopt_iads_static_trigger;
+    } else if constexpr(S == setting::jitopt_iads_relative_trigger) {
+      return _jitopt_iads_relative_trigger;
     }
     return typename setting_trait<S>::type{};
   }
@@ -238,6 +246,10 @@ public:
         get_environment_variable_or_default<setting::no_jit_cache_population>(false);
     _adaptivity_level =
         get_environment_variable_or_default<setting::adaptivity_level>(1);
+    _jitopt_iads_static_trigger =
+        get_environment_variable_or_default<setting::jitopt_iads_static_trigger>(128);
+    _jitopt_iads_relative_trigger =
+        get_environment_variable_or_default<setting::jitopt_iads_relative_trigger>(0.8);
   }
 
 private:
@@ -266,6 +278,8 @@ private:
   bool _ocl_show_all_devices;
   bool _no_jit_cache_population;
   int _adaptivity_level;
+  std::size_t _jitopt_iads_static_trigger;
+  double _jitopt_iads_relative_trigger;
 };
 
 }

@@ -454,13 +454,29 @@ const code_object* kernel_cache::get_code_object_impl(code_object_id id) const {
 
 std::string kernel_cache::get_persistent_cache_file(code_object_id id_of_binary) {
   using namespace common::filesystem;
-  std::string cache_dir = tuningdb::get().get_jit_cache_dir();
+  std::string cache_dir = persistent_storage::get().get_jit_cache_dir();
   return join_path(cache_dir, kernel_configuration::to_string(id_of_binary)+".jit");
 }
 
 bool kernel_cache::persistent_cache_lookup(code_object_id id_of_binary,
                                            std::string &out) const {
-  std::string filename = get_persistent_cache_file(id_of_binary);
+  std::string filename;
+
+  bool filename_lookup_succeeded =
+      common::filesystem::persistent_storage::get()
+          .get_this_app_db()
+          .read_access([&](const common::db::appdb_data &appdb) {
+            auto binary = appdb.binaries.find(id_of_binary);
+            if (binary == appdb.binaries.end())
+              return false;
+
+            filename = binary->second.jit_cache_filename;
+            return true;
+          });
+
+  if(!filename_lookup_succeeded)
+    return false;
+
   std::ifstream file{filename, std::ios::in | std::ios::binary | std::ios::ate};
   
   if(!file.is_open())
@@ -495,6 +511,12 @@ void kernel_cache::persistent_cache_store(code_object_id id_of_binary,
         << "Could not store JIT result in persistent kernel cache in file "
         << filename << std::endl;
   }
+
+  common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_write_access([&](common::db::appdb_data &appdb) {
+        appdb.binaries[id_of_binary].jit_cache_filename = filename;
+      });
 }
 
 } // rt

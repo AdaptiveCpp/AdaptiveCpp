@@ -229,5 +229,9 @@ createLLVMToHostTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToHostTranslator>(KernelNames);
 }
 
+void LLVMToHostTranslator::migrateKernelProperties(llvm::Function *From, llvm::Function *To) {
+  assert(false && "migrateKernelProperties is unsupport for LLVMToHost");
+}
+
 } // namespace compiler
 } // namespace hipsycl

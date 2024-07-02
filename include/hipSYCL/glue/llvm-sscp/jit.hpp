@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_GLUE_JIT_HPP
 #define HIPSYCL_GLUE_JIT_HPP
 
+#include "hipSYCL/common/appdb.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/small_map.hpp"
@@ -97,6 +98,24 @@ public:
   std::size_t get_mapped_num_args() const {
     return _mapped_data.size();
   }
+
+  void apply_dead_argument_elimination_mask(
+      const std::vector<int> &retained_argument_indices) {
+    assert(retained_argument_indices.size() <= _mapped_data.size());
+
+    for(int i = 0; i < retained_argument_indices.size(); ++i) {
+      assert(retained_argument_indices[i] < _mapped_data.size());
+      assert(retained_argument_indices[i] >= i);
+      _mapped_data[i] = _mapped_data[retained_argument_indices[i]];
+      _mapped_sizes[i] = _mapped_sizes[retained_argument_indices[i]];
+    }
+    _mapped_data.erase(_mapped_data.begin() + retained_argument_indices.size(),
+                       _mapped_data.end());
+    _mapped_sizes.erase(_mapped_sizes.begin() +
+                            retained_argument_indices.size(),
+                        _mapped_sizes.end());
+  }
+
 private:
   void *add_offset(void *ptr, std::size_t offset_bytes) const {
     return static_cast<void *>(static_cast<char *>(ptr) + offset_bytes);
@@ -343,6 +362,47 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
 
   return compile(translator, hcf, image_name, config,
                  output);
+}
+
+namespace dead_argument_elimination {
+// Compiles with dead-argument-elimination for the kernels, and saves
+// the retained argument mask in the appdb. This only works for single-kernel
+// compilations!
+inline rt::result compile_kernel(
+    compiler::LLVMToBackendTranslator *translator, rt::hcf_object_id hcf_object,
+    const std::string &image_name, const rt::kernel_configuration &config,
+    rt::kernel_configuration::id_type binary_id, std::string &output) {
+
+  assert(translator->getKernels().size() == 1);
+
+  rt::result err = rt::make_success();
+
+  common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_write_access([&](common::db::appdb_data &appdb) {
+        std::vector<int> *retained_args =
+            &(appdb.kernels[binary_id].retained_argument_indices);
+
+        translator->enableDeadArgumentElminiation(translator->getKernels()[0],
+                                                  retained_args);
+        err = compile(translator, hcf_object, image_name, config, output);
+      });
+
+  return err;
+}
+
+inline std::vector<int>
+retrieve_retained_arguments_mask(rt::kernel_configuration::id_type binary_id) {
+  return common::filesystem::persistent_storage::get().get_this_app_db().read_access(
+      [&](const common::db::appdb_data &appdb) {
+        auto it = appdb.kernels.find(binary_id);
+        if(it != appdb.kernels.end()) {
+          return it->second.retained_argument_indices;
+        } else {
+          return std::vector<int>{};
+        }
+      });
+}
 }
 
 }

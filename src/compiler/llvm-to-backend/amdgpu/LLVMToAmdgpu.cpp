@@ -249,15 +249,7 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
-      F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
-
-      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
-        int FlatGroupSize = KnownGroupSizeX * KnownGroupSizeY * KnownGroupSizeZ;
-        
-        if(!F->hasFnAttribute("amdgpu-flat-work-group-size"))
-          F->addFnAttr("amdgpu-flat-work-group-size",
-                     std::to_string(FlatGroupSize) + "," + std::to_string(FlatGroupSize));
-      }
+      applyKernelProperties(F);
     }
   }
 
@@ -509,6 +501,34 @@ AddressSpaceMap LLVMToAmdgpuTranslator::getAddressSpaceMap() const {
   ASMap[AddressSpace::ConstantGlobalVariableDefault] = 4;
 
   return ASMap;
+}
+
+void LLVMToAmdgpuTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {
+  removeKernelProperties(From);
+  applyKernelProperties(To);
+}
+
+void LLVMToAmdgpuTranslator::applyKernelProperties(llvm::Function* F) {
+  F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
+
+  if (KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+    int FlatGroupSize = KnownGroupSizeX * KnownGroupSizeY * KnownGroupSizeZ;
+
+    if (!F->hasFnAttribute("amdgpu-flat-work-group-size"))
+      F->addFnAttr("amdgpu-flat-work-group-size",
+                   std::to_string(FlatGroupSize) + "," + std::to_string(FlatGroupSize));
+  }
+}
+
+void LLVMToAmdgpuTranslator::removeKernelProperties(llvm::Function* F) {
+  if(F->getCallingConv() == llvm::CallingConv::AMDGPU_KERNEL) {
+    F->setCallingConv(llvm::CallingConv::C);
+    for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i)
+      if(F->getArg(i)->hasAttribute(llvm::Attribute::ByRef))
+        F->getArg(i)->removeAttr(llvm::Attribute::ByRef);
+  }
+  if(F->hasFnAttribute("amdgpu-flat-work-group-size"))
+    F->removeFnAttr("amdgpu-flat-work-group-size");
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

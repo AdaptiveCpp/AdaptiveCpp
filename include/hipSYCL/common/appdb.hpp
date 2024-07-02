@@ -77,12 +77,25 @@ struct kernel_entry {
   void pack(T &pack) {
     pack(kernel_args);
     pack(num_registered_invocations);
+    pack(retained_argument_indices);
   }
 
   void dump(std::ostream& ostr, int indentation_level=0) const;
 
   std::vector<kernel_arg_entry> kernel_args;
   std::size_t num_registered_invocations;
+  std::vector<int> retained_argument_indices;
+};
+
+struct binary_entry {
+  std::string jit_cache_filename;
+
+  template<class T>
+  void pack(T &pack) {
+    pack(jit_cache_filename);
+  }
+
+  void dump(std::ostream& ostr, int indentation_level=0) const;
 };
 
 struct appdb_data {
@@ -91,10 +104,14 @@ struct appdb_data {
   std::unordered_map<rt::kernel_configuration::id_type, kernel_entry,
                      rt::kernel_id_hash>
       kernels;
+  std::unordered_map<rt::kernel_configuration::id_type, binary_entry,
+                     rt::kernel_id_hash>
+      binaries;
 
   template<class T>
   void pack(T &pack) {
     pack(kernels);
+    pack(binaries);
     pack(content_version);
   }
 
@@ -106,22 +123,22 @@ class appdb  {
 public:
   // DO NOT FORGET TO INCREMENT THIS WHEN ADDING/REMOVING
   // FIELDS OR OTHERWISE CHANGING THE DATA LAYOUT!
-  static const uint64_t format_version = 1;
+  static const uint64_t format_version = 2;
 
   appdb(const std::string& db_path);
   ~appdb();
 
   template<class F>
-  void read_access(F&& handler) const{
+  auto read_access(F&& handler) const{
     read_lock lock {_lock};
-    handler(_data);
+    return handler(_data);
   }
 
   template<class F>
-  void read_write_access(F&& handler) {
+  auto read_write_access(F&& handler) {
     write_lock lock {_lock};
-    handler(_data);
     _was_modified = true;
+    return handler(_data);
   }
 
 private:

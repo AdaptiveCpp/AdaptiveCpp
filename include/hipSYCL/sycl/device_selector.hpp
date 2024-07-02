@@ -109,7 +109,9 @@ inline int select_cpu(const device& dev) {
 }
 
 inline int select_host(const device& dev) {
-  return select_cpu(dev);
+  if(dev == detail::get_host_device())
+    return 1;
+  return -1;
 }
 
 inline int select_default(const device& dev) {

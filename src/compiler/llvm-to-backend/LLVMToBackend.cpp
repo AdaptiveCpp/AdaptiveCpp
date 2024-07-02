@@ -29,6 +29,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/DeadArgumentEliminationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/GlobalSizesFitInI32OptPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/GlobalInliningAttributorPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/KnownGroupSizeOptPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
@@ -37,6 +38,8 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
+
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -242,26 +245,23 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     GroupSizeOptPass.run(M, MAM);
     SizesAsIntOptPass.run(M, MAM);
 
-    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
-
-    FlavoringSuccessful = this->toBackendFlavor(M, PH);
-
     // Before optimizing, make sure everything has internal linkage to
     // help inlining. All linking should have occured by now, except
     // for backend builtin libraries like libdevice etc
-    for(auto & F : M) {
-      // Ignore kernels and intrinsics
-      if(!F.isIntrinsic() && !this->isKernelAfterFlavoring(F)) {
-        // Ignore undefined functions
-        if(!F.empty()) {
-          F.setLinkage(llvm::GlobalValue::InternalLinkage);
-          // Some backends (amdgpu) require inlining, for others it
-          // just cleans up the code.
-          if(!F.hasFnAttribute(llvm::Attribute::AlwaysInline))
-            F.addFnAttr(llvm::Attribute::AlwaysInline);
-        }
-      }
-    }
+
+    // First inling stage is prior to backend flavoring. This helps
+    // for some backends which introduces call conventions that complicate inlining
+    // (e.g. spir_func)
+    GlobalInliningAttributorPass InliningPass{Kernels};
+    InliningPass.run(M, MAM);
+    MAM.clear();
+    llvm::AlwaysInlinerPass AIP;
+    AIP.run(M, MAM);
+
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
+    FlavoringSuccessful = this->toBackendFlavor(M, PH);
+    // Inline again to handle builtin definitions pulled in by backend flavors
+    InliningPass.run(M, MAM);
 
     if(FlavoringSuccessful) {
       // Run optimizations
@@ -269,6 +269,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
 
       if(IsFastMath)
         setFastMathFunctionAttribs(M);
+      MAM.clear();
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
 
       if(!OptimizationSuccessful) {
@@ -282,7 +283,9 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
           }
         }
       }
-      
+      llvm::AlwaysInlinerPass AIP;
+      AIP.run(M, MAM);
+
       S2IRConstant::forEachS2IRConstant(M, [&](S2IRConstant C) {
         if (C.isValid()) {
           if (!C.isInitialized()) {

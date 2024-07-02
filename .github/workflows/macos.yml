@@ -15,6 +15,40 @@ jobs:
         set +e
         brew update
         brew install cmake
+        brew install libomp
+        brew install boost
+        set -e
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake .. \
+        -DWITH_OPENCL_BACKEND=OFF \
+        -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install
+        make -j 2 install VERBOSE=ON
+    - name: build CPU tests
+      run: |
+        mkdir build/tests-cpu && cd build/tests-cpu
+        cmake \
+        -DACPP_TARGETS=omp.library-only \
+        -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
+        ${GITHUB_WORKSPACE}/tests
+        make -j 2 VERBOSE=ON
+    - name: run CPU tests
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+  build_brewclang:
+    name: Upstream Clang [macOS]
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+    - name: install dependencies
+      run: |
+        set +e
+        brew update
+        brew install cmake
         brew install llvm
         brew install libomp
         brew install boost
@@ -26,7 +60,7 @@ jobs:
         echo "LLVM_DIR=${LLVM_ROOT}/lib/cmake/llvm" >> $GITHUB_ENV
         echo "LDFLAGS=-L${LLVM_ROOT}/lib/c++ -Wl,-rpath,${LLVM_ROOT}/lib/c++" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=${LLVM_ROOT}/lib/c++:${LLVM_ROOT}/lib:${GITHUB_WORKSPACE}/build/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-        
+        echo "DYLD_PRINT_LIBRARIES=1" >> $GITHUB_ENV
     - name: build
       run: |
         mkdir build && cd build

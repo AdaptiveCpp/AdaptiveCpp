@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2022 Aksel Alpay
+ * Copyright (c) 2019-2024 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,37 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LLVM_TO_SPIRV_HPP
-#define HIPSYCL_LLVM_TO_SPIRV_HPP
+#ifndef HIPSYCL_DEAD_ARGUMENT_ELIMINATION_PASS_HPP
+#define HIPSYCL_DEAD_ARGUMENT_ELIMINATION_PASS_HPP
 
+#include <unordered_map>
+#include <functional>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/PassManager.h>
 
-#include "../LLVMToBackend.hpp"
-
-#include <vector>
-#include <string>
 
 namespace hipsycl {
 namespace compiler {
 
-class LLVMToSpirvTranslator : public LLVMToBackendTranslator{
+class DeadArgumentEliminationPass : public llvm::PassInfoMixin<DeadArgumentEliminationPass> {
 public:
-  LLVMToSpirvTranslator(const std::vector<std::string>& KernelNames);
+  DeadArgumentEliminationPass(llvm::Function *TargetFunction,
+                              llvm::SmallVector<int> *RetainedArgumentIndicesOut = nullptr,
+                              std::function<void(llvm::Function *Old, llvm::Function *New)>
+                                  *ReplacementFunctionAttributeTransfer = nullptr);
 
-  virtual ~LLVMToSpirvTranslator() {}
-
-  virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
-  virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;
-  virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) override;
-protected:
-  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
-  virtual bool applyBuildFlag(const std::string& Flag) override;
-  virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
-  virtual AddressSpaceMap getAddressSpaceMap() const override;
-  virtual bool optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) override;
-  virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
+  llvm::PreservedAnalyses run(llvm::Module &M,
+                              llvm::ModuleAnalysisManager &MAM);
 private:
-  void applyKernelProperties(llvm::Function* F);
-  void removeKernelProperties(llvm::Function* F);
-
-  std::vector<std::string> KernelNames;
-  unsigned DynamicLocalMemSize = 0;
-  bool UseIntelLLVMSpirvArgs = false;
+  llvm::Function* TargetFunction;
+  llvm::SmallVector<int>* RetainedArguments;
+  std::function<void(llvm::Function*, llvm::Function*)>* ReplacementFunctionAttributeTransfer;
 };
+
+
 
 }
 }
 
 #endif
+

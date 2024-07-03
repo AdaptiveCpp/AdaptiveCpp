@@ -144,6 +144,18 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
   const auto memoryType = attribs.memoryType;
 #endif
 
+#if HIP_VERSION_MAJOR > 5
+  // ROCm 6+ return hipMemoryTypeUnregistered and hipSuccess
+  // for unknown host pointers
+  if (attribs.type == hipMemoryTypeUnregistered) {
+    return make_error(
+          __acpp_here(),
+          error_info{"hip_allocator: query_pointer(): pointer is unknown by backend",
+                     error_code{"HIP", err},
+                     error_type::invalid_parameter_error});
+  }
+#endif
+
   out.dev = rt::device_id{_backend_descriptor, attribs.device};
   out.is_from_host_backend = false;
   out.is_optimized_host = (memoryType == hipMemoryTypeHost);

@@ -72,10 +72,10 @@ using node_list_t = common::small_vector<dag_node_ptr, 8>;
 class operation_dispatcher
 {
 public:
-  virtual result dispatch_kernel(kernel_operation* op, dag_node_ptr node) = 0;
-  virtual result dispatch_memcpy(memcpy_operation* op, dag_node_ptr node) = 0;
-  virtual result dispatch_prefetch(prefetch_operation *op, dag_node_ptr node) = 0;
-  virtual result dispatch_memset(memset_operation* op, dag_node_ptr node) = 0;
+  virtual result dispatch_kernel(kernel_operation* op, const dag_node_ptr& node) = 0;
+  virtual result dispatch_memcpy(memcpy_operation* op, const dag_node_ptr& node) = 0;
+  virtual result dispatch_prefetch(prefetch_operation *op, const dag_node_ptr& node) = 0;
+  virtual result dispatch_memset(memset_operation* op, const dag_node_ptr& node) = 0;
   virtual ~operation_dispatcher(){}
 };
 
@@ -94,7 +94,7 @@ public:
     return false;
   }
 
-  virtual result dispatch(operation_dispatcher* dispatch, dag_node_ptr node) = 0;
+  virtual result dispatch(operation_dispatcher* dispatch, const dag_node_ptr& node) = 0;
 
   instrumentation_set &get_instrumentations();
   const instrumentation_set &get_instrumentations() const;
@@ -112,7 +112,8 @@ public:
   virtual bool is_requirement() const final override
   { return true; }
 
-  virtual result dispatch(operation_dispatcher *dispatch, dag_node_ptr node) final override {
+  virtual result dispatch(operation_dispatcher *dispatch,
+                          const dag_node_ptr &node) final override {
     assert(false && "Cannot dispatch implicit requirements");
     return make_success();
   }
@@ -346,7 +347,8 @@ public:
 
   void dump(std::ostream & ostr, int indentation=0) const override;
 
-  result dispatch(operation_dispatcher* dispatcher, dag_node_ptr node) override {
+  result dispatch(operation_dispatcher *dispatcher,
+                  const dag_node_ptr &node) override {
     return dispatcher->dispatch_kernel(this, node);
   }
 
@@ -483,7 +485,7 @@ public:
 
   virtual bool is_data_transfer() const final override;
   virtual result dispatch(operation_dispatcher *op,
-                          dag_node_ptr node) final override {
+                          const dag_node_ptr& node) final override {
     return op->dispatch_memcpy(this, node);
   }
   void dump(std::ostream &ostr, int indentation = 0) const override final;
@@ -514,7 +516,7 @@ public:
       : _ptr{ptr}, _num_bytes{num_bytes}, _target{target} {}
 
   result dispatch(operation_dispatcher *dispatcher,
-                  dag_node_ptr node) final override {
+                  const dag_node_ptr& node) final override {
     return dispatcher->dispatch_prefetch(this, node);
   }
 
@@ -536,7 +538,7 @@ public:
       : _ptr{ptr}, _pattern{pattern}, _num_bytes{num_bytes} {}
 
   result dispatch(operation_dispatcher *dispatcher,
-                  dag_node_ptr node) final override {
+                  const dag_node_ptr& node) final override {
     return dispatcher->dispatch_memset(this, node);
   }
 

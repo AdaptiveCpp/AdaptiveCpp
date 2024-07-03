@@ -51,6 +51,7 @@ protected:
   virtual bool applyBuildFlag(const std::string& Flag) override;
   virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
   virtual AddressSpaceMap getAddressSpaceMap() const override;
+  virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
 private:
   std::vector<std::string> KernelNames;
   std::string RocmDeviceLibsPath;
@@ -59,6 +60,9 @@ private:
 
   bool hiprtcJitLink(const std::string& Bitcode, std::string& Output);
   bool clangJitLink(llvm::Module& FlavoredModule, std::string& Output);
+
+  void applyKernelProperties(llvm::Function* F);
+  void removeKernelProperties(llvm::Function* F);
 };
 
 }

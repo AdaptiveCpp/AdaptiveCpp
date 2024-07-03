@@ -26,6 +26,8 @@
  */
 
 #include "driver_types.h"
+#include "hipSYCL/common/appdb.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
@@ -246,7 +248,7 @@ std::shared_ptr<dag_node_event> cuda_queue::create_queue_completion_event() {
 }
 
 
-result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
+result cuda_queue::submit_memcpy(memcpy_operation & op, const dag_node_ptr& node) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -357,7 +359,7 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
+result cuda_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   this->activate_device();
   rt::backend_kernel_launcher *l =
@@ -377,7 +379,7 @@ result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
+result cuda_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& node) {
 #ifndef _WIN32
   
   cudaError_t err = cudaSuccess;
@@ -404,7 +406,7 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
+result cuda_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) {
 
   cuda_instrumentation_guard instrumentation{this, op, node};
   
@@ -423,7 +425,7 @@ result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result cuda_queue::submit_queue_wait_for(dag_node_ptr node) {
+result cuda_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   auto evt = node->get_event();
   assert(dynamic_is<inorder_queue_event<cudaEvent_t>>(evt.get()));
 
@@ -440,7 +442,7 @@ result cuda_queue::submit_queue_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
+result cuda_queue::submit_external_wait_for(const dag_node_ptr& node) {
 
   dag_node_ptr* user_data = new dag_node_ptr;
   assert(user_data);
@@ -609,7 +611,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   }
 
 
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
@@ -622,7 +624,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  static thread_local kernel_configuration config;
+static thread_local kernel_configuration config;
   config = initial_config;
   config.append_base_configuration(
       kernel_base_config_parameter::backend_id, backend_id::cuda);
@@ -655,7 +657,6 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   };
 
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
-    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
     std::string selected_image_name = get_image_and_kernel_names(kernel_names);
@@ -665,9 +666,16 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       compiler::createLLVMToPtxTranslator(kernel_names);
 
     // Lower kernels to PTX
-    auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, compiled_image);
-    
+    rt::result err;
+    if(kernel_names.size() == 1) {
+      err = glue::jit::dead_argument_elimination::compile_kernel(
+          translator.get(), hcf_object, selected_image_name, config,
+          binary_configuration_id, compiled_image);
+    } else {
+      err = glue::jit::compile(translator.get(),
+        hcf_object, selected_image_name, config, compiled_image);
+    }
+
     if(!err.is_success()) {
       register_error(err);
       return false;
@@ -694,6 +702,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
+    if(kernel_names.size() == 1)
+      exec_obj->get_jit_output_metadata().kernel_retained_arguments_indices =
+          glue::jit::dead_argument_elimination::
+              retrieve_retained_arguments_mask(binary_configuration_id);
+
     return exec_obj;
   };
 
@@ -706,6 +719,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
                       error_info{"cuda_queue: Code object construction failed"});
   }
 
+  if(obj->get_jit_output_metadata().kernel_retained_arguments_indices.has_value()) {
+    arg_mapper.apply_dead_argument_elimination_mask(
+        obj->get_jit_output_metadata()
+            .kernel_retained_arguments_indices.value());
+  }
   CUmodule cumodule = static_cast<const cuda_executable_object*>(obj)->get_module();
   assert(cumodule);
 

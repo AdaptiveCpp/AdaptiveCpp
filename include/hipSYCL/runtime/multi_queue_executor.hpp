@@ -146,7 +146,7 @@ public:
   get_kernel_execution_lane_range(device_id dev) const;
 
   virtual void
-  submit_directly(dag_node_ptr node, operation *op,
+  submit_directly(const dag_node_ptr& node, operation *op,
                   const node_list_t &reqs) override;
 
   template <class F> void for_each_queue(rt::device_id dev, F handler) const {
@@ -156,9 +156,9 @@ public:
   }
 
   virtual bool can_execute_on_device(const device_id& dev) const override;
-  virtual bool is_submitted_by_me(dag_node_ptr node) const override;
+  virtual bool is_submitted_by_me(const dag_node_ptr& node) const override;
 
-  bool find_assigned_lane_index(dag_node_ptr node, std::size_t& index_out) const;
+  bool find_assigned_lane_index(const dag_node_ptr& node, std::size_t& index_out) const;
 private:
   
 

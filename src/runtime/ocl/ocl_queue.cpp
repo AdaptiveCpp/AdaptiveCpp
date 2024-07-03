@@ -184,7 +184,7 @@ std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {
       this);
 }
 
-result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
+result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: On device "
                      << _hw_manager->get_device_id(_device_index)
@@ -247,7 +247,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
   return make_success();
 }
 
-result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
+result ocl_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::ocl);
@@ -266,7 +266,7 @@ result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
+result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -292,7 +292,7 @@ result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
   return make_success();
 }
 
-result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
+result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -313,7 +313,7 @@ result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
+result ocl_queue::submit_queue_wait_for(const dag_node_ptr& evt) {
 
   ocl_node_event *ocl_evt =
       static_cast<ocl_node_event *>(evt->get_event().get());
@@ -339,7 +339,7 @@ result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
   return make_success();
 }
 
-result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
+result ocl_queue::submit_external_wait_for(const dag_node_ptr& node) {
   ocl_hardware_context* hw_ctx = static_cast<ocl_hardware_context *>(
       _hw_manager->get_device(_device_index));
   cl_int err;
@@ -484,7 +484,6 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
-    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
     std::string selected_image_name =
@@ -495,8 +494,15 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
     
     // Lower kernels to SPIR-V
-    auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, compiled_image);
+    rt::result err;
+    if(kernel_names.size() == 1) {
+      err = glue::jit::dead_argument_elimination::compile_kernel(
+          translator.get(), hcf_object, selected_image_name, config,
+          binary_configuration_id, compiled_image);
+    } else {
+      err = glue::jit::compile(translator.get(),
+        hcf_object, selected_image_name, config, compiled_image);
+    }
     
     if(!err.is_success()) {
       register_error(err);
@@ -516,6 +522,12 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
+    if(exec_obj->supported_backend_kernel_names().size() == 1)
+      exec_obj->get_jit_output_metadata().kernel_retained_arguments_indices =
+          glue::jit::dead_argument_elimination::
+              retrieve_retained_arguments_mask(binary_configuration_id);
+
+
     return exec_obj;
   };
 
@@ -527,6 +539,13 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     return make_error(__acpp_here(),
                       error_info{"ocl_queue: Code object construction failed"});
   }
+
+  if(obj->get_jit_output_metadata().kernel_retained_arguments_indices.has_value()) {
+    arg_mapper.apply_dead_argument_elimination_mask(
+        obj->get_jit_output_metadata()
+            .kernel_retained_arguments_indices.value());
+  }
+
 
   cl::Kernel kernel;
   result res = static_cast<const ocl_executable_object *>(obj)->get_kernel(

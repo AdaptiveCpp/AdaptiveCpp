@@ -110,6 +110,8 @@ public:
 
   virtual CUmod_st* get_module() const override;
   virtual int get_device() const override;
+
+  // Only for adaptivity level >= 1
 private:
   result build(const std::string& source);
 
@@ -120,6 +122,8 @@ private:
   kernel_configuration::id_type _id;
   int _device;
   CUmod_st* _module;
+
+  std::vector<int> _retained_arguments;
 };
 
 }

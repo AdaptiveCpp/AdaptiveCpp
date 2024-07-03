@@ -124,6 +124,17 @@ bool removeDynamicLocalMemorySupport(llvm::Module& M) {
   return true;
 }
 
+void assignSPIRCallConvention(llvm::Function *F) {
+  if (F->getCallingConv() != llvm::CallingConv::SPIR_FUNC)
+    F->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+
+  // All callers must use spir_func calling convention
+  for (auto U : F->users()) {
+    if (auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
+      CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+    }
+  }
+}
 }
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
@@ -151,35 +162,14 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
-      F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
-
-      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
-        llvm::SmallVector<llvm::Metadata *> MDs;
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
-
-        static const char* ReqdWGSize = "reqd_work_group_size";
-        F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
-      }
+      applyKernelProperties(F);
     }
   }
 
   for(auto& F : M) {
     if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL){
       // All functions must be marked as spir_func
-      if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
-        F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
-      
-      // All callers must use spir_func calling convention
-      for(auto U : F.users()) {
-        if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
-          CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
-        }
-      }
+      assignSPIRCallConvention(&F);
     }
   }
 
@@ -373,6 +363,40 @@ bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH)
     I->eraseFromParent();
   
   return Result;
+}
+
+void LLVMToSpirvTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {
+  removeKernelProperties(From);
+  applyKernelProperties(To);
+}
+
+void LLVMToSpirvTranslator::applyKernelProperties(llvm::Function* F) {
+  F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+
+  llvm::Module& M = *F->getParent();
+
+  if (KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+    llvm::SmallVector<llvm::Metadata *> MDs;
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+
+    static const char *ReqdWGSize = "reqd_work_group_size";
+    F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
+  }
+}
+
+void LLVMToSpirvTranslator::removeKernelProperties(llvm::Function* F) {
+  assignSPIRCallConvention(F);
+  for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+    if(F->getArg(i)->hasAttribute(llvm::Attribute::ByVal)) {
+      F->getArg(i)->removeAttr(llvm::Attribute::ByVal);
+    }
+  }
+  F->clearMetadata();
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

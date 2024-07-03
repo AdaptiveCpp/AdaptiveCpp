@@ -241,7 +241,7 @@ std::shared_ptr<dag_node_event> hip_queue::create_queue_completion_event() {
 
 
 
-result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
+result hip_queue::submit_memcpy(memcpy_operation & op, const dag_node_ptr& node) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -352,7 +352,7 @@ result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
   return make_success();
 }
 
-result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
+result hip_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   this->activate_device();
   rt::backend_kernel_launcher *l =
@@ -375,7 +375,7 @@ result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
+result hip_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& node) {
   // Need to enable instrumentation even if we cannot enable actual
   // prefetches so that the user will be able to access instrumentation
   // properties of the event.
@@ -407,7 +407,7 @@ result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result hip_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
+result hip_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) {
 
   hip_instrumentation_guard instrumentation{this, op, node};
   hipError_t err = hipMemsetAsync(op.get_pointer(), op.get_pattern(),
@@ -452,7 +452,7 @@ result hip_queue::query_status(inorder_queue_status &status) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result hip_queue::submit_queue_wait_for(dag_node_ptr node) {
+result hip_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   auto evt = node->get_event();
   assert(dynamic_is<inorder_queue_event<hipEvent_t>>(evt.get()));
 
@@ -468,7 +468,7 @@ result hip_queue::submit_queue_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
-result hip_queue::submit_external_wait_for(dag_node_ptr node) {
+result hip_queue::submit_external_wait_for(const dag_node_ptr& node) {
 
   dag_node_ptr* user_data = new dag_node_ptr;
   assert(user_data);

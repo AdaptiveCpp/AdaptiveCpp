@@ -312,7 +312,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
                 << " original index = "
                 << kernel_info->get_original_argument_index(i) << std::endl;
           }
-          _hcf_kernel_info[std::make_pair(id, kernel_name)] =
+          _hcf_kernel_info[generate_info_id(id, kernel_name)] =
               std::move(kernel_info);
         }
       }
@@ -327,7 +327,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
           HIPSYCL_DEBUG_INFO << "hcf_cache: Registering image info for image "
                              << image_name << " from HCF object " << id
                              << std::endl;
-          _hcf_image_info[std::make_pair(id, image_name)] =
+          _hcf_image_info[generate_info_id(id, image_name)] =
               std::move(image_info);
         }
       }
@@ -405,7 +405,7 @@ const hcf_kernel_info *
 hcf_cache::get_kernel_info(hcf_object_id obj,
                            const std::string &kernel_name) const {
   std::lock_guard<std::mutex> lock{_mutex};
-  auto it = _hcf_kernel_info.find(std::make_pair(obj, kernel_name));
+  auto it = _hcf_kernel_info.find(generate_info_id(obj, kernel_name));
   if(it == _hcf_kernel_info.end())
     return nullptr;
   return it->second.get();
@@ -415,7 +415,7 @@ const hcf_image_info *
 hcf_cache::get_image_info(hcf_object_id obj,
                           const std::string &image_name) const {
   std::lock_guard<std::mutex> lock{_mutex};
-  auto it = _hcf_image_info.find(std::make_pair(obj, image_name));
+  auto it = _hcf_image_info.find(generate_info_id(obj, image_name));
   if(it == _hcf_image_info.end())
     return nullptr;
   return it->second.get();

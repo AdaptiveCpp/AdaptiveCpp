@@ -249,7 +249,7 @@ std::shared_ptr<dag_node_event> ze_queue::insert_event() {
   return _last_submitted_op_event;
 }
 
-result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
+result ze_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   // TODO We could probably unify some of the logic here between
@@ -309,7 +309,7 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
+result ze_queue::submit_kernel(kernel_operation& op, const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   rt::backend_kernel_launcher *l = 
@@ -331,11 +331,11 @@ result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_prefetch(prefetch_operation &, dag_node_ptr node) {
+result ze_queue::submit_prefetch(prefetch_operation &, const dag_node_ptr& node) {
   return make_success();
 }
 
-result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
+result ze_queue::submit_memset(memset_operation& op, const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   std::shared_ptr<dag_node_event> completion_evt = create_event();
@@ -371,7 +371,7 @@ result ze_queue::wait() {
   return make_success();
 }
 
-result ze_queue::submit_queue_wait_for(dag_node_ptr node) {
+result ze_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   auto evt = node->get_event();
@@ -379,7 +379,7 @@ result ze_queue::submit_queue_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_external_wait_for(dag_node_ptr node) {
+result ze_queue::submit_external_wait_for(const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   // Clean up old futures before adding new ones

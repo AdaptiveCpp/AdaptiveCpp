@@ -25,14 +25,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <mutex>
 #include <cassert>
 #include <memory>
 #include <optional>
+#include <array>
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/small_map.hpp"
+#include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -230,22 +233,37 @@ private:
       _hcf_objects;
   std::unordered_map<std::string, symbol_resolver_list> _exported_symbol_providers;
 
+  using info_id = std::array<uint64_t, 2>;
+
+  info_id generate_info_id(hcf_object_id object_id,
+                           const std::string &object_name) const {
+    info_id result;
+    result[0] = static_cast<uint64_t>(object_id);
     
-  struct stable_running_pair_hash {
-    size_t operator()(const std::pair<hcf_object_id, std::string> &p) const
+    common::stable_running_hash h;
+    h(object_name.data(), object_name.size());
+
+    result[1] = h.get_current_hash();
+
+    return result;
+  }
+
+  struct info_id_hash {
+    size_t operator()(const info_id &p) const
     {
-      common::stable_running_hash h;
-      h(reinterpret_cast<const void*>(&p.first), sizeof(hcf_object_id));
-      h(static_cast<const void*>(p.second.c_str()), p.second.size());
-      return h.get_current_hash();
+      size_t result = p[0];
+      for(int i = 1; i < p.size(); ++i)
+        result ^= p[i];
+
+      return result;
     }
   };
 
-  std::unordered_map<std::pair<hcf_object_id, std::string>,
-                     std::unique_ptr<hcf_kernel_info>, stable_running_pair_hash>
+  std::unordered_map<info_id,
+                     std::unique_ptr<hcf_kernel_info>, info_id_hash>
       _hcf_kernel_info;
-  std::unordered_map<std::pair<hcf_object_id, std::string>,
-                     std::unique_ptr<hcf_image_info>, stable_running_pair_hash>
+  std::unordered_map<info_id,
+                     std::unique_ptr<hcf_image_info>, info_id_hash>
       _hcf_image_info;
 
   mutable std::mutex _mutex;

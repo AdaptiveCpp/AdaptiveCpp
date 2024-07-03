@@ -272,7 +272,7 @@ std::shared_ptr<dag_node_event> omp_queue::create_queue_completion_event() {
       this);
 }
 
-result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
+result omp_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..."
                      << std::endl;
 
@@ -370,7 +370,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
+result omp_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
   rt::backend_kernel_launcher *launcher =
@@ -520,7 +520,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
 #endif
 }
 
-result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr node) {
+result omp_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO
       << "omp_queue: Received prefetch submission request, ignoring"
       << std::endl;
@@ -536,7 +536,7 @@ result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result omp_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
+result omp_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) {
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
   int pattern = op.get_pattern();
@@ -560,7 +560,7 @@ result omp_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result omp_queue::submit_queue_wait_for(dag_node_ptr node) {
+result omp_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for other queue..."
                      << std::endl;
   auto evt = node->get_event();
@@ -586,7 +586,7 @@ result omp_queue::query_status(inorder_queue_status &status) {
   return make_success();
 }
 
-result omp_queue::submit_external_wait_for(dag_node_ptr node) {
+result omp_queue::submit_external_wait_for(const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for external node..."
                      << std::endl;
 

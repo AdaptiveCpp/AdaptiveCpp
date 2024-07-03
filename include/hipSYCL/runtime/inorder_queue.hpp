@@ -64,15 +64,15 @@ public:
   virtual std::shared_ptr<dag_node_event> insert_event() = 0;
   virtual std::shared_ptr<dag_node_event> create_queue_completion_event() = 0;
 
-  virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) = 0;
-  virtual result submit_kernel(kernel_operation&, dag_node_ptr) = 0;
-  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) = 0;
-  virtual result submit_memset(memset_operation&, dag_node_ptr) = 0;
+  virtual result submit_memcpy(memcpy_operation&, const dag_node_ptr&) = 0;
+  virtual result submit_kernel(kernel_operation&, const dag_node_ptr&) = 0;
+  virtual result submit_prefetch(prefetch_operation &, const dag_node_ptr&) = 0;
+  virtual result submit_memset(memset_operation&, const dag_node_ptr&) = 0;
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(dag_node_ptr evt) = 0;
-  virtual result submit_external_wait_for(dag_node_ptr node) = 0;
+  virtual result submit_queue_wait_for(const dag_node_ptr& evt) = 0;
+  virtual result submit_external_wait_for(const dag_node_ptr& node) = 0;
 
   virtual result wait() = 0;
 

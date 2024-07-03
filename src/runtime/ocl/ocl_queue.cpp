@@ -184,7 +184,7 @@ std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {
       this);
 }
 
-result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
+result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: On device "
                      << _hw_manager->get_device_id(_device_index)
@@ -247,7 +247,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
   return make_success();
 }
 
-result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
+result ocl_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::ocl);
@@ -266,7 +266,7 @@ result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
+result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -292,7 +292,7 @@ result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
   return make_success();
 }
 
-result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
+result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -313,7 +313,7 @@ result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
+result ocl_queue::submit_queue_wait_for(const dag_node_ptr& evt) {
 
   ocl_node_event *ocl_evt =
       static_cast<ocl_node_event *>(evt->get_event().get());
@@ -339,7 +339,7 @@ result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
   return make_success();
 }
 
-result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
+result ocl_queue::submit_external_wait_for(const dag_node_ptr& node) {
   ocl_hardware_context* hw_ctx = static_cast<ocl_hardware_context *>(
       _hw_manager->get_device(_device_index));
   cl_int err;

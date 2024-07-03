@@ -61,8 +61,7 @@ jobs:
         echo "CXX=${CXX}" >> $GITHUB_ENV
         export LLVM_ROOT=`echo $CXX | sed -E "s/\/bin\/.*//"`
         echo "LLVM_DIR=${LLVM_ROOT}/lib/cmake/llvm" >> $GITHUB_ENV
-        # echo "LDFLAGS=-L${LLVM_ROOT}/lib/c++ -Wl,-rpath,${LLVM_ROOT}/lib/c++" >> $GITHUB_ENV
-        # echo "LD_LIBRARY_PATH=${LLVM_ROOT}/lib/c++:${LLVM_ROOT}/lib:${GITHUB_WORKSPACE}/build/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "LDFLAGS=-L${LLVM_ROOT}/lib/c++ -Wl,-rpath,${LLVM_ROOT}/lib/c++" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=${LLVM_ROOT}/lib/c++:${LLVM_ROOT}/lib:${GITHUB_WORKSPACE}/build/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
         echo "DYLD_PRINT_LIBRARIES=1" >> $GITHUB_ENV
     - name: build

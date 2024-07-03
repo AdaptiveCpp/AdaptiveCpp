@@ -38,8 +38,11 @@ jobs:
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   build_brewclang:
-    name: Upstream Clang [macOS]
+    name: Upstream Clang ${{ matrix.test }} [macOS]
     runs-on: macos-latest
+    strategy:
+      matrix:
+        test: [generic, omp.library-only, omp.accelerated]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -56,9 +59,10 @@ jobs:
 
         export CXX=`brew list llvm | grep clang++`
         echo "CXX=${CXX}" >> $GITHUB_ENV
-        export LLVM_ROOT=`echo $CXX | sed -E "s/bin\/.*//"`
+        export LLVM_ROOT=`echo $CXX | sed -E "s/\/bin\/.*//"`
         echo "LLVM_DIR=${LLVM_ROOT}/lib/cmake/llvm" >> $GITHUB_ENV
-        echo "LDFLAGS=-L${LLVM_ROOT}/lib/c++ -Wl,-rpath,${LLVM_ROOT}/lib/c++" >> $GITHUB_ENV
+        # echo "LDFLAGS=-L${LLVM_ROOT}/lib/c++ -Wl,-rpath,${LLVM_ROOT}/lib/c++" >> $GITHUB_ENV
+        # echo "LD_LIBRARY_PATH=${LLVM_ROOT}/lib/c++:${LLVM_ROOT}/lib:${GITHUB_WORKSPACE}/build/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=${LLVM_ROOT}/lib/c++:${LLVM_ROOT}/lib:${GITHUB_WORKSPACE}/build/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
         echo "DYLD_PRINT_LIBRARIES=1" >> $GITHUB_ENV
     - name: build
@@ -73,38 +77,27 @@ jobs:
       run: |
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
-        -DACPP_TARGETS=omp.library-only \
+        -DACPP_TARGETS=${{matrix.test}} \
         -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
         ${GITHUB_WORKSPACE}/tests
         make -j 2 VERBOSE=ON
     - name: run CPU tests
+      if: matrix.test != 'generic'
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         ./sycl_tests
-    - name: build accelerated CPU tests
+    - name: run CPU tests
+      if: matrix.test == 'generic'
       run: |
-        mkdir build/tests-acc-cpu && cd build/tests-acc-cpu
-        cmake \
-        -DACPP_TARGETS=omp.accelerated \
-        -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
-        ${GITHUB_WORKSPACE}/tests
-        make -j 2 VERBOSE=ON
-    - name: run accelerated CPU tests
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        ./sycl_tests -t '!group_functions_tests/*' -t '!extension_tests/*' -t '!kernel_invocation_tests/hierarchical*'
+    - name: run LIT tests (SSCP)
+      if: matrix.test == 'generic'
       run: |
-        cd ${GITHUB_WORKSPACE}/build/tests-acc-cpu
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-cbs
-    - name: build SSCP (CPU) tests
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        make -j 2 VERBOSE=ON check-cbs
+    - name: run LIT tests (CBS)
+      if: matrix.test == 'omp.accelerated'
       run: |
-        mkdir build/tests-sscp && cd build/tests-sscp
-        cmake \
-        -DACPP_TARGETS=generic \
-        -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
-        ${GITHUB_WORKSPACE}/tests
-        make -j 2 VERBOSE=ON
-    - name: run SSCP tests
-      run: |
-        cd ${GITHUB_WORKSPACE}/build/tests-acc-cpu
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-sscp
-
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        make -j 2 VERBOSE=ON check-sscp

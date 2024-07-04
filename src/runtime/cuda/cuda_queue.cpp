@@ -148,13 +148,13 @@ private:
 };
 
 result launch_kernel_from_module(CUmodule module,
-                                 const std::string &kernel_name,
+                                 std::string_view kernel_name,
                                  const rt::range<3> &grid_size,
                                  const rt::range<3> &block_size,
                                  unsigned shared_memory, cudaStream_t stream,
                                  void **kernel_args) {
   CUfunction f;
-  CUresult err = cuModuleGetFunction(&f, module, kernel_name.c_str());
+  CUresult err = cuModuleGetFunction(&f, module, kernel_name.data());
 
   if (err != CUDA_SUCCESS) {
     return make_error(__acpp_here(),
@@ -585,7 +585,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
 
 result cuda_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    const std::string &kernel_name, const rt::range<3> &num_groups,
+    std::string_view kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
@@ -607,7 +607,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"cuda_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
+            std::string{kernel_name}});
   }
 
 
@@ -792,7 +792,7 @@ result cuda_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name,
+    std::size_t num_args, std::string_view kernel_name,
     const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(

@@ -29,6 +29,8 @@
 #ifndef HIPSYCL_CODE_OBJECT_INVOKER_HPP
 #define HIPSYCL_CODE_OBJECT_INVOKER_HPP
 
+#include <string_view>
+
 #include "error.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "util.hpp"
@@ -59,7 +61,7 @@ public:
                                const rt::range<3> &group_size,
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name,
+                               std::string_view kernel_name,
                                const kernel_configuration& config) = 0;
 
   virtual rt::range<3> select_group_size(const rt::range<3> &global_range,

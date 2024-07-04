@@ -40,6 +40,7 @@
 #include <cassert>
 #include <optional>
 #include <unordered_map>
+#include <string_view>
 
 #include "hipSYCL/common/stable_running_hash.hpp"
 
@@ -280,6 +281,10 @@ private:
     return data.data();
   }
 
+  static const void* data_ptr(std::string_view data) {
+    return data.data();
+  }
+
   template<class T>
   static const void* data_ptr(const std::vector<T>& data) {
     return data.data();
@@ -295,6 +300,10 @@ private:
   }
 
   static std::size_t data_size(const std::string& data) {
+    return data.size();
+  }
+
+  static std::size_t data_size(std::string_view data) {
     return data.size();
   }
 

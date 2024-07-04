@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2024 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,52 +25,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_ADAPTIVITY_ENGINE_HPP
-#define HIPSYCL_ADAPTIVITY_ENGINE_HPP
 
+#ifndef HIPSYCL_COMMON_SPIN_LOCK_HPP
+#define HIPSYCL_COMMON_SPIN_LOCK_HPP
 
-#include "hipSYCL/glue/llvm-sscp/jit.hpp"
-#include "hipSYCL/runtime/kernel_configuration.hpp"
-#include "hipSYCL/runtime/util.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
+#include <atomic>
 
 namespace hipsycl {
-namespace rt {
+namespace common {
 
-class kernel_adaptivity_engine {
+
+class spin_lock {
 public:
-  kernel_adaptivity_engine(
-    hcf_object_id hcf_object,
-    std::string_view backend_kernel_name,
-    const hcf_kernel_info* kernel_info,
-    const glue::jit::cxx_argument_mapper& arg_mapper,
-    const range<3>& num_groups,
-    const range<3>& block_size,
-    void** args,
-    std::size_t* arg_sizes,
-    std::size_t num_args,
-    std::size_t local_mem_size);
-
-  kernel_configuration::id_type
-  finalize_binary_configuration(kernel_configuration &config);
-
-  std::string select_image_and_kernels(std::vector<std::string>* kernel_names_out);
+  void lock() {
+    while (_lock.test_and_set(std::memory_order_acquire));
+  }
+  void unlock() {
+    _lock.clear(std::memory_order_release);
+  }
 private:
-  hcf_object_id _hcf;
-  std::string_view _kernel_name;
-  const hcf_kernel_info* _kernel_info;
-  const glue::jit::cxx_argument_mapper& _arg_mapper;
-  const range<3>& _num_groups;
-  const range<3>& _block_size;
-  void** _args;
-  std::size_t* _arg_sizes;
-  std::size_t _num_args;
-  std::size_t _local_mem_size;
-
-  int _adaptivity_level;
+  std::atomic_flag _lock = ATOMIC_FLAG_INIT;
 };
+
+class spin_lock_guard {
+public:
+  spin_lock_guard(spin_lock& lock) : _lock(lock) {
+    _lock.lock();
+  }
+  ~spin_lock_guard() {
+    _lock.unlock();
+  }
+private:
+  spin_lock& _lock;
+};
+
+
 
 }
 }
 
 #endif
+

@@ -46,7 +46,7 @@ result ze_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name,
+    std::size_t num_args, std::string_view kernel_name,
     const kernel_configuration &config) {
 
   assert(_queue);
@@ -142,6 +142,8 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
 
   for(const char* name : kernel_names)
     _kernels.push_back(std::string{name});
+
+  load_kernel_handles();  
 }
 
 ze_executable_object::~ze_executable_object() {
@@ -204,7 +206,7 @@ ze_context_handle_t ze_executable_object::get_ze_context() const {
   return _ctx;
 }
 
-result ze_executable_object::get_kernel(const std::string &kernel_name,
+result ze_executable_object::get_kernel(std::string_view kernel_name,
                                         ze_kernel_handle_t &out) const {
   assert(_module);
 
@@ -216,34 +218,30 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
     return make_success();
   }
 
-  ze_kernel_desc_t desc;
-  desc.stype = ZE_STRUCTURE_TYPE_KERNEL_DESC;
-  desc.pNext = nullptr;
-  desc.flags = 0;
-  desc.pKernelName = kernel_name.c_str();
+  return make_error(__acpp_here(),
+                    error_info{"ze_executable_object: get_kernel(): Attempted "
+                               "to access kernels that is unavailable"});
+}
 
-  ze_kernel_handle_t kernel;
-  ze_result_t err = zeKernelCreate(_module, &desc, &kernel);
+void ze_executable_object::load_kernel_handles() {
+  for(const auto& kernel_name : _kernels) {
+    ze_kernel_desc_t desc;
+    desc.stype = ZE_STRUCTURE_TYPE_KERNEL_DESC;
+    desc.pNext = nullptr;
+    desc.flags = 0;
+    desc.pKernelName = kernel_name.c_str();
 
-  if(err != ZE_RESULT_SUCCESS) {
+    ze_kernel_handle_t kernel;
+    ze_result_t err = zeKernelCreate(_module, &desc, &kernel);
 
-    HIPSYCL_DEBUG_INFO << "Kernel name " << kernel_name << std::endl;
-    HIPSYCL_DEBUG_INFO << "Available:\n";
-    for(const auto& K : supported_backend_kernel_names()) {
-      HIPSYCL_DEBUG_INFO << K << std::endl;
+    if(err == ZE_RESULT_SUCCESS) {
+      _kernel_handles[kernel_name] = kernel;
+    
+      HIPSYCL_DEBUG_INFO
+          << "ze_executable_object: Constructed new kernel for cache: "
+          << kernel_name << std::endl;
     }
-
-    return make_error(__acpp_here(),
-                      error_info{"ze_executable_object: Couldn't construct kernel",
-                                 error_code{"ze", static_cast<int>(err)}});
   }
-  _kernel_handles[kernel_name] = kernel;
-  out = kernel;
-  HIPSYCL_DEBUG_INFO
-      << "ze_executable_object: Constructed new kernel for cache: "
-      << kernel_name << std::endl;
-
-  return make_success();  
 }
 
 

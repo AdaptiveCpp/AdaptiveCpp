@@ -122,17 +122,14 @@ compilation_flow omp_sscp_executable_object::source_compilation_flow() const {
 
 std::vector<std::string>
 omp_sscp_executable_object::supported_backend_kernel_names() const {
-  std::vector<std::string> names;
-  names.reserve(_kernels.size());
-  std::transform(_kernels.begin(), _kernels.end(), std::back_inserter(names),
-                 [](const auto &pair) { return pair.first; });
-  return names;
+  return _kernel_names;
 }
 
 void *omp_sscp_executable_object::get_module() const { return _module; }
 
 result omp_sscp_executable_object::build(
     const std::string &source, const std::vector<std::string> &kernel_names) {
+    
   if (_module != nullptr)
     return make_success();
 
@@ -140,8 +137,9 @@ result omp_sscp_executable_object::build(
       !result.is_success())
     return result;
 
+  _kernel_names = kernel_names;
   // find all kernel symbols
-  for (const auto &kernel_name : kernel_names) {
+  for (const auto &kernel_name : _kernel_names) {
     if (auto kernel = (omp_sscp_kernel *)detail::get_symbol_from_library(
             _module, kernel_name, "omp_sscp_exectuable_object")) {
       _kernels.emplace(kernel_name, kernel);
@@ -163,7 +161,8 @@ bool omp_sscp_executable_object::contains(
   return false;
 }
 
-omp_sscp_executable_object::omp_sscp_kernel *omp_sscp_executable_object::get_kernel(const std::string &backend_kernel_name) const {
+omp_sscp_executable_object::omp_sscp_kernel *
+omp_sscp_executable_object::get_kernel(std::string_view backend_kernel_name) const {
   auto it = _kernels.find(backend_kernel_name);
   if (it != _kernels.end())
     return it->second;

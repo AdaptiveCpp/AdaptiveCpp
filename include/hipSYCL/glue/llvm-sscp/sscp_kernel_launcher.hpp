@@ -48,6 +48,7 @@
 #include "ir_constants.hpp"
 
 #include <array>
+#include <string_view>
 
 
 template <typename KernelType>
@@ -389,7 +390,7 @@ private:
 
   // Generate SSCP kernel and return name of the generated kernel
   template<class Kernel>
-  static const char* generate_kernel(const Kernel& k) {
+  static std::string_view generate_kernel(const Kernel& k) {
     if (__acpp_sscp_is_device) {
       __acpp_sscp_kernel(k);
     }
@@ -411,7 +412,7 @@ private:
   rt::range<3> _global_size;
   rt::range<3> _group_size;
   unsigned _local_mem_size;
-  const char* _kernel_name;
+  std::string_view _kernel_name;
   unsigned long long _hcf_object_id;
 
   std::function<void(sycl::interop_handle&)> _custom_op;

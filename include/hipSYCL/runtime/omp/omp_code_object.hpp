@@ -79,7 +79,7 @@ public:
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
   virtual void *get_module() const;
-  virtual omp_sscp_kernel *get_kernel(const std::string& backend_kernel_name) const;
+  virtual omp_sscp_kernel *get_kernel(std::string_view backend_kernel_name) const;
 
 private:
   result build(const std::string &source, const std::vector<std::string> &kernel_names);
@@ -90,7 +90,9 @@ private:
 
   result _build_result;
   void *_module;
-  std::unordered_map<std::string, omp_sscp_kernel*> _kernels;
+
+  std::vector<std::string> _kernel_names;
+  std::unordered_map<std::string_view, omp_sscp_kernel*> _kernels;
 };
 
 } // namespace rt

@@ -39,6 +39,7 @@
 #include "hipSYCL/runtime/ocl/ocl_event.hpp"
 #include "hipSYCL/runtime/ocl/ocl_queue.hpp"
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
@@ -54,6 +55,8 @@ namespace rt {
 
 namespace {
 
+common::spin_lock submission_lock;
+
 result submit_ocl_kernel(cl::Kernel& kernel,
                         cl::CommandQueue& queue,
                         const rt::range<3> &group_size,
@@ -65,8 +68,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
   // All OpenCL API calls are safe, except calls that configure kernel objects
   // like clSetKernelArgs. Currently we are not guaranteed that each thread gets
   // its own separate kernel object, so we have to lock the submission process for now.
-  static std::mutex mutex;
-  std::lock_guard<std::mutex> lock{mutex};
+  common::spin_lock_guard lock{submission_lock};
 
   cl_int err = 0;
   for(std::size_t i = 0; i < num_args; ++i ){
@@ -406,7 +408,7 @@ ocl_hardware_manager *ocl_queue::get_hardware_manager() const {
 
 result ocl_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    const std::string &kernel_name, const rt::range<3> &num_groups,
+    std::string_view kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
@@ -420,7 +422,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"ocl_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
+            std::string{kernel_name}});
   }
 
 

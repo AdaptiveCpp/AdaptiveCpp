@@ -56,7 +56,7 @@ public:
                                const rt::range<3> &group_size,
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name,
+                               std::string_view kernel_name,
                                const kernel_configuration& config) override;
 private:
   ze_queue* _queue;
@@ -91,7 +91,7 @@ public:
   // This should only be called inside ze_queue, not the user,
   // so we do not have to worry about thread-safety. Only works
   // if the module has been built successfully
-  result get_kernel(const std::string& name, ze_kernel_handle_t& out) const;
+  result get_kernel(std::string_view name, ze_kernel_handle_t& out) const;
 private:
   ze_source_format _format;
   hcf_object_id _source;
@@ -99,7 +99,9 @@ private:
   ze_device_handle_t _dev;
   ze_module_handle_t _module;
   std::vector<std::string> _kernels;
-  mutable std::unordered_map<std::string, ze_kernel_handle_t> _kernel_handles;
+  std::unordered_map<std::string_view, ze_kernel_handle_t> _kernel_handles;
+  
+  void load_kernel_handles();
 
   result _build_status;
 };

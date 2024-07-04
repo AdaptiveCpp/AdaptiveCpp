@@ -47,6 +47,7 @@
 #include "hipSYCL/runtime/ze/ze_event.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
@@ -60,6 +61,8 @@ namespace rt {
 
 namespace {
 
+common::spin_lock submission_lock;
+
 result submit_ze_kernel(ze_kernel_handle_t kernel,
                         ze_command_list_handle_t command_list,
                         ze_event_handle_t completion_evt,
@@ -70,6 +73,8 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                         // If non-null, will be used to check whether kernel args
                         // are pointers, and if so, check for null pointers
                         const hcf_kernel_info *info = nullptr) {
+
+  common::spin_lock_guard lock{submission_lock};
 
   HIPSYCL_DEBUG_INFO << "ze_queue: Configuring kernel launch for group size "
                      << group_size[0] << " " << group_size[1] << " "
@@ -454,7 +459,7 @@ void ze_queue::register_submitted_op(std::shared_ptr<dag_node_event> evt) {
 
 result ze_queue::submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string &kernel_name, const rt::range<3> &num_groups,
+      std::string_view kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
       const kernel_configuration &initial_config) {
@@ -472,7 +477,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
+            std::string{kernel_name}});
   }
 
 

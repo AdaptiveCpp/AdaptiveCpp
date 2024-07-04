@@ -55,7 +55,7 @@ public:
                                const rt::range<3> &group_size,
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name,
+                               std::string_view kernel_name,
                                const kernel_configuration& config) override;
 private:
   ocl_queue* _queue;
@@ -88,14 +88,15 @@ public:
   cl::Context get_cl_context() const;
 
   // Only works if the module has been built successfully
-  result get_kernel(const std::string& name, cl::Kernel& out) const;
+  result get_kernel(std::string_view name, cl::Kernel& out) const;
 private:
   hcf_object_id _source;
   cl::Context _ctx;
   cl::Device _dev;
   cl::Program _program;
   
-  mutable std::unordered_map<std::string, cl::Kernel> _kernel_handles;
+  std::vector<std::string> _kernel_names;
+  std::unordered_map<std::string_view, cl::Kernel> _kernel_handles;
 
   result _build_status;
   kernel_configuration::id_type _id;

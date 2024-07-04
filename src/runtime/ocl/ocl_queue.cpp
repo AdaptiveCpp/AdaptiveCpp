@@ -406,7 +406,7 @@ ocl_hardware_manager *ocl_queue::get_hardware_manager() const {
 
 result ocl_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    const char* kernel_name, const rt::range<3> &num_groups,
+    const std::string &kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
@@ -420,7 +420,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"ocl_queue: Could not obtain hcf kernel info for kernel " +
-            std::string{kernel_name}});
+            kernel_name});
   }
 
 

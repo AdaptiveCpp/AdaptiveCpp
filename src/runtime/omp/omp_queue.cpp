@@ -385,6 +385,8 @@ result omp_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
 
   omp_instrumentation_setup instrumentation_setup{op, node};
   _worker([=, &op]() {
+    auto instrumentation_guard = instrumentation_setup.instrument_task();
+
     auto err = op.get_launcher().invoke(backend_id, params, cap, node_ptr);
     if(!err.is_success())
       rt::register_error(err);

@@ -320,7 +320,7 @@ result ze_queue::submit_kernel(kernel_operation& op, const dag_node_ptr& node) {
   rt::backend_kernel_launch_capabilities cap;
   
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
-  return op.get_launcher().invoke(backend_id::level_zero, this, cap, node);
+  return op.get_launcher().invoke(backend_id::level_zero, this, cap, node.get());
 }
 
 result ze_queue::submit_prefetch(prefetch_operation &, const dag_node_ptr& node) {

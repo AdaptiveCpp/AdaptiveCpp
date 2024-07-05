@@ -362,7 +362,7 @@ result hip_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
 
   hip_instrumentation_guard instrumentation{this, op, node};
-  return op.get_launcher().invoke(backend_id::hip, this, cap, node);
+  return op.get_launcher().invoke(backend_id::hip, this, cap, node.get());
 
   return make_success();
 }

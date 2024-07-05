@@ -368,7 +368,7 @@ result cuda_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node)
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
   
   cuda_instrumentation_guard instrumentation{this, op, node};
-  return op.get_launcher().invoke(backend_id::cuda, this, cap, node);
+  return op.get_launcher().invoke(backend_id::cuda, this, cap, node.get());
 }
 
 result cuda_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& node) {

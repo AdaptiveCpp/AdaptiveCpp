@@ -381,10 +381,11 @@ result omp_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
   
   auto backend_id = _backend_id;
   void* params = this;
+  rt::dag_node* node_ptr = node.get();
 
   omp_instrumentation_setup instrumentation_setup{op, node};
-  _worker([=, &op, &node]() {
-    auto err = op.get_launcher().invoke(backend_id, params, cap, node);
+  _worker([=, &op]() {
+    auto err = op.get_launcher().invoke(backend_id, params, cap, node_ptr);
     if(!err.is_success())
       rt::register_error(err);
   });

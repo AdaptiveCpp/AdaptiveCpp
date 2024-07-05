@@ -112,7 +112,7 @@ public:
 
   rt::result invoke(backend_id id, void *params,
                     const rt::backend_kernel_launch_capabilities& cap,
-                    const rt::dag_node_ptr &node) const {
+                    rt::dag_node* node) const {
 
 
     for(auto& backend_launcher : _kernels) {
@@ -121,13 +121,13 @@ public:
       if(backend_launcher->get_backend_score(id) >= 0) {
         backend_launcher->set_params(params);
         backend_launcher->set_backend_capabilities(cap);
-        backend_launcher->invoke(node.get(), _kernel_config);
+        backend_launcher->invoke(node, _kernel_config);
         return make_success();
       }
     }
 
     if(cap.get_sscp_invoker().has_value() && _static_data.sscp_kernel_id) {
-      return _static_data.sscp_invoker(_static_data, node.get(), _kernel_config,
+      return _static_data.sscp_invoker(_static_data, node, _kernel_config,
                                        cap, params);
     }
 

@@ -255,7 +255,7 @@ result ocl_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
   cap.provide_sscp_invoker(&_sscp_invoker);
   
   // TODO: Instrumentation
-  return op.get_launcher().invoke(backend_id::ocl, this, cap, node);
+  return op.get_launcher().invoke(backend_id::ocl, this, cap, node.get());
 }
 
 result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {

@@ -355,22 +355,14 @@ result hip_queue::submit_memcpy(memcpy_operation & op, const dag_node_ptr& node)
 result hip_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   this->activate_device();
-  rt::backend_kernel_launcher *l =
-      op.get_launcher().find_launcher(backend_id::hip);
-  
-  if (!l)
-    return make_error(__acpp_here(), error_info{"Could not obtain backend kernel launcher"});
-  l->set_params(this);
   
   rt::backend_kernel_launch_capabilities cap;
   
   cap.provide_multipass_invoker(&_multipass_code_object_invoker);
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
 
-  l->set_backend_capabilities(cap);
-
   hip_instrumentation_guard instrumentation{this, op, node};
-  l->invoke(node.get(), op.get_launcher().get_kernel_configuration());
+  return op.get_launcher().invoke(backend_id::hip, this, cap, node);
 
   return make_success();
 }

@@ -373,30 +373,20 @@ result omp_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
 result omp_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
-  rt::backend_kernel_launcher *launcher =
-      op.get_launcher().find_launcher(_backend_id);
-
-  if (!launcher) {
-    return register_error(
-        __acpp_here(),
-        error_info{"omp_queue: Could not find required kernel launcher",
-                   error_type::runtime_error});
-  }
-
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
-  launcher->set_backend_capabilities(cap);
 
-  rt::dag_node *node_ptr = node.get();
   const kernel_configuration *config =
       &(op.get_launcher().get_kernel_configuration());
+  
+  auto backend_id = _backend_id;
+  void* params = this;
 
   omp_instrumentation_setup instrumentation_setup{op, node};
-  _worker([=]() {
-    auto instrumentation_guard = instrumentation_setup.instrument_task();
-
-    HIPSYCL_DEBUG_INFO << "omp_queue [async]: Invoking kernel!" << std::endl;
-    launcher->invoke(node_ptr, *config);
+  _worker([=, &op, &node]() {
+    auto err = op.get_launcher().invoke(backend_id, params, cap, node);
+    if(!err.is_success())
+      rt::register_error(err);
   });
 
   return make_success();

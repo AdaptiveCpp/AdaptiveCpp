@@ -590,7 +590,6 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   cuda_hardware_context *ctx = static_cast<cuda_hardware_context *>(
       this->_backend->get_hardware_manager()->get_device(device));
 
-  std::string target_arch_name = ctx->get_device_arch();
   unsigned compute_capability = ctx->get_compute_capability();
 
   const hcf_kernel_info *kernel_info =
@@ -679,7 +678,9 @@ static thread_local kernel_configuration config;
 
     std::vector<std::string> kernel_names;
     get_image_and_kernel_names(kernel_names);
-    
+
+    std::string target_arch_name = ctx->get_device_arch();
+
     cuda_sscp_executable_object *exec_obj = new cuda_sscp_executable_object{
         ptx_image, target_arch_name, hcf_object, kernel_names, device, config};
     result r = exec_obj->get_build_result();

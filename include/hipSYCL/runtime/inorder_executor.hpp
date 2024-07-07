@@ -62,6 +62,8 @@ public:
 
   bool can_execute_on_device(const device_id& dev) const override;
   bool is_submitted_by_me(const dag_node_ptr& node) const override;
+
+  result wait();
 private:
   std::unique_ptr<inorder_queue> _q;
   std::atomic<std::size_t> _num_submitted_operations;

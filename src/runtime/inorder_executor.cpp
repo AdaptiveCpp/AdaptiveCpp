@@ -216,5 +216,9 @@ bool inorder_executor::is_submitted_by_me(const dag_node_ptr& node) const {
   return node->get_assigned_executor() == this;
 }
 
+result inorder_executor::wait() {
+  return _q->wait();
+}
+
 }
 }

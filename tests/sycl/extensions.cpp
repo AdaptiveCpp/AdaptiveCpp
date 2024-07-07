@@ -523,7 +523,10 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
   sycl::device host_device{sycl::detail::get_host_device()};
 
   if(target_devices.size() > 0) {
-    sycl::queue q{target_devices[0], sycl::property_list{sycl::property::queue::in_order{}}};
+    sycl::queue q{
+        target_devices[0],
+        sycl::property_list{sycl::property::queue::in_order{},
+                            sycl::property::queue::AdaptiveCpp_retargetable{}}};
     int* ptr = sycl::malloc_shared<int>(1, q);
     *ptr = 0;
 

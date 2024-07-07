@@ -1130,7 +1130,6 @@ private:
       : _ctx{ctx}, _handler{handler}, _execution_hints{hints},
         _preferred_group_size1d{}, _preferred_group_size2d{},
         _preferred_group_size3d{}, _rt{rt}, _requirements{rt},
-        _kernel_cache{rt::kernel_cache::get()},
         _allocation_cache{cache},
         _most_recent_reduction_kernel{most_recent_reduction_kernel}{}
 
@@ -1163,7 +1162,7 @@ private:
 
 
   rt::dag_node_ptr create_task(std::unique_ptr<rt::operation> op,
-                               rt::execution_hints &hints,
+                               const rt::execution_hints &hints,
                                const rt::requirements_list& requirements) {
 
     bool uses_buffers = false;
@@ -1195,14 +1194,15 @@ private:
       rt::dag_build_guard build{_rt->dag()};
       return build.builder()->add_command_group(std::move(op), requirements, hints);
     } else {
-      // instant submission
-      hints.set_hint(rt::hints::instant_execution{});
 
       rt::dag_node_ptr node = std::make_shared<rt::dag_node>(
           hints, requirements.get(), std::move(op), _rt);
       node->assign_to_device(
           hints.get_hint<rt::hints::bind_to_device>()->get_device_id());
       node->assign_to_executor(executor);
+      // Remember this was instant submission
+      node->get_execution_hints().set_hint(rt::hints::instant_execution{});
+
       executor->submit_directly(node, node->get_operation(), requirements.get());
       // Signal that instrumentation setup phase is complete
       node->get_operation()->get_instrumentations().mark_set_complete();
@@ -1211,7 +1211,7 @@ private:
   }
 
   rt::dag_node_ptr create_task(std::unique_ptr<rt::operation> op,
-                               rt::execution_hints &hints) {
+                               const rt::execution_hints &hints) {
     return create_task(std::move(op), hints, _requirements);
   }
 
@@ -1220,7 +1220,7 @@ private:
   async_handler _handler;
 
   rt::requirements_list _requirements;
-  rt::execution_hints _execution_hints;
+  const rt::execution_hints& _execution_hints;
   rt::node_list_t _command_group_nodes;
 
   range<1> _preferred_group_size1d;
@@ -1231,7 +1231,6 @@ private:
 
   bool _operation_uses_reductions = false;
 
-  std::shared_ptr<rt::kernel_cache> _kernel_cache;
   algorithms::util::allocation_cache* _allocation_cache;
 
   std::weak_ptr<rt::dag_node>* _most_recent_reduction_kernel;

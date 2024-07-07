@@ -136,7 +136,7 @@ private:
 };
 
 result launch_kernel_from_module(ihipModule_t *module,
-                                 const std::string &kernel_name,
+                                 std::string_view kernel_name,
                                  const rt::range<3> &grid_size,
                                  const rt::range<3> &block_size,
                                  unsigned dynamic_shared_mem,
@@ -145,7 +145,7 @@ result launch_kernel_from_module(ihipModule_t *module,
 
   hipFunction_t kernel_func;
   hipError_t err =
-      hipModuleGetFunction(&kernel_func, module, kernel_name.c_str());
+      hipModuleGetFunction(&kernel_func, module, kernel_name.data());
 
   if(err != hipSuccess) {
     return make_error(__acpp_here(),
@@ -355,22 +355,14 @@ result hip_queue::submit_memcpy(memcpy_operation & op, const dag_node_ptr& node)
 result hip_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   this->activate_device();
-  rt::backend_kernel_launcher *l =
-      op.get_launcher().find_launcher(backend_id::hip);
-  
-  if (!l)
-    return make_error(__acpp_here(), error_info{"Could not obtain backend kernel launcher"});
-  l->set_params(this);
   
   rt::backend_kernel_launch_capabilities cap;
   
   cap.provide_multipass_invoker(&_multipass_code_object_invoker);
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
 
-  l->set_backend_capabilities(cap);
-
   hip_instrumentation_guard instrumentation{this, op, node};
-  l->invoke(node.get(), op.get_launcher().get_kernel_configuration());
+  return op.get_launcher().invoke(backend_id::hip, this, cap, node.get());
 
   return make_success();
 }
@@ -590,7 +582,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
 
 result hip_queue::submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string &kernel_name, const rt::range<3> &num_groups,
+      std::string_view kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
       const kernel_configuration &initial_config) {
@@ -610,7 +602,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"hip_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
+            std::string{kernel_name}});
   }
 
 
@@ -774,7 +766,7 @@ result hip_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name,
+    std::size_t num_args, std::string_view kernel_name,
     const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(

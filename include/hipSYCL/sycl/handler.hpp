@@ -732,7 +732,7 @@ public:
 
     auto custom_kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(f).name(),
-        glue::make_kernel_launchers<class _unnamed, rt::kernel_type::custom>(
+        glue::make_kernel_launcher<class _unnamed, rt::kernel_type::custom>(
             sycl::id<3>{}, sycl::range<3>{}, 
             sycl::range<3>{},
             0, f),
@@ -999,7 +999,7 @@ private:
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(KernelFuncType).name(),
-        glue::make_kernel_launchers<KernelName, KernelType>(
+        glue::make_kernel_launcher<KernelName, KernelType>(
             offset, local_range, global_range, local_mem_size, f),
         _requirements);
 

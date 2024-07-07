@@ -373,30 +373,23 @@ result omp_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
 result omp_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
-  rt::backend_kernel_launcher *launcher =
-      op.get_launcher().find_launcher(_backend_id);
-
-  if (!launcher) {
-    return register_error(
-        __acpp_here(),
-        error_info{"omp_queue: Could not find required kernel launcher",
-                   error_type::runtime_error});
-  }
-
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
-  launcher->set_backend_capabilities(cap);
 
-  rt::dag_node *node_ptr = node.get();
   const kernel_configuration *config =
       &(op.get_launcher().get_kernel_configuration());
+  
+  auto backend_id = _backend_id;
+  void* params = this;
+  rt::dag_node* node_ptr = node.get();
 
   omp_instrumentation_setup instrumentation_setup{op, node};
-  _worker([=]() {
+  _worker([=, &op]() {
     auto instrumentation_guard = instrumentation_setup.instrument_task();
 
-    HIPSYCL_DEBUG_INFO << "omp_queue [async]: Invoking kernel!" << std::endl;
-    launcher->invoke(node_ptr, *config);
+    auto err = op.get_launcher().invoke(backend_id, params, cap, node_ptr);
+    if(!err.is_success())
+      rt::register_error(err);
   });
 
   return make_success();
@@ -404,7 +397,7 @@ result omp_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
 
 result omp_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    const std::string &kernel_name, const rt::range<3> &num_groups,
+    std::string_view kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
@@ -416,7 +409,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"omp_queue: Could not obtain hcf kernel info for kernel " +
-                   kernel_name});
+                   std::string{kernel_name}});
   }
 
 
@@ -615,7 +608,7 @@ result omp_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name,
+    std::size_t num_args, std::string_view kernel_name,
     const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(

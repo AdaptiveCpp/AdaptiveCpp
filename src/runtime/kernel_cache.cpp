@@ -403,12 +403,18 @@ const common::hcf_container* hcf_cache::get_hcf(hcf_object_id obj) const {
 
 const hcf_kernel_info *
 hcf_cache::get_kernel_info(hcf_object_id obj,
-                           const std::string &kernel_name) const {
+                           std::string_view kernel_name) const {
   std::lock_guard<std::mutex> lock{_mutex};
   auto it = _hcf_kernel_info.find(generate_info_id(obj, kernel_name));
   if(it == _hcf_kernel_info.end())
     return nullptr;
   return it->second.get();
+}
+
+const hcf_kernel_info *
+hcf_cache::get_kernel_info(hcf_object_id obj,
+                           const std::string &kernel_name) const {
+  return get_kernel_info(obj, std::string_view{kernel_name});
 }
 
 const hcf_image_info *

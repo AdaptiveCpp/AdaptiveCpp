@@ -159,7 +159,7 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
 }
 
 kernel_adaptivity_engine::kernel_adaptivity_engine(
-    hcf_object_id hcf_object, const std::string &backend_kernel_name,
+    hcf_object_id hcf_object, std::string_view backend_kernel_name,
     const hcf_kernel_info *kernel_info,
     const glue::jit::cxx_argument_mapper &arg_mapper,
     const range<3> &num_groups, const range<3> &block_size, void **args,
@@ -253,9 +253,10 @@ kernel_adaptivity_engine::finalize_binary_configuration(
   return config.generate_id();
 }
 
-std::string kernel_adaptivity_engine::select_image_and_kernels(std::vector<std::string>* kernel_names_out){
+std::string kernel_adaptivity_engine::select_image_and_kernels(
+    std::vector<std::string> *kernel_names_out) {
   if(_adaptivity_level > 0) {
-    *kernel_names_out = std::vector{_kernel_name};
+    *kernel_names_out = std::vector{std::string{_kernel_name}};
 
     std::vector<std::string> all_kernels_in_image;
     return  glue::jit::select_image(_kernel_info, &all_kernels_in_image);
@@ -263,6 +264,5 @@ std::string kernel_adaptivity_engine::select_image_and_kernels(std::vector<std::
     return glue::jit::select_image(_kernel_info, kernel_names_out);
   }
 }
-
 }
 }

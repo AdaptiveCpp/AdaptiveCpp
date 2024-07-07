@@ -39,7 +39,7 @@ result ocl_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name,
+    std::size_t num_args, std::string_view kernel_name,
     const kernel_configuration &config) {
 
   assert(_queue);
@@ -106,10 +106,11 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
     return;
   }
 
-  std::vector<std::string> kernel_names =
+  _kernel_names =
       common::split_by_delimiter(concatenated_name_list, ';');
+  
   std::vector<cl::Kernel> kernels;
-  for(const auto& name : kernel_names) {
+  for(const auto& name : _kernel_names) {
     cl::Kernel k{_program, name.c_str(), &err};
     if(err != CL_SUCCESS) {
       _build_status = register_error(
@@ -156,11 +157,7 @@ std::string ocl_executable_object::target_arch() const {
 
 std::vector<std::string>
 ocl_executable_object::supported_backend_kernel_names() const {
-  std::vector<std::string> result;
-  result.reserve(_kernel_handles.size());
-  for(const auto& h : _kernel_handles)
-    result.push_back(h.first);
-  return result;
+  return _kernel_names;
 }
 
 bool ocl_executable_object::contains(
@@ -185,7 +182,7 @@ cl::Context ocl_executable_object::get_cl_context() const {
   return _ctx;
 }
   
-result ocl_executable_object::get_kernel(const std::string& name, cl::Kernel& out) const {
+result ocl_executable_object::get_kernel(std::string_view name, cl::Kernel& out) const {
   if(!_build_status.is_success())
     return _build_status;
   auto it = _kernel_handles.find(name);

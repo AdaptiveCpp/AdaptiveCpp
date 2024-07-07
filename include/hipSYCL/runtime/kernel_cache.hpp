@@ -221,6 +221,9 @@ public:
   }
 
   const hcf_kernel_info *get_kernel_info(hcf_object_id obj,
+                                         std::string_view kernel_name) const;
+
+  const hcf_kernel_info *get_kernel_info(hcf_object_id obj,
                                          const std::string &kernel_name) const;
 
   const hcf_image_info *get_image_info(hcf_object_id obj,
@@ -235,11 +238,16 @@ private:
 
   using info_id = std::array<uint64_t, 2>;
 
-  info_id generate_info_id(hcf_object_id object_id,
-                           const std::string &object_name) const {
+  static info_id generate_info_id(hcf_object_id object_id,
+                                  const std::string &object_name) {
+    return generate_info_id(object_id, std::string_view{object_name});
+  }
+
+  static info_id generate_info_id(hcf_object_id object_id,
+                                  std::string_view object_name) {
     info_id result;
     result[0] = static_cast<uint64_t>(object_id);
-    
+
     common::stable_running_hash h;
     h(object_name.data(), object_name.size());
 

@@ -27,6 +27,7 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
@@ -194,6 +195,10 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     removeDynamicLocalMemorySupport(M);
   }
 
+
+  AddressSpaceInferencePass ASIPass{ASMap};
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
+
   // llvm-spirv translator does not like llvm.lifetime.start/end operate on generic
   // pointers. TODO: We should only remove them when we actually need to, and attempt
   // to fix them otherwise.
@@ -202,9 +207,13 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     for(auto& BB : F) {
       for(auto& I : BB) {
         if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
-          if (CB->getCalledFunction()->getName().startswith("llvm.lifetime.start") ||
-              CB->getCalledFunction()->getName().startswith("llvm.lifetime.end")) {
-            Calls.push_back(CB);
+          auto* CalledF = CB->getCalledFunction();
+          if (CalledF->getName().startswith("llvm.lifetime.start") ||
+              CalledF->getName().startswith("llvm.lifetime.end")) {
+            if(CB->getNumOperands() > 1 && CB->getArgOperand(1)->getType()->isPointerTy())
+              if (CB->getArgOperand(1)->getType()->getPointerAddressSpace() ==
+                  ASMap[AddressSpace::Generic])
+                Calls.push_back(CB);
           }
         }
       }
@@ -213,9 +222,6 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   for(auto CB : Calls) {
     CB->eraseFromParent();
   }
-
-  AddressSpaceInferencePass ASIPass{ASMap};
-  ASIPass.run(M, *PH.ModuleAnalysisManager);
 
   // It seems there is an issue with debug info in llvm-spirv, so strip it for now
   // TODO: We should attempt to find out what exactly is causing the problem

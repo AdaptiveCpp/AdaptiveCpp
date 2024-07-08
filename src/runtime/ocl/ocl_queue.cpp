@@ -55,7 +55,6 @@ namespace rt {
 
 namespace {
 
-common::spin_lock submission_lock;
 
 result submit_ocl_kernel(cl::Kernel& kernel,
                         cl::CommandQueue& queue,
@@ -65,10 +64,6 @@ result submit_ocl_kernel(cl::Kernel& kernel,
                         ocl_usm* usm,
                         const hcf_kernel_info *info,
                         cl::Event* evt_out = nullptr) {
-  // All OpenCL API calls are safe, except calls that configure kernel objects
-  // like clSetKernelArgs. Currently we are not guaranteed that each thread gets
-  // its own separate kernel object, so we have to lock the submission process for now.
-  common::spin_lock_guard lock{submission_lock};
 
   cl_int err = 0;
   for(std::size_t i = 0; i < num_args; ++i ){
@@ -415,10 +410,11 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
             std::string{kernel_name}});
   }
 
+  common::spin_lock_guard lock{_sscp_submission_spin_lock};
 
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
+  _arg_mapper.construct_mapping(*kernel_info, args, arg_sizes, num_args);
+
+  if(!_arg_mapper.mapping_available()) {
     return make_error(
         __acpp_here(),
         error_info{
@@ -426,7 +422,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   }
 
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
+      hcf_object, kernel_name, kernel_info, _arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
   ocl_hardware_context *hw_ctx = static_cast<ocl_hardware_context *>(
@@ -434,36 +430,33 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   cl::Context ctx = hw_ctx->get_cl_context();
   cl::Device dev = hw_ctx->get_cl_device();
 
-  // Need to create custom config to ensure we can distinguish other
-  // kernels compiled with different values e.g. of local mem allocation size
-  static thread_local kernel_configuration config;
-  config = initial_config;
+  _config = initial_config;
   
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::backend_id, backend_id::ocl);
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   for(const auto& flag : kernel_info->get_compilation_flags())
-    config.set_build_flag(flag);
+    _config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
-    config.set_build_option(opt.first, opt.second);
+    _config.set_build_option(opt.first, opt.second);
 
-  config.set_build_option(
+  _config.set_build_option(
       kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
   if(hw_ctx->has_intel_extension_profile()) {
-    config.set_build_flag(
+    _config.set_build_flag(
       kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
   }
 
   // TODO: Enable this if we are on Intel
   // config.set_build_flag(kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
 
-  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
+  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;
   kernel_configuration::extend_hash(
       code_object_configuration_id,
@@ -489,11 +482,11 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     rt::result err;
     if(kernel_names.size() == 1) {
       err = glue::jit::dead_argument_elimination::compile_kernel(
-          translator.get(), hcf_object, selected_image_name, config,
+          translator.get(), hcf_object, selected_image_name, _config,
           binary_configuration_id, compiled_image);
     } else {
       err = glue::jit::compile(translator.get(),
-        hcf_object, selected_image_name, config, compiled_image);
+        hcf_object, selected_image_name, _config, compiled_image);
     }
     
     if(!err.is_success()) {
@@ -505,7 +498,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   auto code_object_constructor = [&](const std::string& compiled_image) -> code_object* {
     ocl_executable_object *exec_obj = new ocl_executable_object{
-        ctx, dev, hcf_object, compiled_image, config};
+        ctx, dev, hcf_object, compiled_image, _config};
     result r = exec_obj->get_build_result();
 
     if(!r.is_success()) {
@@ -533,7 +526,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   }
 
   if(obj->get_jit_output_metadata().kernel_retained_arguments_indices.has_value()) {
-    arg_mapper.apply_dead_argument_elimination_mask(
+    _arg_mapper.apply_dead_argument_elimination_mask(
         obj->get_jit_output_metadata()
             .kernel_retained_arguments_indices.value());
   }
@@ -551,9 +544,9 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   cl::Event completion_evt;
   auto submission_err = submit_ocl_kernel(
-      kernel, _queue, group_size, num_groups, arg_mapper.get_mapped_args(),
-      const_cast<std::size_t *>(arg_mapper.get_mapped_arg_sizes()),
-      arg_mapper.get_mapped_num_args(), hw_ctx->get_usm_provider(), kernel_info,
+      kernel, _queue, group_size, num_groups, _arg_mapper.get_mapped_args(),
+      const_cast<std::size_t *>(_arg_mapper.get_mapped_arg_sizes()),
+      _arg_mapper.get_mapped_num_args(), hw_ctx->get_usm_provider(), kernel_info,
       &completion_evt);
 
   if(!submission_err.is_success())

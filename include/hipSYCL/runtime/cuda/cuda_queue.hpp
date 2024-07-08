@@ -34,8 +34,11 @@
 
 #include "cuda_instrumentation.hpp"
 #include "cuda_code_object.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 
 
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.
@@ -146,6 +149,11 @@ private:
   cuda_backend* _backend;
 
   std::shared_ptr<kernel_cache> _kernel_cache;
+
+  // SSCP submission data
+  common::spin_lock _sscp_submission_spin_lock;
+  glue::jit::cxx_argument_mapper _arg_mapper;
+  kernel_configuration _config;
 };
 
 }

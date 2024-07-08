@@ -34,6 +34,8 @@
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 
+#include "hipSYCL/common/spin_lock.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
 #include "hipSYCL/runtime/ocl/ocl_code_object.hpp"
@@ -116,6 +118,11 @@ private:
   };
 
   protected_state _state;
+
+  // SSCP submission data
+  common::spin_lock _sscp_submission_spin_lock;
+  glue::jit::cxx_argument_mapper _arg_mapper;
+  kernel_configuration _config;
 };
 
 }

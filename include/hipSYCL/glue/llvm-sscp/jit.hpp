@@ -55,21 +55,33 @@ namespace jit {
 // into their elements in the kernel function prototype.
 class cxx_argument_mapper {
 public:
+  cxx_argument_mapper() = default;
   cxx_argument_mapper(const rt::hcf_kernel_info &kernel_info, void **args,
                       const std::size_t *arg_sizes, std::size_t num_args) {
+    construct_mapping(kernel_info, args, arg_sizes, num_args);
+  }
+
+  void construct_mapping(const rt::hcf_kernel_info &kernel_info, void **args,
+                         const std::size_t *arg_sizes, std::size_t num_args) {
 
     std::size_t num_params = kernel_info.get_num_parameters();
-    
-    for(int i = 0; i < num_params; ++i) {
+
+    _mapped_data.clear();
+    _mapped_sizes.clear();
+    _mapped_data.reserve(num_params);
+    _mapped_sizes.reserve(num_params);
+
+    for (int i = 0; i < num_params; ++i) {
       std::size_t arg_size = kernel_info.get_argument_size(i);
       std::size_t arg_offset = kernel_info.get_argument_offset(i);
-      std::size_t arg_original_index = kernel_info.get_original_argument_index(i);
+      std::size_t arg_original_index =
+          kernel_info.get_original_argument_index(i);
 
       assert(arg_original_index < num_args);
 
       void *data_ptr = add_offset(args[arg_original_index], arg_offset);
-      
-      if(!data_ptr)
+
+      if (!data_ptr)
         return;
 
       _mapped_data.push_back(data_ptr);

@@ -34,6 +34,7 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/hints.hpp"
@@ -119,6 +120,10 @@ private:
   // arguably the best strategy to achieve thread-safety is to just have a mutex
   // and lock in every public function.
   std::mutex _mutex;
+
+  // SSCP submission data
+  glue::jit::cxx_argument_mapper _arg_mapper;
+  kernel_configuration _config;  
 };
 
 }

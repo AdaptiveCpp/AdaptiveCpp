@@ -29,6 +29,7 @@
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
@@ -402,6 +403,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
+  common::spin_lock_guard lock{_sscp_submission_spin_lock};
 
   const hcf_kernel_info *kernel_info =
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
@@ -413,9 +415,9 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   }
 
 
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if (!arg_mapper.mapping_available()) {
+  _arg_mapper.construct_mapping(*kernel_info, args, arg_sizes, num_args);
+
+  if (!_arg_mapper.mapping_available()) {
     return make_error(
         __acpp_here(),
         error_info{
@@ -423,22 +425,21 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   }
 
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
+      hcf_object, kernel_name, kernel_info, _arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  static thread_local kernel_configuration config;
-  config = initial_config;
+  _config = initial_config;
   
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::backend_id, backend_id::omp);
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
 
   auto binary_configuration_id =
-      adaptivity_engine.finalize_binary_configuration(config);
+      adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;
 
   auto get_image_and_kernel_names =
@@ -458,7 +459,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
 
     // Lower kernels to binary
     auto err = glue::jit::compile(translator.get(), hcf, selected_image_name,
-                                  config, compiled_image);
+                                  _config, compiled_image);
 
     if (!err.is_success()) {
       register_error(err);
@@ -473,7 +474,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     get_image_and_kernel_names(kernel_names);
 
     omp_sscp_executable_object *exec_obj = new omp_sscp_executable_object{
-        binary_image, hcf_object, kernel_names, config};
+        binary_image, hcf_object, kernel_names, _config};
     result r = exec_obj->get_build_result();
 
     if (!r.is_success()) {
@@ -503,7 +504,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
           kernel_name);
 
   return launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
-                               arg_mapper.get_mapped_args());
+                               _arg_mapper.get_mapped_args());
 
 #else
   return make_error(

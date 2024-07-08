@@ -33,6 +33,8 @@
 #include "../generic/host_timestamped_event.hpp"
 #include "../code_object_invoker.hpp"
 
+#include "hipSYCL/common/spin_lock.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hip_instrumentation.hpp"
 
 // Avoid including HIP headers to prevent conflicts with CUDA
@@ -137,6 +139,11 @@ private:
   hip_multipass_code_object_invoker _multipass_code_object_invoker;
   hip_sscp_code_object_invoker _sscp_code_object_invoker;
   std::shared_ptr<kernel_cache> _kernel_cache;
+
+  // SSCP submission data
+  common::spin_lock _sscp_submission_spin_lock;
+  glue::jit::cxx_argument_mapper _arg_mapper;
+  kernel_configuration _config;
 };
 
 }

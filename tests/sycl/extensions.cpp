@@ -1104,7 +1104,9 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
   using namespace cl;
   sycl::queue out_of_order_q;
   sycl::queue in_order_q{
-      sycl::property_list{sycl::property::queue::in_order{}}};
+      sycl::property_list{sycl::property::queue::in_order{},
+                          // Needed for accurate get_wait_list results
+                          sycl::property::queue::AdaptiveCpp_retargetable{}}};
 
   auto test = [](sycl::queue& q){
     std::vector<sycl::event> evts;

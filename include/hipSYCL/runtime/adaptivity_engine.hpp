@@ -41,7 +41,7 @@ class kernel_adaptivity_engine {
 public:
   kernel_adaptivity_engine(
     hcf_object_id hcf_object,
-    const std::string& backend_kernel_name,
+    std::string_view backend_kernel_name,
     const hcf_kernel_info* kernel_info,
     const glue::jit::cxx_argument_mapper& arg_mapper,
     const range<3>& num_groups,
@@ -57,7 +57,7 @@ public:
   std::string select_image_and_kernels(std::vector<std::string>* kernel_names_out);
 private:
   hcf_object_id _hcf;
-  const std::string& _kernel_name;
+  std::string_view _kernel_name;
   const hcf_kernel_info* _kernel_info;
   const glue::jit::cxx_argument_mapper& _arg_mapper;
   const range<3>& _num_groups;

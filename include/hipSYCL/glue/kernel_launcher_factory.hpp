@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/glue/kernel_launcher_data.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
@@ -61,13 +62,14 @@ namespace glue {
 ///       If it is non-0, it *may* be used as a hint for the backend.
 template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel,
           typename... Reductions>
-common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>
-make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
-                      sycl::range<Dim> global_range,
-                      std::size_t dynamic_local_memory, Kernel k) {
+rt::kernel_launcher
+make_kernel_launcher(sycl::id<Dim> offset, sycl::range<Dim> local_range,
+                     sycl::range<Dim> global_range,
+                     std::size_t dynamic_local_memory, Kernel k) {
 
   using name_traits = kernel_name_traits<KernelNameTag, Kernel>;
 
+  kernel_launcher_data static_launcher_data;
   common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>
       launchers;
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
@@ -91,10 +93,9 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__) && \
   !defined(SYCL_DEVICE_ONLY)
   {
-    auto launcher = std::make_unique<sscp_kernel_launcher>();
-    launcher->bind<name_traits, Type>(offset, global_range, local_range,
-                                      dynamic_local_memory, k);
-    launchers.emplace_back(std::move(launcher));
+    sscp_kernel_launcher::create<name_traits, Type>(
+        static_launcher_data, offset, global_range, local_range,
+        dynamic_local_memory, k);
   }
 #endif
 
@@ -108,7 +109,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
     launchers.emplace_back(std::move(launcher));
   }
 #endif
-  return std::move(launchers);
+  return rt::kernel_launcher{static_launcher_data, std::move(launchers)};
 }
 }
 }

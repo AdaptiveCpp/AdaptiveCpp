@@ -74,8 +74,12 @@
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
-#ifndef HIPSYCL_ALLOW_INSTANT_SUBMISSION
-#define HIPSYCL_ALLOW_INSTANT_SUBMISSION 0
+#if defined(HIPSYCL_ALLOW_INSTANT_SUBMISSION) && !defined(ACPP_ALLOW_INSTANT_SUBMISSION)
+#define ACPP_ALLOW_INSTANT_SUBMISSION HIPSYCL_ALLOW_INSTANT_SUBMISSION
+#endif
+
+#ifndef ACPP_ALLOW_INSTANT_SUBMISSION
+#define ACPP_ALLOW_INSTANT_SUBMISSION 0
 #endif
 
 namespace hipsycl {
@@ -728,7 +732,7 @@ public:
 
     auto custom_kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(f).name(),
-        glue::make_kernel_launchers<class _unnamed, rt::kernel_type::custom>(
+        glue::make_kernel_launcher<class _unnamed, rt::kernel_type::custom>(
             sycl::id<3>{}, sycl::range<3>{}, 
             sycl::range<3>{},
             0, f),
@@ -995,7 +999,7 @@ private:
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(KernelFuncType).name(),
-        glue::make_kernel_launchers<KernelName, KernelType>(
+        glue::make_kernel_launcher<KernelName, KernelType>(
             offset, local_range, global_range, local_mem_size, f),
         _requirements);
 
@@ -1183,7 +1187,7 @@ private:
     if(executor && executor->is_inorder_queue())
       is_dedicated_in_order_queue = true;
 
-    if (!HIPSYCL_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
+    if (!ACPP_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
         has_non_instant_dependency || is_unbound ||
         !is_dedicated_in_order_queue || _operation_uses_reductions ||
         op->is_requirement()) {

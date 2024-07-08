@@ -53,11 +53,11 @@ public:
   virtual bool is_taskgraph() const = 0;
 
   virtual void
-  submit_directly(dag_node_ptr node, operation *op,
+  submit_directly(const dag_node_ptr& node, operation *op,
                   const node_list_t &reqs) = 0;
 
   virtual bool can_execute_on_device(const device_id& dev) const = 0;
-  virtual bool is_submitted_by_me(dag_node_ptr node) const = 0;
+  virtual bool is_submitted_by_me(const dag_node_ptr& node) const = 0;
 
   virtual ~backend_executor(){}
 };

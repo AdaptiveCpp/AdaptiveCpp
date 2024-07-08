@@ -267,7 +267,7 @@ class acpp_config:
     with the cuda-nvcxx backend."""),
 
       'cuda-path': option("--acpp-cuda-path", "ACPP_CUDA_PATH", "default-cuda-path",
-"""  The path to the CUDA toolkit installation directry"""),
+"""  The path to the CUDA toolkit installation directory"""),
 
       'rocm-path': option("--acpp-rocm-path", "ACPP_ROCM_PATH", "default-rocm-path",
 """  The path to the ROCm installation directory"""),
@@ -283,10 +283,10 @@ class acpp_config:
       'clang-include-path' : option("--acpp-clang-include-path", "ACPP_CLANG_INCLUDE_PATH", "default-clang-include-path",
 """  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
 
-      'sequential-link-line' : option("--acpp-squential-link-line", "ACPP_SEQUENTIAL_LINK_LINE", "default-sequential-link-line",
+      'sequential-link-line' : option("--acpp-sequential-link-line", "ACPP_SEQUENTIAL_LINK_LINE", "default-sequential-link-line",
 """ The arguments passed to the linker for the sequential backend"""),
 
-      'sequential-cxx-flags' : option("--acpp-squential-cxx-flags", "ACPP_SEQUENTIAL_CXX_FLAGS", "default-sequential-cxx-flags",
+      'sequential-cxx-flags' : option("--acpp-sequential-cxx-flags", "ACPP_SEQUENTIAL_CXX_FLAGS", "default-sequential-cxx-flags",
 """ The arguments passed to the compiler to compile for the sequential backend"""),
 
       'omp-link-line' : option("--acpp-omp-link-line", "ACPP_OMP_LINK_LINE", "default-omp-link-line",
@@ -341,7 +341,7 @@ class acpp_config:
       * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device"""),
 
       'stdpar-prefetch-mode' : option("--acpp-stdpar-prefetch-mode", "ACPP_STDPAR_PREFETCH_MODE", "default-stdpar-prefetch-mode", 
-"""  AdaptiveCpp supports issuing automati USM prefetch operations for allocations used inside offloaded C++ PSTL
+"""  AdaptiveCpp supports issuing automatic USM prefetch operations for allocations used inside offloaded C++ PSTL
     algorithms. This flags determines the strategy for submitting such prefetches.
     Supported values are:
       * always      - Prefetches every allocation used by every stdpar kernel
@@ -1769,7 +1769,7 @@ class compiler:
       args += [
         "-isystem", stdpar_include_path,
         "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__", "-D__ADAPTIVECPP_STDPAR__", "-D__ACPP_STDPAR__",
-        "-DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1",
+        "-DACPP_ALLOW_INSTANT_SUBMISSION=1",
         # TODO We should find a way to only emit this argument if the clang plugin is used.
         "-mllvm", "-hipsycl-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
@@ -1925,7 +1925,7 @@ def print_config(config):
 
 def print_version(config):
   version = config.version
-  print("acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the AdaptiveCpp project")
+  print("acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2024 Aksel Alpay and the AdaptiveCpp project")
   print("  AdaptiveCpp version: {}.{}.{}{}".format(version[0],version[1],version[2],version[3]))
   print("  Installation root:",os.path.abspath(config.acpp_installation_path))
   if config.has_plugin:

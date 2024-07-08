@@ -166,18 +166,19 @@ private:
 };
 
 struct kernel_blob {
-  template <class Blob>
-  static bool initialize_embedded_pointer(Blob &b, const unique_id &pointer_id,
-                                          void *ptr) {
 
-    char* blob_ptr = reinterpret_cast<char*>(&b);
+  static bool initialize_embedded_pointer(void *b, std::size_t blob_size,
+                                          const unique_id &pointer_id,
+                                          const void *ptr) {
+
+    char* blob_ptr = reinterpret_cast<char*>(b);
     bool found = false;
 
     // TODO: We could try to optimize this by only
     // looking at offsets that are properly aligned
     // if we are sure there are no cases where this
     // might go wrong
-    for(int i = 0; i + sizeof(unique_id) <= sizeof(Blob);) {
+    for(int i = 0; i + sizeof(unique_id) <= blob_size;) {
     
       char* chunk_ptr = blob_ptr + i;
 

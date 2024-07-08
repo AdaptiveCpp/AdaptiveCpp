@@ -41,11 +41,10 @@ const instrumentation_set &operation::get_instrumentations() const {
 }
 
 kernel_operation::kernel_operation(
-    const std::string &kernel_name,
-    common::auto_small_vector<
-        std::unique_ptr<backend_kernel_launcher>> kernels,
+    const char* kernel_name,
+    kernel_launcher&& launcher,
     const requirements_list &reqs)
-    : _kernel_name{kernel_name}, _launcher{std::move(kernels)} {
+    : _kernel_name{kernel_name}, _launcher{std::move(launcher)} {
   for(auto req_node : reqs.get()){
     operation* op = req_node->get_operation();
     assert(op);

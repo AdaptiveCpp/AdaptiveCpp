@@ -45,7 +45,7 @@ namespace rt {
 
 namespace {
 
-std::size_t determine_target_lane(dag_node_ptr node,
+std::size_t determine_target_lane(const dag_node_ptr& node,
                                   const node_list_t& nonvirtual_reqs,
                                   const multi_queue_executor* executor,
                                   const moving_statistics& device_submission_statistics,
@@ -63,7 +63,7 @@ std::size_t determine_target_lane(dag_node_ptr node,
 
   common::small_vector<int, 8> synchronization_cost(lane_range.num_lanes);
 
-  for(dag_node_ptr req : nonvirtual_reqs){
+  for(auto& req : nonvirtual_reqs){
     assert(req);
     assert(req->is_submitted());
 
@@ -204,7 +204,7 @@ multi_queue_executor::get_kernel_execution_lane_range(device_id dev) const {
 }
 
 void multi_queue_executor::submit_directly(
-    dag_node_ptr node, operation *op,
+    const dag_node_ptr& node, operation *op,
     const node_list_t &reqs) {
 
   HIPSYCL_DEBUG_INFO << "multi_queue_executor: Processing node " << node.get()
@@ -247,7 +247,7 @@ bool multi_queue_executor::can_execute_on_device(const device_id &dev) const {
   return _backend == dev.get_backend();
 }
 
-bool multi_queue_executor::is_submitted_by_me(dag_node_ptr node) const {
+bool multi_queue_executor::is_submitted_by_me(const dag_node_ptr& node) const {
   if(!node->is_submitted())
     return false;
 
@@ -261,7 +261,8 @@ bool multi_queue_executor::is_submitted_by_me(dag_node_ptr node) const {
   return false;
 }
 
-bool multi_queue_executor::find_assigned_lane_index(dag_node_ptr node, std::size_t& index_out) const {
+bool multi_queue_executor::find_assigned_lane_index(
+    const dag_node_ptr &node, std::size_t &index_out) const {
   if(!node->is_submitted())
     return false;
 
@@ -279,6 +280,5 @@ bool multi_queue_executor::find_assigned_lane_index(dag_node_ptr node, std::size
 
   return false;
 }
-
 }
 }

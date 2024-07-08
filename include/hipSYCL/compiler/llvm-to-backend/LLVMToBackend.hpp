@@ -176,6 +176,12 @@ public:
 
   void provideExternalSymbolResolver(ExternalSymbolResolver Resolver);
 
+  // Enable dead argument elimination. If non-null, RetainedArgumentIndices will be filled
+  // with the indices of the parameters that were not removed in ascending order.
+  void enableDeadArgumentElminiation(const std::string &FunctionName,
+                                     std::vector<int> *RetainedArgumentIndices = nullptr);
+
+  const std::vector<std::pair<std::string, std::vector<int>*>>& getDeadArgumentEliminationConfig() const;
 protected:
   virtual AddressSpaceMap getAddressSpaceMap() const = 0;
   virtual bool isKernelAfterFlavoring(llvm::Function& F) = 0;
@@ -207,6 +213,13 @@ protected:
   // if they want to do something more specific.
   virtual bool optimizeFlavoredIR(llvm::Module& M, PassHandler& PH);
 
+  // Transfers kernel properties (e.g. kernel call conventions, additional metadata) from one kernel
+  // "From" to another "To". This is useful e.g. for dead argument elimination, where a new
+  // kernel entrypoint with different signature will be created post optimizations.
+  // This assumes that To has been created with a matching function signature from From,
+  // including function and parameter attributes.
+  virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) = 0;
+
   void registerError(const std::string& E) {
     Errors.push_back(E);
   }
@@ -227,6 +240,8 @@ private:
 
   void resolveExternalSymbols(llvm::Module& M);
   void setFailedIR(llvm::Module& M);
+  void runKernelDeadArgumentElimination(llvm::Module &M, llvm::Function *F, PassHandler &PH,
+                                        std::vector<int>& RetainedIndicesOut);
 
   int S2IRConstantBackendId;
   
@@ -240,6 +255,8 @@ private:
 
   // In case an error occurs, the code will be stored here
   std::string ErroringCode;
+
+  std::vector<std::pair<std::string, std::vector<int>*>> FunctionsForDeadArgumentElimination;
 
 };
 

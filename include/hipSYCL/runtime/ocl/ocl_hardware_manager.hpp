@@ -83,6 +83,8 @@ public:
   cl::Device get_cl_device() const;
   cl::Context get_cl_context() const;
 
+  bool has_intel_extension_profile() const;
+
   void init_allocator(ocl_hardware_manager* mgr);
 private:
   int _dev_id;
@@ -91,6 +93,7 @@ private:
   cl::Device _dev;
   std::shared_ptr<ocl_usm> _usm_provider;
   ocl_allocator _alloc;
+  bool _has_intel_extension_profile;
 };
 
 class ocl_hardware_manager : public backend_hardware_manager

@@ -312,7 +312,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
                 << " original index = "
                 << kernel_info->get_original_argument_index(i) << std::endl;
           }
-          _hcf_kernel_info[std::make_pair(id, kernel_name)] =
+          _hcf_kernel_info[generate_info_id(id, kernel_name)] =
               std::move(kernel_info);
         }
       }
@@ -327,7 +327,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
           HIPSYCL_DEBUG_INFO << "hcf_cache: Registering image info for image "
                              << image_name << " from HCF object " << id
                              << std::endl;
-          _hcf_image_info[std::make_pair(id, image_name)] =
+          _hcf_image_info[generate_info_id(id, image_name)] =
               std::move(image_info);
         }
       }
@@ -403,19 +403,25 @@ const common::hcf_container* hcf_cache::get_hcf(hcf_object_id obj) const {
 
 const hcf_kernel_info *
 hcf_cache::get_kernel_info(hcf_object_id obj,
-                           const std::string &kernel_name) const {
+                           std::string_view kernel_name) const {
   std::lock_guard<std::mutex> lock{_mutex};
-  auto it = _hcf_kernel_info.find(std::make_pair(obj, kernel_name));
+  auto it = _hcf_kernel_info.find(generate_info_id(obj, kernel_name));
   if(it == _hcf_kernel_info.end())
     return nullptr;
   return it->second.get();
+}
+
+const hcf_kernel_info *
+hcf_cache::get_kernel_info(hcf_object_id obj,
+                           const std::string &kernel_name) const {
+  return get_kernel_info(obj, std::string_view{kernel_name});
 }
 
 const hcf_image_info *
 hcf_cache::get_image_info(hcf_object_id obj,
                           const std::string &image_name) const {
   std::lock_guard<std::mutex> lock{_mutex};
-  auto it = _hcf_image_info.find(std::make_pair(obj, image_name));
+  auto it = _hcf_image_info.find(generate_info_id(obj, image_name));
   if(it == _hcf_image_info.end())
     return nullptr;
   return it->second.get();
@@ -451,13 +457,29 @@ const code_object* kernel_cache::get_code_object_impl(code_object_id id) const {
 
 std::string kernel_cache::get_persistent_cache_file(code_object_id id_of_binary) {
   using namespace common::filesystem;
-  std::string cache_dir = tuningdb::get().get_jit_cache_dir();
+  std::string cache_dir = persistent_storage::get().get_jit_cache_dir();
   return join_path(cache_dir, kernel_configuration::to_string(id_of_binary)+".jit");
 }
 
 bool kernel_cache::persistent_cache_lookup(code_object_id id_of_binary,
                                            std::string &out) const {
-  std::string filename = get_persistent_cache_file(id_of_binary);
+  std::string filename;
+
+  bool filename_lookup_succeeded =
+      common::filesystem::persistent_storage::get()
+          .get_this_app_db()
+          .read_access([&](const common::db::appdb_data &appdb) {
+            auto binary = appdb.binaries.find(id_of_binary);
+            if (binary == appdb.binaries.end())
+              return false;
+
+            filename = binary->second.jit_cache_filename;
+            return true;
+          });
+
+  if(!filename_lookup_succeeded)
+    return false;
+
   std::ifstream file{filename, std::ios::in | std::ios::binary | std::ios::ate};
   
   if(!file.is_open())
@@ -492,6 +514,12 @@ void kernel_cache::persistent_cache_store(code_object_id id_of_binary,
         << "Could not store JIT result in persistent kernel cache in file "
         << filename << std::endl;
   }
+
+  common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_write_access([&](common::db::appdb_data &appdb) {
+        appdb.binaries[id_of_binary].jit_cache_filename = filename;
+      });
 }
 
 } // rt

@@ -48,7 +48,11 @@ int main()
   hipsycl::common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
       backend_kernel_list;
   std::string kernel_name = "test_kernel";
-  kernel_operation kernel_op(kernel_name, std::move(backend_kernel_list), reqs);
+  hipsycl::glue::kernel_launcher_data launch_data;
+  kernel_operation kernel_op(
+      kernel_name.c_str(),
+      hipsycl::rt::kernel_launcher{launch_data, std::move(backend_kernel_list)},
+      reqs);
   kernel_op.dump(std::cout);
 
 

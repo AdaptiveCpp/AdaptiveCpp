@@ -68,7 +68,7 @@ sycl::queue{}.parallel(num_work_groups, logical_group_size,
     // types that are optimized for the backend.
     sycl::distribute_groups(group, [&](auto subgroup){
       sycl::distribute_groups(subgroup, [&](auto subsubgroup){
-        sycl::distribute_groups(sububgroup, [&](auto subsubsubgroup){
+        sycl::distribute_groups(subsubgroup, [&](auto subsubsubgroup){
           // distribute_items() to make sure code is executed for each logical item
           sycl::distribute_items(subsubsubgroup, [&](sycl::s_item<1> logical_idx){
             ...
@@ -458,7 +458,7 @@ class ScopedGroup {
   size_t get_group_id(int dimension) const noexcept;
 
   /// Returns the linear id of the group within the parent group.
-  /// If the group is a work gorup, there is no parent group
+  /// If the group is a work group, there is no parent group
   /// and the work group id is returned.
   linear_id_type get_group_linear_id() const noexcept;
 

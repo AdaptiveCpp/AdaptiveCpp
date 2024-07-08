@@ -57,15 +57,15 @@ public:
   virtual std::shared_ptr<dag_node_event> insert_event() override;
   virtual std::shared_ptr<dag_node_event> create_queue_completion_event() override;
 
-  virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
-  virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
-  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(memset_operation&, dag_node_ptr) override;
+  virtual result submit_memcpy(memcpy_operation&, const dag_node_ptr&) override;
+  virtual result submit_kernel(kernel_operation&, const dag_node_ptr&) override;
+  virtual result submit_prefetch(prefetch_operation &, const dag_node_ptr&) override;
+  virtual result submit_memset(memset_operation&, const dag_node_ptr&) override;
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(dag_node_ptr evt) override;
-  virtual result submit_external_wait_for(dag_node_ptr node) override;
+  virtual result submit_queue_wait_for(const dag_node_ptr& evt) override;
+  virtual result submit_external_wait_for(const dag_node_ptr& node) override;
 
   virtual result wait() override;
 
@@ -85,7 +85,7 @@ public:
 
   result submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string &kernel_name, const rt::range<3> &num_groups,
+      std::string_view kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
       const kernel_configuration &config);

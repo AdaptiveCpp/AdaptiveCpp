@@ -393,16 +393,13 @@ ocl_hardware_manager *ocl_queue::get_hardware_manager() const {
 
 result ocl_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    std::string_view kernel_name, const rt::range<3> &num_groups,
-    const rt::range<3> &group_size, unsigned local_mem_size, void **args,
-    std::size_t *arg_sizes, std::size_t num_args,
-    const kernel_configuration &initial_config) {
-
+    std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const kernel_configuration &initial_config) {
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
-  const hcf_kernel_info *kernel_info =
-      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
         __acpp_here(),
@@ -561,9 +558,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       error_info{"ocl_queue: SSCP kernel launch was requested, but hipSYCL was "
                  "not built with OpenCL SSCP support."});
 #endif
-
 }
-
 
 void ocl_queue::register_submitted_op(cl::Event evt) {
   this->_state.set_most_recent_event(std::make_shared<ocl_node_event>(

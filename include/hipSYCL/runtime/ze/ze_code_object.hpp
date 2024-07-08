@@ -57,6 +57,7 @@ public:
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
                                std::string_view kernel_name,
+                               const rt::hcf_kernel_info* kernel_info,
                                const kernel_configuration& config) override;
 private:
   ze_queue* _queue;

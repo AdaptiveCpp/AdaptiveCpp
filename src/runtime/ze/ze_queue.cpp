@@ -440,13 +440,12 @@ void ze_queue::register_submitted_op(std::shared_ptr<dag_node_event> evt) {
   _enqueued_synchronization_ops.push_back(evt);
 }
 
-
 result ze_queue::submit_sscp_kernel_from_code_object(
-      const kernel_operation &op, hcf_object_id hcf_object,
-      std::string_view kernel_name, const rt::range<3> &num_groups,
-      const rt::range<3> &group_size, unsigned local_mem_size, void **args,
-      std::size_t *arg_sizes, std::size_t num_args,
-      const kernel_configuration &initial_config) {
+    const kernel_operation &op, hcf_object_id hcf_object,
+    std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const kernel_configuration &initial_config) {
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
@@ -455,8 +454,6 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   ze_context_handle_t ctx = hw_ctx->get_ze_context();
   ze_device_handle_t dev = hw_ctx->get_ze_device();
 
-  const hcf_kernel_info *kernel_info =
-      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
         __acpp_here(),
@@ -612,8 +609,6 @@ result ze_queue::submit_sscp_kernel_from_code_object(
                  "not built with Level Zero SSCP support."});
 #endif
 }
-
-
 }
 }
 

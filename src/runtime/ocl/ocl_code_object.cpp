@@ -40,13 +40,14 @@ result ocl_sscp_code_object_invoker::submit_kernel(
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, std::string_view kernel_name,
+    const rt::hcf_kernel_info *kernel_info,
     const kernel_configuration &config) {
 
   assert(_queue);
 
   return _queue->submit_sscp_kernel_from_code_object(
-      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
-      arg_sizes, num_args, config);
+      op, hcf_object, kernel_name, kernel_info, num_groups, group_size,
+      local_mem_size, args, arg_sizes, num_args, config);
 }
 
 ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device& dev,

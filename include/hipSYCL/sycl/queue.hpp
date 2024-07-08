@@ -371,6 +371,10 @@ public:
       } else {
         rt::inorder_executor* exec = AdaptiveCpp_inorder_executor();
         assert(exec);
+        // Need to ensure everything is submitted before waiting on the stream
+        // in case we have non-instant operations
+        _impl->requires_runtime.get()->dag().flush_sync();
+        
         auto err = exec->wait();
         if(!err.is_success()) {
           // We might want to throw a synchronous error here?
@@ -1142,7 +1146,8 @@ private:
           new detail::queue_submission_hooks{}};
 
     if (_impl->is_in_order && _impl->dedicated_inorder_executor &&
-        !_impl->is_retargetable)
+        !_impl->is_retargetable &&
+        _impl->default_hints.has_hint<rt::hints::bind_to_device>())
       _impl->needs_in_order_emulation = false;
     
     _impl->kernel_cache = rt::kernel_cache::get();

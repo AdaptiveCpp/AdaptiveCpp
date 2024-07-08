@@ -28,8 +28,10 @@
 #ifndef HIPSYCL_STABLE_RUNNING_HASH_HPP
 #define HIPSYCL_STABLE_RUNNING_HASH_HPP
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <utility>
 
 namespace hipsycl {
@@ -45,8 +47,10 @@ public:
   stable_running_hash() : value{offset} {}
 
   void operator()(const void *data, std::size_t size) {
-    for (std::size_t i = 0; i < size; ++i) {
-      uint8_t current = static_cast<const uint8_t *>(data)[i];
+    for(int i = 0; i < size; i += sizeof(uint64_t)) {
+      uint64_t current = 0;
+      int read_size = std::min(sizeof(uint64_t), size - i);
+      std::memcpy(&current, (char*)data + i, read_size);
       value ^= current;
       value *= prime;
     }

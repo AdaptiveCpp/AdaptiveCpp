@@ -462,7 +462,7 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
     llvm::AtomicOrdering Order = AS->getOrdering();
     if (auto *NewI =
             createAtomicStore(M, AS->getValueOperand(), AS->getPointerOperand(),
-                              llvmOrderingToAcppOrdering(Order), memory_scope::device, AS)) {
+                              llvmOrderingToAcppOrdering(Order), memory_scope::system, AS)) {
       AS->replaceNonMetadataUsesWith(NewI);
       ReplacedInstructions.push_back(AS);
     }
@@ -471,7 +471,7 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
     llvm::AtomicOrdering Order = AL->getOrdering();
     if (auto *NewI =
             createAtomicLoad(M, AL->getType(), AL->getPointerOperand(),
-                              llvmOrderingToAcppOrdering(Order), memory_scope::device, AL)) {
+                              llvmOrderingToAcppOrdering(Order), memory_scope::system, AL)) {
       AL->replaceNonMetadataUsesWith(NewI);
       ReplacedInstructions.push_back(AL);
     }
@@ -480,7 +480,7 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
     llvm::AtomicOrdering Order = XI->getOrdering();
     if (auto *NewI =
             createAtomicExchange(M, XI->getValOperand(), XI->getPointerOperand(),
-                              llvmOrderingToAcppOrdering(Order), memory_scope::device, XI)) {
+                              llvmOrderingToAcppOrdering(Order), memory_scope::system, XI)) {
       XI->replaceNonMetadataUsesWith(NewI);
       ReplacedInstructions.push_back(XI);
     }
@@ -496,7 +496,7 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
     if (auto *NewI = createAtomicCmpExchange(
             M, !CI->isWeak(), CI->getNewValOperand(), CI->getPointerOperand(), ExpectedAI,
             llvmOrderingToAcppOrdering(SuccessOrder), llvmOrderingToAcppOrdering(FailureOrder),
-            memory_scope::device, CI)) {
+            memory_scope::system, CI)) {
 
       llvm::Value* RetVal = llvm::UndefValue::get(CI->getType());
       llvm::Value *ExpectedLoad =
@@ -518,7 +518,7 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
 
     if (auto *NewI =
             createAtomicFetchOp(M, FI->getOperation(), FI->getValOperand(), FI->getPointerOperand(),
-                                llvmOrderingToAcppOrdering(Order), memory_scope::device, FI)) {
+                                llvmOrderingToAcppOrdering(Order), memory_scope::system, FI)) {
       FI->replaceNonMetadataUsesWith(NewI);
       ReplacedInstructions.push_back(FI);
     }

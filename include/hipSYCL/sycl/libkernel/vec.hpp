@@ -49,39 +49,39 @@ public:
   using interop_type = vec_storage<T,N>;
   using value_type = T;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   T& operator[](int i) { return _storage[i]; }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   const T& operator[](int i) const { return _storage[i]; }
 
   template<int Index>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   T& get() {
     return _storage[Index];
   }
 
   template<int Index>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   const T& get() const {
     return _storage[Index];
   }
 
   template<class F>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void for_each(F&& f) {
     for(int i = 0; i < N; ++i)
       f(i, _storage[i]);
   }
 
   template<class F>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void for_each(F&& f) const {
     for(int i = 0; i < N; ++i)
       f(i, _storage[i]);
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   interop_type interop() const {
     return *this;
   }
@@ -99,45 +99,45 @@ public:
   using interop_type = typename TargetStorage::interop_type;
   using value_type = typename TargetStorage::value_type;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   swizzled_view_storage(TargetStorage& s)
   : _original_data{s} {}
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   value_type &operator[](int i) { 
     return _original_data[_swizzled_indices[i]];
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   const value_type &operator[](int i) const {
     return _original_data[_swizzled_indices[i]];
   }
 
   template<int Index>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   value_type& get() {
     return _original_data[_swizzled_indices[Index]];
   }
 
   template<int Index>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   const value_type& get() const {
     return _original_data[_swizzled_indices[Index]];
   }
 
   template<class F>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void for_each(F&& f) {
     (f(SwizzleIndices, _original_data.template get<SwizzleIndices>()), ...);
   }
 
   template<class F>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void for_each(F&& f) const {
     (f(SwizzleIndices, _original_data.template get<SwizzleIndices>()), ...);
   }
   
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   interop_type interop() const {
     return _original_data.interop();
   }
@@ -176,11 +176,11 @@ struct logical_vector_op_result{
 };
 
 template <class Vector_type, class Function>
-HIPSYCL_UNIVERSAL_TARGET
+ACPP_UNIVERSAL_TARGET
 void for_each_vector_element(Vector_type& v, Function&& f);
 
 template <class Vector_type, class Function>
-HIPSYCL_UNIVERSAL_TARGET
+ACPP_UNIVERSAL_TARGET
 void for_each_vector_element(const Vector_type& v, Function&& f);
 
 template <typename Arg, typename T,
@@ -244,11 +244,11 @@ template <typename T, int N, class VectorStorage = detail::vec_storage<T, N>>
 class vec {
 
   template <class Vector_type, class Function>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend void detail::for_each_vector_element(Vector_type &v, Function &&f);
 
   template <class Vector_type, class Function>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend void detail::for_each_vector_element(const Vector_type &v,
                                               Function &&f);
 
@@ -273,7 +273,7 @@ public:
 
   using vector_t = typename VectorStorage::interop_type;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   vec(const VectorStorage& v)
   : _data{v} {}
 
@@ -282,7 +282,7 @@ public:
   template<class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   vec() {
     for(int i = 0; i < N; ++i)
       _data[i] = T{};
@@ -291,7 +291,7 @@ public:
   template <class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET explicit vec(const T &value) {
+  ACPP_UNIVERSAL_TARGET explicit vec(const T &value) {
     for(int i = 0; i < N; ++i)
       _data[i] = value;
   }
@@ -302,7 +302,7 @@ public:
                              bool> = true,
             std::enable_if_t<(detail::count_num_elements<Args, T> + ...) == N,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET vec(const Args &...args) {
+  ACPP_UNIVERSAL_TARGET vec(const Args &...args) {
     int current_init_index = 0;
     (partial_initialization(current_init_index, args), ...);
   }
@@ -310,7 +310,7 @@ public:
   template <class OtherStorage, class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET vec(const vec<T, N, OtherStorage> &other)
+  ACPP_UNIVERSAL_TARGET vec(const vec<T, N, OtherStorage> &other)
   {
     for(int i = 0; i < N; ++i)
       _data[i] = other[i];
@@ -321,33 +321,33 @@ public:
   template <
       class Storage = VectorStorage,
       std::enable_if_t<!std::is_same_v<vector_t, Storage>, bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET vec(vector_t v) : _data{v} {}
+  ACPP_UNIVERSAL_TARGET vec(vector_t v) : _data{v} {}
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   operator vector_t() const {
     return _data.interop();
   }
 
   template <int Dim = N, std::enable_if_t<Dim == 1, bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   operator T() const { return _data.template get<0>(); }
 
   [[deprecated("renamed to 'size' in SYCL 2020 Specification")]]
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   static constexpr int get_count() { return N; }
 
   [[deprecated("renamed to 'byte_size' in SYCL 2020 Specification")]]
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   static constexpr std::size_t get_size() { return sizeof(VectorStorage); }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   static constexpr std::size_t byte_size() { return sizeof(VectorStorage); }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   static constexpr size_t size() noexcept { return N; }
 
   template <typename ConvertT, rounding_mode RM = rounding_mode::automatic>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   vec<ConvertT, N> convert() const {
 
     vec<ConvertT, N> result;
@@ -361,7 +361,7 @@ public:
   }
 
   template<typename asT>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   asT as() const {
     static_assert(sizeof(asT) == sizeof(vec<T,N>),
                   "Reinterpreted vector must have same size");
@@ -378,7 +378,7 @@ public:
   }
 
   template<int... SwizzleIndices>
-  HIPSYCL_UNIVERSAL_TARGET  
+  ACPP_UNIVERSAL_TARGET  
   auto swizzle() const {
 
     using swizzle_view_type =
@@ -391,7 +391,7 @@ public:
   }
 
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   auto lo() const {
     if constexpr(Dim == 1) {
       return swizzle<0>();
@@ -410,7 +410,7 @@ public:
   }
 
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   auto hi() const {
     if constexpr(Dim == 1) {
       return swizzle<0>();
@@ -429,7 +429,7 @@ public:
   }
 
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   auto odd() const {
     if constexpr(Dim == 1) {
       return swizzle<0>();
@@ -449,7 +449,7 @@ public:
 
 
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   auto even() const {
     if constexpr(Dim ==1) {
       return swizzle<0>();
@@ -468,12 +468,12 @@ public:
   }
 
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   T& operator[](int index) {
     return _data[index];
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   const T& operator[](int index) const {
     return _data[index];
   }
@@ -494,13 +494,13 @@ public:
 #define HIPSYCL_DEFINE_VECTOR_ACCESS_IF(condition, name, id)                   \
   template <int Dim = N,                                                       \
             std::enable_if_t<(id < N) && (condition), bool> = true>            \
-  HIPSYCL_UNIVERSAL_TARGET T &name() {                                         \
+  ACPP_UNIVERSAL_TARGET T &name() {                                         \
     return _data.template get<id>();                                           \
   }                                                                            \
                                                                                \
   template <int Dim = N,                                                       \
             std::enable_if_t<(id < N) && (condition), bool> = true>            \
-  HIPSYCL_UNIVERSAL_TARGET T name() const {                                    \
+  ACPP_UNIVERSAL_TARGET T name() const {                                    \
     return _data.template get<id>();                                           \
   }
 
@@ -534,21 +534,21 @@ public:
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE2(name, Dim, i0, i1) \
   template<int n = N, \
            std::enable_if_t<(n >= Dim && n <= 4), bool> = true> \
-  HIPSYCL_UNIVERSAL_TARGET \
+  ACPP_UNIVERSAL_TARGET \
   auto name() const \
   {return swizzle<i0,i1>(); }
 
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE3(name, Dim, i0, i1, i2) \
   template<int n = N, \
            std::enable_if_t<(n >= Dim && n <= 4), bool> = true> \
-  HIPSYCL_UNIVERSAL_TARGET \
+  ACPP_UNIVERSAL_TARGET \
   auto name() const \
   {return swizzle<i0,i1,i2>(); }
 
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE4(name, i0, i1, i2, i3) \
   template<int n = N, \
            std::enable_if_t<(n == 4)>* = nullptr> \
-  HIPSYCL_UNIVERSAL_TARGET \
+  ACPP_UNIVERSAL_TARGET \
   auto name() const \
   {return swizzle<i0,i1,i2,i3>(); }
 
@@ -559,21 +559,21 @@ public:
   // ToDo: These functions have changed signatures with SYCL 2020
   // ToDo: could use native vector types for load / store
   template <access::address_space AddressSpace>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void load(size_t offset, multi_ptr<const T, AddressSpace> ptr) {
     for(int i = 0; i < N; ++i)
       _data[i] = ptr.get()[offset * N + i];
   }
 
   template <access::address_space AddressSpace>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void store(size_t offset, multi_ptr<T, AddressSpace> ptr) const {
     for(int i = 0; i < N; ++i)
       ptr.get()[offset * N + i] = _data[i];
   }
 
 #define HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(op, t)                            \
-  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  ACPP_UNIVERSAL_TARGET                                                     \
   friend vec<t, N> operator op(const vec &lhs, const vec &rhs) {               \
     vec<t, N> result;                                                          \
     for (int i = 0; i < N; ++i) {                                              \
@@ -612,7 +612,7 @@ public:
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(<<, t)
 
   #define HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_SCALAR(op, t)                       \
-  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  ACPP_UNIVERSAL_TARGET                                                     \
   friend vec<t, N> operator op(const vec &lhs, const t& rhs) {                 \
     vec<t, N> result;                                                          \
     for (int i = 0; i < N; ++i) {                                              \
@@ -651,7 +651,7 @@ public:
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_SCALAR(<<, t)
 
 #define HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(op, t)                         \
-  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  ACPP_UNIVERSAL_TARGET                                                     \
   friend vec<t, N> operator op(const t &lhs, const vec& rhs) {                 \
     vec<t, N> result;                                                          \
     for (int i = 0; i < N; ++i) {                                              \
@@ -690,7 +690,7 @@ public:
   HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(<<, t)
 
   #define HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_VEC(op, t)                         \
-  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  ACPP_UNIVERSAL_TARGET                                                     \
   friend vec& operator op(vec& lhs, const vec<t,N>& rhs) {                     \
     for (int i = 0; i < N; ++i) {                                              \
       lhs._data[i] op rhs._data[i];                                            \
@@ -728,7 +728,7 @@ public:
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_VEC(<<=, t)
 
   #define HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(op, t)                      \
-  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  ACPP_UNIVERSAL_TARGET                                                     \
   friend vec& operator op(vec& lhs, const t& rhs) {                            \
     for (int i = 0; i < N; ++i) {                                              \
       lhs._data[i] op rhs;                                                     \
@@ -765,21 +765,21 @@ public:
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(<<=, t)
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec& operator++(vec& v) {
     for(int i = 0; i < N; ++i)
       ++(v._data[i]);
     return v;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec& operator--(vec& v) {
     for(int i = 0; i < N; ++i)
       --(v._data[i]);
     return v;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec<T,N> operator++(vec& v, int) {
     vec<T,N> old = v;
 
@@ -789,7 +789,7 @@ public:
     return old;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec<T,N> operator--(vec& v, int) {
     vec<T,N> old = v;
 
@@ -799,12 +799,12 @@ public:
     return old;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec<T,N> operator+(const vec& v) {
     return v;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec<T,N> operator-(const vec& v) {
     vec<T,N> result;
     for(int i = 0; i < N; ++i) {
@@ -814,7 +814,7 @@ public:
   }
 
 #define HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(op)                                     \
-  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  ACPP_UNIVERSAL_TARGET                                                     \
   friend auto operator op(const vec &lhs, const vec &rhs) {                    \
     using return_t = typename detail::logical_vector_op_result<T>::type;       \
     vec<return_t, N> result;                                                   \
@@ -835,7 +835,7 @@ public:
   HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(<=)
 
 #define HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(op)                                  \
-  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  ACPP_UNIVERSAL_TARGET                                                     \
   friend auto operator op(const vec &lhs, const T &rhs) {                      \
     using return_t = typename detail::logical_vector_op_result<T>::type;       \
     vec<return_t, N> result;                                                   \
@@ -856,7 +856,7 @@ public:
 
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec<t, N> operator~(const vec &v) {
     vec<t, N> result;
 
@@ -867,7 +867,7 @@ public:
     return result;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend vec<typename detail::logical_vector_op_result<T>::type, N>
   operator!(const vec &v) {
     vec<typename detail::logical_vector_op_result<T>::type, N> result;
@@ -877,7 +877,7 @@ public:
   }
 private:
   template<typename Arg>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void partial_initialization(int& current_init_index, const Arg& x) {
     if constexpr(std::is_scalar_v<Arg>) {
       _data[current_init_index] = x;
@@ -971,13 +971,13 @@ namespace detail {
 
 
 template <class Vector_type, class Function>
-HIPSYCL_UNIVERSAL_TARGET
+ACPP_UNIVERSAL_TARGET
 void for_each_vector_element(Vector_type &v, Function &&f) {
   v._data.for_each(f);
 }
 
 template <class Vector_type, class Function>
-HIPSYCL_UNIVERSAL_TARGET
+ACPP_UNIVERSAL_TARGET
 void for_each_vector_element(const Vector_type &v, Function &&f) {
   v._data.for_each(f);
 }

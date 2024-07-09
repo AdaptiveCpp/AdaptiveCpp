@@ -65,7 +65,7 @@ using half_storage = __acpp_uint16;
 
 namespace detail {
 // Currently we cannot call sycl::bit_cast directly, since we do not
-// have HIPSYCL_UNIVERSAL_TARGET attributes available here, which
+// have ACPP_UNIVERSAL_TARGET attributes available here, which
 // are needed for sycl::bit_cast.
 template<class Tout, class Tin>
 Tout bit_cast(Tin x) {

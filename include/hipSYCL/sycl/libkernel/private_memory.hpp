@@ -42,11 +42,11 @@ template<typename T, int Dimensions = 1>
 class private_memory
 {
 public:
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   private_memory(const group<Dimensions>&)
   {}
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T& operator()(const h_item<Dimensions>&) noexcept
   {
     return _data;
@@ -62,12 +62,12 @@ template<typename T, int Dimensions = 1>
 class private_memory
 {
 public:
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   private_memory(const group<Dimensions>& grp)
   : _data{new T [grp.get_local_range().size()]}
   {}
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T& operator()(const h_item<Dimensions>& idx) noexcept
   {
     return get(idx.get_local_id(), idx.get_local_range());
@@ -76,7 +76,7 @@ public:
 private:
   std::unique_ptr<T []> _data;
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T& get(id<Dimensions> id, range<Dimensions> local_range) noexcept
   {
     return _data.get()[detail::linear_id<Dimensions>::get(id, local_range)];

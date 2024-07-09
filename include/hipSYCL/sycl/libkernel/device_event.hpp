@@ -36,10 +36,10 @@ namespace sycl {
 class device_event
 {
 public:
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event(){}
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void wait(){}
 };
 

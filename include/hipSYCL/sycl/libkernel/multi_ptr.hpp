@@ -60,7 +60,7 @@ public:
   static constexpr access::address_space address_space = Space;
   // Constructors
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr()
     : _ptr{nullptr}
   {}
@@ -68,52 +68,52 @@ public:
   multi_ptr(const multi_ptr&) = default;
   multi_ptr(multi_ptr&&) = default;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr(ElementType* ptr)
     : _ptr{ptr}
   {}
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr(std::nullptr_t)
     : _ptr{nullptr}
   {}
 
   // Assignment and access operators
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(const multi_ptr& other)
   {
     _ptr = other._ptr; 
     return *this;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(multi_ptr&& other)
   {
     _ptr = other._ptr;
     return *this;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(ElementType* ptr)
   {
     _ptr = ptr;
     return *this;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(std::nullptr_t)
   {
     _ptr = nullptr;
     return *this;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   ElementType& operator*() const
   {
     return *_ptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   ElementType* operator->() const
   {
     return _ptr;
@@ -125,7 +125,7 @@ public:
             access::placeholder isPlaceholder,
             access::address_space S = Space,
             typename std::enable_if_t<S==access::address_space::global_space>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   multi_ptr(accessor<ElementType, dimensions, Mode, access::target::global_buffer, isPlaceholder> a)
     : _ptr{a.get_pointer()}
   {}
@@ -136,7 +136,7 @@ public:
             access::placeholder isPlaceholder,
             access::address_space S = Space,
             typename std::enable_if_t<S==access::address_space::local_space>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   multi_ptr(accessor<ElementType, dimensions, Mode, access::target::local, isPlaceholder> a)
     : _ptr{a.get_pointer()}
   {}
@@ -147,48 +147,48 @@ public:
             access::placeholder isPlaceholder,
             access::address_space S = Space,
             typename std::enable_if_t<S==access::address_space::constant_space>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   multi_ptr(accessor<ElementType, dimensions, Mode, access::target::constant_buffer, isPlaceholder> a)
     : _ptr{a.get_pointer()}
   {}
 
   // Returns the underlying OpenCL C pointer
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   pointer_t get() const
   {
     return _ptr;
   }
 
   // Implicit conversion to the underlying pointer type
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   operator ElementType*() const
   {
     return _ptr;
   }
 
   // Explicit conversion to a multi_ptr<void>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   explicit operator multi_ptr<void, Space>() const
   {
     return multi_ptr<void, Space>{reinterpret_cast<void*>(_ptr)};
   }
 
   // Implicit conversion to multi_ptr<const value_type, Space>.
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   operator multi_ptr<const ElementType, Space>() const
   {
     return multi_ptr<const ElementType, Space>{_ptr};
   }
 
   // Arithmetic operators
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr& operator++(multi_ptr<ElementType, Space>& mp)
   {
     ++(mp._ptr);
     return mp;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr operator++(multi_ptr<ElementType, Space>& mp, int)
   {
     multi_ptr old = mp;
@@ -196,14 +196,14 @@ public:
     return old;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr& operator--(multi_ptr<ElementType, Space>& mp)
   {
     --(mp._ptr);
     return *mp;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr operator--(multi_ptr<ElementType, Space>& mp, int)
   {
     multi_ptr old = mp;
@@ -211,149 +211,149 @@ public:
     return old;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr& operator+=(multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
     lhs._ptr += r;
     return lhs;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr& operator-=(multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
     lhs._ptr -= r;
     return lhs;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr operator+(const multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
     return multi_ptr{lhs._ptr + r};
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend multi_ptr operator-(const multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
     return multi_ptr{lhs._ptr - r};
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator!=(const multi_ptr<ElementType, Space>& lhs,
                   const multi_ptr<ElementType, Space>& rhs)
   {
     return !(lhs == rhs);
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator!=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
   {
     return lhs.get() != nullptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator!=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
   {
     return rhs != nullptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<(const multi_ptr<ElementType, Space>& lhs,
                 const multi_ptr<ElementType, Space>& rhs)
   {
     return lhs.get() < rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
   {
     return lhs.get() < nullptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
   {
     return nullptr < rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>(const multi_ptr<ElementType, Space>& lhs,
                 const multi_ptr<ElementType, Space>& rhs)
   {
     return lhs.get() > rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
   {
     return lhs.get() > nullptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
   {
     return nullptr < rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<=(const multi_ptr<ElementType, Space>& lhs,
                   const multi_ptr<ElementType, Space>& rhs)
   {
     return lhs.get() <= rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
   {
     return lhs.get() <= nullptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
   {
     return nullptr <= rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>=(const multi_ptr<ElementType, Space>& lhs,
                   const multi_ptr<ElementType, Space>& rhs)
   {
     return lhs.get() >= rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
   {
     return lhs.get() >= nullptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
   {
     return nullptr >= rhs.get();
   }
 
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator==(const multi_ptr<ElementType, Space>& lhs,
                   const multi_ptr<ElementType, Space>& rhs)
   {
     return lhs.get() == rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator==(const multi_ptr<ElementType, Space>& lhs,
                          std::nullptr_t)
   {
     return lhs.get() == nullptr;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator==(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
   {
     return nullptr == rhs.get();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   void prefetch(size_t) const
   {}
 
@@ -379,7 +379,7 @@ public:
   static constexpr access::address_space address_space = Space;
   // Constructors
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr()
     : _ptr{nullptr}
   {}
@@ -387,31 +387,31 @@ public:
   multi_ptr(const multi_ptr& other) = default;
   multi_ptr(multi_ptr&& other) = default;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr(void* ptr)
     : _ptr{ptr}
   {}
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr(std::nullptr_t)
     : _ptr{nullptr}
   {}
 
   // Assignment operators
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(const multi_ptr& other)
   { _ptr = other._ptr; }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(multi_ptr&& other)
   { _ptr = other._ptr; }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(void* ptr)
   { _ptr = ptr; }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   multi_ptr &operator=(std::nullptr_t)
   { _ptr = nullptr; }
 
@@ -422,7 +422,7 @@ public:
             access::mode Mode,
             access::address_space S = Space,
             typename std::enable_if_t<S==access::address_space::global_space>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   multi_ptr(accessor<ElementType,
                      dimensions,
                      Mode,
@@ -437,7 +437,7 @@ public:
             access::mode Mode,
             access::address_space S = Space,
             typename std::enable_if_t<S==access::address_space::local_space>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   multi_ptr(accessor<ElementType,
                      dimensions,
                      Mode,
@@ -452,7 +452,7 @@ public:
             access::mode Mode,
             access::address_space S = Space,
             typename std::enable_if_t<S==access::address_space::constant_space>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   multi_ptr(accessor<ElementType,
                      dimensions,
                      Mode,
@@ -462,13 +462,13 @@ public:
   {}
 
   // Returns the underlying OpenCL C pointer
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   pointer_t get() const
   {
     return _ptr;
   }
   // Implicit conversion to the underlying pointer type
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   operator void*() const
   {
     return _ptr;
@@ -476,7 +476,7 @@ public:
 
   // Explicit conversion to a multi_ptr<ElementType>
   template <typename ElementType>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   explicit operator multi_ptr<ElementType, Space>() const
   {
     return multi_ptr<ElementType, Space>{reinterpret_cast<ElementType*>(_ptr)};
@@ -486,7 +486,7 @@ private:
 };
 
 template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
+ACPP_UNIVERSAL_TARGET
 multi_ptr<ElementType, Space> make_ptr(ElementType* ptr)
 {
   return multi_ptr<ElementType, Space>{ptr};

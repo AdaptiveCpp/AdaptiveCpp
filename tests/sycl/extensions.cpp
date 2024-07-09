@@ -551,7 +551,7 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 #endif
 
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 int get_total_group_size() {
   int group_size = 0;
   __acpp_if_target_device(

@@ -5,7 +5,7 @@
 namespace hipsycl::fp16 {
 
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline float fp32_from_bits(__acpp_uint32 w) {
 #if defined(__OPENCL_VERSION__)
 	return as_float(w);
@@ -24,7 +24,7 @@ static inline float fp32_from_bits(__acpp_uint32 w) {
 #endif
 }
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline __acpp_uint32 fp32_to_bits(float f) {
 #if defined(__OPENCL_VERSION__)
 	return as_uint(f);
@@ -43,7 +43,7 @@ static inline __acpp_uint32 fp32_to_bits(float f) {
 #endif
 }
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline double fp64_from_bits(__acpp_uint64 w) {
 #if defined(__OPENCL_VERSION__)
 	return as_double(w);
@@ -62,7 +62,7 @@ static inline double fp64_from_bits(__acpp_uint64 w) {
 #endif
 }
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline __acpp_uint64 fp64_to_bits(double f) {
 #if defined(__OPENCL_VERSION__)
 	return as_ulong(f);

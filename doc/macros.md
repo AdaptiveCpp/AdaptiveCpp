@@ -59,8 +59,8 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 
 
 ## Mainly for AdaptiveCpp developers
-* `HIPSYCL_UNIVERSAL_TARGET` - expands to `__host__ __device__`. Use for functions that should be available everywhere.
-* `HIPSYCL_KERNEL_TARGET` - currently expands to `__host__ __device__`. Use for functions that should be available in kernels.
+* `ACPP_UNIVERSAL_TARGET` - expands to `__host__ __device__`. Use for functions that should be available everywhere.
+* `ACPP_KERNEL_TARGET` - currently expands to `__host__ __device__`. Use for functions that should be available in kernels.
 
 # Configuration macros
 

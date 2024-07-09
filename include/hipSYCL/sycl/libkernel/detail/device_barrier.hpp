@@ -55,7 +55,7 @@ inline void sscp_barrier(access::fence_space space) {
 
 #endif
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline void local_device_barrier(
     access::fence_space space = access::fence_space::global_and_local) {
 

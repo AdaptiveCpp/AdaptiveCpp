@@ -59,16 +59,16 @@
 
 
  // TODO: Do we need those still?
- #ifndef HIPSYCL_UNIVERSAL_TARGET
-  #define HIPSYCL_UNIVERSAL_TARGET
+ #ifndef ACPP_UNIVERSAL_TARGET
+  #define ACPP_UNIVERSAL_TARGET
  #endif
 
- #ifndef HIPSYCL_KERNEL_TARGET
-  #define HIPSYCL_KERNEL_TARGET
+ #ifndef ACPP_KERNEL_TARGET
+  #define ACPP_KERNEL_TARGET
  #endif
 
- #ifndef HIPSYCL_HOST_TARGET
-  #define HIPSYCL_HOST_TARGET
+ #ifndef ACPP_HOST_TARGET
+  #define ACPP_HOST_TARGET
  #endif
 
  #include "hipSYCL/glue/llvm-sscp/ir_constants.hpp"

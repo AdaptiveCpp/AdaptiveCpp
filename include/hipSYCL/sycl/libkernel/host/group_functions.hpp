@@ -47,7 +47,7 @@ namespace sycl::detail::host_builtins {
 
 // barrier
 template <int Dim>
-HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET inline void
+HIPSYCL_LOOP_SPLIT_BARRIER ACPP_KERNEL_TARGET inline void
 __acpp_group_barrier(group<Dim> g,
                         memory_scope fence_scope = group<Dim>::fence_scope) {
   if (fence_scope == memory_scope::device) {
@@ -56,7 +56,7 @@ __acpp_group_barrier(group<Dim> g,
   g.barrier();
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline void
 __acpp_group_barrier(sub_group g,
                         memory_scope fence_scope = sub_group::fence_scope) {
@@ -66,7 +66,7 @@ __acpp_group_barrier(sub_group g,
 namespace detail {
 // reduce implementation
 template <int Dim, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __acpp_group_reduce(group<Dim> g, T x,
+ACPP_KERNEL_TARGET T __acpp_group_reduce(group<Dim> g, T x,
                                                BinaryOperation binary_op,
                                                T *scratch) {
   const size_t lid = g.get_local_linear_id();
@@ -94,7 +94,7 @@ HIPSYCL_KERNEL_TARGET T __acpp_group_reduce(group<Dim> g, T x,
 
 // broadcast
 template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET 
+ACPP_KERNEL_TARGET 
 T __acpp_group_broadcast(
     group<Dim> g, T x,
     typename group<Dim>::linear_id_type local_linear_id = 0) {
@@ -113,7 +113,7 @@ T __acpp_group_broadcast(
 }
 
 template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_group_broadcast(
+ACPP_KERNEL_TARGET T __acpp_group_broadcast(
     group<Dim> g, T x, typename group<Dim>::id_type local_id) {
   const size_t target_lid =
       linear_id<g.dimensions>::get(local_id, g.get_local_range());
@@ -121,14 +121,14 @@ HIPSYCL_KERNEL_TARGET T __acpp_group_broadcast(
 }
 
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_group_broadcast(sub_group g, T x,
                   typename sub_group::linear_id_type local_linear_id = 0) {
   return x;
 }
 
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_group_broadcast(sub_group g, T x,
                   typename sub_group::id_type local_id) {
   return x;
@@ -138,7 +138,7 @@ T __acpp_group_broadcast(sub_group g, T x,
 namespace detail { // until scoped-parallelism can be detected
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 bool __acpp_leader_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = false;
 
@@ -156,7 +156,7 @@ bool __acpp_leader_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
 
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
+ACPP_KERNEL_TARGET 
 bool __acpp_joint_any_of(Group g, Ptr first, Ptr last,
                             Predicate pred) {
   const bool result = detail::__acpp_leader_any_of(g, first, last, pred);
@@ -164,7 +164,7 @@ bool __acpp_joint_any_of(Group g, Ptr first, Ptr last,
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline bool __acpp_any_of_group(group<Dim> g, bool pred) {
   bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
@@ -183,7 +183,7 @@ inline bool __acpp_any_of_group(group<Dim> g, bool pred) {
   return tmp;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline bool __acpp_any_of_group(sub_group g, bool pred) {
   return pred;
 }
@@ -192,7 +192,7 @@ inline bool __acpp_any_of_group(sub_group g, bool pred) {
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 bool __acpp_leader_all_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = true;
 
@@ -210,14 +210,14 @@ bool __acpp_leader_all_of(Group g, Ptr first, Ptr last, Predicate pred) {
 
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET bool __acpp_joint_all_of(Group g, Ptr first, Ptr last,
+ACPP_KERNEL_TARGET bool __acpp_joint_all_of(Group g, Ptr first, Ptr last,
                                                   Predicate pred) {
   const bool result = detail::__acpp_leader_all_of(g, first, last, pred);
   return group_broadcast(g, result);
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline bool __acpp_all_of_group(group<Dim> g, bool pred) {
   bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
@@ -236,7 +236,7 @@ inline bool __acpp_all_of_group(group<Dim> g, bool pred) {
   return tmp;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline bool __acpp_all_of_group(sub_group g, bool pred) {
   return pred;
 }
@@ -245,7 +245,7 @@ inline bool __acpp_all_of_group(sub_group g, bool pred) {
 namespace detail { // until scoped-parallelism can be detected
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
+ACPP_KERNEL_TARGET 
 bool __acpp_leader_none_of(Group g, Ptr first,
                               Ptr last, Predicate pred) {
   bool result = true;
@@ -264,7 +264,7 @@ bool __acpp_leader_none_of(Group g, Ptr first,
 
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
+ACPP_KERNEL_TARGET 
 bool __acpp_joint_none_of(Group g, Ptr first, Ptr last,
                              Predicate pred) {
   auto result = detail::__acpp_leader_none_of(g, first, last, pred);
@@ -272,7 +272,7 @@ bool __acpp_joint_none_of(Group g, Ptr first, Ptr last,
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline bool __acpp_none_of_group(group<Dim> g, bool pred) {
   bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
@@ -291,7 +291,7 @@ inline bool __acpp_none_of_group(group<Dim> g, bool pred) {
   return tmp;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline bool __acpp_none_of_group(sub_group g, bool pred) {
   return !pred;
 }
@@ -300,7 +300,7 @@ inline bool __acpp_none_of_group(sub_group g, bool pred) {
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_leader_reduce(Group g, T *first, T *last, 
                           BinaryOperation binary_op) {
   T result{};
@@ -319,7 +319,7 @@ T __acpp_leader_reduce(Group g, T *first, T *last,
 
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_leader_reduce(Group g, T *first, T *last, V init, 
                           BinaryOperation binary_op) {
   auto result = __acpp_leader_reduce(g, first, last, binary_op);
@@ -333,7 +333,7 @@ T __acpp_leader_reduce(Group g, T *first, T *last, V init,
 
 template <typename Group, typename Ptr, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 typename std::iterator_traits<Ptr>::value_type
 __acpp_joint_reduce(Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
   const auto result = detail::__acpp_leader_reduce(g, first, last, binary_op);
@@ -343,7 +343,7 @@ __acpp_joint_reduce(Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
 
 template <typename Group, typename Ptr, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_joint_reduce(Group g, Ptr first, Ptr last, T init,
                          BinaryOperation binary_op) {
   const auto result =
@@ -353,7 +353,7 @@ T __acpp_joint_reduce(Group g, Ptr first, Ptr last, T init,
 }
 
 template<int Dim, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_reduce_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
@@ -363,7 +363,7 @@ T __acpp_reduce_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
 }
 
 template<typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
   return x;
 }
@@ -372,7 +372,7 @@ T __acpp_reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T *__acpp_leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
                                    BinaryOperation binary_op) {
 
@@ -388,7 +388,7 @@ T *__acpp_leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
 
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T *__acpp_leader_exclusive_scan(Group g, V *first, V *last, T *result,
                                    BinaryOperation binary_op) {
   return __acpp_leader_exclusive_scan(g, first, last, result, T{},
@@ -399,7 +399,7 @@ T *__acpp_leader_exclusive_scan(Group g, V *first, V *last, T *result,
 template <typename Group, typename InPtr, typename OutPtr, typename T,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
+ACPP_KERNEL_TARGET OutPtr
 __acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                                T init, BinaryOperation binary_op) {
   const auto ret = detail::__acpp_leader_exclusive_scan(
@@ -410,7 +410,7 @@ __acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
 template <typename Group, typename InPtr, typename OutPtr,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
+ACPP_KERNEL_TARGET OutPtr
 __acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                                BinaryOperation binary_op) {
   return host_builtins::__acpp_joint_exclusive_scan(
@@ -419,7 +419,7 @@ __acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
 }
 
 template <int Dim, typename V, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
+ACPP_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
     group<Dim> g, V x, T init, BinaryOperation binary_op) {
   T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
   const size_t lid     = g.get_local_linear_id();
@@ -442,14 +442,14 @@ HIPSYCL_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
 }
 
 template <typename V, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
+ACPP_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
     sub_group g, V x, T init, BinaryOperation binary_op) {
   return binary_op(x, init);
 }
 
 template <typename Group, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T
+ACPP_KERNEL_TARGET T
 __acpp_exclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
   return __acpp_exclusive_scan_over_group(g, x, T{}, binary_op);
 }
@@ -458,7 +458,7 @@ __acpp_exclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
 namespace detail { // until scoped-parallelism can be detected
 template <typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T *
+ACPP_KERNEL_TARGET T *
 __acpp_leader_inclusive_scan(Group g, V *first, V *last, T *result,
                                 BinaryOperation binary_op, T init) {
   if (first == last)
@@ -476,7 +476,7 @@ __acpp_leader_inclusive_scan(Group g, V *first, V *last, T *result,
 
 template <typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T *
+ACPP_KERNEL_TARGET T *
 __acpp_leader_inclusive_scan(Group g, V *first, V *last, T *result,
                                 BinaryOperation binary_op) {
   return __acpp_leader_inclusive_scan(g, first, last, result, binary_op, T{});
@@ -486,7 +486,7 @@ __acpp_leader_inclusive_scan(Group g, V *first, V *last, T *result,
 template <typename Group, typename InPtr, typename OutPtr, typename T,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
+ACPP_KERNEL_TARGET OutPtr
 __acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                                BinaryOperation binary_op, T init) {
   auto ret = detail::__acpp_leader_inclusive_scan(g, first, last, result,
@@ -497,7 +497,7 @@ __acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
 template <typename Group, typename InPtr, typename OutPtr,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
+ACPP_KERNEL_TARGET OutPtr
 __acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                                BinaryOperation binary_op) {
   return __acpp_joint_inclusive_scan(
@@ -505,7 +505,7 @@ __acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
       typename std::remove_pointer_t<InPtr>{});
 }
 template <int Dim, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_inclusive_scan_over_group(
     group<Dim> g, T x, BinaryOperation binary_op) {
   T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
@@ -527,14 +527,14 @@ T __acpp_inclusive_scan_over_group(
 }
 
 template <typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
+ACPP_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
     sub_group g, T x, BinaryOperation binary_op) {
   return x;
 }
 
 template <typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
+ACPP_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
     Group g, V x, T init, BinaryOperation binary_op) {
   T scan = __acpp_inclusive_scan_over_group(g, T{x}, binary_op);
   return binary_op(scan, init);
@@ -542,7 +542,7 @@ HIPSYCL_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
 
 // shift_left
 template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T __acpp_shift_group_left(
     group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
@@ -563,14 +563,14 @@ T __acpp_shift_group_left(
 }
 
 template <typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_shift_group_left(
+ACPP_KERNEL_TARGET T __acpp_shift_group_left(
     sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return x;
 }
 
 // shift_right
 template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_shift_group_right(
+ACPP_KERNEL_TARGET T __acpp_shift_group_right(
     group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
@@ -591,14 +591,14 @@ HIPSYCL_KERNEL_TARGET T __acpp_shift_group_right(
 }
 
 template <typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_shift_group_right(
+ACPP_KERNEL_TARGET T __acpp_shift_group_right(
     sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return x;
 }
 
 // permute_group_by_xor
 template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_permute_group_by_xor(
+ACPP_KERNEL_TARGET T __acpp_permute_group_by_xor(
     group<Dim> g, T x, typename group<Dim>::linear_id_type mask) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
@@ -620,14 +620,14 @@ HIPSYCL_KERNEL_TARGET T __acpp_permute_group_by_xor(
 
 // permute_group_by_xor
 template <typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_permute_group_by_xor(
+ACPP_KERNEL_TARGET T __acpp_permute_group_by_xor(
     sub_group g, T x, typename sub_group::linear_id_type mask) {
   return x;
 }
 
 // select_from_group
 template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_select_from_group(
+ACPP_KERNEL_TARGET T __acpp_select_from_group(
     group<Dim> g, T x, typename group<Dim>::id_type remote_local_id) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
@@ -649,7 +649,7 @@ HIPSYCL_KERNEL_TARGET T __acpp_select_from_group(
 }
 
 template <typename T>
-HIPSYCL_KERNEL_TARGET T __acpp_select_from_group(
+ACPP_KERNEL_TARGET T __acpp_select_from_group(
     sub_group g, T x, typename sub_group::id_type remote_local_id) {
   return x;
 }

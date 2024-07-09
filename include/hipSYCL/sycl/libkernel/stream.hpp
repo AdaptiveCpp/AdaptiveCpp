@@ -98,19 +98,19 @@ const stream_manipulator defaultfloat = stream_manipulator::defaultfloat;
 
 class stream {
 public:
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   stream(size_t totalBufferSize, size_t workItemBufferSize, handler&)
   : _total_buff_size{totalBufferSize}, _work_item_buff_size{workItemBufferSize}
   {}
   /* -- common interface members -- */
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   size_t get_size() const { return _total_buff_size; }
   
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   size_t get_work_item_buffer_size() const { return _work_item_buff_size; }
   
   [[deprecated]]
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   size_t get_max_statement_size() const
   { return get_work_item_buffer_size(); }
   
@@ -127,14 +127,14 @@ template<class T>
     "printf is however still experimental in AMD ROCm when compiling with clang. "
     "Define HIPSYCL_EXPERIMENTAL_ROCM_PRINTF to attempt to use it. Otherwise, "
     "uses of the stream class will be transformed into no operations.")]]
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, T v) {
   return os;
 }
 
 #else
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, stream_manipulator manip) {
   if(manip == endl)
     detail::print("\n");
@@ -142,90 +142,90 @@ inline const stream& operator<<(const stream& os, stream_manipulator manip) {
   return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, char v){
   detail::print("%c", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned char v){
   detail::print("%hhu", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, short v){
   detail::print("%hd", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned short v){
   detail::print("%hu", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, int v){
   detail::print("%d", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned int v){
   detail::print("%u", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, long v){
   detail::print("%ld", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned long v){
   detail::print("%lu", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, long long v){
   detail::print("%lld", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned long long v){
   detail::print("%llu", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, char* v) {
   detail::print(v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, const char* v) {
   detail::print(v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, float v){
   detail::print("%f", v); return os;
 }
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, double v){
   detail::print("%f", v); return os;
 }
 
 template<class T>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, T* v) {
   detail::print("%p", v); return os;
 }
 
 template<class T>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, const T* v){
   detail::print("%p", v); return os;
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, id<Dim> v){
   if constexpr(Dim >= 1)
     os << v[0];
@@ -237,7 +237,7 @@ const stream& operator<<(const stream& os, id<Dim> v){
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, range<Dim> v){
   if constexpr(Dim >= 1)
     os << v[0];
@@ -249,7 +249,7 @@ const stream& operator<<(const stream& os, range<Dim> v){
 }
 
 template<int Dim, bool with_offset>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, item<Dim, with_offset> v){
   if constexpr(with_offset)
     os << "item { id: " << v.get_id() << " range: " << v.get_range() 
@@ -260,7 +260,7 @@ const stream& operator<<(const stream& os, item<Dim, with_offset> v){
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, nd_item<Dim> v){
   os << "nd_item {" 
      << " local_id: "     << v.get_local_id()
@@ -275,7 +275,7 @@ const stream& operator<<(const stream& os, nd_item<Dim> v){
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, nd_range<Dim> v){
     os << "nd_range {"
      << " local_range: "  << v.get_local_range()
@@ -287,7 +287,7 @@ const stream& operator<<(const stream& os, nd_range<Dim> v){
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, group<Dim> v){
   os << "group {" 
      << " group_id: "     << v.get_id()
@@ -299,7 +299,7 @@ const stream& operator<<(const stream& os, group<Dim> v){
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, h_item<Dim> v){
   os << "h_item {" 
      << " logical_local_id: "  << v.get_logical_local()
@@ -314,7 +314,7 @@ const stream& operator<<(const stream& os, h_item<Dim> v){
 
 
 template <typename ElementType, access::address_space Space>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 const stream& operator<<(const stream& os, multi_ptr<ElementType, Space> v){
   
   if constexpr(Space == access::address_space::global_space)

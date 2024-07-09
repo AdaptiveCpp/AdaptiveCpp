@@ -52,9 +52,9 @@
  #endif
 
  // TODO: Are these even needed anymore?
- #define HIPSYCL_UNIVERSAL_TARGET __host__ __device__
- #define HIPSYCL_KERNEL_TARGET __host__ __device__
- #define HIPSYCL_HOST_TARGET __host__
+ #define ACPP_UNIVERSAL_TARGET __host__ __device__
+ #define ACPP_KERNEL_TARGET __host__ __device__
+ #define ACPP_HOST_TARGET __host__
 
  #define HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
 #else

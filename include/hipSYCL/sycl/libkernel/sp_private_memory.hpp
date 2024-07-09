@@ -45,11 +45,11 @@ class private_memory_access
 public:
   template <class SG = SpGroup,
             std::enable_if_t<detail::is_sp_group_v<std::decay_t<SG>>, int> = 0>
-  HIPSYCL_KERNEL_TARGET explicit private_memory_access(const SpGroup &grp,
+  ACPP_KERNEL_TARGET explicit private_memory_access(const SpGroup &grp,
                                                        T *data)
       : _data{data}, _grp{grp} {}
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T& operator()(const detail::sp_item<dimensions>& idx) const noexcept
   {
     return get(idx.get_local_id(_grp), idx.get_local_range(_grp));
@@ -59,7 +59,7 @@ private:
   const SpGroup& _grp;
   T* _data;
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T &get(const sycl::id<dimensions> &id,
          const sycl::range<dimensions> &local_range) const noexcept {
     __acpp_if_target_host(
@@ -83,14 +83,14 @@ public:
   template <class SG = SpGroup,
             std::enable_if_t<detail::is_sp_group_v<SG>, int> = 0>
   [[deprecated("Use sycl::memory_environment() instead")]]
-  HIPSYCL_KERNEL_TARGET explicit s_private_memory(const SpGroup & grp)
+  ACPP_KERNEL_TARGET explicit s_private_memory(const SpGroup & grp)
   {}
 
   s_private_memory(const s_private_memory&) = delete;
   s_private_memory& operator=(const s_private_memory&) = delete;
 
   [[deprecated("Use sycl::memory_environment() instead")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T& operator()(const detail::sp_item<dimensions>&) noexcept
   {
     return _data;
@@ -110,7 +110,7 @@ public:
   template <class SG = SpGroup,
             std::enable_if_t<detail::is_sp_group_v<SG>, int> = 0>
   [[deprecated("Use sycl::memory_environment() instead")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   explicit s_private_memory(const SpGroup& grp)
   : _data{new T [grp.get_logical_local_linear_range()]}, _grp{grp}
   {}
@@ -119,7 +119,7 @@ public:
   s_private_memory& operator=(const s_private_memory&) = delete;
 
   [[deprecated("Use sycl::memory_environment() instead")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T& operator()(const detail::sp_item<dimensions>& idx) noexcept
   {
     return get(idx.get_local_id(_grp), idx.get_local_range(_grp));
@@ -129,7 +129,7 @@ private:
   std::unique_ptr<T []> _data;
   const SpGroup& _grp;
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T &get(const id<dimensions> &id,
          const range<dimensions> &local_range) noexcept {
     return _data.get()[detail::linear_id<dimensions>::get(id, local_range)];

@@ -69,7 +69,7 @@ public:
   }
 
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend half operator+(const half& a, const half& b) noexcept {
     fp16::half_storage data;
     // __acpp_backend_switch contains an if statement for sscp pass, so we
@@ -83,7 +83,7 @@ public:
     return detail::create_half(data);
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend half operator-(const half& a, const half& b) noexcept {
     fp16::half_storage data;
     __acpp_backend_switch(
@@ -95,7 +95,7 @@ public:
     return detail::create_half(data);
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend half operator*(const half& a, const half& b) noexcept {
     fp16::half_storage data;
     __acpp_backend_switch(
@@ -107,7 +107,7 @@ public:
     return detail::create_half(data);
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend half operator/(const half& a, const half& b) noexcept {
     fp16::half_storage data;
     __acpp_backend_switch(
@@ -186,7 +186,7 @@ public:
     return a; 
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<(const half& a, const half& b) noexcept {
     __acpp_backend_switch(
       return fp16::builtin_less_than(a._data, b._data),
@@ -195,7 +195,7 @@ public:
       return fp16::builtin_less_than(a._data, b._data))
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator<=(const half& a, const half& b) noexcept {
     __acpp_backend_switch(
       return fp16::builtin_less_than_equal(a._data, b._data),
@@ -204,7 +204,7 @@ public:
       return fp16::builtin_less_than_equal(a._data, b._data))
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>(const half& a, const half& b) noexcept {
     __acpp_backend_switch(
       return fp16::builtin_greater_than(a._data, b._data),
@@ -213,7 +213,7 @@ public:
       return fp16::builtin_greater_than(a._data, b._data))
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator>=(const half& a, const half& b) noexcept {
     __acpp_backend_switch(
       return fp16::builtin_greater_than_equal(a._data, b._data),

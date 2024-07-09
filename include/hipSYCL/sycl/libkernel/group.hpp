@@ -53,14 +53,14 @@ namespace synchronization {
 
 struct none
 {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   static void run() {}
 };
 
 template<access::fence_space Fence_space>
 struct barrier
 {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   static void run()
   {
     __acpp_if_target_device(
@@ -77,7 +77,7 @@ template <
 >
 struct mem_fence
 {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   static void run()
   {
     detail::mem_fence<Fence_space, Mode>();
@@ -133,19 +133,19 @@ public:
     _local_memory_ptr(local_memory_ptr)
   {}
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void *get_local_memory_ptr() const
   {
     return _local_memory_ptr;
   }
 #endif
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   bool leader() const {
     return get_local_linear_id() == 0;
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id<Dimensions> get_group_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -157,13 +157,13 @@ public:
   }
 
   [[deprecated("To get the work group id use get_group_id() in SYCL 2020")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id<Dimensions> get_id() const
   {
     return get_group_id();
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_group_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -175,14 +175,14 @@ public:
   }
 
   [[deprecated("To get the work group id use get_group_id(int) in SYCL 2020")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_id(int dimension) const
   {
     return get_group_id(dimension);
   }
 
   [[deprecated("get_global_range() doesn't exist in SYCL 2020 anymore")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range<Dimensions> get_global_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -194,7 +194,7 @@ public:
   }
 
   [[deprecated("get_global_range(int) doesn't exist in SYCL 2020 anymore")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_global_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -207,7 +207,7 @@ public:
 
   /// \return The physical local range for flexible work group sizes,
   /// the logical local range otherwise.
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range<Dimensions> get_local_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -218,7 +218,7 @@ public:
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_local_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -229,7 +229,7 @@ public:
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_local_linear_range() const
   {
     __acpp_if_target_sscp(return __acpp_sscp_get_local_size<Dimensions>(););
@@ -240,7 +240,7 @@ public:
   // in each dimension - earler versions of the spec wrongly 
   // claim that it should return the range "of the current group", 
   // i.e. the local range which makes no sense.
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range<Dimensions> get_group_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -251,7 +251,7 @@ public:
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_group_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -262,14 +262,14 @@ public:
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_group_linear_range() const
   {
     __acpp_if_target_sscp(return __acpp_sscp_get_num_groups<Dimensions>(););
     return get_group_range().size();
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t operator[](int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -290,7 +290,7 @@ public:
     return !(lhs == rhs);
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_group_linear_id() const
   {
     __acpp_if_target_sscp(return __acpp_sscp_get_group_linear_id<Dimensions>(););
@@ -299,14 +299,14 @@ public:
   }
 
   [[deprecated("Use get_group_linear_id() instead.")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_linear() const
   {
     return get_group_linear_id();
   }
 
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id_type get_local_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -317,7 +317,7 @@ public:
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -328,7 +328,7 @@ public:
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   linear_id_type get_local_linear_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -342,13 +342,13 @@ public:
   }
 
   [[deprecated]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_linear_local_id() const
   {
     return get_local_linear_id();
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void barrier() {
     __acpp_if_target_host(
       const host_barrier_type *barrier =
@@ -360,7 +360,7 @@ public:
     );
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range<Dimensions> get_max_local_range() const{
     if constexpr (Dimensions == 1) {
       return {1024};
@@ -376,7 +376,7 @@ public:
   template<
     typename Finalizer,
     typename workItemFunctionT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void parallel_for_work_item(workItemFunctionT func) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -397,7 +397,7 @@ public:
   }
 
   template<typename workItemFunctionT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void parallel_for_work_item(workItemFunctionT func) const
   {
     parallel_for_work_item<vendor::hipsycl::synchronization::local_barrier>(func);
@@ -406,7 +406,7 @@ public:
   template<
     typename Finalizer,
     typename workItemFunctionT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void parallel_for_work_item(range<Dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
@@ -420,7 +420,7 @@ public:
   }
 
   template<typename workItemFunctionT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void parallel_for_work_item(range<Dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
@@ -429,7 +429,7 @@ public:
   }
 
   template <access::mode accessMode = access::mode::read_write>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void mem_fence(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
@@ -438,7 +438,7 @@ public:
 
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements) const
   {
@@ -453,7 +453,7 @@ public:
   }
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
@@ -473,7 +473,7 @@ public:
   }
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
@@ -493,7 +493,7 @@ public:
   }
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
@@ -513,7 +513,7 @@ public:
   }
 
   template <typename... eventTN>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void wait_for(eventTN...) const {}
 
 private:
@@ -522,7 +522,7 @@ private:
   // a number of times in parallel equal to the physical group size.
   // This is not supported on host.
   template<typename workItemFunctionT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void parallelize_over_work_items(const range<1> flexibleRange,
                                   workItemFunctionT&& func) const
   {
@@ -539,7 +539,7 @@ private:
   }
 
   template<typename workItemFunctionT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void parallelize_over_work_items(const range<2> flexibleRange,
                                   workItemFunctionT&& func) const
   {
@@ -560,7 +560,7 @@ private:
   }
 
   template<typename workItemFunctionT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void parallelize_over_work_items(const range<3> flexibleRange,
                                   workItemFunctionT&& func) const
   { 

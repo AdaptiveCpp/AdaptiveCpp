@@ -150,13 +150,13 @@ bool compare_type(T x1, T x2) {
 }
 
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T initialize_type(T init) {
   return init;
 }
 
 template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T initialize_type(elementType<T> init) {
   constexpr size_t N = T::get_count();
 
@@ -184,7 +184,7 @@ T initialize_type(elementType<T> init) {
 }
 
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T get_offset(size_t margin, size_t divisor = 1) {
   
   if (std::numeric_limits<T>::max() <= margin) {
@@ -201,7 +201,7 @@ T get_offset(size_t margin, size_t divisor = 1) {
 }
 
 template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 T get_offset(size_t margin, size_t divisor = 1) {
   using eT = elementType<T>;
   return initialize_type<T>(get_offset<eT>(margin + 16, divisor));

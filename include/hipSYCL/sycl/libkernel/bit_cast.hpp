@@ -36,7 +36,7 @@ namespace hipsycl {
 namespace sycl {
 
 template <class Tout, class Tin>
-HIPSYCL_UNIVERSAL_TARGET
+ACPP_UNIVERSAL_TARGET
 Tout bit_cast(Tin x) {
   Tout result;
   HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, x, result);

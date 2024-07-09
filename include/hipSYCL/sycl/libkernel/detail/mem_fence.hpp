@@ -38,7 +38,7 @@ namespace detail {
 template<access::fence_space, access::mode>
 struct mem_fence_impl
 {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   static void mem_fence()
   {
 
@@ -56,7 +56,7 @@ struct mem_fence_impl
 template<access::mode M>
 struct mem_fence_impl<access::fence_space::local_space, M>
 {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   static void mem_fence()
   {
     __acpp_if_target_hiplike(
@@ -71,7 +71,7 @@ template <
   access::fence_space Fence_space = access::fence_space::global_and_local,
   access::mode Mode = access::mode::read_write
 >
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline void mem_fence()
 {
   static_assert(Mode == access::mode::read ||
@@ -83,7 +83,7 @@ inline void mem_fence()
 }
 
 template<access::mode Mode>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline void mem_fence(access::fence_space space)
 {
   if(space == access::fence_space::local_space)

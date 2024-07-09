@@ -178,7 +178,7 @@ private:
 #endif
 };
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline void* hiplike_dynamic_local_memory() {
   __acpp_if_target_cuda(
     extern __shared__ int local_mem [];
@@ -197,7 +197,7 @@ public:
   using address = local_memory_allocator::address;
 
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   static T* get_ptr(const address addr)
   {
     __acpp_backend_switch(

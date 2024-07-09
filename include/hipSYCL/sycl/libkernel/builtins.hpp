@@ -50,12 +50,12 @@ struct builtin_type_traits {
 
   static constexpr int num_elements = 1;
 
-  HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+  ACPP_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
   static type& element(type& v, int i) noexcept {
     return v;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+  ACPP_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
   static type element(const type& v, int i) noexcept {
     return v;
   }
@@ -72,26 +72,26 @@ struct builtin_type_traits<vec<T, Dim>> {
 
   static constexpr int num_elements = Dim;
 
-  HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+  ACPP_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
   static T& element(type& v, int i) noexcept {
     return v[i];
   }
 
-  HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+  ACPP_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
   static T element(const type& v, int i) noexcept {
     return v[i];
   }
 };
 
 template<class T>
-HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+ACPP_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
 typename builtin_type_traits<T>::element_type
 data_element(const T& v, int i) noexcept {
   return builtin_type_traits<T>::element(v, i);
 }
 
 template<class T>
-HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+ACPP_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
 typename builtin_type_traits<T>::element_type&
 data_element(T& v, int i) noexcept {
   return builtin_type_traits<T>::element(v, i);

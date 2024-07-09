@@ -41,18 +41,18 @@ namespace sycl {
 namespace detail {
 
 
-inline HIPSYCL_UNIVERSAL_TARGET size_t get_linear_id(const size_t id_x,
-                                                const size_t id_y,
-                                                const size_t range_y)
+inline ACPP_UNIVERSAL_TARGET size_t get_linear_id(const size_t id_x,
+                                                  const size_t id_y,
+                                                  const size_t range_y)
 {
   return id_x * range_y + id_y;
 }
 
-inline HIPSYCL_UNIVERSAL_TARGET size_t get_linear_id(const size_t id_x,
-                                                const size_t id_y,
-                                                const size_t id_z,
-                                                const size_t range_y,
-                                                const size_t range_z)
+inline ACPP_UNIVERSAL_TARGET size_t get_linear_id(const size_t id_x,
+                                                  const size_t id_y,
+                                                  const size_t id_z,
+                                                  const size_t range_y,
+                                                  const size_t range_z)
 {
   return id_x * range_y * range_z + id_y * range_z + id_z;
 }
@@ -65,11 +65,11 @@ struct linear_id
 template<>
 struct linear_id<1>
 {
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<1>& idx)
+  static ACPP_UNIVERSAL_TARGET size_t get(const sycl::id<1>& idx)
   { return idx[0]; }
 
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<1>& idx,
-                                            const sycl::range<1>& r)
+  static ACPP_UNIVERSAL_TARGET size_t get(const sycl::id<1>& idx,
+                                          const sycl::range<1>& r)
   {
     return get(idx);
   }
@@ -78,8 +78,8 @@ struct linear_id<1>
 template<>
 struct linear_id<2>
 {
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<2>& idx,
-                                        const sycl::range<2>& r)
+  static ACPP_UNIVERSAL_TARGET size_t get(const sycl::id<2>& idx,
+                                          const sycl::range<2>& r)
   {
     return get_linear_id(idx.get(0), idx.get(1), r.get(1));
   }
@@ -88,8 +88,8 @@ struct linear_id<2>
 template<>
 struct linear_id<3>
 {
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<3>& idx,
-                                        const sycl::range<3>& r)
+  static ACPP_UNIVERSAL_TARGET size_t get(const sycl::id<3>& idx,
+                                          const sycl::range<3>& r)
   {
     return get_linear_id(idx.get(0), idx.get(1), idx.get(2), r.get(1), r.get(2));
   }

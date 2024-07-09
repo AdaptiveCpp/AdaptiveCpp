@@ -34,7 +34,7 @@
 #include "hipSYCL/sycl/libkernel/memory.hpp"
 #include "hipSYCL/sycl/detail/util.hpp"
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 
 #include "builtins/atomic.hpp"
 

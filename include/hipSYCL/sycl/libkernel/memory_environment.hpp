@@ -218,7 +218,7 @@ void memory_environment_device(const Group &g, FirstArg &&first,
     
     if constexpr(request_type::alloc_type == 
         allocation_type::local_mem){
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA || ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP
       __shared__ value_type memory_declaration;
 #else // SSCP
       // TODO

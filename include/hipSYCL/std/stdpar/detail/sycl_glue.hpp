@@ -192,7 +192,7 @@ public:
 
 }
 
-#if defined(__clang__) && defined(HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST) &&    \
+#if defined(__clang__) && defined(ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST) &&    \
     !defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__)
 
 namespace hipsycl::stdpar::detail {

@@ -37,7 +37,7 @@ namespace sycl {
 
 using backend = hipsycl::rt::backend_id;
 
-#if defined(HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HOST) || defined(__ACPP_ENABLE_OMPHOST_TARGET__)
+#if defined(ACPP_LIBKERNEL_COMPILER_SUPPORTS_HOST) || defined(__ACPP_ENABLE_OMPHOST_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_OMPHOST
  #define SYCL_EXT_ACPP_BACKEND_OMPHOST
  #define SYCL_EXT_ACPP_BACKEND_OMP
@@ -50,12 +50,12 @@ using backend = hipsycl::rt::backend_id;
 // Note: This might not be entirely correct. Those macros should be defined
 // if a backend is available for interop, which would correspond to whether
 // the runtime has been compiled with support for a backend.
-#if defined(HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP) || defined(__ACPP_ENABLE_HIP_TARGET__)
+#if defined(ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP) || defined(__ACPP_ENABLE_HIP_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_HIP
  #define SYCL_EXT_ACPP_BACKEND_HIP
 #endif
 
-#if defined(HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA) || defined(__ACPP_ENABLE_CUDA_TARGET__)
+#if defined(ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA) || defined(__ACPP_ENABLE_CUDA_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_CUDA
  #define SYCL_EXT_ACPP_BACKEND_CUDA
 #endif

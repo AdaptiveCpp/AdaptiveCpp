@@ -36,7 +36,7 @@
 #include "range.hpp"
 #include "memory.hpp"
 
-#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#ifdef ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "sscp/builtins/subgroup.hpp"
 #endif
 

@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_GLUE_CODE_OBJECT_HPP
-#define HIPSYCL_GLUE_CODE_OBJECT_HPP
+#ifndef ACPP_GLUE_CODE_OBJECT_HPP
+#define ACPP_GLUE_CODE_OBJECT_HPP
 
 
 #include <vector>
@@ -36,21 +36,21 @@
 #include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
-#define HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelT) \
+#define ACPP_STATIC_KERNEL_REGISTRATION(KernelT) \
   (void)::hipsycl::rt::detail::static_kernel_registration<KernelT>::init;
 
-#define HIPSYCL_STATIC_HCF_REGISTRATION(hcf_obj, hcf_string, hcf_size)   \
-  class __acpp_hcf_registration##hcf_obj {                           \
+#define ACPP_STATIC_HCF_REGISTRATION(hcf_obj, hcf_string, hcf_size)            \
+  class __acpp_hcf_registration##hcf_obj {                                     \
   private:                                                                     \
     ::hipsycl::rt::hcf_object_id _id;                                          \
                                                                                \
   public:                                                                      \
-    __acpp_hcf_registration##hcf_obj() {                             \
+    __acpp_hcf_registration##hcf_obj() {                                       \
       this->_id = ::hipsycl::rt::hcf_cache::get().register_hcf_object(         \
           ::hipsycl::common::hcf_container{std::string{                        \
               reinterpret_cast<const char *>(hcf_string), hcf_size}});         \
     }                                                                          \
-    ~__acpp_hcf_registration##hcf_obj() {                            \
+    ~__acpp_hcf_registration##hcf_obj() {                                      \
       ::hipsycl::rt::hcf_cache::get().unregister_hcf_object(this->_id);        \
     }                                                                          \
   };                                                                           \

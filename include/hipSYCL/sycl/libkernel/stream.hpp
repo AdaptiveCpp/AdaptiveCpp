@@ -31,7 +31,7 @@
 #include <cstdio>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
-#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#ifdef ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "hipSYCL/sycl/libkernel/sscp/builtins/print.hpp"
 #endif
 
@@ -119,7 +119,7 @@ private:
   size_t _work_item_buff_size;
 };
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP &&                                    \
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP &&                                    \
     !defined(HIPSYCL_EXPERIMENTAL_ROCM_PRINTF)
 
 template<class T>

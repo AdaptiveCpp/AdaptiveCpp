@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_GROUP_TRAITS_HPP
-#define HIPSYCL_LIBKERNEL_GROUP_TRAITS_HPP
+#ifndef ACPP_LIBKERNEL_GROUP_TRAITS_HPP
+#define ACPP_LIBKERNEL_GROUP_TRAITS_HPP
 
 #include "group.hpp"
 #include "sub_group.hpp"
@@ -50,4 +50,4 @@ inline constexpr bool is_group_v = is_group<T>::value;
 } // namespace sycl
 } // namespace hipsycl
 
-#endif // HIPSYCL_LIBKERNEL_GROUP_TRAITS_HPP
+#endif // ACPP_LIBKERNEL_GROUP_TRAITS_HPP

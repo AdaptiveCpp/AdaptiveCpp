@@ -15,27 +15,27 @@
 
 ## Information about current compiler
 
-### `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_<backend>`
+### `ACPP_LIBKERNEL_COMPILER_SUPPORTS_<backend>`
 
-* `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA` - Set to 1 if the compiler currently compiling the code supports CUDA language extensions. 0 otherwise.
-* `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP` - Set to 1 if the compiler currently compiling the code supports HIP language extensions. 0 otherwise.
-* `HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HOST` - Always set to 1, since every compiler supports the host language, which is just C++.
+* `ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA` - Set to 1 if the compiler currently compiling the code supports CUDA language extensions. 0 otherwise.
+* `ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP` - Set to 1 if the compiler currently compiling the code supports HIP language extensions. 0 otherwise.
+* `ACPP_LIBKERNEL_COMPILER_SUPPORTS_HOST` - Always set to 1, since every compiler supports the host language, which is just C++.
 
 ## Information about compilation passes
 
-### `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_<backend>`
+### `ACPP_LIBKERNEL_IS_DEVICE_PASS_<backend>`
 Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple backends in a single pass. Therefore, the following macros should not be seen as mutually exclusive in general. Currently, this affects the `cuda-nvcxx` driver which can target CUDA and host in a single pass.
 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise. 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
+* `ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
+* `ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise. 
+* `ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
 
 ### Properties of current compilation pass
 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS` - Set to 1 if the current compilation pass targets at least one device backend. 0 otherwise.
-* `HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)` - returns 1 if the current compilation pass targets the provided backend (`CUDA|HIP|HOST`) and no other backend.
-* `HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` - Set to 1 if the current compilation pass compiles for both host and device in a single, unified compilation pass.
-* `SYCL_DEVICE_ONLY` - defined if the current compilation pass targets a device backend and `HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` is 0. **Note**: `SYCL_DEVICE_ONLY` is not defined for `cuda-nvcxx` where host and device are compiled in a single pass. This is therefore in general not suitable to implement specialized code paths for host and device in a portable way
+* `ACPP_LIBKERNEL_IS_DEVICE_PASS` - Set to 1 if the current compilation pass targets at least one device backend. 0 otherwise.
+* `ACPP_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)` - returns 1 if the current compilation pass targets the provided backend (`CUDA|HIP|HOST`) and no other backend.
+* `ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` - Set to 1 if the current compilation pass compiles for both host and device in a single, unified compilation pass.
+* `SYCL_DEVICE_ONLY` - defined if the current compilation pass targets a device backend and `ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` is 0. **Note**: `SYCL_DEVICE_ONLY` is not defined for `cuda-nvcxx` where host and device are compiled in a single pass. This is therefore in general not suitable to implement specialized code paths for host and device in a portable way
 * `__ACPP_CLANG__` - defined by `acpp` when compiling with the clang plugin
 
 ## Information about targeted backends

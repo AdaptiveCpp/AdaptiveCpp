@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_GROUP_FUNCTIONS_ALIAS_HPP
-#define HIPSYCL_LIBKERNEL_GROUP_FUNCTIONS_ALIAS_HPP
+#ifndef ACPP_LIBKERNEL_GROUP_FUNCTIONS_ALIAS_HPP
+#define ACPP_LIBKERNEL_GROUP_FUNCTIONS_ALIAS_HPP
 
 #include "backend.hpp"
 #include "group_functions.hpp"
@@ -121,4 +121,4 @@ T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
 } // namespace sycl
 } // namespace hipsycl
 
-#endif // HIPSYCL_LIBKERNEL_GROUP_FUNCTIONS_ALIAS_HPP
+#endif // ACPP_LIBKERNEL_GROUP_FUNCTIONS_ALIAS_HPP

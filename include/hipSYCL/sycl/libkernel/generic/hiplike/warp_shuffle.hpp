@@ -35,7 +35,7 @@ namespace sycl {
 
 namespace detail::hiplike_builtins::detail {
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP
 template<typename T, typename Operation>
 __device__
 T apply_on_data(T x, Operation op) {
@@ -86,7 +86,7 @@ T warp_move_dpp(T x) {
 }
 #endif // HIP
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA
 constexpr unsigned int AllMask = 0xFFFFFFFF;
 
 // shuffle_impl implemented based on ShuffleIndex in cub

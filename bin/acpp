@@ -154,7 +154,7 @@ class integration_header:
 
 static const std::size_t __acpp_local_{name}_hcf_object_id = {hcf_object_id}ull;
 const unsigned char __acpp_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
-HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_id}, {hcf_size})
+ACPP_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_id}, {hcf_size})
 
 #endif
 """.format(

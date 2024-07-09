@@ -116,9 +116,9 @@ struct device_array<T, 0>
   }
 };
 
-// Use HIPSYCL_LIBKERNEL_IS_DEVICE_PASS to make sure that this is also
+// Use ACPP_LIBKERNEL_IS_DEVICE_PASS to make sure that this is also
 // enabled for backends with unified host-device pass
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS
 
 template<class T>
 struct device_array<T, 1>
@@ -318,7 +318,7 @@ struct device_array<T, 4>
   T _w = 0;
 };
 
-#endif // HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#endif // ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
 
 }
 }

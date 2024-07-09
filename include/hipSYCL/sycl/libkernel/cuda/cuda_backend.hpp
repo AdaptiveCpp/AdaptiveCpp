@@ -26,15 +26,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_CUDA_BACKEND_HPP
-#define HIPSYCL_LIBKERNEL_CUDA_BACKEND_HPP
+#ifndef ACPP_LIBKERNEL_CUDA_BACKEND_HPP
+#define ACPP_LIBKERNEL_CUDA_BACKEND_HPP
 
 #if defined(__CUDACC__)
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 1
+ #define ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA 1
  #if defined(__NVCOMPILER)
-  #define HIPSYCL_LIBKERNEL_CUDA_NVCXX
+  #define ACPP_LIBKERNEL_CUDA_NVCXX
  #else 
-  #define HIPSYCL_LIBKERNEL_CUDA_CLANG
+  #define ACPP_LIBKERNEL_CUDA_CLANG
  #endif
 
  #ifdef __ACPP_ENABLE_CUDA_TARGET__
@@ -42,21 +42,21 @@
   #include <cuda_fp16.h>
  #endif
 
- #ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+ #ifdef ACPP_LIBKERNEL_CUDA_NVCXX
   #include <nv/target>
  #endif
 #else
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 0
+ #define ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA 0
 #endif
 
 #if (defined(__CUDA_ARCH__) && __CUDA_ARCH__ != 0 \
   && !defined(HIPSYCL_SSCP_LIBKERNEL_LIBRARY)) \
-  || defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+  || defined(ACPP_LIBKERNEL_CUDA_NVCXX)
 
- #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA 1
+ #define ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA 1
 
- #ifndef HIPSYCL_LIBKERNEL_DEVICE_PASS
-  #define HIPSYCL_LIBKERNEL_DEVICE_PASS
+ #ifndef ACPP_LIBKERNEL_DEVICE_PASS
+  #define ACPP_LIBKERNEL_DEVICE_PASS
  #endif
 
  // TODO: Are these even needed anymore?
@@ -64,18 +64,18 @@
  #define HIPSYCL_KERNEL_TARGET __host__ __device__
  #define HIPSYCL_HOST_TARGET __host__
 
- #ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+ #ifndef ACPP_LIBKERNEL_CUDA_NVCXX
   // On-demand iteration space info is not possible in nvc++
   // since it requires being able to have divergent class
   // definitions between host and device passes.
   #define HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
  #endif
 #else
- #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA 0
+ #define ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA 0
 #endif
 
-#ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
- #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 1
+#ifdef ACPP_LIBKERNEL_CUDA_NVCXX
+ #define ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 1
 
 #define __acpp_if_target_host(...)                                          \
   if target (nv::target::is_host) {                                            \
@@ -86,7 +86,7 @@
     __VA_ARGS__                                                                \
   }
 #else
- #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
+ #define ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
 #endif
 
 

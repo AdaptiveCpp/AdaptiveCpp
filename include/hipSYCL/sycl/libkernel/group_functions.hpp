@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_GROUP_FUNCTIONS_HPP
-#define HIPSYCL_LIBKERNEL_GROUP_FUNCTIONS_HPP
+#ifndef ACPP_LIBKERNEL_GROUP_FUNCTIONS_HPP
+#define ACPP_LIBKERNEL_GROUP_FUNCTIONS_HPP
 
 #include "backend.hpp"
 #include "group_traits.hpp"
@@ -38,24 +38,24 @@
 #include <type_traits>
 
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA
 #include "cuda/group_functions.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP
 #include "hip/group_functions.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
-    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP
 #include "generic/hiplike/group_functions.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/group_functions.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "sscp/group_functions.hpp"
 #endif
 
@@ -330,4 +330,4 @@ T reduce_over_group(Group g, V x, T init, BinaryOperation binary_op) {
 } // namespace sycl
 } // namespace hipsycl
 
-#endif // HIPSYCL_LIBKERNEL_GROUP_FUNCTIONS_HPP
+#endif // ACPP_LIBKERNEL_GROUP_FUNCTIONS_HPP

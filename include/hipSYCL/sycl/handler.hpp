@@ -1008,7 +1008,7 @@ private:
 
     // This registers the kernel with the runtime when the application
     // launches, and allows us to introspect available kernels.
-    HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelFuncType);
+    ACPP_STATIC_KERNEL_REGISTRATION(KernelFuncType);
 
     return node;
   }

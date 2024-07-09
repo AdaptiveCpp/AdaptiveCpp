@@ -39,8 +39,8 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
+    ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP
  #define HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE
 #endif
 
@@ -68,7 +68,7 @@
 
 #if defined(HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE)
 
- #if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+ #if !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
   #include "clang.hpp"
  #else
   #include "nvcxx.hpp"

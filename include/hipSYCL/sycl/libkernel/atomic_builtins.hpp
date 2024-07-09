@@ -31,16 +31,16 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/detail/builtin_dispatch.hpp"
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/atomic_builtins.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                 \
-    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                 \
+    ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP
 #include "generic/hiplike/atomic_builtins.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "sscp/atomic_builtins.hpp"
 #endif
 

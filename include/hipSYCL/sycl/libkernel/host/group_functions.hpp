@@ -26,8 +26,8 @@
  */
 
 
-#ifndef HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
-#define HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
+#ifndef ACPP_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
+#define ACPP_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
 
 #include "../backend.hpp"
 #include "../detail/data_layout.hpp"
@@ -40,7 +40,7 @@
 #include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
 #include <type_traits>
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
 
 namespace hipsycl {
 namespace sycl::detail::host_builtins {
@@ -659,5 +659,5 @@ HIPSYCL_KERNEL_TARGET T __acpp_select_from_group(
 
 #endif
 
-#endif // HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
+#endif // ACPP_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
 

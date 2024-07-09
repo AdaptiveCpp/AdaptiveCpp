@@ -136,10 +136,10 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_z,
 #define __acpp_ngroups_y ::hipsycl::sycl::detail::__acpp_get_ngroups_y()
 #define __acpp_ngroups_z ::hipsycl::sycl::detail::__acpp_get_ngroups_z()
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
+    ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA
 
-#ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+#ifdef ACPP_LIBKERNEL_CUDA_NVCXX
   // warpSize is not constexpr with nvc++. Hardcode to 32
   // for now
   #define __acpp_warp_size 32

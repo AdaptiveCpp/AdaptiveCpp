@@ -32,7 +32,7 @@
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
-#if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+#if !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
  #error "This file needs nvc++"
 #endif
 

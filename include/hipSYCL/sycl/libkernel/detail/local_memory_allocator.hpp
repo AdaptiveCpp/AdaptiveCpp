@@ -31,7 +31,7 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "../sscp/builtins/localmem.hpp"
 #endif
 

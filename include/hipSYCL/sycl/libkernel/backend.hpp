@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_BACKEND_HPP
-#define HIPSYCL_LIBKERNEL_BACKEND_HPP
+#ifndef ACPP_LIBKERNEL_BACKEND_HPP
+#define ACPP_LIBKERNEL_BACKEND_HPP
 
 #include "cuda/cuda_backend.hpp"
 #include "hip/hip_backend.hpp"
@@ -38,55 +38,55 @@
 #include "host/host_backend.hpp"
 
 // define (legacy?) platform identification macros
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP
  #define HIPSYCL_PLATFORM_ROCM
  #define HIPSYCL_PLATFORM_HIP
 #endif
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA
  #define HIPSYCL_PLATFORM_CUDA
 #endif
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
  #define HIPSYCL_PLATFORM_SSCP
  #define HIPSYCL_PLATFORM_LLVM
 #endif
 
-#ifndef HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
- #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
+#ifndef ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+ #define ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
 #endif
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 1
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
+    ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
+    ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
+ #define ACPP_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 1
 #else
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 0
+ #define ACPP_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 0
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
  #define HIPSYCL_PLATFORM_CPU
 #endif
 
-#ifdef HIPSYCL_LIBKERNEL_DEVICE_PASS
- #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS 1
+#ifdef ACPP_LIBKERNEL_DEVICE_PASS
+ #define ACPP_LIBKERNEL_IS_DEVICE_PASS 1
 #else
- #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS 0
+ #define ACPP_LIBKERNEL_IS_DEVICE_PASS 0
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS &&                                        \
-    !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS &&                                        \
+    !ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
  #define SYCL_DEVICE_ONLY
  #ifndef __SYCL_DEVICE_ONLY__
   #define __SYCL_DEVICE_ONLY__ 1
  #endif
 #endif
 
-#if !defined(HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)
- #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
+#if !defined(ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)
+ #define ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+#if ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
  #define __SYCL_SINGLE_SOURCE__ 1
 #endif
 
@@ -103,13 +103,13 @@
  #define HIPSYCL_LOOP_SPLIT_ND_KERNEL_LOCAL_SIZE_ARG
 #endif
 #define HIPSYCL_BUILTIN HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
+    ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP
 #define HIPSYCL_HIPLIKE_BUILTIN __device__ HIPSYCL_FORCE_INLINE
 #endif
 
 #ifndef __acpp_if_target_host
- #if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
+ #if !ACPP_LIBKERNEL_IS_DEVICE_PASS
   #define __acpp_if_target_host(...) __VA_ARGS__
  #else
   #define __acpp_if_target_host(...)
@@ -117,52 +117,52 @@
 #endif
 
 #ifndef __acpp_if_target_device
- #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
+ #if ACPP_LIBKERNEL_IS_DEVICE_PASS
   #define __acpp_if_target_device(...) __VA_ARGS__
  #else
   #define __acpp_if_target_device(...)
  #endif
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA
  #define __acpp_if_target_cuda(...) __acpp_if_target_device(__VA_ARGS__)
 #else
  #define __acpp_if_target_cuda(...)
 #endif
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP
  #define __acpp_if_target_hip(...) __acpp_if_target_device(__VA_ARGS__)
 #else
  #define __acpp_if_target_hip(...)
 #endif
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
-    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                     \
+    ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA
  #define __acpp_if_target_hiplike(...)                                       \
   __acpp_if_target_device(__VA_ARGS__)
 #else
  #define __acpp_if_target_hiplike(...)
 #endif
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
  #define __acpp_if_target_sscp(...) __acpp_if_target_device(__VA_ARGS__)
 #else
  #define __acpp_if_target_sscp(...)
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP // Same as: host pass, with SSCP enabled
-#define __acpp_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
-  if (__acpp_sscp_is_host) {                                                \
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP // Same as: host pass, with SSCP enabled
+#define __acpp_backend_switch(host_code, sscp_code, cuda_code, hip_code)       \
+  if (__acpp_sscp_is_host) {                                                   \
     host_code;                                                                 \
   } else {                                                                     \
     sscp_code;                                                                 \
   }
 #else
-#define __acpp_backend_switch(host_code, sscp_code, cuda_code, hip_code)    \
-  __acpp_if_target_host(host_code;) __acpp_if_target_cuda(cuda_code;)    \
+#define __acpp_backend_switch(host_code, sscp_code, cuda_code, hip_code)       \
+  __acpp_if_target_host(host_code;) __acpp_if_target_cuda(cuda_code;)          \
       __acpp_if_target_hip(hip_code;)
 #endif
 
-#define HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                           \
-  ((HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_##backend) &&                             \
-   !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)
+#define ACPP_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                              \
+  ((ACPP_LIBKERNEL_IS_DEVICE_PASS_##backend) &&                                \
+   !ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)
 
 
 // Backwards compatibility
@@ -172,5 +172,6 @@
 #define __hipsycl_if_target_hip(...) __acpp_if_target_hip(__VA_ARGS__)
 #define __hipsycl_if_target_hiplike(...) __acpp_if_target_hiplike(__VA_ARGS__)
 #define __hipsycl_if_target_sscp(...) __acpp_if_target_sscp(__VA_ARGS__)
+
 
 #endif

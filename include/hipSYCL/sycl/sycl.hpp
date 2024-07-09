@@ -97,15 +97,15 @@
 
 // Support SYCL_EXTERNAL for SSCP - we cannot have SYCL_EXTERNAL if accelerated CPU
 // is active at the same time :(
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP && !defined(__ACPP_USE_ACCELERATED_CPU__)
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP && !defined(__ACPP_USE_ACCELERATED_CPU__)
   #define SYCL_EXTERNAL [[clang::annotate("hipsycl_sscp_outlining")]]
 #endif
 // Support SYCL_EXTERNAL for library-only host backend
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST && !defined(__ACPP_USE_ACCELERATED_CPU__) && !defined(SYCL_EXTERNAL)
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST && !defined(__ACPP_USE_ACCELERATED_CPU__) && !defined(SYCL_EXTERNAL)
   #define SYCL_EXTERNAL
 #endif
 // Support SYCL_EXTERNAL for nvc++
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA && defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX) && !defined(SYCL_EXTERNAL)
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA && defined(ACPP_LIBKERNEL_CUDA_NVCXX) && !defined(SYCL_EXTERNAL)
   #define SYCL_EXTERNAL
 #endif
 // TODO: Need to investigate to what extent we can support SYCL_EXTERNAL for cuda and hip multipass targets.

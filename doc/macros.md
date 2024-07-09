@@ -20,6 +20,7 @@
 * `ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA` - Set to 1 if the compiler currently compiling the code supports CUDA language extensions. 0 otherwise.
 * `ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP` - Set to 1 if the compiler currently compiling the code supports HIP language extensions. 0 otherwise.
 * `ACPP_LIBKERNEL_COMPILER_SUPPORTS_HOST` - Always set to 1, since every compiler supports the host language, which is just C++.
+* `ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP` - Set to 1 if the generic SSCP compiler is enabled.
 
 ## Information about compilation passes
 
@@ -29,6 +30,7 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 * `ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
 * `ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise. 
 * `ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
+* `ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP` - Set to 1 if the current compilation pass targets the generic SSCP compiler.
 
 ### Properties of current compilation pass
 

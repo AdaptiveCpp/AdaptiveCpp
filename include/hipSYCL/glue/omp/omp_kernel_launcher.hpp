@@ -102,7 +102,7 @@ void parallel_invocation(Function kernel) noexcept {
   }
 }
 
-#ifdef __HIPSYCL_USE_ACCELERATED_CPU__
+#ifdef __ACPP_USE_ACCELERATED_CPU__
 extern "C" size_t __acpp_cbs_local_id_x;
 extern "C" size_t __acpp_cbs_local_id_y;
 extern "C" size_t __acpp_cbs_local_id_z;
@@ -191,7 +191,7 @@ inline void parallel_for_ndrange_kernel(
 
     // 128 kiB as local memory for group algorithms
     std::aligned_storage_t<128*1024, sizeof(double) * 16> group_shared_memory_ptr{};
-#ifdef __HIPSYCL_USE_ACCELERATED_CPU__
+#ifdef __ACPP_USE_ACCELERATED_CPU__
     std::function<void()> barrier_impl = [] () noexcept {
       assert(false && "splitting seems to have failed");
       std::terminate();
@@ -343,7 +343,7 @@ public:
             Kernel k) {
 
     this->_type = type;
-#if !defined(HIPSYCL_HAS_FIBERS) && !defined(__HIPSYCL_USE_ACCELERATED_CPU__)
+#if !defined(HIPSYCL_HAS_FIBERS) && !defined(__ACPP_USE_ACCELERATED_CPU__)
     if (type == rt::kernel_type::ndrange_parallel_for) {
       this->_invoker = [](rt::dag_node* node) {};
 

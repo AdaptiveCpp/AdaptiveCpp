@@ -115,9 +115,9 @@ inline int select_host(const device& dev) {
 }
 
 inline int select_default(const device& dev) {
-#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
-    defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
-    defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#if defined(__ACPP_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__ACPP_ENABLE_HIP_TARGET__) ||                                  \
+    defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
   // Add 2 to make sure that, if no GPU is found
   if(!dev.is_cpu() && dev.AdaptiveCpp_has_compiled_kernels()) {
     // Prefer GPUs (or other accelerators) that have been targeted

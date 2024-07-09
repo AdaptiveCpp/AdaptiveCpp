@@ -226,7 +226,7 @@ public:
     if(instance.getLangOpts().CUDAIsDevice)
       NameMangler = instance.getASTContext().createMangleContext();
     else
-      // For legacy mangling (e.g. -D__HIPSYCL_SPLIT_COMPILER__) force Itanium ABI
+      // For legacy mangling (e.g. -D__ACPP_SPLIT_COMPILER__) force Itanium ABI
       // also in the host pass. Non-legacy mangling would use the DeviceNameMangler
       // anyway in the host pass.
       NameMangler = clang::ItaniumMangleContext::create(
@@ -735,7 +735,7 @@ private:
     // In such a split compilation scenario, unnamed kernel lambdas are unsupported.
     bool IsSplitCompilerConfiguration = false;
     for(auto V : Instance.getPreprocessor().getPreprocessorOpts().Macros) {
-      if(V.first == "__HIPSYCL_SPLIT_COMPILER__")
+      if(V.first == "__ACPP_SPLIT_COMPILER__")
         IsSplitCompilerConfiguration = true;
     }
     if(IsSplitCompilerConfiguration) {

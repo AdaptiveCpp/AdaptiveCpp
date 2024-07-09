@@ -36,13 +36,14 @@ Note: Some compiler drivers that AdaptiveCpp supports can compile for multiple b
 * `HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)` - returns 1 if the current compilation pass targets the provided backend (`CUDA|HIP|HOST`) and no other backend.
 * `HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` - Set to 1 if the current compilation pass compiles for both host and device in a single, unified compilation pass.
 * `SYCL_DEVICE_ONLY` - defined if the current compilation pass targets a device backend and `HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS` is 0. **Note**: `SYCL_DEVICE_ONLY` is not defined for `cuda-nvcxx` where host and device are compiled in a single pass. This is therefore in general not suitable to implement specialized code paths for host and device in a portable way
-* `__HIPSYCL_CLANG__` - defined by `acpp` when compiling with the clang plugin
+* `__ACPP_CLANG__` - defined by `acpp` when compiling with the clang plugin
 
 ## Information about targeted backends
 
-* `__HIPSYCL_ENABLE_HIP_TARGET__` - defined during host and device passes if HIP is targeted
-* `__HIPSYCL_ENABLE_CUDA_TARGET__` - defined during host and device passes if CUDA is targeted
-* `__HIPSYCL_ENABLE_OMPHOST_TARGET__` - defined if OpenMP is targeted
+* `__ACPP_ENABLE_HIP_TARGET__` - defined during host and device passes if HIP is targeted with the old SMCP compiler
+* `__ACPP_ENABLE_CUDA_TARGET__` - defined during host and device passes if CUDA is targeted with the old SMCP compiler
+* `__ACPP_ENABLE_OMPHOST_TARGET__` - defined if OpenMP is targeted
+* `__ACPP_ENABLE_LLVM_SSCP_TARGET__` - defined the modern SSCP generic JIT compiler is targeted
 
 ## Extension feature test macros
 

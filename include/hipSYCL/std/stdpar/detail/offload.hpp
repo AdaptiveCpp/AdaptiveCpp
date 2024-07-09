@@ -148,8 +148,8 @@ enum prefetch_mode {
 };
 
 inline prefetch_mode get_prefetch_mode() noexcept {
-#ifdef __HIPSYCL_STDPAR_PREFETCH_MODE__
-  prefetch_mode mode = static_cast<prefetch_mode>(__HIPSYCL_STDPAR_PREFETCH_MODE__);
+#ifdef __ACPP_STDPAR_PREFETCH_MODE__
+  prefetch_mode mode = static_cast<prefetch_mode>(__ACPP_STDPAR_PREFETCH_MODE__);
 #else
   auto determine_prefetch_mode = [&]() -> prefetch_mode {
     std::string prefetch_mode_string;
@@ -201,7 +201,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
-#ifndef __HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__
+#ifndef __ACPP_STDPAR_ASSUME_SYSTEM_USM__
   // Use "first" mode in case of automatic prefetch decision for now
   const auto prefetch_mode =
       (get_prefetch_mode() == prefetch_mode::automatic) ? prefetch_mode::first
@@ -402,7 +402,7 @@ template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   // If we have system USM, no need to validate pointers as all
   // will be automatically valid.
-#if !defined(__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__)
+#if !defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__)
   if(!validate_all_pointers(args...)) {
     HIPSYCL_DEBUG_WARNING << "Detected pointers that are not valid device "
                              "pointers; not offloading stdpar call.\n";
@@ -410,7 +410,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   }
 #endif
 
-#ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
+#ifdef __ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;
 #else
 
@@ -450,7 +450,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
     // Instead of hardcoding peak PCIe speeds, this should be measured
     double data_transfer_time_estimate = 0;
 
-#if !defined(__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__)
+#if !defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__)
     std::size_t used_memory = 0;
     for_each_contained_pointer([&](void* ptr){
       unified_shared_memory::allocation_lookup_result lookup_result;
@@ -585,7 +585,7 @@ private:
 
 template<class AlgorithmType, class Size, class F, typename... Args>
 auto host_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
-#ifndef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
+#ifndef __ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__
   uint64_t hash = get_operation_hash(t, n, args...);
   host_invocation_measurement m{hash, n};
   return m(f);
@@ -596,7 +596,7 @@ auto host_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
 
 template<class AlgorithmType, class Size, class F, typename... Args>
 auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
-#ifndef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
+#ifndef __ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__
   uint64_t hash = get_operation_hash(t, n, args...);
   device_invocation_measurement m{hash, n};
   return m(f);

@@ -56,12 +56,12 @@
   };                                                                           \
   static __acpp_hcf_registration##hcf_obj __acpp_hcf_obj##hcf_obj;
 
-#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
- #include __HIPSYCL_MULTIPASS_CUDA_HEADER__
+#ifdef __ACPP_MULTIPASS_CUDA_HEADER__
+ #include __ACPP_MULTIPASS_CUDA_HEADER__
 #endif
 
-#ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
- #include __HIPSYCL_MULTIPASS_HIP_HEADER__
+#ifdef __ACPP_MULTIPASS_HIP_HEADER__
+ #include __ACPP_MULTIPASS_HIP_HEADER__
 #endif
 
 #endif

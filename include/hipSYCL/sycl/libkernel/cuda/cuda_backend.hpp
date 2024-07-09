@@ -37,7 +37,7 @@
   #define HIPSYCL_LIBKERNEL_CUDA_CLANG
  #endif
 
- #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
+ #ifdef __ACPP_ENABLE_CUDA_TARGET__
   #include <cuda_runtime_api.h>
   #include <cuda_fp16.h>
  #endif

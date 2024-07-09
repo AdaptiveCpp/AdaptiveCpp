@@ -33,7 +33,7 @@
 // are not in a device pass for an SMCP backend. Otherwise,
 // it gets  difficult to distinguish the proper SSCP device code
 // path since SSCP outlining happens only in the host pass.
-#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__) &&                            \
+#if defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__) &&                            \
     !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
 
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP 1

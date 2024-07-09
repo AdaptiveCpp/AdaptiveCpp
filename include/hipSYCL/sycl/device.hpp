@@ -149,22 +149,22 @@ public:
   }
 
   bool AdaptiveCpp_has_compiled_kernels() const {
-#if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
+#if defined(__ACPP_ENABLE_OMPHOST_TARGET__)
     if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
 #endif
     
-#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
+#if defined(__ACPP_ENABLE_CUDA_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::cuda)
       return true;
 #endif
     
-#if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+#if defined(__ACPP_ENABLE_HIP_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::hip)
       return true;
 #endif
 
-#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#if defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
     if (get_rt_device()->has(rt::device_support_aspect::sscp_kernels))
       return true;
 #endif

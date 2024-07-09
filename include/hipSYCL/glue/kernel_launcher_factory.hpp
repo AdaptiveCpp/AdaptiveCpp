@@ -38,19 +38,19 @@
 #include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/common/small_vector.hpp"
 
-#if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+#if defined(__ACPP_ENABLE_HIP_TARGET__)
 #include "hip/hip_kernel_launcher.hpp"
 #endif
 
-#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
+#if defined(__ACPP_ENABLE_CUDA_TARGET__)
 #include "cuda/cuda_kernel_launcher.hpp"
 #endif
 
-#if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
+#if defined(__ACPP_ENABLE_OMPHOST_TARGET__)
 #include "omp/omp_kernel_launcher.hpp"
 #endif
 
-#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#if defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
 #include "llvm-sscp/sscp_kernel_launcher.hpp"
 #endif
 
@@ -72,7 +72,7 @@ make_kernel_launcher(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   kernel_launcher_data static_launcher_data;
   common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>
       launchers;
-#ifdef __HIPSYCL_ENABLE_HIP_TARGET__
+#ifdef __ACPP_ENABLE_HIP_TARGET__
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,
@@ -81,7 +81,7 @@ make_kernel_launcher(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   }
 #endif
 
-#ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
+#ifdef __ACPP_ENABLE_CUDA_TARGET__
   {
     auto launcher = std::make_unique<cuda_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,
@@ -90,7 +90,7 @@ make_kernel_launcher(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   }
 #endif
 
-#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__) && \
+#if defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__) && \
   !defined(SYCL_DEVICE_ONLY)
   {
     sscp_kernel_launcher::create<name_traits, Type>(
@@ -100,7 +100,7 @@ make_kernel_launcher(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #endif
 
   // Don't try to compile host kernel during device passes
-#if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__) && \
+#if defined(__ACPP_ENABLE_OMPHOST_TARGET__) && \
    !defined(SYCL_DEVICE_ONLY)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();

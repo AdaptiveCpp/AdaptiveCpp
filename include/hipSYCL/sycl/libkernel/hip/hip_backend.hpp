@@ -34,7 +34,7 @@
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP 1
 // We need to include HIP headers always to have __HIP_DEVICE_COMPILE__
 // available below
- #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
+ #ifdef __ACPP_ENABLE_HIP_TARGET__
   #pragma clang diagnostic push
   #pragma clang diagnostic ignored "-Wunused-result"
   #include <hip/hip_runtime.h>

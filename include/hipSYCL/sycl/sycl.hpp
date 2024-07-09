@@ -29,12 +29,9 @@
 #define HIPSYCL_SYCL_HPP
 
 
-// Use this macro to detect hipSYCL from SYCL code
-#ifndef __HIPSYCL__
- #define __HIPSYCL__
-#endif
 
 #define SYCL_IMPLEMENTATION_HIPSYCL
+#define SYCL_IMPLEMENTATION_ACPP
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
  #undef CL_SYCL_LANGUAGE_VERSION
@@ -100,11 +97,11 @@
 
 // Support SYCL_EXTERNAL for SSCP - we cannot have SYCL_EXTERNAL if accelerated CPU
 // is active at the same time :(
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP && !defined(__HIPSYCL_USE_ACCELERATED_CPU__)
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP && !defined(__ACPP_USE_ACCELERATED_CPU__)
   #define SYCL_EXTERNAL [[clang::annotate("hipsycl_sscp_outlining")]]
 #endif
 // Support SYCL_EXTERNAL for library-only host backend
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST && !defined(__HIPSYCL_USE_ACCELERATED_CPU__) && !defined(SYCL_EXTERNAL)
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST && !defined(__ACPP_USE_ACCELERATED_CPU__) && !defined(SYCL_EXTERNAL)
   #define SYCL_EXTERNAL
 #endif
 // Support SYCL_EXTERNAL for nvc++

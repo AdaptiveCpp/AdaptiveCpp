@@ -573,9 +573,9 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   auto group_size2d = sycl::range{9,9};
   auto group_size3d = sycl::range{5,5,5};
 
-#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
-    defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
-    defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#if defined(__ACPP_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__ACPP_ENABLE_HIP_TARGET__) ||                                  \
+    defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
 #define DEVICE_MODEL
 #endif
 

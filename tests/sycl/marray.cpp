@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(marray_implicit_conversion) {
   f(arr);
 }
 
-#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+#ifndef ACPP_LIBKERNEL_CUDA_NVCXX
 // nvc++ seems to have a problem with these tests
 BOOST_AUTO_TEST_CASE(marray_constexpr) {
   constexpr sycl::marray arr1{42};

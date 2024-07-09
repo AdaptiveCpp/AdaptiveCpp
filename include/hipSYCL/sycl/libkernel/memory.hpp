@@ -34,7 +34,9 @@
 namespace hipsycl {
 namespace sycl {
 
-enum class memory_scope {
+// Do not change the order of these enums, as the compiler may generate
+// atomic calls based on the int values of these enums
+enum class memory_scope : int {
   work_item,
   sub_group,
   work_group,
@@ -48,6 +50,8 @@ inline constexpr auto memory_scope_work_group = memory_scope::work_group;
 inline constexpr auto memory_scope_device = memory_scope::device;
 inline constexpr auto memory_scope_system = memory_scope::system;
 
+// Do not change the order of these enums, as the compiler may generate
+// atomic calls based on the int values of these enums
 enum class memory_order : int
 {
   relaxed,
@@ -65,6 +69,8 @@ inline constexpr auto memory_order_seq_cst = memory_order::seq_cst;
 
 namespace access {
 
+// Do not change the order of these enums, as the compiler may generate
+// atomic calls based on the int values of these enums
 enum class address_space : int
 {
   global_space,

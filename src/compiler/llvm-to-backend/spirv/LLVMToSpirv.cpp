@@ -207,6 +207,8 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     for(auto& BB : F) {
       for(auto& I : BB) {
         if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
+          // llvm-spirv translator does not like llvm.lifetime.start/end operate on generic
+          // pointers.
           auto* CalledF = CB->getCalledFunction();
           if (CalledF->getName().startswith("llvm.lifetime.start") ||
               CalledF->getName().startswith("llvm.lifetime.end")) {
@@ -220,6 +222,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
   for(auto CB : Calls) {
+    CB->replaceAllUsesWith(llvm::UndefValue::get(CB->getType()));
     CB->eraseFromParent();
   }
 

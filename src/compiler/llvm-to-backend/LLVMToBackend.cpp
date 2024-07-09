@@ -101,6 +101,37 @@ void setFastMathFunctionAttribs(llvm::Module& M) {
 }
 
 
+class InstructionCleanupPass : public llvm::PassInfoMixin<InstructionCleanupPass> {
+public:
+
+  llvm::PreservedAnalyses run(llvm::Module &M,
+                              llvm::ModuleAnalysisManager &MAM) {
+    
+    llvm::SmallVector<llvm::CallBase*> CallsToRemove;
+    for(auto& F : M) {
+      for(auto& BB : F) {
+        for(auto& I : BB) {
+          if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
+            // these instructions can sometimes appear as a byproduct of some transformations
+            // even without dynamic allocas, but they are generally unsupported on device
+            // backends.
+            if (CB->getCalledFunction()->getName().startswith("llvm.stacksave") ||
+                CB->getCalledFunction()->getName().startswith("llvm.stackrestore"))
+              CallsToRemove.push_back(CB);
+          }
+        }
+      }
+    }
+
+    for(auto* C : CallsToRemove) {
+      C->replaceAllUsesWith(llvm::UndefValue::get(C->getType()));
+      C->eraseFromParent();
+    }
+    return llvm::PreservedAnalyses::none();
+  }
+};
+
+
 }
 
 LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
@@ -257,6 +288,9 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     MAM.clear();
     llvm::AlwaysInlinerPass AIP;
     AIP.run(M, MAM);
+
+    InstructionCleanupPass ICP;
+    ICP.run(M, MAM);
 
     HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
     FlavoringSuccessful = this->toBackendFlavor(M, PH);

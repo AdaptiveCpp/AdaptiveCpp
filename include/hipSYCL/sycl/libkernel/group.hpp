@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018,2019 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_GROUP_HPP
 #define HIPSYCL_GROUP_HPP
 
@@ -63,7 +46,7 @@ struct barrier
   HIPSYCL_KERNEL_TARGET
   static void run()
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       detail::local_device_barrier(Fence_space);
     );
   }
@@ -151,7 +134,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(););
+    __acpp_if_target_sscp(return detail::get_group_id<Dimensions>(););
     return _group_id;
 #endif
   }
@@ -169,7 +152,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(dimension);)
+    __acpp_if_target_sscp(return detail::get_group_id<Dimensions>(dimension);)
     return _group_id[dimension];
 #endif
   }
@@ -188,7 +171,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_global_size<Dimensions>(););
+    __acpp_if_target_sscp(return __acpp_sscp_get_global_size<Dimensions>(););
     return _num_groups * _local_range;
 #endif
   }
@@ -200,7 +183,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_global_size<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_global_size<Dimensions>(dimension););
     return _num_groups[dimension] * _local_range[dimension];
 #endif
   }
@@ -213,7 +196,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(););
+    __acpp_if_target_sscp(return detail::get_local_size<Dimensions>(););
     return _local_range;
 #endif
   }
@@ -224,7 +207,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_local_size<Dimensions>(dimension););
     return _local_range[dimension];
 #endif
   }
@@ -232,7 +215,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_range() const
   {
-    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_local_size<Dimensions>(););
+    __acpp_if_target_sscp(return __acpp_sscp_get_local_size<Dimensions>(););
     return get_local_range().size();
   }
 
@@ -246,7 +229,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(););
+    __acpp_if_target_sscp(return detail::get_grid_size<Dimensions>(););
     return _num_groups;
 #endif
   }
@@ -257,7 +240,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_grid_size<Dimensions>(dimension););
     return _num_groups[dimension];
 #endif
   }
@@ -265,7 +248,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_group_linear_range() const
   {
-    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_num_groups<Dimensions>(););
+    __acpp_if_target_sscp(return __acpp_sscp_get_num_groups<Dimensions>(););
     return get_group_range().size();
   }
 
@@ -275,7 +258,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_group_id<Dimensions>(dimension););
     return _group_id[dimension];
 #endif
   }
@@ -293,7 +276,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_group_linear_id() const
   {
-    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_group_linear_id<Dimensions>(););
+    __acpp_if_target_sscp(return __acpp_sscp_get_group_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(get_id(),
                                               get_group_range());
   }
@@ -312,7 +295,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(););
+    __acpp_if_target_sscp(return detail::get_local_id<Dimensions>(););
     return _local_id;
 #endif
   }
@@ -323,7 +306,7 @@ public:
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_local_id<Dimensions>(dimension););
     return _local_id[dimension];
 #endif
   }
@@ -335,7 +318,7 @@ public:
     return detail::linear_id<Dimensions>::get(detail::get_local_id<Dimensions>(),
                                               detail::get_local_size<Dimensions>());
 #else
-    __hipsycl_if_target_sscp(return __hipsycl_sscp_get_local_linear_id<Dimensions>(););
+    __acpp_if_target_sscp(return __acpp_sscp_get_local_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(_local_id,
                                               _local_range);
 #endif
@@ -350,12 +333,12 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   void barrier() {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       const host_barrier_type *barrier =
             static_cast<const host_barrier_type *>(_group_barrier);
       (*barrier)();
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       detail::local_device_barrier();
     );
   }
@@ -380,17 +363,17 @@ public:
   void parallel_for_work_item(workItemFunctionT func) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    __hipsycl_if_target_device(  
+    __acpp_if_target_device(  
       h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), detail::get_local_size<Dimensions>()};
       func(idx);
     );
 #else
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), _local_range, _group_id, _num_groups};
       func(idx);
     );
 #endif
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       iterate_over_work_items(_local_range, func);
     );
     Finalizer::run();
@@ -410,10 +393,10 @@ public:
   void parallel_for_work_item(range<Dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       parallelize_over_work_items(flexibleRange, func);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       iterate_over_work_items(flexibleRange, func);
     );
     Finalizer::run();
@@ -457,14 +440,14 @@ public:
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       const size_t physical_local_size = get_local_range().size();
       
       for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
         dest[i] = src[i];
       detail::local_device_barrier(access::fence_space::global_and_local);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       for(size_t i = 0; i < numElements; ++i)
         dest[i] = src[i];
     );
@@ -477,14 +460,14 @@ public:
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       const size_t physical_local_size = get_local_range().size();
       
       for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
         dest[i] = src[i * srcStride];
       detail::local_device_barrier(access::fence_space::global_and_local);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       for(size_t i = 0; i < numElements; ++i)
         dest[i] = src[i * srcStride];
     );
@@ -497,14 +480,14 @@ public:
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       const size_t physical_local_size = get_local_range().size();
       
       for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
         dest[i * destStride] = src[i];
       detail::local_device_barrier(access::fence_space::global_and_local);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       for(size_t i = 0; i < numElements; ++i)
         dest[i * destStride] = src[i];
     );
@@ -527,7 +510,7 @@ private:
                                   workItemFunctionT&& func) const
   {
     const range<1> physical_range = this->get_local_range();
-    for(size_t i = __hipsycl_lid_x; i < flexibleRange.get(0); i += physical_range.get(0))
+    for(size_t i = __acpp_lid_x; i < flexibleRange.get(0); i += physical_range.get(0))
     {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
       h_item<1> idx{id<1>{i}, flexibleRange};
@@ -547,8 +530,8 @@ private:
     // Reverse dimensions of hipThreadIdx_* compared to flexibleRange.get()
     // to make sure that the fastest index in SYCL terminology is mapped
     // to the fastest index of the backend
-    for(size_t i = __hipsycl_lid_y; i < flexibleRange.get(0); i += physical_range.get(0))
-      for(size_t j = __hipsycl_lid_x; j < flexibleRange.get(1); j += physical_range.get(1))
+    for(size_t i = __acpp_lid_y; i < flexibleRange.get(0); i += physical_range.get(0))
+      for(size_t j = __acpp_lid_x; j < flexibleRange.get(1); j += physical_range.get(1))
       {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         h_item<2> idx{id<2>{i,j}, flexibleRange};
@@ -565,9 +548,9 @@ private:
                                   workItemFunctionT&& func) const
   { 
     const range<3> physical_range = this->get_local_range();
-    for(size_t i = __hipsycl_lid_z; i < flexibleRange.get(0); i += physical_range.get(0))
-      for(size_t j = __hipsycl_lid_y; j < flexibleRange.get(1); j += physical_range.get(1))
-        for(size_t k = __hipsycl_lid_x; k < flexibleRange.get(2); k += physical_range.get(2))
+    for(size_t i = __acpp_lid_z; i < flexibleRange.get(0); i += physical_range.get(0))
+      for(size_t j = __acpp_lid_y; j < flexibleRange.get(1); j += physical_range.get(1))
+        for(size_t k = __acpp_lid_x; k < flexibleRange.get(2); k += physical_range.get(2))
         {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
           h_item<3> idx{id<3>{i,j,k}, flexibleRange};

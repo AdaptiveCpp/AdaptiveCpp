@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_EVENT_HPP
 #define HIPSYCL_EVENT_HPP
 
@@ -135,7 +117,7 @@ public:
   typename Param::return_type get_profiling_info() const
   {
     if(!_node) {
-      const auto error = rt::make_error(__hipsycl_here(),
+      const auto error = rt::make_error(__acpp_here(),
                                         {"Operation not profiled: node is invalid.",
                                          rt::error_type::invalid_object_error});
       throw exception{make_error_code(errc::invalid), error.what()};
@@ -160,14 +142,14 @@ public:
         hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>();
 
     if(!was_full_profiling_requested) {
-      const auto error = rt::make_error(__hipsycl_here(),
+      const auto error = rt::make_error(__acpp_here(),
                                         {"Operation not profiled: "
                                          "Profiling was not requested by user.",
                                          rt::error_type::invalid_object_error});
       throw exception{make_error_code(errc::invalid), error.what()};
     }
     if(_node->get_operation()->is_requirement()) {
-      const auto error = rt::make_error(__hipsycl_here(),
+      const auto error = rt::make_error(__acpp_here(),
                                         {"Operation not profiled: "
                                          "hipSYCL currently does not support "
                                          "profiling explicit requirements "
@@ -223,8 +205,14 @@ public:
   friend bool operator !=(const event& lhs, const event& rhs)
   { return !(lhs == rhs); }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<void*>{}(_node.get());
+  }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
   }
 
 private:
@@ -261,7 +249,7 @@ struct hash<hipsycl::sycl::event>
 {
   std::size_t operator()(const hipsycl::sycl::event& e) const
   {
-    return e.hipSYCL_hash_code();
+    return e.AdaptiveCpp_hash_code();
   }
 };
 

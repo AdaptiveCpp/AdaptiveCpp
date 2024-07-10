@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2021 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -52,7 +35,7 @@ ze_context_manager::ze_context_manager(ze_driver_handle_t driver)
   ze_result_t err = zeContextCreate(driver, &desc, &handle);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ze_context_manager: Could not create context",
                               error_code{"ze", static_cast<int>(err)}});
   }
@@ -65,7 +48,7 @@ ze_context_manager::ze_context_manager(ze_driver_handle_t driver)
       
       if (err != ZE_RESULT_SUCCESS) {
         register_error(
-            __hipsycl_here(),
+            __acpp_here(),
             error_info{"ze_context_manager: Could not destroy context",
                        error_code{"ze", static_cast<int>(err)}});
       }
@@ -119,7 +102,7 @@ void ze_event_pool_manager::spawn_pool(){
   ze_result_t err = zeEventPoolCreate(_ctx, &desc, num_devices, devs, &pool);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                   error_info{"ze_event_pool_manager: Could not construct event pool",
                              error_code{"ze", static_cast<int>(err)}});
   } else {
@@ -129,7 +112,7 @@ void ze_event_pool_manager::spawn_pool(){
           ze_result_t err = zeEventPoolDestroy(*ptr);
     
           if(err != ZE_RESULT_SUCCESS) {
-            register_error(__hipsycl_here(),
+            register_error(__acpp_here(),
                           error_info{"ze_event_pool_manager: Could not destroy event pool",
                                     error_code{"ze", static_cast<int>(err)}});
           }
@@ -182,7 +165,7 @@ ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
   ze_result_t err = zeDeviceGetProperties(_device, &_props);
 
   if(err != ZE_RESULT_SUCCESS) {
-    print_error(__hipsycl_here(),
+    print_error(__acpp_here(),
                   error_info{"ze_hardware_context: Could not query device properties",
                              error_code{"ze", static_cast<int>(err)}});
   }
@@ -190,7 +173,7 @@ ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
   err = zeDeviceGetComputeProperties(_device, &_compute_props);
 
   if(err != ZE_RESULT_SUCCESS) {
-    print_error(__hipsycl_here(),
+    print_error(__acpp_here(),
                   error_info{"ze_hardware_context: Could not query device compute properties",
                              error_code{"ze", static_cast<int>(err)}});
   }
@@ -199,7 +182,7 @@ ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
   err = zeDeviceGetMemoryProperties(_device, &num_memory_properties, nullptr);
 
   if(err != ZE_RESULT_SUCCESS) {
-    print_error(__hipsycl_here(),
+    print_error(__acpp_here(),
                   error_info{"ze_hardware_context: Could not query number of memory properties",
                              error_code{"ze", static_cast<int>(err)}});
   }
@@ -209,7 +192,7 @@ ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
     err = zeDeviceGetMemoryProperties(_device, &num_memory_properties, _memory_props.data());
 
     if(err != ZE_RESULT_SUCCESS) {
-      print_error(__hipsycl_here(),
+      print_error(__acpp_here(),
                   error_info{"ze_hardware_context: Could not query memory properties",
                              error_code{"ze", static_cast<int>(err)}});
     }
@@ -490,7 +473,7 @@ std::string ze_hardware_context::get_driver_version() const {
   ze_result_t err = zeDriverGetProperties(_driver, &props);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                   error_info{"ze_hardware_context: Could not query driver properties",
                              error_code{"ze", static_cast<int>(err)}});
     return "<unknown>";
@@ -525,7 +508,7 @@ ze_hardware_manager::ze_hardware_manager() {
           application::get_settings().get<setting::visibility_mask>(),
           backend_id::level_zero)) {
     print_warning(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ze_hardware_manager: Level Zero backend does not support device "
             "visibility masks. Use ZE_AFFINITY_MASK instead."});
@@ -535,7 +518,7 @@ ze_hardware_manager::ze_hardware_manager() {
   ze_result_t err = zeDriverGet(&num_drivers, nullptr);
 
   if (err != ZE_RESULT_SUCCESS) {
-    print_warning(__hipsycl_here(),
+    print_warning(__acpp_here(),
                   error_info{"ze_hardware_manager: Could not get number of drivers, "
                              "assuming no drivers available.",
                              error_code{"ze", static_cast<int>(err)}});
@@ -546,7 +529,7 @@ ze_hardware_manager::ze_hardware_manager() {
     err = zeDriverGet(&num_drivers, drivers.data());
 
     if (err != ZE_RESULT_SUCCESS) {
-      print_error(__hipsycl_here(),
+      print_error(__acpp_here(),
                     error_info{"ze_hardware_manager: Could not obtain driver handles",
                               error_code{"ze", static_cast<int>(err)}});
       num_drivers = 0;
@@ -561,7 +544,7 @@ ze_hardware_manager::ze_hardware_manager() {
       err = zeDeviceGet(drivers[i], &num_devices, nullptr);
 
       if (err != ZE_RESULT_SUCCESS) {
-        print_error(__hipsycl_here(),
+        print_error(__acpp_here(),
                     error_info{"ze_hardware_manager: Could not obtain number of devices",
                               error_code{"ze", static_cast<int>(err)}});
         num_devices = 0;
@@ -618,7 +601,7 @@ result ze_hardware_manager::device_handle_to_device_id(ze_device_handle_t d, dev
       return make_success();
     }
   }
-  return make_error(__hipsycl_here(),
+  return make_error(__acpp_here(),
                     error_info{"ze_hardware_manager: Could not convert "
                                "ze_device_handle_t to hipSYCL device id"});
 }

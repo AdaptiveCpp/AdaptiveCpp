@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018,2019 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_ND_ITEM_HPP
 #define HIPSYCL_ND_ITEM_HPP
 
@@ -68,7 +51,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_id<Dimensions>() + (*_offset);
 #else
-    __hipsycl_if_target_sscp(return detail::get_global_id<Dimensions>() +
+    __acpp_if_target_sscp(return detail::get_global_id<Dimensions>() +
                                         (*_offset););
     return this->_global_id + (*_offset);
 #endif
@@ -80,7 +63,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_id<Dimensions>(dimension) + _offset->get(dimension);
 #else
-    __hipsycl_if_target_sscp(
+    __acpp_if_target_sscp(
         return detail::get_global_id<Dimensions>(dimension) +
                           _offset->get(dimension););
     return this->_global_id[dimension] + (*_offset)[dimension];
@@ -104,8 +87,8 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   size_t get_global_linear_id() const
   {
-    __hipsycl_if_target_sscp(
-        return __hipsycl_sscp_get_global_linear_id<Dimensions>(););
+    __acpp_if_target_sscp(
+        return __acpp_sscp_get_global_linear_id<Dimensions>(););
 
     return detail::linear_id<Dimensions>::get(get_global_id(),
                                               get_global_range());
@@ -142,7 +125,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_local_id<Dimensions>(dimension););
 
     return this->_local_id[dimension];
 #endif
@@ -154,7 +137,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_id<Dimensions>(););
+    __acpp_if_target_sscp(return detail::get_local_id<Dimensions>(););
     return this->_local_id;
 #endif
   }
@@ -162,8 +145,8 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_id() const
   {
-    __hipsycl_if_target_sscp(
-        return __hipsycl_sscp_get_local_linear_id<Dimensions>(););
+    __acpp_if_target_sscp(
+        return __acpp_sscp_get_local_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(get_local_id(), get_local_range());
   }
 
@@ -189,7 +172,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_group_id<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_group_id<Dimensions>(dimension););
     return this->_group_id[dimension];
 #endif
   }
@@ -201,8 +184,8 @@ struct nd_item
     return detail::linear_id<Dimensions>::get(detail::get_group_id<Dimensions>(),
                                               detail::get_grid_size<Dimensions>());
 #else
-    __hipsycl_if_target_sscp(
-        return __hipsycl_sscp_get_group_linear_id<Dimensions>(););
+    __acpp_if_target_sscp(
+        return __acpp_sscp_get_group_linear_id<Dimensions>(););
     return detail::linear_id<Dimensions>::get(this->_group_id, this->_num_groups);
 #endif
   }
@@ -219,7 +202,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_global_size<Dimensions>();)
+    __acpp_if_target_sscp(return detail::get_global_size<Dimensions>();)
     return this->_num_groups * this->_local_range;
 #endif
   }
@@ -230,7 +213,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_global_size<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_global_size<Dimensions>(dimension););
     return this->_num_groups[dimension] * this->_local_range[dimension];
 #endif
   }
@@ -241,7 +224,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(););
+    __acpp_if_target_sscp(return detail::get_local_size<Dimensions>(););
     return this->_local_range;
 #endif
   }
@@ -252,7 +235,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_local_size<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_local_size<Dimensions>(dimension););
     return this->_local_range[dimension];
 #endif
   }
@@ -263,7 +246,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>();
 #else
-    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(););
+    __acpp_if_target_sscp(return detail::get_grid_size<Dimensions>(););
     return this->_num_groups;
 #endif
   }
@@ -274,7 +257,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<Dimensions>(dimension);
 #else
-    __hipsycl_if_target_sscp(return detail::get_grid_size<Dimensions>(dimension););
+    __acpp_if_target_sscp(return detail::get_grid_size<Dimensions>(dimension););
     return this->_num_groups[dimension];
 #endif
   }
@@ -293,7 +276,7 @@ struct nd_item
                                 detail::get_local_size<Dimensions>(),
                                 get_offset()};
 #else
-    __hipsycl_if_target_sscp(return nd_range<Dimensions>{
+    __acpp_if_target_sscp(return nd_range<Dimensions>{
         detail::get_global_size<Dimensions>(),
         detail::get_local_size<Dimensions>(), get_offset()};);
     
@@ -309,10 +292,10 @@ struct nd_item
   void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       detail::local_device_barrier(space);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
         detail::host_barrier_type *barrier =
             static_cast<detail::host_barrier_type *>(_group_barrier);
         (*barrier)();
@@ -388,7 +371,7 @@ struct nd_item
       _global_id{group_id * local_range + local_id},
       _local_memory_ptr(local_memory_ptr)
   {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       _group_barrier = static_cast<void*>(host_group_barrier);
     );
   }

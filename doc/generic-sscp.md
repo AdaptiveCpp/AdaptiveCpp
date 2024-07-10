@@ -20,7 +20,7 @@ After AdaptiveCpp sets the value of an IR constant, it runs constant propagation
 During stage 1, AdaptiveCpp clones the module containing the regular host IR, and sets the IR constants such that one is identified as host code, and one is identified as device code.
 The kernel function calls are guarded inside the AdaptiveCpp headers by an if-statement depending on the IR constant signifying device compilation. This causes kernel code only to end up in the device module, and host code to end up only in the host module. To be sure that no host code remains in the device module, AdaptiveCpp runs additional passes in the device module to remove all code not reachable from kernel entry points.
 
-The implementation of SYCL builtins contains an if/else branch depending on the IR constant signifying device compilation. One branch invokes the externally defined SSCP builtins following the naming scheme `__hipsycl_sscp_*`, while the other branch invokes regular host builtins.
+The implementation of SYCL builtins contains an if/else branch depending on the IR constant signifying device compilation. One branch invokes the externally defined SSCP builtins following the naming scheme `__acpp_sscp_*`, while the other branch invokes regular host builtins.
 This allows SYCL kernels to simultaneously run correctly both on the host as well as on SSCP-supported devices.
 
 The final LLVM IR device bitcode is then embedded into a stage 1 IR constant string in the host module.
@@ -29,7 +29,7 @@ The final LLVM IR device bitcode is then embedded into a stage 1 IR constant str
 
 During stage 2, the `llvm-to-backend` infrastructure is responsible for turning the generic LLVM IR into something that a backend can actually execute. This means in particular:
 - Flavoring the LLVM IR such that the appropriate LLVM backend can handle the code; e.g. by correctly mapping address spaces, attaching information to mark kernels as entry points, correctly setting target triple, data layout, and function calling conventions etc.
-- Mapping `__hipsycl_sscp_*` builtins to backend builtins. This typically happens by linking backend-specific bitcode libraries.
+- Mapping `__acpp_sscp_*` builtins to backend builtins. This typically happens by linking backend-specific bitcode libraries.
 - Running optimization passes on the finalized IR.
 - Lowering the flavored, optimized IR to backend-specific formats, such as ptx or SPIR-V.
 

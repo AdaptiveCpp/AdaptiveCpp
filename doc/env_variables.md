@@ -7,11 +7,11 @@
 * `ACPP_RT_MQE_LANE_STATISTICS_DECAY_TIME_SEC`: The time in seconds (floating point value) after which to forget information about old submissions.
 * `ACPP_RT_SCHEDULER`: Set scheduler type. Allowed values: 
     * `direct` is a low-latency direct-submission scheduler. 
-    * `unbound` is the default scheduler and supports automatic work distribution across multiple devices. If the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension is used, the scheduler must be `unbound`.
+    * `unbound` is the default scheduler and supports automatic work distribution across multiple devices. If the `ACPP_EXT_MULTI_DEVICE_QUEUE` extension is used, the scheduler must be `unbound`.
 * `ACPP_DEFAULT_SELECTOR_BEHAVIOR`: Set behavior of default selector. Allowed values:
     * `strict` (default): Strictly behave as defined by the SYCL specification
-    * `multigpu`: Makes default selector behave like a multigpu selector from the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension
-    * `system`: Makes default selector behave like a system selector from the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension
+    * `multigpu`: Makes default selector behave like a multigpu selector from the `ACPP_EXT_MULTI_DEVICE_QUEUE` extension
+    * `system`: Makes default selector behave like a system selector from the `ACPP_EXT_MULTI_DEVICE_QUEUE` extension
 * `ACPP_HCF_DUMP_DIRECTORY`: If set, hipSYCL will dump all embedded HCF data files in this directory. HCF is hipSYCL's container format that is used by all compilation flows that are fully controlled by hipSYCL to store kernel code.
 * `ACPP_PERSISTENT_RUNTIME`: If set to 1, hipSYCL will use a persistent runtime that will continue to live even if no SYCL objects are currently in use in the application. This can be helpful if the application consists of multiple distinct phases in which SYCL is used, and multiple launches of the runtime occur.
 * `ACPP_RT_MAX_CACHED_NODES`: Maximum number of nodes that the runtime buffers before flushing work.
@@ -27,5 +27,7 @@
 * `ACPP_STDPAR_OHC_MIN_OPS`: stdpar offload heuristic configuration (ohc): If set, offloading decisions will only be reevaluated after at least this many stdpar algorithms have been dispatched. This also configures, how many operations the offload heuristic will attempt to predict when estimating performance.
 * `ACPP_STDPAR_OHC_MIN_TIME`: stdpar offload heuristic configuration (ohc): If set, offloading decisions will only be reevaluated after at least this much time in seconds has passed.
 * `ACPP_RT_NO_JIT_CACHE_POPULATION`: If set to `1`, prevents the kernel cache from storing SSCP JIT-compiled binaries in the persistent on-disk cache. This can be useful e.g. in an MPI context, where it is sufficient that only one process among many populates the cache.
-* `ACPP_ADAPTIVITY_LEVEL`: Controls the optimization level of the adaptivity engine. This is currently only relevant for the generic SSCP target. A higher value implies JIT-compiling more specialized kernels at the expense of more frequent JIT compilations. A value of 0 disables all adaptivity (not recommended).
+* `ACPP_ADAPTIVITY_LEVEL`: Controls the optimization level of the adaptivity engine. This is currently only relevant for the generic SSCP target. A higher value implies JIT-compiling more specialized kernels at the expense of more frequent JIT compilations. A value of 0 disables all adaptivity (not recommended). The default is 1; the maximum implemented adaptivity level is 2.
 * `ACPP_APPDB_DIR`: By default, AdaptiveCpp stores its application db (which in particular includes the per-app JIT cache) in `$HOME/.acpp`. This environment variable can be used to override the location.
+* `ACPP_JITOPT_IADS_STATIC_TRIGGER`: JIT-time optimization *invariant argument detection & specialization* (active if `ACPP_ADAPTIVITY_LEVEL >= 2`): When the same argument has been passed this many times into the kernel, a new kernel will be JIT-compiled with the argument value hard-wired as constant. Default: 128.
+* `ACPP_JITOPT_IADS_RELATIVE_TRIGGER`: JIT-time optimization *invariant argument detection & specialization* (active if `ACPP_ADAPTIVITY_LEVEL >= 2`): When the same argument has been passed into the kernel for this fraction of all invocations of the kernel, a new kernel will be JIT-compiled with the argument value hard-wired as constant. Not taken into account for the first application run. Default: 0.8.

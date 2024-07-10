@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_MOBILE_SHARED_PTR_HPP
 #define HIPSYCL_MOBILE_SHARED_PTR_HPP
 
@@ -55,7 +38,7 @@ class mobile_shared_ptr
 public:
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr() {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{nullptr};
     );
   }
@@ -63,35 +46,35 @@ public:
   // Argument is ignored on device
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(std::shared_ptr<T> ptr){
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{ptr};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(const mobile_shared_ptr& other){
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(mobile_shared_ptr&& other){
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   ~mobile_shared_ptr() {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       get_shared_ptr_ref().~shared_ptr();
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(const mobile_shared_ptr& other) {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       get_shared_ptr_ref() = other.get_shared_ptr_ref();
     );
 
@@ -100,7 +83,7 @@ public:
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(mobile_shared_ptr&& other) {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       get_shared_ptr_ref() = other.get_shared_ptr_ref();
     );
 
@@ -110,11 +93,11 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   const T* get() const
   { 
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       // Use sizeof(_data) to make sure it doesn't get optimized away
       return reinterpret_cast<T*>(sizeof(_data));
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return get_shared_ptr_ref().get(); 
     );
   }
@@ -122,11 +105,11 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   T* get()
   { 
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       // Use sizeof(_data) to make sure it doesn't get optimized away
       return reinterpret_cast<T*>(sizeof(_data));
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return get_shared_ptr_ref().get(); 
     );
   }
@@ -135,10 +118,10 @@ public:
   // it would pull shared_ptr_class<T> into device code.
   HIPSYCL_HOST_TARGET
   shared_ptr_class<T> get_shared_ptr() const {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return get_shared_ptr_ref();
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return nullptr;
     );
   }

@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2023 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_PSTL_OFFLOAD_HPP
 #define HIPSYCL_PSTL_OFFLOAD_HPP
 
@@ -121,10 +104,10 @@ bool validate_all_pointers(const Args&... args){
   
   auto& q = detail::single_device_dispatch::get_queue();
   auto* allocator = q.get_context()
-      .hipSYCL_runtime()
+      .AdaptiveCpp_runtime()
       ->backends()
       .get(q.get_device().get_backend())
-      ->get_allocator(q.get_device().hipSYCL_device_id());
+      ->get_allocator(q.get_device().AdaptiveCpp_device_id());
 
   auto f = [&](const void* ptr){
     if(ptr) {
@@ -180,7 +163,7 @@ inline prefetch_mode get_prefetch_mode() noexcept {
 }
 
 inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcept {
-  auto* inorder_executor = q.hipSYCL_inorder_executor();
+  auto* inorder_executor = q.AdaptiveCpp_inorder_executor();
   if(inorder_executor) {
     // Attempt to invoke backend functionality directly -
     // in general we might have to issue multiple prefetches for
@@ -621,11 +604,11 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
     hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
         .increment_num_outstanding_operations();                               \
   } else {                                                                     \
-    __hipsycl_stdpar_barrier();                                                \
+    __acpp_stdpar_barrier();                                                   \
     host_instrumentation([&]() { fallback_invoker(); }, algorithm_type_object, \
                          problem_size, __VA_ARGS__);                           \
   }                                                                            \
-  __hipsycl_stdpar_optional_barrier(); /*Compiler might move/elide this call*/
+  __acpp_stdpar_optional_barrier(); /*Compiler might move/elide this call*/
 
 #define HIPSYCL_STDPAR_OFFLOAD(algorithm_type_object, problem_size,            \
                                return_type, offload_invoker, fallback_invoker, \
@@ -639,7 +622,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
     hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
-    __hipsycl_stdpar_barrier();                                                \
+    __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \
           ? device_instrumentation([&]() { return offload_invoker(q); },       \
@@ -651,7 +634,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
   if (is_offloaded)                                                            \
     hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
         .increment_num_outstanding_operations();                               \
-  __hipsycl_stdpar_optional_barrier(); /*Compiler might move/elide this call*/ \
+  __acpp_stdpar_optional_barrier(); /*Compiler might move/elide this call*/    \
   return ret;
 
 #define HIPSYCL_STDPAR_BLOCKING_OFFLOAD(algorithm_type_object, problem_size,   \
@@ -672,7 +655,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
     hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
-    __hipsycl_stdpar_barrier();                                                \
+    __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \
           ? device_instrumentation([&]() { return offload_invoker(q); },       \

@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_BUFFER_HPP
 #define HIPSYCL_BUFFER_HPP
 
@@ -132,10 +114,10 @@ class use_optimized_host_memory : public detail::buffer_property
 {};
 
 template<int Dim>
-class hipSYCL_page_size : public detail::buffer_property
+class AdaptiveCpp_page_size : public detail::buffer_property
 {
 public:
-  hipSYCL_page_size(const sycl::range<Dim>& page_size)
+  AdaptiveCpp_page_size(const sycl::range<Dim>& page_size)
   : _page_size{page_size} {}
 
   sycl::range<Dim> get_page_size() const
@@ -146,10 +128,10 @@ private:
   sycl::range<Dim> _page_size;
 };
 
-class hipSYCL_write_back_node_group : public detail::buffer_property
+class AdaptiveCpp_write_back_node_group : public detail::buffer_property
 {
 public:
-  hipSYCL_write_back_node_group(std::size_t group)
+  AdaptiveCpp_write_back_node_group(std::size_t group)
   : _node_group{group} {}
 
   std::size_t get_node_group() const {
@@ -158,6 +140,19 @@ public:
 private:
   std::size_t _node_group;
 };
+
+using AdaptiveCpp_buffer_uses_external_storage =
+    detail::buffer_policy::use_external_storage;
+using AdaptiveCpp_buffer_writes_back =
+    detail::buffer_policy::writes_back;
+using AdaptiveCpp_buffer_destructor_blocks =
+    detail::buffer_policy::destructor_waits;
+
+
+// backwards-compatibiliy
+
+template<int Dim>
+using hipSYCL_page_size = AdaptiveCpp_page_size<Dim>;
 
 using hipSYCL_buffer_uses_external_storage =
     detail::buffer_policy::use_external_storage;
@@ -483,7 +478,7 @@ public:
     : buffer(bufferRange, propList)
   { _alloc = allocator; }
 
-  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
+  buffer(T *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
@@ -492,7 +487,11 @@ public:
     default_policies dpol;
     dpol.destructor_waits = true;
     dpol.use_external_storage = true;
-    dpol.writes_back = true;
+
+    if constexpr (std::is_const_v<T>)
+      dpol.writes_back = false;
+    else
+      dpol.writes_back = true;
     
     init_policies_from_properties_or_default(dpol);
 
@@ -504,7 +503,7 @@ public:
     }
   }
 
-  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
+  buffer(T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
       : buffer{hostData, bufferRange, propList} {
     _alloc = allocator;
@@ -537,6 +536,7 @@ public:
     }
   }
 
+  template <class t = T, std::enable_if_t<!std::is_const_v<t>, bool> = true>
   buffer(const T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
     : buffer{hostData, bufferRange, propList}
@@ -552,8 +552,14 @@ public:
 
     default_policies dpol;
     dpol.destructor_waits = true;
-    dpol.use_external_storage = true;
-    dpol.writes_back = true;
+
+    if (hostData.use_count() != 0) {
+      dpol.use_external_storage = true;
+      dpol.writes_back = true;
+    } else {
+      dpol.use_external_storage = false;
+      dpol.writes_back = false;
+    }
     init_policies_from_properties_or_default(dpol);
 
     if(_impl->use_external_storage) {
@@ -561,11 +567,50 @@ public:
       this->init(bufferRange, hostData.get());
     } else {
       this->init(bufferRange);
-      this->copy_host_content(hostData.get());
+
+      if (hostData.use_count() != 0)
+	this->copy_host_content(hostData.get());
     }
   }
 
-  buffer(const shared_ptr_class<T> &hostData,
+  buffer(const std::shared_ptr<T> &hostData,
+         const range<dimensions> &bufferRange,
+         const property_list &propList = {})
+  : buffer(hostData, bufferRange, AllocatorT(), propList)
+  {}
+
+  buffer(const std::shared_ptr<T[]> &hostData,
+         const range<dimensions> &bufferRange, AllocatorT allocator,
+         const property_list &propList = {})
+    : detail::property_carrying_object{propList}
+  {
+    _impl = std::make_shared<detail::buffer_impl>();
+    _alloc = allocator;
+
+    default_policies dpol;
+    dpol.destructor_waits = true;
+
+    if (hostData.use_count() != 0) {
+      dpol.use_external_storage = true;
+      dpol.writes_back = true;
+    } else {
+      dpol.use_external_storage = false;
+      dpol.writes_back = false;
+    }
+    init_policies_from_properties_or_default(dpol);
+
+    if(_impl->use_external_storage) {
+      _impl->shared_host_data = hostData;
+      this->init(bufferRange, hostData.get());
+    } else {
+      this->init(bufferRange);
+
+      if (hostData.use_count() != 0)
+	this->copy_host_content(hostData.get());
+    }
+  }
+
+  buffer(const std::shared_ptr<T[]> &hostData,
          const range<dimensions> &bufferRange,
          const property_list &propList = {})
   : buffer(hostData, bufferRange, AllocatorT(), propList)
@@ -720,7 +765,7 @@ public:
   template <access_mode mode = access_mode::read_write,
             access::target target = access::target::device>
   auto get_access(handler &commandGroupHandler) {
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+#ifdef ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION
     constexpr accessor_variant variant = accessor_variant::unranged;
 #else
     constexpr accessor_variant variant = accessor_variant::false_t;
@@ -742,7 +787,7 @@ public:
   auto get_access(handler &commandGroupHandler, range<dimensions> accessRange,
              id<dimensions> accessOffset = {}) {
 
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+#ifdef ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION
     constexpr accessor_variant variant = accessor_variant::ranged;
 #else
     constexpr accessor_variant variant = accessor_variant::false_t;
@@ -844,14 +889,24 @@ public:
     return !(lhs == rhs);
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<void*>{}(_impl.get());
   }
 
-  rt::runtime* hipSYCL_runtime() const {
+  rt::runtime* AdaptiveCpp_runtime() const {
     return _impl->requires_runtime.get();
   }
 
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_runtime()")]]
+  auto hipSYCL_runtime() const {
+    return AdaptiveCpp_runtime();
+  }
+  
   // --- The following methods are part the hipSYCL buffer introspection API
   // which is part of the hipSYCL buffer-USM interoperability framework.
 
@@ -1092,9 +1147,9 @@ private:
     _impl->use_external_storage = get_policy_from_property_or_default<
         detail::buffer_policy::use_external_storage>(dpol.use_external_storage);
 
-    if(this->has_property<property::buffer::hipSYCL_write_back_node_group>()){
+    if(this->has_property<property::buffer::AdaptiveCpp_write_back_node_group>()){
       _impl->write_back_node_group =
-          this->get_property<property::buffer::hipSYCL_write_back_node_group>()
+          this->get_property<property::buffer::AdaptiveCpp_write_back_node_group>()
               .get_node_group();
     } else {
       this->_impl->write_back_node_group =
@@ -1120,9 +1175,9 @@ private:
     this->_range = range;
 
     rt::range<3> page_size = rt::embed_in_range3(range);
-    if (this->has_property<property::buffer::hipSYCL_page_size<dimensions>>()) {
+    if (this->has_property<property::buffer::AdaptiveCpp_page_size<dimensions>>()) {
       page_size = rt::embed_in_range3(
-          this->get_property<property::buffer::hipSYCL_page_size<dimensions>>()
+          this->get_property<property::buffer::AdaptiveCpp_page_size<dimensions>>()
               .get_page_size());
     }
 
@@ -1197,14 +1252,15 @@ private:
     this->init_data_backend(range);
 
     rt::device_id host_device = detail::get_host_device();
-    _impl->data->add_nonempty_allocation(detail::get_host_device(), host_memory,
+    _impl->data->add_nonempty_allocation(detail::get_host_device(),
+					 const_cast<std::remove_const_t<T>*>(host_memory),
                                          _impl->requires_runtime.get()
                                              ->backends()
                                              .get(host_device.get_backend())
                                              ->get_allocator(host_device),
                                          false /*takes_ownership*/);
     // Remember host_memory in case of potential write back
-    _impl->writeback_ptr = host_memory;
+    _impl->writeback_ptr = const_cast<std::remove_const_t<T>*>(host_memory);
   }
 
   void init(const range<dimensions> &range,
@@ -1315,7 +1371,7 @@ struct hash<hipsycl::sycl::buffer<T, dimensions, AllocatorT>>
 {
   std::size_t
   operator()(const hipsycl::sycl::buffer<T, dimensions, AllocatorT> &b) const {
-    return b.hipSYCL_hash_code();
+    return b.AdaptiveCpp_hash_code();
   }
 };
 

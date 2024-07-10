@@ -34,7 +34,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 // Todo: for LLVM >= 17, we probably want to use the llvm::UniformityAnalysis at some point..
-#if LLVM_VERSION_MAJOR < 12 || LLVM_VERSION_MAJOR >= 17
+#if LLVM_VERSION_MAJOR >= 17
 #include "SyncDependenceAnalysis.hpp"
 #else
 #include "llvm/Analysis/SyncDependenceAnalysis.h"
@@ -50,7 +50,7 @@ class LoopInfo;
 }
 
 namespace hipsycl::compiler {
-#if LLVM_VERSION_MAJOR < 12 || LLVM_VERSION_MAJOR >= 17
+#if LLVM_VERSION_MAJOR >= 17
 using SDAnalysis = pre_llvm12_compat::SyncDependenceAnalysis;
 #else
 using SDAnalysis = llvm::SyncDependenceAnalysis;

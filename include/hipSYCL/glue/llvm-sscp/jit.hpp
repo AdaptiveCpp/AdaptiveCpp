@@ -1,33 +1,17 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2022 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_GLUE_JIT_HPP
 #define HIPSYCL_GLUE_JIT_HPP
 
+#include "hipSYCL/common/appdb.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/small_map.hpp"
@@ -97,6 +81,24 @@ public:
   std::size_t get_mapped_num_args() const {
     return _mapped_data.size();
   }
+
+  void apply_dead_argument_elimination_mask(
+      const std::vector<int> &retained_argument_indices) {
+    assert(retained_argument_indices.size() <= _mapped_data.size());
+
+    for(int i = 0; i < retained_argument_indices.size(); ++i) {
+      assert(retained_argument_indices[i] < _mapped_data.size());
+      assert(retained_argument_indices[i] >= i);
+      _mapped_data[i] = _mapped_data[retained_argument_indices[i]];
+      _mapped_sizes[i] = _mapped_sizes[retained_argument_indices[i]];
+    }
+    _mapped_data.erase(_mapped_data.begin() + retained_argument_indices.size(),
+                       _mapped_data.end());
+    _mapped_sizes.erase(_mapped_sizes.begin() +
+                            retained_argument_indices.size(),
+                        _mapped_sizes.end());
+  }
+
 private:
   void *add_offset(void *ptr, std::size_t offset_bytes) const {
     return static_cast<void *>(static_cast<char *>(ptr) + offset_bytes);
@@ -274,7 +276,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
       ++failure_index;
     }
     
-    return rt::make_error(__hipsycl_here(),
+    return rt::make_error(__acpp_here(),
                       rt::error_info{"jit::compile: Encountered errors:\n" +
                                  translator->getErrorLogAsString()});
   }
@@ -295,14 +297,14 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
   auto images_node = hcf->root_node()->get_subnode("images");
   if(!images_node) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{
             "jit::compile: Invalid HCF, no node named 'images' was found"});
   }
 
   auto target_image_node = images_node->get_subnode(image_name);
   if(!target_image_node) {
-    return rt::make_error(__hipsycl_here(),
+    return rt::make_error(__acpp_here(),
                           rt::error_info{"jit::compile: Requested image " +
                                          image_name +
                                          " was not defined in HCF"});
@@ -310,14 +312,14 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
 
   if(!target_image_node->has_binary_data_attached()) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{"jit::compile: Image " + image_name +
                        " was defined in HCF without data"});
   }
   std::string source;
   if(!hcf->get_binary_attachment(target_image_node, source)) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{
             "jit::compile: Could not extract binary data for HCF image " +
             image_name});
@@ -337,12 +339,53 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
   const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
   if(!hcf) {
     return rt::make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         rt::error_info{"jit::compile: Could not obtain HCF object"});
   }
 
   return compile(translator, hcf, image_name, config,
                  output);
+}
+
+namespace dead_argument_elimination {
+// Compiles with dead-argument-elimination for the kernels, and saves
+// the retained argument mask in the appdb. This only works for single-kernel
+// compilations!
+inline rt::result compile_kernel(
+    compiler::LLVMToBackendTranslator *translator, rt::hcf_object_id hcf_object,
+    const std::string &image_name, const rt::kernel_configuration &config,
+    rt::kernel_configuration::id_type binary_id, std::string &output) {
+
+  assert(translator->getKernels().size() == 1);
+
+  rt::result err = rt::make_success();
+
+  common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_write_access([&](common::db::appdb_data &appdb) {
+        std::vector<int> *retained_args =
+            &(appdb.kernels[binary_id].retained_argument_indices);
+
+        translator->enableDeadArgumentElminiation(translator->getKernels()[0],
+                                                  retained_args);
+        err = compile(translator, hcf_object, image_name, config, output);
+      });
+
+  return err;
+}
+
+inline std::vector<int>
+retrieve_retained_arguments_mask(rt::kernel_configuration::id_type binary_id) {
+  return common::filesystem::persistent_storage::get().get_this_app_db().read_access(
+      [&](const common::db::appdb_data &appdb) {
+        auto it = appdb.kernels.find(binary_id);
+        if(it != appdb.kernels.end()) {
+          return it->second.retained_argument_indices;
+        } else {
+          return std::vector<int>{};
+        }
+      });
+}
 }
 
 }

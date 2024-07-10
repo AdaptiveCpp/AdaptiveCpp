@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_OPERATIONS_HPP
 #define HIPSYCL_OPERATIONS_HPP
 
@@ -72,10 +55,10 @@ using node_list_t = common::small_vector<dag_node_ptr, 8>;
 class operation_dispatcher
 {
 public:
-  virtual result dispatch_kernel(kernel_operation* op, dag_node_ptr node) = 0;
-  virtual result dispatch_memcpy(memcpy_operation* op, dag_node_ptr node) = 0;
-  virtual result dispatch_prefetch(prefetch_operation *op, dag_node_ptr node) = 0;
-  virtual result dispatch_memset(memset_operation* op, dag_node_ptr node) = 0;
+  virtual result dispatch_kernel(kernel_operation* op, const dag_node_ptr& node) = 0;
+  virtual result dispatch_memcpy(memcpy_operation* op, const dag_node_ptr& node) = 0;
+  virtual result dispatch_prefetch(prefetch_operation *op, const dag_node_ptr& node) = 0;
+  virtual result dispatch_memset(memset_operation* op, const dag_node_ptr& node) = 0;
   virtual ~operation_dispatcher(){}
 };
 
@@ -94,7 +77,7 @@ public:
     return false;
   }
 
-  virtual result dispatch(operation_dispatcher* dispatch, dag_node_ptr node) = 0;
+  virtual result dispatch(operation_dispatcher* dispatch, const dag_node_ptr& node) = 0;
 
   instrumentation_set &get_instrumentations();
   const instrumentation_set &get_instrumentations() const;
@@ -112,7 +95,8 @@ public:
   virtual bool is_requirement() const final override
   { return true; }
 
-  virtual result dispatch(operation_dispatcher *dispatch, dag_node_ptr node) final override {
+  virtual result dispatch(operation_dispatcher *dispatch,
+                          const dag_node_ptr &node) final override {
     assert(false && "Cannot dispatch implicit requirements");
     return make_success();
   }
@@ -266,12 +250,11 @@ public:
   /// Given a kernel blob, identifies embedded pointers that are bound
   /// to this requirement and initializes them
   /// \return Whether an embedded pointer was found and initialized
-  template<class KernelBlob>
-  bool initialize_bound_embedded_pointers(KernelBlob& blob) {
+  bool initialize_bound_embedded_pointers(void* blob, std::size_t blob_size) {
     if(is_bound()) {
       if(!has_device_ptr()) {
         register_error(
-            __hipsycl_here(),
+            __acpp_here(),
             error_info{
                 "buffer_memory_requirement: Attempted to initialize kernel "
                 "blob without having a device pointer available"});
@@ -282,10 +265,16 @@ public:
                            << this << std::endl;
 
         return glue::kernel_blob::initialize_embedded_pointer(
-                blob, _bound_embedded_ptr_id, get_device_ptr());
+                blob, blob_size, _bound_embedded_ptr_id, get_device_ptr());
       }
     }
     return false;
+  }
+
+  template<class KernelBlob>
+  bool initialize_bound_embedded_pointers(KernelBlob& blob) {
+    return initialize_bound_embedded_pointers(static_cast<void *>(&blob),
+                                              sizeof(KernelBlob));
   }
   
   void dump(std::ostream & ostr, int indentation=0) const override;
@@ -331,9 +320,8 @@ class kernel_operation : public operation
 {
 public:
   kernel_operation(
-      const std::string &kernel_name,
-      common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
-          kernels,
+      const char* kernel_name,
+      kernel_launcher&& launcher,
       const requirements_list &requirements);
 
   kernel_launcher& get_launcher();
@@ -341,7 +329,8 @@ public:
 
   void dump(std::ostream & ostr, int indentation=0) const override;
 
-  result dispatch(operation_dispatcher* dispatcher, dag_node_ptr node) override {
+  result dispatch(operation_dispatcher *dispatcher,
+                  const dag_node_ptr &node) override {
     return dispatcher->dispatch_kernel(this, node);
   }
 
@@ -376,11 +365,38 @@ public:
     }
   }
 
-  const std::string& get_global_kernel_name() const {
+  void initialize_embedded_pointers(void* blob, std::size_t blob_size) {
+    for(auto req_node : _requirements) {
+
+      memory_requirement *req =
+          static_cast<memory_requirement *>(req_node->get_operation());
+
+      if(req->is_buffer_requirement()){
+        buffer_memory_requirement *bmem_req =
+            static_cast<buffer_memory_requirement *>(req);
+
+        if(bmem_req->is_bound()) {
+          // Initialize all arguments
+          bool found =
+              bmem_req->initialize_bound_embedded_pointers(blob, blob_size);
+
+          if(!found) {
+            HIPSYCL_DEBUG_WARNING
+              << "kernel_operation: Could not find embedded pointer "
+                 "in kernel blob for this requirement; do you have unnecessary "
+                 "accessors that are unused in your kernel?"
+              << std::endl;
+          }
+        }
+      }
+    }
+  }
+
+  const char* get_global_kernel_name() const {
     return _kernel_name;
   }
 private:
-  std::string _kernel_name;
+  const char* _kernel_name;
   kernel_launcher _launcher;
   // We store shared_ptr to the memory requirement nodes to make sure
   // that they are alive as long as kernel operations live.
@@ -451,7 +467,7 @@ public:
 
   virtual bool is_data_transfer() const final override;
   virtual result dispatch(operation_dispatcher *op,
-                          dag_node_ptr node) final override {
+                          const dag_node_ptr& node) final override {
     return op->dispatch_memcpy(this, node);
   }
   void dump(std::ostream &ostr, int indentation = 0) const override final;
@@ -482,7 +498,7 @@ public:
       : _ptr{ptr}, _num_bytes{num_bytes}, _target{target} {}
 
   result dispatch(operation_dispatcher *dispatcher,
-                  dag_node_ptr node) final override {
+                  const dag_node_ptr& node) final override {
     return dispatcher->dispatch_prefetch(this, node);
   }
 
@@ -504,7 +520,7 @@ public:
       : _ptr{ptr}, _pattern{pattern}, _num_bytes{num_bytes} {}
 
   result dispatch(operation_dispatcher *dispatcher,
-                  dag_node_ptr node) final override {
+                  const dag_node_ptr& node) final override {
     return dispatcher->dispatch_memset(this, node);
   }
 

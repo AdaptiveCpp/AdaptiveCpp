@@ -1,31 +1,13 @@
-
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2023 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include <cstddef>
 #include <cstdint>
 
@@ -38,7 +20,8 @@ namespace hipsycl::algorithms::reduction::wg_model {
 
 /// In addition to reduction_descriptor, also stores internal information
 /// needed by the reduction engine, such as scratch data pointers.
-/// This object will be constructed by the reduction engine.
+/// This object will be constructed by the reduction engine on the host,
+/// but its member functions should only be used on device!
 template <class ReductionDescriptor>
 class configured_reduction_descriptor : public ReductionDescriptor {
 public:
@@ -62,13 +45,10 @@ public:
         _is_input_initialized{is_input_initialized},
         _is_output_initialized{is_output_initialized},
         _stage_input{stage_input}, _stage_output{stage_output},
-        _problem_size{problem_size} {
-    if (!_stage_output)
-      _stage_output = this->get_final_output_destination();
-  }
+        _problem_size{problem_size} {}
 
   bool is_final_stage() const noexcept {
-    return _stage_output == this->get_final_output_destination();
+    return !_stage_output;
   }
 
   initialization_flag_t *get_input_initialization_state() const noexcept {
@@ -84,6 +64,8 @@ public:
   }
 
   typename ReductionDescriptor::value_type *get_stage_output() const noexcept {
+    if (!_stage_output)
+      return this->get_final_output_destination();
     return _stage_output;
   }
 

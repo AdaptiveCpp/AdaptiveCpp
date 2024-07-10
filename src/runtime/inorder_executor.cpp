@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2022 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include <cassert>
 
 #include "hipSYCL/runtime/inorder_executor.hpp"
@@ -47,23 +30,23 @@ public:
   virtual ~queue_operation_dispatcher(){}
 
   virtual result dispatch_kernel(kernel_operation *op,
-                                 dag_node_ptr node) final override {
+                                 const dag_node_ptr& node) final override {
 
     return _queue->submit_kernel(*op, node);
   }
 
   virtual result dispatch_memcpy(memcpy_operation *op,
-                                 dag_node_ptr node) final override {
+                                 const dag_node_ptr& node) final override {
     return _queue->submit_memcpy(*op, node);
   }
 
   virtual result dispatch_prefetch(prefetch_operation *op,
-                                   dag_node_ptr node) final override {
+                                   const dag_node_ptr& node) final override {
     return _queue->submit_prefetch(*op, node);
   }
 
   virtual result dispatch_memset(memset_operation *op,
-                                 dag_node_ptr node) final override {
+                                 const dag_node_ptr& node) final override {
     return _queue->submit_memset(*op, node);
   }
 
@@ -105,7 +88,7 @@ bool inorder_executor::is_taskgraph() const {
   return false;
 }
 
-void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
+void inorder_executor::submit_directly(const dag_node_ptr& node, operation *op,
                                        const node_list_t &reqs) {
   
   HIPSYCL_DEBUG_INFO << "inorder_executor: Processing node " << node.get()
@@ -210,7 +193,7 @@ bool inorder_executor::can_execute_on_device(const device_id& dev) const {
   return _q->get_device() == dev;
 }
 
-bool inorder_executor::is_submitted_by_me(dag_node_ptr node) const {
+bool inorder_executor::is_submitted_by_me(const dag_node_ptr& node) const {
   if(!node->is_submitted())
     return false;
   return node->get_assigned_executor() == this;

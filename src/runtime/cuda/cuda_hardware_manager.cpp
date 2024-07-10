@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/runtime/cuda/cuda_hardware_manager.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event_pool.hpp"
 #include "hipSYCL/runtime/cuda/cuda_allocator.hpp"
@@ -49,7 +32,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
           application::get_settings().get<setting::visibility_mask>(),
           backend_id::cuda)) {
     print_warning(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "cuda_hardware_manager: CUDA backend does not support device "
             "visibility masks. Use CUDA_VISIBILE_DEVICES instead."});
@@ -63,7 +46,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
 
     if(err != cudaErrorNoDevice) {
       print_warning(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"cuda_hardware_manager: Could not obtain number of devices",
                     error_code{"CUDA", err}});
     }
@@ -82,7 +65,7 @@ std::size_t cuda_hardware_manager::get_num_devices() const {
 
 hardware_context *cuda_hardware_manager::get_device(std::size_t index) {
   if (index >= _devices.size()){
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_hardware_manager: Attempt to access invalid "
                               "device detected."});
     return nullptr;
@@ -93,7 +76,7 @@ hardware_context *cuda_hardware_manager::get_device(std::size_t index) {
 
 device_id cuda_hardware_manager::get_device_id(std::size_t index) const {
   if (index >= _devices.size()){
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"cuda_hardware_manager: Attempt to access invalid "
                               "device detected."});
   }
@@ -110,7 +93,7 @@ cuda_hardware_context::cuda_hardware_context(int dev)
 
   if (err != cudaSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_hardware_manager: Could not query device properties ",
                    error_code{"CUDA", err}});
   }
@@ -396,7 +379,7 @@ std::string cuda_hardware_context::get_driver_version() const {
   auto err = cudaDriverGetVersion(&driver_version);
   if (err != cudaSuccess) {
     register_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"cuda_hardware_manager: Querying driver version failed",
                    error_code{"CUDA", err}});
   }

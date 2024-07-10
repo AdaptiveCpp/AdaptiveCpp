@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2021 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include <level_zero/ze_api.h>
 
 #include "hipSYCL/runtime/ze/ze_allocator.hpp"
@@ -54,7 +37,7 @@ void* ze_allocator::allocate(size_t min_alignment, size_t size_bytes) {
       zeMemAllocDevice(_ctx, &desc, size_bytes, min_alignment, _dev, &out);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemAllocDevice() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
@@ -76,7 +59,7 @@ void* ze_allocator::allocate_optimized_host(size_t min_alignment,
   ze_result_t err = zeMemAllocHost(_ctx, &desc, bytes, min_alignment, &out);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemAllocHost() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
@@ -90,7 +73,7 @@ void ze_allocator::free(void *mem) {
   ze_result_t err = zeMemFree(_ctx, mem);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(), 
+    register_error(__acpp_here(), 
         error_info{"ze_allocator: zeMemFree() failed", 
             error_code{"ze",static_cast<int>(err)}});
   }
@@ -117,7 +100,7 @@ void* ze_allocator::allocate_usm(size_t bytes) {
       zeMemAllocShared(_ctx, &device_desc, &host_desc, bytes, 0, _dev, &out);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemAllocShared() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
@@ -142,14 +125,14 @@ result ze_allocator::query_pointer(const void* ptr, pointer_info& out) const {
   ze_result_t err = zeMemGetAllocProperties(_ctx, ptr, &props, &dev);
 
   if(err != ZE_RESULT_SUCCESS) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                    error_info{"ze_allocator: zeMemGetAllocProperties() failed",
                               error_code{"ze", static_cast<int>(err)}});
   }
 
   if(props.type == ZE_MEMORY_TYPE_UNKNOWN) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ze_allocator: query_pointer(): pointer is unknown by backend",
                      error_code{"ze", static_cast<int>(err)},
                      error_type::invalid_parameter_error});

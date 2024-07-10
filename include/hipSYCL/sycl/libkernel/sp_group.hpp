@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2021 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_SP_GROUP_HPP
 #define HIPSYCL_SP_GROUP_HPP
 
@@ -217,10 +200,10 @@ struct sp_group
 
   id_type
   get_logical_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return idx.get_global_id() - get_group_id() * get_logical_local_range();
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return _grp.get_local_id();
     );
   }
@@ -233,11 +216,11 @@ struct sp_group
 
   size_t get_logical_local_id(const detail::sp_item<dimensions> &idx,
                               int dimension) const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return idx.get_global_id(dimension) -
              get_group_id(dimension) * get_logical_local_range(dimension);
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return _grp.get_local_id(dimension);
     );
   }
@@ -276,30 +259,30 @@ struct sp_group
 
   HIPSYCL_KERNEL_TARGET
   id_type get_physical_local_id() const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return id_type{};
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return _grp.get_local_id();
     );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_id(int dimension) const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return 0;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return _grp.get_local_id(dimension);
     );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_linear_id() const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return 0;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return _grp.get_local_linear_id();
     );
   }
@@ -339,7 +322,7 @@ struct sp_group
 
   HIPSYCL_KERNEL_TARGET
   sycl::range<dimensions> get_physical_local_range() const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       if constexpr(dimensions == 1) {
         return sycl::range{1};
       } else if constexpr(dimensions == 2) {
@@ -348,27 +331,27 @@ struct sp_group
         return sycl::range{1,1,1};
       }
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return _grp.get_local_range();
     );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_range(int dimension) const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return 1;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       _grp.get_local_range(dimension);
     );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_linear_range() const noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return 1;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return _grp.get_local_linear_range();
     );
   }
@@ -1066,17 +1049,17 @@ private:
 public:
   HIPSYCL_KERNEL_TARGET
   static sycl::range<Dim> get_global_range() noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       return storage::get().global_range;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       return detail::get_global_size<Dim>();
     );
   }
 
   HIPSYCL_KERNEL_TARGET
   static void configure_global_range(const sycl::range<Dim> &range) noexcept {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       storage::get().global_range = range;
     );
   }
@@ -1125,7 +1108,7 @@ inline  void subdivide_group(
     // of the new "groups" is just the global id of the work item
     // which can always be obtained from the global offset
     // and local id.
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       sycl::id<dim> subgroup_global_offset =
           get_group_global_id_offset(g) + g.get_physical_local_id();
       
@@ -1136,7 +1119,7 @@ inline  void subdivide_group(
       f(subgroup);
     );
   } else {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       // On CPU, we need to iterate now across all elements of this subgroup
       // to construct scalar groups.
       if constexpr(next_property_descriptor::has_scalar_fixed_group_size()){
@@ -1225,13 +1208,13 @@ template <class PropertyDescriptor, typename NestedF>
 HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
                       NestedF f) noexcept {
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     f(make_sp_item(g.get_physical_local_id(),
                   get_group_global_id_offset(g) + g.get_physical_local_id(),
                   g.get_logical_local_range(),
       sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range()));
   );
-  __hipsycl_if_target_host(
+  __acpp_if_target_host(
     auto global_range = sp_global_kernel_state<
             PropertyDescriptor::dimensions>::get_global_range();
 
@@ -1248,12 +1231,12 @@ HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF&& f) noexcept {
   auto global_range = g.get_logical_local_range() * g.get_group_range();
 
-  __hipsycl_if_target_device(
+  __acpp_if_target_device(
     f(make_sp_item(g.get_physical_local_id(),
                   get_group_global_id_offset(g) + g.get_physical_local_id(),
                   g.get_logical_local_range(), global_range));
   );
-  __hipsycl_if_target_host(
+  __acpp_if_target_host(
     const auto group_offset = get_group_global_id_offset(g);
     const auto local_range = g.get_logical_local_range();
 
@@ -1279,14 +1262,14 @@ HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_group<PropertyDescriptor> &g,
               memory_scope fence_scope =
                   detail::sp_group<PropertyDescriptor>::fence_scope) {
-  __hipsycl_if_target_hiplike(
+  __acpp_if_target_hiplike(
     if (fence_scope == memory_scope::device) {
       __threadfence_system();
     }
     __syncthreads();
   );
-  __hipsycl_if_target_spirv(/* todo */);
-  __hipsycl_if_target_host(/* todo */);
+  __acpp_if_target_sscp(/* todo */);
+  __acpp_if_target_host(/* todo */);
 }
 
 template <class PropertyDescriptor>
@@ -1295,18 +1278,18 @@ group_barrier(const detail::sp_sub_group<PropertyDescriptor> &g,
               memory_scope fence_scope =
                   detail::sp_sub_group<PropertyDescriptor>::fence_scope) {
 
-  __hipsycl_if_target_hiplike(
+  __acpp_if_target_hiplike(
     if (fence_scope == memory_scope::device) {
       __threadfence_system();
     } else if (fence_scope == memory_scope::work_group) {
       __threadfence_block();
     }
   );
-  __hipsycl_if_target_cuda(
+  __acpp_if_target_cuda(
     __syncwarp();
   );
-  __hipsycl_if_target_spirv(/* todo */);
-  __hipsycl_if_target_host(/* todo */);
+  __acpp_if_target_sscp(/* todo */);
+  __acpp_if_target_host(/* todo */);
 }
 
 // Direct overload instead of default argument for memory fence
@@ -1320,7 +1303,7 @@ HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_scalar_group<PropertyDescriptor> &g,
               memory_scope fence_scope) {
 
-  __hipsycl_if_target_hiplike(
+  __acpp_if_target_hiplike(
     if (fence_scope == memory_scope::device) {
       __threadfence_system();
     } else if (fence_scope == memory_scope::work_group) {

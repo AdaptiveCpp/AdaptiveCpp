@@ -49,7 +49,7 @@ With SYCL 2020 deduction guides and C++17 class template argument deduction, the
 
 AdaptiveCpp introduces the following accessor variants, which are described by the `sycl::accessor_variant` enumeration:
 * `ranged_placeholder` - ranged placeholder accessor.
-* `unranged_placholder` - unranged placeholder accessor
+* `unranged_placeholder` - unranged placeholder accessor
 * `ranged` - ranged non-placeholder accessor
 * `unranged` - unranged non-placeholder accessor
 * `raw` - A minimal light-weight accessor that effectively only stores a pointer, at the expense that it cannot expose certain parts of the regular accessor API. See the *Restrictions* section below for more details.
@@ -103,28 +103,28 @@ However, note that using distinct accessor variants might potentially break cert
 
 hipSYCL accessor variants can be constructed in the following way:
 1. By explicitly setting the `accessor_variant` template parameter of the accessor to a value that differs from the standard `access::placeholder::false_t` and `access::placeholder::true_t`.
-2. By using the `sycl::raw_accessor`, `sycl::ranged_accessor`, `sycl::unranged_accessor`, `sycl::ranged_placeholder_accessor`, `sycl::unranged_placeholder_acccessor` type aliases (see API reference below)
+2. By using the `sycl::raw_accessor`, `sycl::ranged_accessor`, `sycl::unranged_accessor`, `sycl::ranged_placeholder_accessor`, `sycl::unranged_placeholder_accessor` type aliases (see API reference below)
 3. For raw accessors, by using the new `read_only_raw`, `read_write_raw` and `write_only_raw` deduction tags
-4. If `HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION` is defined, SYCL 2020 CTAD rules and `buffer::get_access()` will automatically construct accessors of the most efficient types.
+4. If `ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION` is defined, SYCL 2020 CTAD rules and `buffer::get_access()` will automatically construct accessors of the most efficient types.
 
 Example code:
 ```c++
 
 sycl::buffer<int> buff{size};
-// If HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
+// If ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
 // constructs accessor_variant::unranged_placeholder
 sycl::accessor unranged_placeholder{buff, sycl::read_write, sycl::no_init};
-// If HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
+// If ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
 // constructs accessor_variant::ranged_placeholder
 sycl::accessor ranged_placeholder{buff, subrange, offset, sycl::read_write,
                                     sycl::no_init};
 
 
 q.submit([&](sycl::handler &cgh) {
-  // If HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
+  // If ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
   // constructs accessor_variant::unranged
   sycl::accessor unranged_acc{buff, cgh, sycl::read_write, sycl::no_init};
-  // If HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
+  // If ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION is enabled,
   // constructs accessor_variant::ranged
   sycl::accessor ranged_acc{
       buff, cgh, subrange, offset, sycl::read_write, sycl::no_init};
@@ -404,7 +404,7 @@ using unranged_placeholder_accessor =
     accessor<T, Dim, M, Tgt, accessor_variant::unranged_placeholder>;
 
 
-// Deduction guides when HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION is active
+// Deduction guides when ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION is active
 
 template <typename T, int Dim, typename AllocatorT, typename TagT>
 accessor(buffer<T, Dim, AllocatorT> &bufferRef, TagT tag,

@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_DEVICE_SELECTOR_HPP
 #define HIPSYCL_DEVICE_SELECTOR_HPP
 
@@ -84,7 +66,7 @@ inline int select_gpu(const device& dev) {
     // Would be good to prefer a device for which
     // we have actually compiled kernel code, because,
     // I don't know, a user might try to run kernels..
-    if (dev.hipSYCL_has_compiled_kernels())
+    if (dev.AdaptiveCpp_has_compiled_kernels())
       return 2;
     else
       return 1;
@@ -94,7 +76,7 @@ inline int select_gpu(const device& dev) {
 
 inline int select_accelerator(const device& dev) {
   if(dev.is_accelerator()) {
-    if(dev.hipSYCL_has_compiled_kernels())
+    if(dev.AdaptiveCpp_has_compiled_kernels())
       return 2;
     else
       return 1;
@@ -109,16 +91,17 @@ inline int select_cpu(const device& dev) {
 }
 
 inline int select_host(const device& dev) {
-  return select_cpu(dev);
+  if(dev == detail::get_host_device())
+    return 1;
+  return -1;
 }
 
 inline int select_default(const device& dev) {
 #if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
     defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
-    defined(__HIPSYCL_ENABLE_SPIRV_TARGET__) ||                                \
     defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
   // Add 2 to make sure that, if no GPU is found
-  if(!dev.is_cpu() && dev.hipSYCL_has_compiled_kernels()) {
+  if(!dev.is_cpu() && dev.AdaptiveCpp_has_compiled_kernels()) {
     // Prefer GPUs (or other accelerators) that have been targeted
     // and have compiled kernels
     return 2;

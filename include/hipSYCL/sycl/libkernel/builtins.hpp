@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2021 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_BUILTINS_HPP
 #define HIPSYCL_BUILTINS_HPP
 
@@ -547,21 +530,21 @@ using ulonglong16 = vec<unsigned long long, 16>;
                                FUNCTION_GENERATOR)                             \
   OVERLOAD_SET_GENERATOR(                                                      \
       FUNCTION_GENERATOR, builtin_name,                                        \
-      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__hipsycl_,              \
+      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__acpp_,              \
                              builtin_name))
 
 #define HIPSYCL_DEFINE_NATIVE_BUILTIN(builtin_name, OVERLOAD_SET_GENERATOR,    \
                                       FUNCTION_GENERATOR)                      \
   OVERLOAD_SET_GENERATOR(                                                      \
       FUNCTION_GENERATOR, builtin_name,                                        \
-      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__hipsycl_native_,       \
+      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__acpp_native_,       \
                              builtin_name))
 
 #define HIPSYCL_DEFINE_HALF_BUILTIN(builtin_name, OVERLOAD_SET_GENERATOR,      \
                                       FUNCTION_GENERATOR)                      \
   OVERLOAD_SET_GENERATOR(                                                      \
       FUNCTION_GENERATOR, builtin_name,                                        \
-      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__hipsycl_half_,         \
+      HIPSYCL_PP_CONCATENATE(::hipsycl::sycl::detail::__acpp_half_,         \
                              builtin_name))
 
 }
@@ -925,16 +908,16 @@ HIPSYCL_DEFINE_BUILTIN(sign, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
 
 // TODO: m[float/double][3/4]
 HIPSYCL_BUILTIN float3 cross(float3 a, float3 b) {
-  return __hipsycl_cross3(a, b);
+  return __acpp_cross3(a, b);
 }
 HIPSYCL_BUILTIN double3 cross(double3 a, double3 b) {
-  return __hipsycl_cross3(a, b);
+  return __acpp_cross3(a, b);
 }
 HIPSYCL_BUILTIN float4 cross(float4 a, float4 b) {
-  return __hipsycl_cross4(a, b);
+  return __acpp_cross4(a, b);
 }
 HIPSYCL_BUILTIN double4 cross(double4 a, double4 b) {
-  return __hipsycl_cross4(a, b);
+  return __acpp_cross4(a, b);
 }
 
 #define HIPSYCL_BUILTIN_GENERATOR_BINARY_REDUCTION_T_T(T, name, impl_name)     \

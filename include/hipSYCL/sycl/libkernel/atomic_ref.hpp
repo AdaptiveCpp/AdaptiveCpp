@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2021 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_ATOMIC_REF_HPP
 #define HIPSYCL_ATOMIC_REF_HPP
 
@@ -105,7 +88,7 @@ public:
   void store(T operand,
     memory_order order = default_write_order,
     memory_scope scope = default_scope) const noexcept {
-    detail::__hipsycl_atomic_store<Space>(_ptr, operand, order, scope);
+    detail::__acpp_atomic_store<Space>(_ptr, operand, order, scope);
   }
 
   T operator=(T desired) const noexcept {
@@ -115,7 +98,7 @@ public:
 
   T load(memory_order order = default_read_order,
     memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_load<Space>(_ptr, order, scope);
+    return detail::__acpp_atomic_load<Space>(_ptr, order, scope);
   }
 
   operator T() const noexcept {
@@ -125,15 +108,14 @@ public:
   T exchange(T operand,
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_exchange<Space>(_ptr, operand, order,
-                                                       scope);
+    return detail::__acpp_atomic_exchange<Space>(_ptr, operand, order, scope);
   }
 
   bool compare_exchange_weak(T &expected, T desired,
     memory_order success,
     memory_order failure,
     memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_compare_exchange_weak<Space>(
+    return detail::__acpp_atomic_compare_exchange_weak<Space>(
         _ptr, expected, desired, success, failure, scope);
   }
 
@@ -148,7 +130,7 @@ public:
     memory_order success,
     memory_order failure,
     memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_compare_exchange_strong<Space>(
+    return detail::__acpp_atomic_compare_exchange_strong<Space>(
         _ptr, expected, desired, success, failure, scope);
   }
 
@@ -163,8 +145,7 @@ public:
   Integral fetch_add(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_add<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_add<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -172,8 +153,7 @@ public:
   Integral fetch_sub(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_sub<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_sub<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -181,8 +161,7 @@ public:
   Integral fetch_and(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_and<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_and<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -190,8 +169,7 @@ public:
   Integral fetch_or(Integral operand,
                     memory_order order = default_read_modify_write_order,
                     memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_or<Space>(_ptr, operand, order,
-                                                    scope);
+    return detail::__acpp_atomic_fetch_or<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -199,8 +177,7 @@ public:
   Integral fetch_xor(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_xor<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_xor<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -208,8 +185,7 @@ public:
   Integral fetch_min(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_min<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_min<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -217,8 +193,7 @@ public:
   Integral fetch_max(Integral operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_max<Space>(_ptr, operand, order,
-                                                     scope);
+    return detail::__acpp_atomic_fetch_max<Space>(_ptr, operand, order, scope);
   }
 
   template <class Integral = T,
@@ -280,7 +255,7 @@ public:
   Floating fetch_add(Floating operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_add<Space>(_ptr, operand, order,
+    return detail::__acpp_atomic_fetch_add<Space>(_ptr, operand, order,
                                                      scope);
   }
 
@@ -289,7 +264,7 @@ public:
   Floating fetch_sub(Floating operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_sub<Space>(_ptr, operand, order,
+    return detail::__acpp_atomic_fetch_sub<Space>(_ptr, operand, order,
                                                      scope);
   }
 
@@ -298,7 +273,7 @@ public:
   Floating fetch_min(Floating operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_min<Space>(_ptr, operand, order,
+    return detail::__acpp_atomic_fetch_min<Space>(_ptr, operand, order,
                                                      scope);
   }
 
@@ -307,7 +282,7 @@ public:
   Floating fetch_max(Floating operand,
                      memory_order order = default_read_modify_write_order,
                      memory_scope scope = default_scope) const noexcept {
-    return detail::__hipsycl_atomic_fetch_max<Space>(_ptr, operand, order,
+    return detail::__acpp_atomic_fetch_max<Space>(_ptr, operand, order,
                                                      scope);
   }
 
@@ -373,7 +348,7 @@ public:
   void store(T* operand,
     memory_order order = default_write_order,
     memory_scope scope = default_scope) const noexcept {
-    detail::__hipsycl_atomic_store<Space>(
+    detail::__acpp_atomic_store<Space>(
         _ptr, ptr_to_int(operand), order, scope);
   }
 
@@ -385,7 +360,7 @@ public:
   T* load(memory_order order = default_read_order,
     memory_scope scope = default_scope) const noexcept {
     std::intptr_t v =
-        detail::__hipsycl_atomic_load<Space>(_ptr, order, scope);
+        detail::__acpp_atomic_load<Space>(_ptr, order, scope);
     return int_to_ptr(v);
   }
 
@@ -396,7 +371,7 @@ public:
   T* exchange(T* operand,
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
-    std::intptr_t v = detail::__hipsycl_atomic_exchange<Space>(
+    std::intptr_t v = detail::__acpp_atomic_exchange<Space>(
         _ptr, ptr_to_int(operand), order, scope);
     return int_to_ptr(v);
   }
@@ -409,7 +384,7 @@ public:
     std::intptr_t desired_v = ptr_to_int(desired);
     std::intptr_t& expected_v = ptr_ref_to_int_ref(expected);
 
-    return detail::__hipsycl_atomic_compare_exchange_weak<Space>(
+    return detail::__acpp_atomic_compare_exchange_weak<Space>(
         _ptr, expected_v, desired_v, success, failure, scope);
   }
 
@@ -428,7 +403,7 @@ public:
     std::intptr_t desired_v = ptr_to_int(desired);
     std::intptr_t& expected_v = ptr_ref_to_int_ref(expected);
 
-    return detail::__hipsycl_atomic_compare_exchange_strong<Space>(
+    return detail::__acpp_atomic_compare_exchange_strong<Space>(
         _ptr, expected_v, desired_v, success, failure, scope);
   }
 
@@ -443,7 +418,7 @@ public:
                memory_order order = default_read_modify_write_order,
                memory_scope scope = default_scope) const noexcept {
 
-    return int_to_ptr(detail::__hipsycl_atomic_fetch_add<Space>(
+    return int_to_ptr(detail::__acpp_atomic_fetch_add<Space>(
         _ptr, static_cast<std::intptr_t>(x * sizeof(T)), order, scope));
   }
 
@@ -451,7 +426,7 @@ public:
                memory_order order = default_read_modify_write_order,
                memory_scope scope = default_scope) const noexcept {
 
-    return int_to_ptr(detail::__hipsycl_atomic_fetch_sub<Space>(
+    return int_to_ptr(detail::__acpp_atomic_fetch_sub<Space>(
         _ptr, static_cast<std::intptr_t>(x * sizeof(T)), order, scope));
   }
 

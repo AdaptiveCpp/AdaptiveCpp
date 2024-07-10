@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2022 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_LLVM_SSCP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_LLVM_SSCP_KERNEL_LAUNCHER_HPP
 
@@ -46,8 +29,10 @@
 #include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "ir_constants.hpp"
+#include "../kernel_launcher_data.hpp"
 
 #include <array>
+#include <string_view>
 
 
 template <typename KernelType>
@@ -55,8 +40,8 @@ template <typename KernelType>
 [[clang::annotate("hipsycl_sscp_kernel")]]
 // hipsycl_sscp_outlining creates an entrypoint for outlining of device code
 [[clang::annotate("hipsycl_sscp_outlining")]]
-void __hipsycl_sscp_kernel(const KernelType& kernel) {
-  if(__hipsycl_sscp_is_device) {
+void __acpp_sscp_kernel(const KernelType& kernel) {
+  if(__acpp_sscp_is_device) {
     // The copy here creates an alloca that can help inferring the argument
     // type in case of opaque pointers.
     KernelType k = kernel;
@@ -76,7 +61,7 @@ void __hipsycl_sscp_kernel(const KernelType& kernel) {
 // No indirection is allowed! If I say, the argument has to be a global variable,
 // I mean it. Directly. No passing through other functions first.
 template <class Kernel>
-void __hipsycl_sscp_extract_kernel_name(void (*Func)(const Kernel&),
+void __acpp_sscp_extract_kernel_name(void (*Func)(const Kernel&),
                                         const char *target);
 #pragma clang diagnostic pop
 
@@ -87,8 +72,8 @@ namespace sscp {
 
 static std::string get_local_hcf_object() {
   return std::string{
-      reinterpret_cast<const char *>(__hipsycl_local_sscp_hcf_content),
-      __hipsycl_local_sscp_hcf_object_size};
+      reinterpret_cast<const char *>(__acpp_local_sscp_hcf_content),
+      __acpp_local_sscp_hcf_object_size};
 }
 
 // TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
@@ -107,7 +92,7 @@ private:
   rt::hcf_object_id _hcf_object;
 };
 static static_hcf_registration
-    __hipsycl_register_sscp_hcf_object{get_local_hcf_object()};
+    __acpp_register_sscp_hcf_object{get_local_hcf_object()};
 
 
 }
@@ -233,218 +218,167 @@ private:
 
 }
 
-class sscp_kernel_launcher : public rt::backend_kernel_launcher
+// NOTE: This class no longer follows the backend_kernel_launcher concept,
+// in an effort to reduce latencies and indirections. It is likely that this
+// new concept will continue to change as the other launchers are also aligned
+// with it.
+class sscp_kernel_launcher
 {
 public:
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel>
+  static void create(kernel_launcher_data &data, sycl::id<Dim> offset,
+                     sycl::range<Dim> global_range,
+                     sycl::range<Dim> local_range,
+                     std::size_t dynamic_local_memory, Kernel k) {
 
-  sscp_kernel_launcher() {}
-  virtual ~sscp_kernel_launcher(){}
+    data.type = type;
+    data.sscp_hcf_object_id = __acpp_local_sscp_hcf_object_id;
+    data.sscp_invoker = &invoke;
 
-  virtual void set_params(void* params) override {
-    _params = params;
+    if constexpr(type == rt::kernel_type::single_task){
+
+      configure_launch_with_global_range(data, __sscp_dispatch::single_task{k},
+                                         sycl::range{1}, sycl::range{1},
+                                         dynamic_local_memory);
+
+    } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
+
+      if(offset == sycl::id<Dim>{}) {
+        configure_launch_with_global_range(data,
+            __sscp_dispatch::basic_parallel_for{k, global_range}, global_range,
+            local_range, dynamic_local_memory);
+      } else {
+        configure_launch_with_global_range(data,
+            __sscp_dispatch::basic_parallel_for_offset{k, offset, global_range},
+            global_range, local_range, dynamic_local_memory);
+      }
+
+    } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
+
+      if(offset == sycl::id<Dim>{}) {
+        configure_launch_with_global_range(data,
+            __sscp_dispatch::ndrange_parallel_for<Kernel, Dim>{k}, global_range,
+            local_range, dynamic_local_memory);
+      } else {
+        configure_launch_with_global_range(data,
+            __sscp_dispatch::ndrange_parallel_for_offset<Kernel, Dim>{k, offset},
+            global_range, local_range, dynamic_local_memory);
+      }
+
+    } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
+
+    } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
+      
+    } else if constexpr (type == rt::kernel_type::custom) {
+      // handled at invoke time
+      data.custom_op = k;
+    }
+    else {
+      assert(false && "Unsupported kernel type");
+    }
   }
 
-  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
-            typename... Reductions>
-  void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
-            sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+  static rt::result
+  invoke(const kernel_launcher_data& launch_config, rt::dag_node *node,
+         const rt::kernel_configuration &kernel_config,
+         const rt::backend_kernel_launch_capabilities &launch_capabilities,
+         void *backend_params = nullptr) {
+    assert(node);
 
-    this->_type = type;
-    this->_invoker = [=] (rt::dag_node* node) mutable {
+    if(launch_config.type == rt::kernel_type::custom) {
+      assert(backend_params);
+      sycl::interop_handle handle{node->get_assigned_device(),
+                                  backend_params};
 
-      static_cast<rt::kernel_operation *>(node->get_operation())
-          ->initialize_embedded_pointers(k, reductions...);
+      launch_config.custom_op(handle);
 
-      auto get_grid_range = [&]() {
-        for (int i = 0; i < Dim; ++i){
-          if (global_range[i] % local_range[i] != 0) {
-            rt::register_error(__hipsycl_here(),
-                               rt::error_info{"sscp_dispatch: global range is "
-                                              "not divisible by local range"});
-          }
-        }
-
-        return global_range / local_range;
-      };
-
-      rt::kernel_operation *operation =
+      return rt::make_success();
+    } else {
+      auto *kernel_op =
           static_cast<rt::kernel_operation *>(node->get_operation());
 
-      if constexpr(type == rt::kernel_type::single_task){
+      kernel_op->initialize_embedded_pointers(launch_config.kernel_args.data(),
+                                              launch_config.kernel_args.size());
 
-        launch_kernel_with_global_range(__sscp_dispatch::single_task{k},
-                                        operation, sycl::range{1},
-                                        sycl::range{1}, dynamic_local_memory);
-
-      } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
-
-        if(offset == sycl::id<Dim>{}) {
-          launch_kernel_with_global_range(
-              __sscp_dispatch::basic_parallel_for{k, global_range}, operation,
-              global_range, local_range, dynamic_local_memory);
-        } else {
-          launch_kernel_with_global_range(
-              __sscp_dispatch::basic_parallel_for_offset{k, offset, global_range},
-              operation, global_range, local_range, dynamic_local_memory);
-        }
-
-      } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
-
-        if(offset == sycl::id<Dim>{}) {
-          launch_kernel_with_global_range(
-              __sscp_dispatch::ndrange_parallel_for<Kernel, Dim>{k}, operation,
-              global_range, local_range, dynamic_local_memory);
-        } else {
-          launch_kernel_with_global_range(
-              __sscp_dispatch::ndrange_parallel_for_offset<Kernel, Dim>{k, offset},
-              operation, global_range, local_range, dynamic_local_memory);
-        }
-
-      } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
-
-      } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
-        
-      } else if constexpr (type == rt::kernel_type::custom) {
-        assert(_params);
-        sycl::interop_handle handle{node->get_assigned_device(),
-                                    _params};
-
-        k(handle);
+      auto sscp_invoker = launch_capabilities.get_sscp_invoker();
+      if(!sscp_invoker) {
+        return rt::make_error(
+          __acpp_here(),
+          rt::error_info{"Attempted to prepare to launch SSCP kernel, but the backend "
+                         "did not configure the kernel launcher for SSCP."});
       }
-      else {
-        assert(false && "Unsupported kernel type");
+      auto *invoker = sscp_invoker.value();
+
+      auto selected_group_size = launch_config.group_size;
+      if (launch_config.group_size.size() == 0)
+        selected_group_size = invoker->select_group_size(
+            launch_config.global_size, launch_config.group_size);
+
+      rt::range<3> num_groups;
+      for(int i = 0; i < 3; ++i) {
+        num_groups[i] = (launch_config.global_size[i] + selected_group_size[i] - 1) /
+                        selected_group_size[i];
       }
-    };
-  }
 
-  virtual int get_backend_score(rt::backend_id b) const final override {
-    // The other backends return 2 for exact matches,
-    // so this means that SSCP is currently preferred when no
-    // other exactly matching backend kernel launcher was found.
-    // TODO: Should we prevent selection of SSCP if the backend
-    // does not support SSCP runtime compilation?
-    return 1;
-  }
+      std::array<const void*, 1> args{launch_config.kernel_args.data()};
+      std::size_t arg_size = launch_config.kernel_args.size();
 
-  virtual void invoke(rt::dag_node *node,
-                      const rt::kernel_configuration &config) final override {
-    _configuration = &config;
-    _invoker(node);
-  }
+      return invoker->submit_kernel(
+          *kernel_op, launch_config.sscp_hcf_object_id, num_groups, selected_group_size,
+          launch_config.local_mem_size, const_cast<void **>(args.data()), &arg_size,
+          args.size(), launch_config.sscp_kernel_id, kernel_config);
 
-  virtual rt::kernel_type get_kernel_type() const final override {
-    return _type;
+      
+    }
   }
 
 private:
   template <int Dim>
-  rt::range<3> flip_range(const sycl::range<Dim> &r) {
-      rt::range<3> rt_range{1,1,1};
+  static rt::range<3> flip_range(const sycl::range<Dim> &r) {
+    rt::range<3> rt_range{1,1,1};
 
-      for (int i = 0; i < Dim; ++i) {
-        rt_range[i] = r[Dim - i - 1];
-      }
+    for (int i = 0; i < Dim; ++i) {
+      rt_range[i] = r[Dim - i - 1];
+    }
 
-      return rt_range;
+    return rt_range;
   }
 
   template <class Kernel, int Dim>
-  void launch_kernel_with_global_range(const Kernel &k,
-                                       rt::kernel_operation *op,
-                                       const sycl::range<Dim> &global_range,
-                                       const sycl::range<Dim> &group_size,
-                                       unsigned local_mem_size) {
+  static void configure_launch_with_global_range(kernel_launcher_data& out,
+                                          const Kernel &k,
+                                          const sycl::range<Dim> &global_range,
+                                          const sycl::range<Dim> &group_size,
+                                          unsigned local_mem_size) {
 
-    auto sscp_invoker = this->get_launch_capabilities().get_sscp_invoker();
-    if(!sscp_invoker) {
-      rt::register_error(
-          __hipsycl_here(),
-          rt::error_info{"Attempted to prepare to launch SSCP kernel, but the backend "
-                         "did not configure the kernel launcher for SSCP."});
-    }
+    out.global_size = flip_range(global_range);
+    out.group_size = flip_range(group_size);
+    out.local_mem_size = local_mem_size;
+    out.kernel_args.resize(sizeof(Kernel));
+    std::memcpy(out.kernel_args.data(), &k, sizeof(Kernel));
 
-    auto* invoker = sscp_invoker.value();
-
-    const auto rt_global_range = flip_range(global_range);
-    auto selected_group_size = flip_range(group_size);
-    if (group_size.size() == 0)
-      selected_group_size = invoker->select_group_size(rt_global_range, selected_group_size);
-    
-    rt::range<3> num_groups;
-    for(int i = 0; i < 3; ++i) {
-      num_groups[i] = (rt_global_range[i] + selected_group_size[i] - 1) /
-                      selected_group_size[i];
-    }
-    launch_kernel(k, op, num_groups, selected_group_size, local_mem_size);
+    out.sscp_kernel_id = generate_kernel(k);
   }
 
-  template <class Kernel, int Dim>
-  void launch_kernel(const Kernel &k, rt::kernel_operation *op,
-                     const sycl::range<Dim> &num_groups,
-                     const sycl::range<Dim> &group_size,
-                     unsigned local_mem_size) {
-    launch_kernel(k, op, flip_range(num_groups), flip_range(group_size),
-                  local_mem_size);
-  }
-
-  template<class Kernel>
-  void launch_kernel(const Kernel& k,
-    rt::kernel_operation* op,
-    const rt::range<3>& num_groups,
-    const rt::range<3>& group_size,
-    unsigned local_mem_size) {
-    
-    assert(op);
-
-    auto sscp_invoker = this->get_launch_capabilities().get_sscp_invoker();
-    if(!sscp_invoker) {
-      rt::register_error(
-          __hipsycl_here(),
-          rt::error_info{"Attempted to launch SSCP kernel, but the backend did "
-                         "not configure the kernel launcher for SSCP."});
-    }
-
-    auto* invoker = sscp_invoker.value();
-
-    std::array<const void*, 1> args{&k};
-    std::size_t arg_size = sizeof(k);
-
-    std::string kernel_name = generate_kernel(k);
-
-    assert(_configuration);
-    auto err = invoker->submit_kernel(
-        *op, __hipsycl_local_sscp_hcf_object_id, num_groups, group_size,
-        local_mem_size, const_cast<void **>(args.data()), &arg_size,
-        args.size(), kernel_name, *_configuration);
-
-    if(!err.is_success()) {
-      rt::register_error(err);
-    }
-  }
 
   // Generate SSCP kernel and return name of the generated kernel
   template<class Kernel>
-  static std::string generate_kernel(const Kernel& k) {
-    if (__hipsycl_sscp_is_device) {
-      __hipsycl_sscp_kernel(k);
+  static const char* generate_kernel(const Kernel& k) {
+    if (__acpp_sscp_is_device) {
+      __acpp_sscp_kernel(k);
     }
 
     // Compiler will change the number of elements to the kernel name length
-    static char __hipsycl_sscp_kernel_name [] = "kernel-name-extraction-failed";
+    static char __acpp_sscp_kernel_name [] = "kernel-name-extraction-failed";
 
-    __hipsycl_sscp_extract_kernel_name<Kernel>(
-        &__hipsycl_sscp_kernel<Kernel>,
-        &__hipsycl_sscp_kernel_name[0]);
-    return std::string{&__hipsycl_sscp_kernel_name[0]};
+    __acpp_sscp_extract_kernel_name<Kernel>(
+        &__acpp_sscp_kernel<Kernel>,
+        &__acpp_sscp_kernel_name[0]);
+    return &__acpp_sscp_kernel_name[0];
   }
-
-  std::function<void (rt::dag_node*)> _invoker;
-  rt::kernel_type _type;
-  const rt::kernel_configuration* _configuration = nullptr;
-  void* _params = nullptr;
+  
+  kernel_launcher_data* _data;
 };
-
 
 }
 }

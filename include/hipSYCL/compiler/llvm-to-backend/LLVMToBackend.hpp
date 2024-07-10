@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2022 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_LLVM_TO_BACKEND_HPP
 #define HIPSYCL_LLVM_TO_BACKEND_HPP
 
@@ -74,7 +57,7 @@ public:
     static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>,
                   "Unsupported type for S2 IR constant");
 
-    std::string name = typeid(__hipsycl_sscp_s2_ir_constant<ConstantName, T>).name();
+    std::string name = typeid(__acpp_sscp_s2_ir_constant<ConstantName, T>).name();
     setS2IRConstant<T>(name, value);
   }
 
@@ -176,6 +159,12 @@ public:
 
   void provideExternalSymbolResolver(ExternalSymbolResolver Resolver);
 
+  // Enable dead argument elimination. If non-null, RetainedArgumentIndices will be filled
+  // with the indices of the parameters that were not removed in ascending order.
+  void enableDeadArgumentElminiation(const std::string &FunctionName,
+                                     std::vector<int> *RetainedArgumentIndices = nullptr);
+
+  const std::vector<std::pair<std::string, std::vector<int>*>>& getDeadArgumentEliminationConfig() const;
 protected:
   virtual AddressSpaceMap getAddressSpaceMap() const = 0;
   virtual bool isKernelAfterFlavoring(llvm::Function& F) = 0;
@@ -207,6 +196,13 @@ protected:
   // if they want to do something more specific.
   virtual bool optimizeFlavoredIR(llvm::Module& M, PassHandler& PH);
 
+  // Transfers kernel properties (e.g. kernel call conventions, additional metadata) from one kernel
+  // "From" to another "To". This is useful e.g. for dead argument elimination, where a new
+  // kernel entrypoint with different signature will be created post optimizations.
+  // This assumes that To has been created with a matching function signature from From,
+  // including function and parameter attributes.
+  virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) = 0;
+
   void registerError(const std::string& E) {
     Errors.push_back(E);
   }
@@ -227,6 +223,8 @@ private:
 
   void resolveExternalSymbols(llvm::Module& M);
   void setFailedIR(llvm::Module& M);
+  void runKernelDeadArgumentElimination(llvm::Module &M, llvm::Function *F, PassHandler &PH,
+                                        std::vector<int>& RetainedIndicesOut);
 
   int S2IRConstantBackendId;
   
@@ -240,6 +238,8 @@ private:
 
   // In case an error occurs, the code will be stored here
   std::string ErroringCode;
+
+  std::vector<std::pair<std::string, std::vector<int>*>> FunctionsForDeadArgumentElimination;
 
 };
 

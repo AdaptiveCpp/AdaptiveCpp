@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_ATOMIC_HPP
 #define HIPSYCL_ATOMIC_HPP
 
@@ -43,7 +26,7 @@ namespace hipsycl {
 namespace sycl {
 
 
-#ifdef HIPSYCL_EXT_FP_ATOMICS
+#ifdef ACPP_EXT_FP_ATOMICS
   #define HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(template_param) \
     std::enable_if_t<std::is_integral<template_param>::value || std::is_floating_point<t>::value>* = nullptr
 #else
@@ -77,21 +60,21 @@ public:
   HIPSYCL_KERNEL_TARGET
   void store(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile {
-    detail::__hipsycl_atomic_store<addressSpace>(
+    detail::__acpp_atomic_store<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
   HIPSYCL_KERNEL_TARGET
   T load(memory_order memoryOrder = memory_order::relaxed) const volatile {
-    return detail::__hipsycl_atomic_load<addressSpace>(_ptr, memoryOrder,
-                                                       default_scope());
+    return detail::__acpp_atomic_load<addressSpace>(_ptr, memoryOrder,
+                                                    default_scope());
   }
 
   HIPSYCL_KERNEL_TARGET
   T exchange(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_exchange<addressSpace>(
+    return detail::__acpp_atomic_exchange<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -101,7 +84,7 @@ public:
                                memory_order successMemoryOrder = memory_order::relaxed,
                                memory_order failMemoryOrder = memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_compare_exchange_strong<addressSpace>(
+    return detail::__acpp_atomic_compare_exchange_strong<addressSpace>(
         _ptr, expected, desired, successMemoryOrder, failMemoryOrder,
         default_scope());
   }
@@ -113,7 +96,7 @@ public:
   T fetch_add(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_add<addressSpace>(
+    return detail::__acpp_atomic_fetch_add<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -124,7 +107,7 @@ public:
   T fetch_sub(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_sub<addressSpace>(
+    return detail::__acpp_atomic_fetch_sub<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -135,7 +118,7 @@ public:
   T fetch_and(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_and<addressSpace>(
+    return detail::__acpp_atomic_fetch_and<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -146,7 +129,7 @@ public:
   T fetch_or(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_or<addressSpace>(
+    return detail::__acpp_atomic_fetch_or<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -157,7 +140,7 @@ public:
   T fetch_xor(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_xor<addressSpace>(
+    return detail::__acpp_atomic_fetch_xor<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -168,7 +151,7 @@ public:
   T fetch_min(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_min<addressSpace>(
+    return detail::__acpp_atomic_fetch_min<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -179,7 +162,7 @@ public:
   T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_max<addressSpace>(
+    return detail::__acpp_atomic_fetch_max<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 

@@ -112,6 +112,8 @@ if(WITH_SSCP_COMPILER)
       AddressSpaceInferencePass.cpp
       KnownGroupSizeOptPass.cpp
       GlobalSizesFitInI32OptPass.cpp
+      GlobalInliningAttributorPass.cpp
+      DeadArgumentEliminationPass.cpp
       ../sscp/KernelOutliningPass.cpp)
 
   if(WITH_LLVM_TO_SPIRV)

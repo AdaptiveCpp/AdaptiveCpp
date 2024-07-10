@@ -1,17 +1,17 @@
 name: Benchmark on self-hosted runners
 
 on:
-  pull_request:
-    types:
-      - labeled
+  pull_request_target:
+    types: [opened,edited,synchronize,labeled]
 
 env:
   SYCL_BENCH_BENCHMARKS: scalar_prod 2DConvolution
 
 jobs:
   run-benchmark:
-    if: (${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/run-benchmark')) || ${{ github.event.label.name == 'benchmark' }}
+    if: contains(github.event.pull_request.labels.*.name, 'benchmark')
     runs-on: [self-hosted, gpu-nvidia]
+    permissions: write-all
     strategy:
       matrix:
         clang_version: ['15']
@@ -29,7 +29,7 @@ jobs:
         git clone https://github.com/bcosenza/sycl-bench.git
         cd sycl-bench
         mkdir build && cd build
-        cmake .. -DSYCL_IMPL=hipSYCL -DhipSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/hipSYCL/ -DHIPSYCL_TARGETS=cuda:sm_61
+        cmake .. -DSYCL_IMPL=AdaptiveCpp -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp/ -DACPP_TARGETS=cuda:sm_61
         make $SYCL_BENCH_BENCHMARKS
         
     - name: Run SYCL-Bench
@@ -59,4 +59,5 @@ jobs:
         comment-on-alert: true
         summary-always: true
         comment-always: true
+
 

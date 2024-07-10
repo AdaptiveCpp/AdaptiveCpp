@@ -108,7 +108,7 @@ add_executable(sycl_tests
 )
 
 # Also test instant submission mode
-target_compile_definitions(sycl_tests PRIVATE -DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1)
+target_compile_definitions(sycl_tests PRIVATE -DACPP_ALLOW_INSTANT_SUBMISSION=1)
 target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
 add_sycl_to_target(TARGET sycl_tests)
 
@@ -128,6 +128,7 @@ if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
     pstl/pstl_test_suite.cpp
     pstl/std_math.cpp
+    pstl/std_atomic.cpp
     pstl/all_of.cpp
     pstl/any_of.cpp
     pstl/copy.cpp

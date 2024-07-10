@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_ACCESSOR_HPP
 #define HIPSYCL_ACCESSOR_HPP
 
@@ -1011,12 +993,17 @@ public:
     return !(lhs == rhs);
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     // TODO: This only really guarantees unique hash codes
     // outside of kernels, on the host side.
     // Once on device, the UID will contain the device pointer
     // which might be aliased by multiple accessors.
-    return get_uid().hipSYCL_hash_code();
+    return get_uid().AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
   }
 
   HIPSYCL_UNIVERSAL_TARGET
@@ -1295,7 +1282,7 @@ private:
     bind_to_buffer(buff, offset, access_range);
 
     if (accessTarget == access::target::host_buffer) {
-      init_host_buffer(buff.hipSYCL_runtime(), is_no_init_access);
+      init_host_buffer(buff.AdaptiveCpp_runtime(), is_no_init_access);
     }
   }
   
@@ -1368,7 +1355,7 @@ private:
   void bind_to_buffer(BufferType &buff,
                       sycl::id<adj_dimensions> accessOffset,
                       sycl::range<adj_dimensions> accessRange) {
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       auto buffer_region = detail::extract_buffer_data_region(buff);
       this->detail::accessor::
           conditional_buffer_pointer_storage<has_buffer_pointer>::attempt_set(
@@ -1534,7 +1521,7 @@ using unranged_placeholder_accessor =
     accessor<T, Dim, M, Tgt, accessor_variant::unranged_placeholder>;
 
 // Accessor deduction guides
-#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+#ifdef ACPP_EXT_ACCESSOR_VARIANT_DEDUCTION
  #define HIPSYCL_ACCESSOR_VARIANT_SELECTOR(tag, fallback, optimized) \
   detail::deduce_accessor_variant(tag, optimized)
 #else
@@ -1868,8 +1855,13 @@ public:
     return const_reverse_iterator(cbegin());
   }
 
-  std::size_t hipSYCL_hash_code() const {
-    return _impl.hipSYCL_hash_code();
+  std::size_t AdaptiveCpp_hash_code() const {
+    return _impl.AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
   }
 
 private:
@@ -1985,8 +1977,13 @@ public:
     return !(lhs == rhs);
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return _addr;
+  }
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
   }
 
   [[deprecated("get_size() was removed for SYCL 2020, use byte_size() instead")]]
@@ -2177,7 +2174,7 @@ struct hash<hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
   std::size_t
   operator()(const hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
                                     AccessorVariant> &acc) const {
-    return acc.hipSYCL_hash_code();
+    return acc.AdaptiveCpp_hash_code();
   }
 };
 // accessor also covers the local_accessor specialization
@@ -2187,7 +2184,7 @@ struct hash<hipsycl::sycl::host_accessor<dataT, dimensions, A>> {
 
   std::size_t operator()(
       const hipsycl::sycl::host_accessor<dataT, dimensions, A> &acc) const {
-    return acc.hipSYCL_hash_code();
+    return acc.AdaptiveCpp_hash_code();
   }
 };
 

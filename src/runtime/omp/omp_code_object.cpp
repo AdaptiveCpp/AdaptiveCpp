@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2021 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -57,7 +39,7 @@ result make_shared_library_from_blob(void *&module, const std::string &blob,
                            "kernel cache in file "
                         << cache_file << std::endl;
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"omp_sscp_executable_object: could not store JIT kernel "
                    "library in temporary kernel cache"});
   }
@@ -67,7 +49,7 @@ result make_shared_library_from_blob(void *&module, const std::string &blob,
   module = detail::load_library(cache_file, "omp_sscp_executable");
 
   if (!module)
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"omp_sscp_executable_object: could not load "
                                  "shared kernel library"});
 
@@ -122,17 +104,14 @@ compilation_flow omp_sscp_executable_object::source_compilation_flow() const {
 
 std::vector<std::string>
 omp_sscp_executable_object::supported_backend_kernel_names() const {
-  std::vector<std::string> names;
-  names.reserve(_kernels.size());
-  std::transform(_kernels.begin(), _kernels.end(), std::back_inserter(names),
-                 [](const auto &pair) { return pair.first; });
-  return names;
+  return _kernel_names;
 }
 
 void *omp_sscp_executable_object::get_module() const { return _module; }
 
 result omp_sscp_executable_object::build(
     const std::string &source, const std::vector<std::string> &kernel_names) {
+    
   if (_module != nullptr)
     return make_success();
 
@@ -140,13 +119,14 @@ result omp_sscp_executable_object::build(
       !result.is_success())
     return result;
 
+  _kernel_names = kernel_names;
   // find all kernel symbols
-  for (const auto &kernel_name : kernel_names) {
+  for (const auto &kernel_name : _kernel_names) {
     if (auto kernel = (omp_sscp_kernel *)detail::get_symbol_from_library(
             _module, kernel_name, "omp_sscp_exectuable_object")) {
       _kernels.emplace(kernel_name, kernel);
     } else {
-      return make_error(__hipsycl_here(),
+      return make_error(__acpp_here(),
                         error_info{"omp_sscp_executable_object: could not load "
                                    "kernel from shared library"});
     }
@@ -163,7 +143,8 @@ bool omp_sscp_executable_object::contains(
   return false;
 }
 
-omp_sscp_executable_object::omp_sscp_kernel *omp_sscp_executable_object::get_kernel(const std::string &backend_kernel_name) const {
+omp_sscp_executable_object::omp_sscp_kernel *
+omp_sscp_executable_object::get_kernel(std::string_view backend_kernel_name) const {
   auto it = _kernels.find(backend_kernel_name);
   if (it != _kernels.end())
     return it->second;

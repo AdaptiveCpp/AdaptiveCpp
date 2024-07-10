@@ -1,32 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_DETAIL_WARP_SHUFFLE
 #define HIPSYCL_DETAIL_WARP_SHUFFLE
 
@@ -57,22 +38,22 @@ T apply_on_data(T x, Operation op) {
 // implemented based on warp_shuffle_op in rocPRIM
 template<typename T>
 __device__
-T __hipsycl_shuffle_impl(T x, int id) {
+T __acpp_shuffle_impl(T x, int id) {
   return apply_on_data(x, [id](int data) { return __shfl(data, id); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_up_impl(T x, int offset) {
+T __acpp_shuffle_up_impl(T x, int offset) {
   return apply_on_data(x, [offset](int data) { return __shfl_up(data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_down_impl(T x, int offset) {
+T __acpp_shuffle_down_impl(T x, int offset) {
   return apply_on_data(x, [offset](int data) { return __shfl_down(data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_xor_impl(T x, int lane_mask) {
+T __acpp_shuffle_xor_impl(T x, int lane_mask) {
   return apply_on_data(x, [lane_mask](int data) { return __shfl_xor(data, lane_mask); });
 }
 
@@ -140,24 +121,24 @@ T apply_on_data(T x, Operation op) {
 
 template<typename T>
 __device__
-T __hipsycl_shuffle_impl(T x, int id) {
+T __acpp_shuffle_impl(T x, int id) {
   // nvc++ fails to correctly determine that the lambda needs to be compiled
   // for device exclusively, so mark as __device__.
   return apply_on_data(x, [id] __device__ (int data) { return __shfl_sync(AllMask, data, id); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_up_impl(T x, int offset) {
+T __acpp_shuffle_up_impl(T x, int offset) {
   return apply_on_data(x, [offset] __device__ (int data) { return __shfl_up_sync(AllMask, data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_down_impl(T x, int offset) {
+T __acpp_shuffle_down_impl(T x, int offset) {
   return apply_on_data(x, [offset] __device__ (int data) { return __shfl_down_sync(AllMask, data, offset); });
 }
 template<typename T>
 __device__
-T __hipsycl_shuffle_xor_impl(T x, int lane_mask) {
+T __acpp_shuffle_xor_impl(T x, int lane_mask) {
   return apply_on_data(x, [lane_mask] __device__ (int data) { return __shfl_xor_sync(AllMask, data, lane_mask); });
 }
 

@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2021 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/compiler/cbs/LoopsParallelMarker.hpp"
 
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
@@ -39,8 +21,6 @@
 namespace {
 using namespace hipsycl::compiler;
 void markLoopParallel(llvm::Function &F, llvm::Loop *L) {
-#if LLVM_VERSION_MAJOR > 12 ||                                                                     \
-    (LLVM_VERSION_MAJOR == 12 && LLVM_VERSION_MINOR == 0 && LLVM_VERSION_PATCH == 1)
   // LLVM < 12.0.1 might miscompile if conditionals in "parallel" loop (https://llvm.org/PR46666)
 
   // Mark memory accesses with access group
@@ -75,7 +55,6 @@ void markLoopParallel(llvm::Function &F, llvm::Loop *L) {
       )
     }
   }
-#endif
 }
 
 void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformInfo &TTI,
@@ -89,7 +68,7 @@ void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformI
                              llvm::IntegerType::get(F.getContext(), 1)))});
     PostTransformMD.push_back(MDVectorize);
   }
-#if LLVM_VERSION_MAJOR >= 12
+
   // enable scalable vectorization
   if (TTI.supportsScalableVectors()) {
     if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.scalable.enable")) {
@@ -101,7 +80,6 @@ void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformI
       PostTransformMD.push_back(MDVectorize);
     }
   }
-#endif
 
   if (!PostTransformMD.empty()) {
     auto *LoopID =

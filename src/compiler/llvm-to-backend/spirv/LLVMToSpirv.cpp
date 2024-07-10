@@ -1,32 +1,16 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2022 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
@@ -60,7 +44,7 @@ namespace compiler {
 
 namespace {
 
-static const char* DynamicLocalMemArrayName = "__hipsycl_sscp_spirv_dynamic_local_mem";
+static const char* DynamicLocalMemArrayName = "__acpp_sscp_spirv_dynamic_local_mem";
 
 void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
   llvm::SmallVector<std::string> Args {"-spirv-max-version=1.3",
@@ -124,6 +108,17 @@ bool removeDynamicLocalMemorySupport(llvm::Module& M) {
   return true;
 }
 
+void assignSPIRCallConvention(llvm::Function *F) {
+  if (F->getCallingConv() != llvm::CallingConv::SPIR_FUNC)
+    F->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+
+  // All callers must use spir_func calling convention
+  for (auto U : F->users()) {
+    if (auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
+      CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+    }
+  }
+}
 }
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
@@ -151,35 +146,14 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
-      F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
-
-      if(KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
-        llvm::SmallVector<llvm::Metadata *> MDs;
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
-        MDs.push_back(llvm::ConstantAsMetadata::get(
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
-
-        static const char* ReqdWGSize = "reqd_work_group_size";
-        F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
-      }
+      applyKernelProperties(F);
     }
   }
 
   for(auto& F : M) {
     if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL){
       // All functions must be marked as spir_func
-      if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
-        F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
-      
-      // All callers must use spir_func calling convention
-      for(auto U : F.users()) {
-        if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
-          CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
-        }
-      }
+      assignSPIRCallConvention(&F);
     }
   }
 
@@ -204,6 +178,10 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     removeDynamicLocalMemorySupport(M);
   }
 
+
+  AddressSpaceInferencePass ASIPass{ASMap};
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
+
   // llvm-spirv translator does not like llvm.lifetime.start/end operate on generic
   // pointers. TODO: We should only remove them when we actually need to, and attempt
   // to fix them otherwise.
@@ -212,20 +190,24 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     for(auto& BB : F) {
       for(auto& I : BB) {
         if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
-          if (CB->getCalledFunction()->getName().startswith("llvm.lifetime.start") ||
-              CB->getCalledFunction()->getName().startswith("llvm.lifetime.end")) {
-            Calls.push_back(CB);
+          // llvm-spirv translator does not like llvm.lifetime.start/end operate on generic
+          // pointers.
+          auto* CalledF = CB->getCalledFunction();
+          if (CalledF->getName().startswith("llvm.lifetime.start") ||
+              CalledF->getName().startswith("llvm.lifetime.end")) {
+            if(CB->getNumOperands() > 1 && CB->getArgOperand(1)->getType()->isPointerTy())
+              if (CB->getArgOperand(1)->getType()->getPointerAddressSpace() ==
+                  ASMap[AddressSpace::Generic])
+                Calls.push_back(CB);
           }
         }
       }
     }
   }
   for(auto CB : Calls) {
+    CB->replaceAllUsesWith(llvm::UndefValue::get(CB->getType()));
     CB->eraseFromParent();
   }
-
-  AddressSpaceInferencePass ASIPass{ASMap};
-  ASIPass.run(M, *PH.ModuleAnalysisManager);
 
   // It seems there is an issue with debug info in llvm-spirv, so strip it for now
   // TODO: We should attempt to find out what exactly is causing the problem
@@ -266,6 +248,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   if(UseIntelLLVMSpirvArgs)
     appendIntelLLVMSpirvOptions(Args);
   else {
+    Args.push_back("-spirv-max-version=1.3");
     Args.push_back("-spirv-ext=+SPV_EXT_relaxed_printf_string_address_space");
   }
 
@@ -372,6 +355,40 @@ bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH)
     I->eraseFromParent();
   
   return Result;
+}
+
+void LLVMToSpirvTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {
+  removeKernelProperties(From);
+  applyKernelProperties(To);
+}
+
+void LLVMToSpirvTranslator::applyKernelProperties(llvm::Function* F) {
+  F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+
+  llvm::Module& M = *F->getParent();
+
+  if (KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
+    llvm::SmallVector<llvm::Metadata *> MDs;
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+    MDs.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+
+    static const char *ReqdWGSize = "reqd_work_group_size";
+    F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));
+  }
+}
+
+void LLVMToSpirvTranslator::removeKernelProperties(llvm::Function* F) {
+  assignSPIRCallConvention(F);
+  for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+    if(F->getArg(i)->hasAttribute(llvm::Attribute::ByVal)) {
+      F->getArg(i)->removeAttr(llvm::Attribute::ByVal);
+    }
+  }
+  F->clearMetadata();
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

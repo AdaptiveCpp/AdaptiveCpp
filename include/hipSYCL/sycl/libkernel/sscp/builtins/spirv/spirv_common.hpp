@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2022 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_SSCP_BUILTIN_SPIRV_COMMON_HPP
 #define HIPSYCL_SSCP_BUILTIN_SPIRV_COMMON_HPP
 
@@ -34,7 +17,7 @@
 
 namespace __spv {
 
-enum ScopeFlag : __hipsycl_uint32 {
+enum ScopeFlag : __acpp_uint32 {
   CrossDevice = 0,
   Device = 1,
   Workgroup = 2,
@@ -42,7 +25,7 @@ enum ScopeFlag : __hipsycl_uint32 {
   Invocation = 4,
 };
 
-enum MemorySemanticsMaskFlag : __hipsycl_uint32 {
+enum MemorySemanticsMaskFlag : __acpp_uint32 {
   None = 0x0,
   Acquire = 0x2,
   Release = 0x4,
@@ -60,29 +43,29 @@ enum MemorySemanticsMaskFlag : __hipsycl_uint32 {
 
 
 __attribute__((always_inline)) __spv::ScopeFlag
-inline get_spirv_scope(__hipsycl_sscp_memory_scope scope) {
+inline get_spirv_scope(__acpp_sscp_memory_scope scope) {
 
-  if(scope == __hipsycl_sscp_memory_scope::work_item)
+  if(scope == __acpp_sscp_memory_scope::work_item)
     return __spv::ScopeFlag::Invocation;
-  else if(scope == __hipsycl_sscp_memory_scope::sub_group)
+  else if(scope == __acpp_sscp_memory_scope::sub_group)
     return __spv::ScopeFlag::Subgroup;
-  else if(scope == __hipsycl_sscp_memory_scope::work_group)
+  else if(scope == __acpp_sscp_memory_scope::work_group)
     return __spv::ScopeFlag::Workgroup;
-  else if(scope == __hipsycl_sscp_memory_scope::device)
+  else if(scope == __acpp_sscp_memory_scope::device)
     return __spv::ScopeFlag::Device;
   else
     return __spv::ScopeFlag::CrossDevice;
 }
 
 __attribute__((always_inline)) __spv::MemorySemanticsMaskFlag
-inline get_spirv_memory_semantics(__hipsycl_sscp_memory_order order) {
-  if(order == __hipsycl_sscp_memory_order::seq_cst)
+inline get_spirv_memory_semantics(__acpp_sscp_memory_order order) {
+  if(order == __acpp_sscp_memory_order::seq_cst)
     return __spv::MemorySemanticsMaskFlag::SequentiallyConsistent;
-  else if(order == __hipsycl_sscp_memory_order::acq_rel)
+  else if(order == __acpp_sscp_memory_order::acq_rel)
     return __spv::MemorySemanticsMaskFlag::AcquireRelease;
-  else if(order == __hipsycl_sscp_memory_order::release)
+  else if(order == __acpp_sscp_memory_order::release)
     return __spv::MemorySemanticsMaskFlag::Release;
-  else if(order == __hipsycl_sscp_memory_order::acquire)
+  else if(order == __acpp_sscp_memory_order::acquire)
     return __spv::MemorySemanticsMaskFlag::Acquire;
   else // Relaxed
     return __spv::MemorySemanticsMaskFlag::None;

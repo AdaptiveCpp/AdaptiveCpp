@@ -26,7 +26,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/glue/kernel_launcher_data.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "runtime_test_suite.hpp"
 
 #include <vector>
@@ -51,7 +53,9 @@ BOOST_AUTO_TEST_CASE(default_hints) {
 
   auto dummy_kernel_op = rt::make_operation<rt::kernel_operation>(
       "test_kernel",
-      common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>{},
+      rt::kernel_launcher{glue::kernel_launcher_data{},
+                          common::auto_small_vector<
+                              std::unique_ptr<rt::backend_kernel_launcher>>{}},
       reqs);
 
   rt::dag_node_ptr node = builder.add_command_group(

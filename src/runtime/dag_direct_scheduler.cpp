@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2020 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include <algorithm>
 
 #include "hipSYCL/runtime/device_id.hpp"
@@ -110,7 +92,7 @@ result ensure_allocation_exists(runtime *rt,
 
     if(!ptr)
       return register_error(
-                 __hipsycl_here(),
+                 __acpp_here(),
                  error_info{
                      "dag_direct_scheduler: Lazy memory allocation has failed.",
                      error_type::memory_allocation_error});
@@ -149,7 +131,7 @@ void for_each_explicit_operation(
 
             if (update_sources.empty()) {
               register_error(
-                  __hipsycl_here(),
+                  __acpp_here(),
                   error_info{"dag_direct_scheduler: Could not obtain data "
                              "update sources when trying to materialize "
                              "implicit requirement"});
@@ -272,7 +254,7 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
       for_each_explicit_operation(req, [&](operation *op) {
         if (!op->is_data_transfer()) {
           res = make_error(
-              __hipsycl_here(),
+              __acpp_here(),
               error_info{
                   "dag_direct_scheduler: only data transfers are supported "
                   "as operations generated from implicit requirements.",
@@ -311,13 +293,6 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
           req->assign_to_device(original_device);
         }
       });
-    } else {
-      HIPSYCL_DEBUG_WARNING
-          << "dag_direct_scheduler: Detected a requirement that is neither of "
-             "discard access mode (SYCL 1.2.1) nor no_init property (SYCL 2020) "
-             "that accesses uninitialized data. Consider changing to "
-             "discard/no_init. Optimizing potential data transfers away."
-          << std::endl;
     }
   }
   if (!res.is_success())
@@ -354,7 +329,7 @@ dag_direct_scheduler::dag_direct_scheduler(runtime* rt)
 
 void dag_direct_scheduler::submit(dag_node_ptr node) {
   if (!node->get_execution_hints().has_hint<hints::bind_to_device>()) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"dag_direct_scheduler: Direct scheduler does not "
                               "support DAG nodes not bound to devices.",
                               error_type::feature_not_supported});
@@ -376,7 +351,7 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
     if(auto req = weak_req.lock()) {
       if (!req->get_operation()->is_requirement()) {
         if (!req->is_submitted()) {
-          register_error(__hipsycl_here(),
+          register_error(__acpp_here(),
                     error_info{"dag_direct_scheduler: Direct scheduler does not "
                                 "support processing multiple unsubmitted nodes",
                                 error_type::feature_not_supported});

@@ -48,7 +48,8 @@ if(WITH_SSCP_COMPILER)
     sscp/TargetSeparationPass.cpp
     sscp/HostKernelNameExtractionPass.cpp
     sscp/AggregateArgumentExpansionPass.cpp
-    sscp/StdBuiltinRemapperPass.cpp)
+    sscp/StdBuiltinRemapperPass.cpp
+    sscp/StdAtomicRemapperPass.cpp)
   add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)
 else()
   set(SSCP_COMPILER "")
@@ -104,9 +105,6 @@ function(configure_target)
 
   if(ROCM_VERSION_MAJOR)
     target_compile_definitions(${target} PRIVATE -DROCM_CLANG_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DROCM_CLANG_VERSION_MINOR=${ROCM_VERSION_MINOR} -DROCM_CLANG_VERSION_PATCH=${ROCM_VERSION_PATCH})
-  endif()
-  if(HIPSYCL_NO_DEVICE_MANGLER)
-    target_compile_definitions(${target} PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
   endif()
 
   if(NOT ${LLVM_ENABLE_EH})

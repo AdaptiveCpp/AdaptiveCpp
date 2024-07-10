@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2020 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "context.hpp"
 #include "device.hpp"
 #include "exception.hpp"
@@ -76,7 +59,7 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
           << std::endl;
     }
     auto backend_it = devs.find_first_backend([&](rt::backend_id b) {
-      return ctx.hipSYCL_runtime()->backends().get(b)->get_hardware_platform() !=
+      return ctx.AdaptiveCpp_runtime()->backends().get(b)->get_hardware_platform() !=
              rt::hardware_platform::cpu;
     });
     assert(backend_it != devs.backends_end());
@@ -93,7 +76,7 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
           << std::endl;
     }
     auto backend_it = devs.find_first_backend([&](rt::backend_id b) {
-      return ctx.hipSYCL_runtime()->backends().get(b)->get_hardware_platform() ==
+      return ctx.AdaptiveCpp_runtime()->backends().get(b)->get_hardware_platform() ==
              rt::hardware_platform::cpu;
     });
     assert(backend_it != devs.backends_end());
@@ -122,7 +105,7 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
   rt::backend &backend_object =
-      *ctx.hipSYCL_runtime()->backends().get(selected_backend);
+      *ctx.AdaptiveCpp_runtime()->backends().get(selected_backend);
 
   if (backend_object.get_hardware_manager()->get_num_devices() == 0)
     throw exception{make_error_code(errc::memory_allocation),
@@ -139,7 +122,7 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx,
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
   rt::backend &backend_object =
-      *ctx.hipSYCL_runtime()->backends().get(selected_backend);
+      *ctx.AdaptiveCpp_runtime()->backends().get(selected_backend);
   rt::device_id d = detail::extract_rt_device(dev);
   
   if(d.get_backend() == selected_backend)
@@ -153,7 +136,7 @@ inline rt::backend_allocator *select_device_allocator(const device &dev) {
   rt::device_id d = detail::extract_rt_device(dev);
 
   rt::backend &backend_object =
-      *dev.hipSYCL_runtime()->backends().get(d.get_backend());
+      *dev.AdaptiveCpp_runtime()->backends().get(d.get_backend());
   return backend_object.get_allocator(d);
 }
 }

@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_DEVICE_HPP
 #define HIPSYCL_DEVICE_HPP
 
@@ -148,7 +130,7 @@ public:
     return false;
   }
 
-  bool hipSYCL_has_compiled_kernels() const {
+  bool AdaptiveCpp_has_compiled_kernels() const {
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
     if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
@@ -164,17 +146,17 @@ public:
       return true;
 #endif
 
-#if defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
-    if(_device_id.get_backend() == rt::backend_id::level_zero)
-      return true;
-#endif
-
 #if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
     if (get_rt_device()->has(rt::device_support_aspect::sscp_kernels))
       return true;
 #endif
 
     return false;
+  }
+
+  [[deprecated("Use AdaptveCpp_has_compiled_kernels()")]]
+  auto hipSYCL_hash_compiled_kernels() const {
+    return AdaptiveCpp_has_compiled_kernels();
   }
 
   // Implemented in platform.hpp
@@ -267,16 +249,32 @@ public:
     return _device_id.get_backend();
   }
 
-  std::size_t hipSYCL_hash_code() const {
+  std::size_t AdaptiveCpp_hash_code() const {
     return std::hash<hipsycl::rt::device_id>{}(_device_id);
   }
 
-  rt::runtime* hipSYCL_runtime() const {
+  rt::runtime* AdaptiveCpp_runtime() const {
     return _requires_runtime.get();
   }
 
-  rt::device_id hipSYCL_device_id() const {
+  rt::device_id AdaptiveCpp_device_id() const {
     return _device_id;
+  }
+
+
+  [[deprecated("Use AdaptiveCpp_hash_code()")]]
+  auto hipSYCL_hash_code() const {
+    return AdaptiveCpp_hash_code();
+  }
+
+  [[deprecated("Use AdaptiveCpp_runtime()")]]
+  auto hipSYCL_runtime() const {
+    return AdaptiveCpp_runtime();
+  }
+
+  [[deprecated("Use AdaptiveCpp_device_id()")]]
+  auto hipSYCL_device_id() const {
+    return AdaptiveCpp_device_id();
   }
 private:
   rt::device_id _device_id;
@@ -778,7 +776,7 @@ struct hash<hipsycl::sycl::device>
 {
   std::size_t operator()(const hipsycl::sycl::device& d) const
   {
-    return d.hipSYCL_hash_code();
+    return d.AdaptiveCpp_hash_code();
   }
 };
 

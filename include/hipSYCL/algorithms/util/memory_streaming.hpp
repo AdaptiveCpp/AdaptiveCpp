@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2023 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_ALGORITHMS_MEMORY_STREAMING_HPP
 #define HIPSYCL_ALGORITHMS_MEMORY_STREAMING_HPP
 
@@ -39,6 +22,10 @@ namespace hipsycl::algorithms::util {
 
 class data_streamer {
 public:
+  data_streamer(rt::device_id dev, std::size_t problem_size,
+                std::size_t group_size)
+      : data_streamer{sycl::device{dev}, problem_size, group_size} {}
+
   data_streamer(const sycl::device &dev, std::size_t problem_size,
                 std::size_t group_size)
       : _problem_size{problem_size}, _group_size{group_size} {
@@ -74,7 +61,7 @@ public:
   template <class F>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,
                   F &&f) noexcept {
-    __hipsycl_if_target_sscp(
+    __acpp_if_target_sscp(
       if(sycl::jit::introspect<sycl::jit::current_backend, int>() == sycl::jit::backend::host) {
         run_host(problem_size, idx, f);
       } else {
@@ -82,10 +69,10 @@ public:
       }
       return;
     );
-    __hipsycl_if_target_device(
+    __acpp_if_target_device(
       run_device(problem_size, idx, f);
     );
-    __hipsycl_if_target_host(
+    __acpp_if_target_host(
       run_host(problem_size, idx, f);
     );
   };

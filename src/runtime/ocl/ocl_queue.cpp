@@ -1,31 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2023 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -39,6 +21,7 @@
 #include "hipSYCL/runtime/ocl/ocl_event.hpp"
 #include "hipSYCL/runtime/ocl/ocl_queue.hpp"
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
@@ -54,6 +37,8 @@ namespace rt {
 
 namespace {
 
+common::spin_lock submission_lock;
+
 result submit_ocl_kernel(cl::Kernel& kernel,
                         cl::CommandQueue& queue,
                         const rt::range<3> &group_size,
@@ -65,8 +50,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
   // All OpenCL API calls are safe, except calls that configure kernel objects
   // like clSetKernelArgs. Currently we are not guaranteed that each thread gets
   // its own separate kernel object, so we have to lock the submission process for now.
-  static std::mutex mutex;
-  std::lock_guard<std::mutex> lock{mutex};
+  common::spin_lock_guard lock{submission_lock};
 
   cl_int err = 0;
   for(std::size_t i = 0; i < num_args; ++i ){
@@ -78,7 +62,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
     if(err != CL_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: Could not set kernel argument",
                      error_code{"CL", static_cast<int>(err)}});
     }
@@ -90,7 +74,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: Could not set indirect access flags",
                      error_code{"CL", static_cast<int>(err)}});
   }
@@ -117,7 +101,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
   if(err != CL_SUCCESS) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ocl_queue: Kernel launch failed",
                    error_code{"CL", static_cast<int>(err)}});
   }
@@ -142,7 +126,7 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index)
   cl_int err;
   _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
   if(err != CL_SUCCESS) {
-    register_error(__hipsycl_here(),
+    register_error(__acpp_here(),
                    error_info{"ocl_queue: Couldn't construct backend queue",
                               error_code{"CL", err}});
   }
@@ -167,7 +151,7 @@ std::shared_ptr<dag_node_event> ocl_queue::insert_event() {
 
     if(err != CL_SUCCESS) {
       register_error(
-            __hipsycl_here(),
+            __acpp_here(),
             error_info{
                 "ocl_queue: enqueueBarrierWithWaitList() failed",
                 error_code{"CL", err}});
@@ -184,7 +168,7 @@ std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {
       this);
 }
 
-result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
+result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: On device "
                      << _hw_manager->get_device_id(_device_index)
@@ -231,13 +215,13 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
 
     if(err != CL_SUCCESS) {
       return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: enqueuing memcpy failed",
                      error_code{"CL", static_cast<int>(err)}});
     }
   } else {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_queue: Multidimensional memory copies are not yet supported.",
             error_type::unimplemented});
@@ -247,26 +231,16 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
   return make_success();
 }
 
-result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
-
-  rt::backend_kernel_launcher *l =
-      op.get_launcher().find_launcher(backend_id::ocl);
-  if (!l)
-    return make_error(__hipsycl_here(),
-                      error_info{"Could not obtain backend kernel launcher"});
-  l->set_params(this);
+result ocl_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_invoker);
-  l->set_backend_capabilities(cap);
   
   // TODO: Instrumentation
-  l->invoke(node.get(), op.get_launcher().get_kernel_configuration());
-
-  return make_success();
+  return op.get_launcher().invoke(backend_id::ocl, this, cap, node.get());
 }
 
-result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
+result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -283,7 +257,7 @@ result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
 
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: enqueuing prefetch failed",
                      error_code{"CL", static_cast<int>(err)}});
   }
@@ -292,7 +266,7 @@ result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
   return make_success();
 }
 
-result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
+result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -302,7 +276,7 @@ result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
                                    op.get_num_bytes(), {}, &evt);
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: enqueuing memset failed",
                      error_code{"CL", static_cast<int>(err)}});
   }
@@ -313,7 +287,7 @@ result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
+result ocl_queue::submit_queue_wait_for(const dag_node_ptr& evt) {
 
   ocl_node_event *ocl_evt =
       static_cast<ocl_node_event *>(evt->get_event().get());
@@ -330,7 +304,7 @@ result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
 
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{
               "ocl_queue: enqueueBarrierWithWaitList() failed",
               error_code{"CL", err}});
@@ -339,14 +313,14 @@ result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
   return make_success();
 }
 
-result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
+result ocl_queue::submit_external_wait_for(const dag_node_ptr& node) {
   ocl_hardware_context* hw_ctx = static_cast<ocl_hardware_context *>(
       _hw_manager->get_device(_device_index));
   cl_int err;
   cl::UserEvent uevt{hw_ctx->get_cl_context(), &err};
   if(err != CL_SUCCESS) {
     return make_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{
               "ocl_queue: OpenCL user event creation failed",
               error_code{"CL", err}});
@@ -362,7 +336,7 @@ result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
     cl_int err = uevt.setStatus(CL_COMPLETE);
     if(err != CL_SUCCESS) {
       register_error(
-          __hipsycl_here(),
+          __acpp_here(),
           error_info{"ocl_queue: Could not change status of user event",
                      error_code{"CL", err}});
     }
@@ -374,7 +348,7 @@ result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
 result ocl_queue::wait() {
   cl_int err = _queue.finish();
   if(err != CL_SUCCESS) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ocl_queue: Couldn't finish queue",
                                  error_code{"CL", err}});
   }
@@ -406,7 +380,7 @@ ocl_hardware_manager *ocl_queue::get_hardware_manager() const {
 
 result ocl_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    const std::string &kernel_name, const rt::range<3> &num_groups,
+    std::string_view kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
@@ -418,9 +392,9 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{"ocl_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
+            std::string{kernel_name}});
   }
 
 
@@ -428,7 +402,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
-        __hipsycl_here(),
+        __acpp_here(),
         error_info{
             "ocl_queue: Could not map C++ arguments to kernel arguments"});
   }
@@ -463,6 +437,10 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   config.set_build_option(
       kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
+  if(hw_ctx->has_intel_extension_profile()) {
+    config.set_build_flag(
+      kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
+  }
 
   // TODO: Enable this if we are on Intel
   // config.set_build_flag(kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
@@ -480,7 +458,6 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
-    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
     std::string selected_image_name =
@@ -491,8 +468,15 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
     
     // Lower kernels to SPIR-V
-    auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, compiled_image);
+    rt::result err;
+    if(kernel_names.size() == 1) {
+      err = glue::jit::dead_argument_elimination::compile_kernel(
+          translator.get(), hcf_object, selected_image_name, config,
+          binary_configuration_id, compiled_image);
+    } else {
+      err = glue::jit::compile(translator.get(),
+        hcf_object, selected_image_name, config, compiled_image);
+    }
     
     if(!err.is_success()) {
       register_error(err);
@@ -512,6 +496,12 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
+    if(exec_obj->supported_backend_kernel_names().size() == 1)
+      exec_obj->get_jit_output_metadata().kernel_retained_arguments_indices =
+          glue::jit::dead_argument_elimination::
+              retrieve_retained_arguments_mask(binary_configuration_id);
+
+
     return exec_obj;
   };
 
@@ -520,9 +510,16 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       jit_compiler, code_object_constructor);
 
   if(!obj) {
-    return make_error(__hipsycl_here(),
+    return make_error(__acpp_here(),
                       error_info{"ocl_queue: Code object construction failed"});
   }
+
+  if(obj->get_jit_output_metadata().kernel_retained_arguments_indices.has_value()) {
+    arg_mapper.apply_dead_argument_elimination_mask(
+        obj->get_jit_output_metadata()
+            .kernel_retained_arguments_indices.value());
+  }
+
 
   cl::Kernel kernel;
   result res = static_cast<const ocl_executable_object *>(obj)->get_kernel(
@@ -549,7 +546,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   return make_success();
 #else
   return make_error(
-      __hipsycl_here(),
+      __acpp_here(),
       error_info{"ocl_queue: SSCP kernel launch was requested, but hipSYCL was "
                  "not built with OpenCL SSCP support."});
 #endif

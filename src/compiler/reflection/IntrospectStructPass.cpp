@@ -1,32 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2023 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/compiler/reflection/IntrospectStructPass.hpp"
 #include "hipSYCL/compiler/utils/AggregateTypeUtils.hpp"
 #include "hipSYCL/common/debug.hpp"
@@ -47,7 +28,7 @@ namespace hipsycl {
 namespace compiler {
 
 namespace {
-constexpr const char* builtin_name = "__hipsycl_introspect_flattened_struct";
+constexpr const char* builtin_name = "__acpp_introspect_flattened_struct";
 
 struct TypeInformation {
   int FlattenedNumMembers;
@@ -119,7 +100,7 @@ TypeInformationGlobalVars storeTypeInformationAsGlobals(llvm::Function *BuiltinI
                                                         const TypeInformation &TI) {
   TypeInformationGlobalVars TIGV;
 
-  std::string GVPrefix = "__hipsycl_typeinfo_" + BuiltinInstantiation->getName().str() + "_";
+  std::string GVPrefix = "__acpp_typeinfo_" + BuiltinInstantiation->getName().str() + "_";
 
   llvm::GlobalVariable *FlattenedNumMembersGV =
       new llvm::GlobalVariable(M, llvm::IntegerType::getInt32Ty(M.getContext()), true,
@@ -179,6 +160,14 @@ llvm::AllocaInst *recurseOperandUntilAlloca(llvm::Instruction *I) {
   }
 }
 
+llvm::Type* getPointerType(llvm::Type* PointeeT, int AddressSpace) {
+#if LLVM_VERSION_MAJOR < 16
+    return llvm::PointerType::get(PointeeT, AddressSpace);
+#else
+    return llvm::PointerType::get(PointeeT->getContext(), AddressSpace);
+#endif
+}
+
 } // anonymous namespace
 
 llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleAnalysisManager& AM) {
@@ -228,8 +217,13 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
                 << " is invalid; argument is not a pointer type. Ingoring call.\n";
                 return;
               }
+              // In case of non-opaque pointers, we need a bitcast since the stored
+              // vaue may be pointer-to-array, while the argument may be pointer-to-pointer.
+              auto* StoreTarget = CI->getArgOperand(ArgIndex);
+              auto *BCInst =
+                  new llvm::BitCastInst(StoreTarget, getPointerType(GV->getType(), 0), "", CI);
               [[maybe_unused]] llvm::StoreInst *S =
-                new llvm::StoreInst(GV, CI->getArgOperand(ArgIndex), CI);
+                new llvm::StoreInst(GV, BCInst, CI);
             };
 
             createStoreOp(1, GVs.FlattenedNumMembers);

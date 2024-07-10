@@ -1,34 +1,18 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2022 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/DeadArgumentEliminationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/GlobalSizesFitInI32OptPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/GlobalInliningAttributorPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/KnownGroupSizeOptPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
@@ -38,6 +22,8 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
+
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -97,6 +83,37 @@ void setFastMathFunctionAttribs(llvm::Module& M) {
     }
   }
 }
+
+
+class InstructionCleanupPass : public llvm::PassInfoMixin<InstructionCleanupPass> {
+public:
+
+  llvm::PreservedAnalyses run(llvm::Module &M,
+                              llvm::ModuleAnalysisManager &MAM) {
+    
+    llvm::SmallVector<llvm::CallBase*> CallsToRemove;
+    for(auto& F : M) {
+      for(auto& BB : F) {
+        for(auto& I : BB) {
+          if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
+            // these instructions can sometimes appear as a byproduct of some transformations
+            // even without dynamic allocas, but they are generally unsupported on device
+            // backends.
+            if (CB->getCalledFunction()->getName().startswith("llvm.stacksave") ||
+                CB->getCalledFunction()->getName().startswith("llvm.stackrestore"))
+              CallsToRemove.push_back(CB);
+          }
+        }
+      }
+    }
+
+    for(auto* C : CallsToRemove) {
+      C->replaceAllUsesWith(llvm::UndefValue::get(C->getType()));
+      C->eraseFromParent();
+    }
+    return llvm::PreservedAnalyses::none();
+  }
+};
 
 
 }
@@ -246,26 +263,26 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     GroupSizeOptPass.run(M, MAM);
     SizesAsIntOptPass.run(M, MAM);
 
-    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
-
-    FlavoringSuccessful = this->toBackendFlavor(M, PH);
-
     // Before optimizing, make sure everything has internal linkage to
     // help inlining. All linking should have occured by now, except
     // for backend builtin libraries like libdevice etc
-    for(auto & F : M) {
-      // Ignore kernels and intrinsics
-      if(!F.isIntrinsic() && !this->isKernelAfterFlavoring(F)) {
-        // Ignore undefined functions
-        if(!F.empty()) {
-          F.setLinkage(llvm::GlobalValue::InternalLinkage);
-          // Some backends (amdgpu) require inlining, for others it
-          // just cleans up the code.
-          if(!F.hasFnAttribute(llvm::Attribute::AlwaysInline))
-            F.addFnAttr(llvm::Attribute::AlwaysInline);
-        }
-      }
-    }
+
+    // First inling stage is prior to backend flavoring. This helps
+    // for some backends which introduces call conventions that complicate inlining
+    // (e.g. spir_func)
+    GlobalInliningAttributorPass InliningPass{Kernels};
+    InliningPass.run(M, MAM);
+    MAM.clear();
+    llvm::AlwaysInlinerPass AIP;
+    AIP.run(M, MAM);
+
+    InstructionCleanupPass ICP;
+    ICP.run(M, MAM);
+
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
+    FlavoringSuccessful = this->toBackendFlavor(M, PH);
+    // Inline again to handle builtin definitions pulled in by backend flavors
+    InliningPass.run(M, MAM);
 
     if(FlavoringSuccessful) {
       // Run optimizations
@@ -278,6 +295,8 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
       // This is primarily needed for dynamic functions.
       utils::ProcessFunctionAnnotationPass PFA({"argument_used"});
       PFA.run(M, MAM);
+
+      MAM.clear();
 
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
 
@@ -292,7 +311,9 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
           }
         }
       }
-      
+      llvm::AlwaysInlinerPass AIP;
+      AIP.run(M, MAM);
+
       S2IRConstant::forEachS2IRConstant(M, [&](S2IRConstant C) {
         if (C.isValid()) {
           if (!C.isInitialized()) {

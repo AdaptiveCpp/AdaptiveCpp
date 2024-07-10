@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2021 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include <cassert>
 #include <chrono>
 #include <future>
@@ -47,6 +30,7 @@
 #include "hipSYCL/runtime/ze/ze_event.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
@@ -60,6 +44,8 @@ namespace rt {
 
 namespace {
 
+common::spin_lock submission_lock;
+
 result submit_ze_kernel(ze_kernel_handle_t kernel,
                         ze_command_list_handle_t command_list,
                         ze_event_handle_t completion_evt,
@@ -70,6 +56,8 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                         // If non-null, will be used to check whether kernel args
                         // are pointers, and if so, check for null pointers
                         const hcf_kernel_info *info = nullptr) {
+
+  common::spin_lock_guard lock{submission_lock};
 
   HIPSYCL_DEBUG_INFO << "ze_queue: Configuring kernel launch for group size "
                      << group_size[0] << " " << group_size[1] << " "
@@ -249,7 +237,7 @@ std::shared_ptr<dag_node_event> ze_queue::insert_event() {
   return _last_submitted_op_event;
 }
 
-result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
+result ze_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   // TODO We could probably unify some of the logic here between
@@ -309,33 +297,20 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
+result ze_queue::submit_kernel(kernel_operation& op, const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
-
-  rt::backend_kernel_launcher *l = 
-      op.get_launcher().find_launcher(backend_id::level_zero);
-  
-  if (!l)
-    return make_error(__acpp_here(),
-                      error_info{"Could not obtain backend kernel launcher"});
-  l->set_params(this);
   
   rt::backend_kernel_launch_capabilities cap;
   
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
+  return op.get_launcher().invoke(backend_id::level_zero, this, cap, node.get());
+}
 
-  l->set_backend_capabilities(cap);
-
-  l->invoke(node.get(), op.get_launcher().get_kernel_configuration());
-
+result ze_queue::submit_prefetch(prefetch_operation &, const dag_node_ptr& node) {
   return make_success();
 }
 
-result ze_queue::submit_prefetch(prefetch_operation &, dag_node_ptr node) {
-  return make_success();
-}
-
-result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
+result ze_queue::submit_memset(memset_operation& op, const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   std::shared_ptr<dag_node_event> completion_evt = create_event();
@@ -371,7 +346,7 @@ result ze_queue::wait() {
   return make_success();
 }
 
-result ze_queue::submit_queue_wait_for(dag_node_ptr node) {
+result ze_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   auto evt = node->get_event();
@@ -379,7 +354,7 @@ result ze_queue::submit_queue_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_external_wait_for(dag_node_ptr node) {
+result ze_queue::submit_external_wait_for(const dag_node_ptr& node) {
   std::lock_guard<std::mutex> lock{_mutex};
 
   // Clean up old futures before adding new ones
@@ -454,7 +429,7 @@ void ze_queue::register_submitted_op(std::shared_ptr<dag_node_event> evt) {
 
 result ze_queue::submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string &kernel_name, const rt::range<3> &num_groups,
+      std::string_view kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
       const kernel_configuration &initial_config) {
@@ -472,7 +447,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
+            std::string{kernel_name}});
   }
 
 

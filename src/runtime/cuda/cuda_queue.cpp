@@ -1,30 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
 #include "driver_types.h"
 #include "hipSYCL/common/appdb.hpp"
 #include "hipSYCL/common/filesystem.hpp"
@@ -148,13 +131,13 @@ private:
 };
 
 result launch_kernel_from_module(CUmodule module,
-                                 const std::string &kernel_name,
+                                 std::string_view kernel_name,
                                  const rt::range<3> &grid_size,
                                  const rt::range<3> &block_size,
                                  unsigned shared_memory, cudaStream_t stream,
                                  void **kernel_args) {
   CUfunction f;
-  CUresult err = cuModuleGetFunction(&f, module, kernel_name.c_str());
+  CUresult err = cuModuleGetFunction(&f, module, kernel_name.data());
 
   if (err != CUDA_SUCCESS) {
     return make_error(__acpp_here(),
@@ -248,7 +231,7 @@ std::shared_ptr<dag_node_event> cuda_queue::create_queue_completion_event() {
 }
 
 
-result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
+result cuda_queue::submit_memcpy(memcpy_operation & op, const dag_node_ptr& node) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -359,27 +342,19 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
+result cuda_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) {
 
   this->activate_device();
-  rt::backend_kernel_launcher *l =
-      op.get_launcher().find_launcher(backend_id::cuda);
-  if (!l)
-    return make_error(__acpp_here(), error_info{"Could not obtain backend kernel launcher"});
-  l->set_params(this);
 
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_multipass_invoker(&_multipass_code_object_invoker);
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
-  l->set_backend_capabilities(cap);
   
   cuda_instrumentation_guard instrumentation{this, op, node};
-  l->invoke(node.get(), op.get_launcher().get_kernel_configuration());
-
-  return make_success();
+  return op.get_launcher().invoke(backend_id::cuda, this, cap, node.get());
 }
 
-result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
+result cuda_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& node) {
 #ifndef _WIN32
   
   cudaError_t err = cudaSuccess;
@@ -406,7 +381,7 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
+result cuda_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) {
 
   cuda_instrumentation_guard instrumentation{this, op, node};
   
@@ -425,7 +400,7 @@ result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result cuda_queue::submit_queue_wait_for(dag_node_ptr node) {
+result cuda_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   auto evt = node->get_event();
   assert(dynamic_is<inorder_queue_event<cudaEvent_t>>(evt.get()));
 
@@ -442,7 +417,7 @@ result cuda_queue::submit_queue_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
+result cuda_queue::submit_external_wait_for(const dag_node_ptr& node) {
 
   dag_node_ptr* user_data = new dag_node_ptr;
   assert(user_data);
@@ -585,7 +560,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
 
 result cuda_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    const std::string &kernel_name, const rt::range<3> &num_groups,
+    std::string_view kernel_name, const rt::range<3> &num_groups,
     const rt::range<3> &group_size, unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
@@ -598,7 +573,6 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   cuda_hardware_context *ctx = static_cast<cuda_hardware_context *>(
       this->_backend->get_hardware_manager()->get_device(device));
 
-  std::string target_arch_name = ctx->get_device_arch();
   unsigned compute_capability = ctx->get_compute_capability();
 
   const hcf_kernel_info *kernel_info =
@@ -607,11 +581,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     return make_error(
         __acpp_here(),
         error_info{"cuda_queue: Could not obtain hcf kernel info for kernel " +
-            kernel_name});
+            std::string{kernel_name}});
   }
 
 
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
                                             num_args};
   if(!arg_mapper.mapping_available()) {
     return make_error(
@@ -624,7 +598,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
-  static thread_local kernel_configuration config;
+static thread_local kernel_configuration config;
   config = initial_config;
   config.append_base_configuration(
       kernel_base_config_parameter::backend_id, backend_id::cuda);
@@ -687,7 +661,9 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
 
     std::vector<std::string> kernel_names;
     get_image_and_kernel_names(kernel_names);
-    
+
+    std::string target_arch_name = ctx->get_device_arch();
+
     cuda_sscp_executable_object *exec_obj = new cuda_sscp_executable_object{
         ptx_image, target_arch_name, hcf_object, kernel_names, device, config};
     result r = exec_obj->get_build_result();
@@ -792,7 +768,7 @@ result cuda_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned local_mem_size, void **args, std::size_t *arg_sizes,
-    std::size_t num_args, const std::string &kernel_name,
+    std::size_t num_args, std::string_view kernel_name,
     const kernel_configuration &config) {
 
   return _queue->submit_sscp_kernel_from_code_object(

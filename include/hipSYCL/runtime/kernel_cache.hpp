@@ -1,38 +1,24 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018-2022 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
-
+// SPDX-License-Identifier: BSD-2-Clause
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <mutex>
 #include <cassert>
 #include <memory>
 #include <optional>
+#include <array>
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/small_map.hpp"
+#include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -219,6 +205,9 @@ public:
   }
 
   const hcf_kernel_info *get_kernel_info(hcf_object_id obj,
+                                         std::string_view kernel_name) const;
+
+  const hcf_kernel_info *get_kernel_info(hcf_object_id obj,
                                          const std::string &kernel_name) const;
 
   const hcf_image_info *get_image_info(hcf_object_id obj,
@@ -231,22 +220,42 @@ private:
       _hcf_objects;
   std::unordered_map<std::string, symbol_resolver_list> _exported_symbol_providers;
 
-    
-  struct stable_running_pair_hash {
-    size_t operator()(const std::pair<hcf_object_id, std::string> &p) const
+  using info_id = std::array<uint64_t, 2>;
+
+  static info_id generate_info_id(hcf_object_id object_id,
+                                  const std::string &object_name) {
+    return generate_info_id(object_id, std::string_view{object_name});
+  }
+
+  static info_id generate_info_id(hcf_object_id object_id,
+                                  std::string_view object_name) {
+    info_id result;
+    result[0] = static_cast<uint64_t>(object_id);
+
+    common::stable_running_hash h;
+    h(object_name.data(), object_name.size());
+
+    result[1] = h.get_current_hash();
+
+    return result;
+  }
+
+  struct info_id_hash {
+    size_t operator()(const info_id &p) const
     {
-      common::stable_running_hash h;
-      h(reinterpret_cast<const void*>(&p.first), sizeof(hcf_object_id));
-      h(static_cast<const void*>(p.second.c_str()), p.second.size());
-      return h.get_current_hash();
+      size_t result = p[0];
+      for(int i = 1; i < p.size(); ++i)
+        result ^= p[i];
+
+      return result;
     }
   };
 
-  std::unordered_map<std::pair<hcf_object_id, std::string>,
-                     std::unique_ptr<hcf_kernel_info>, stable_running_pair_hash>
+  std::unordered_map<info_id,
+                     std::unique_ptr<hcf_kernel_info>, info_id_hash>
       _hcf_kernel_info;
-  std::unordered_map<std::pair<hcf_object_id, std::string>,
-                     std::unique_ptr<hcf_image_info>, stable_running_pair_hash>
+  std::unordered_map<info_id,
+                     std::unique_ptr<hcf_image_info>, info_id_hash>
       _hcf_image_info;
 
   mutable std::mutex _mutex;

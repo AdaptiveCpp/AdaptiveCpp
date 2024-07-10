@@ -311,13 +311,6 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
           req->assign_to_device(original_device);
         }
       });
-    } else {
-      HIPSYCL_DEBUG_WARNING
-          << "dag_direct_scheduler: Detected a requirement that is neither of "
-             "discard access mode (SYCL 1.2.1) nor no_init property (SYCL 2020) "
-             "that accesses uninitialized data. Consider changing to "
-             "discard/no_init. Optimizing potential data transfers away."
-          << std::endl;
     }
   }
   if (!res.is_success())

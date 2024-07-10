@@ -16,6 +16,8 @@
 #include "../generic/host_timestamped_event.hpp"
 #include "../code_object_invoker.hpp"
 
+#include "hipSYCL/common/spin_lock.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hip_instrumentation.hpp"
 
 // Avoid including HIP headers to prevent conflicts with CUDA
@@ -59,6 +61,7 @@ public:
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
                                std::string_view kernel_name,
+                               const rt::hcf_kernel_info* kernel_info,
                                const kernel_configuration& config) override;
 private:
   hip_queue* _queue;
@@ -102,10 +105,10 @@ public:
 
   result submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
-      std::string_view kernel_name, const rt::range<3> &num_groups,
-      const rt::range<3> &group_size, unsigned local_mem_size, void **args,
-      std::size_t *arg_sizes, std::size_t num_args,
-      const kernel_configuration &config);
+      std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+      const rt::range<3> &num_groups, const rt::range<3> &group_size,
+      unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+      std::size_t num_args, const kernel_configuration &config);
 
   const host_timestamped_event& get_timing_reference() const {
     return _reference_event;
@@ -120,6 +123,11 @@ private:
   hip_multipass_code_object_invoker _multipass_code_object_invoker;
   hip_sscp_code_object_invoker _sscp_code_object_invoker;
   std::shared_ptr<kernel_cache> _kernel_cache;
+
+  // SSCP submission data
+  common::spin_lock _sscp_submission_spin_lock;
+  glue::jit::cxx_argument_mapper _arg_mapper;
+  kernel_configuration _config;
 };
 
 }

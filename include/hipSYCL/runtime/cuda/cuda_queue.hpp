@@ -17,8 +17,11 @@
 
 #include "cuda_instrumentation.hpp"
 #include "cuda_code_object.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
+#include "hipSYCL/runtime/kernel_configuration.hpp"
 
 
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.
@@ -66,6 +69,7 @@ public:
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
                                std::string_view kernel_name,
+                               const rt::hcf_kernel_info* kernel_info,
                                const kernel_configuration& config) override;
 private:
   cuda_queue* _queue;
@@ -110,10 +114,10 @@ public:
 
   result submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
-      std::string_view kernel_name, const rt::range<3> &num_groups,
-      const rt::range<3> &group_size, unsigned local_mem_size, void **args,
-      std::size_t *arg_sizes, std::size_t num_args,
-      const kernel_configuration &config);
+      std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+      const rt::range<3> &num_groups, const rt::range<3> &group_size,
+      unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+      std::size_t num_args, const kernel_configuration &config);
 
   const host_timestamped_event& get_timing_reference() const {
     return _reference_event;
@@ -129,6 +133,11 @@ private:
   cuda_backend* _backend;
 
   std::shared_ptr<kernel_cache> _kernel_cache;
+
+  // SSCP submission data
+  common::spin_lock _sscp_submission_spin_lock;
+  glue::jit::cxx_argument_mapper _arg_mapper;
+  kernel_configuration _config;
 };
 
 }

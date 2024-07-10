@@ -158,7 +158,11 @@ BOOST_AUTO_TEST_CASE(explicit_queue_dependencies) {
 
 
 BOOST_AUTO_TEST_CASE(in_order_queue) {
-  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  sycl::queue q{sycl::property_list{
+      sycl::property::queue::in_order{},
+      sycl::property::queue::AdaptiveCpp_retargetable{} // Needed for accurate
+                                                        // get_wait_list results
+  }};
 
   BOOST_CHECK(q.is_in_order());
 

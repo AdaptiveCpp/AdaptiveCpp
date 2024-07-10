@@ -523,7 +523,10 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
   sycl::device host_device{sycl::detail::get_host_device()};
 
   if(target_devices.size() > 0) {
-    sycl::queue q{target_devices[0], sycl::property_list{sycl::property::queue::in_order{}}};
+    sycl::queue q{
+        target_devices[0],
+        sycl::property_list{sycl::property::queue::in_order{},
+                            sycl::property::queue::AdaptiveCpp_retargetable{}}};
     int* ptr = sycl::malloc_shared<int>(1, q);
     *ptr = 0;
 
@@ -1101,7 +1104,9 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
   using namespace cl;
   sycl::queue out_of_order_q;
   sycl::queue in_order_q{
-      sycl::property_list{sycl::property::queue::in_order{}}};
+      sycl::property_list{sycl::property::queue::in_order{},
+                          // Needed for accurate get_wait_list results
+                          sycl::property::queue::AdaptiveCpp_retargetable{}}};
 
   auto test = [](sycl::queue& q){
     std::vector<sycl::event> evts;

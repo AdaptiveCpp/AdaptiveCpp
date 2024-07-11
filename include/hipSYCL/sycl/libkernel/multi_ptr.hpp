@@ -689,7 +689,7 @@ public:
   multi_ptr(multi_ptr &&) = default;
 
   ACPP_UNIVERSAL_TARGET
-  explicit multi_ptr(ElementType *ptr) : _ptr{ptr} {}
+  multi_ptr(ElementType *ptr) : _ptr{ptr} {}
 
   ACPP_UNIVERSAL_TARGET
   multi_ptr(std::nullptr_t) : _ptr{nullptr} {}

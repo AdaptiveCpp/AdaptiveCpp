@@ -8,8 +8,9 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#ifndef HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
-#define HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
+
+#ifndef ACPP_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
+#define ACPP_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
 
 #include "../../backend.hpp"
 #include "../../detail/data_layout.hpp"
@@ -20,8 +21,8 @@
 #include "warp_shuffle.hpp"
 #include <type_traits>
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
-    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP
 
 namespace hipsycl {
 namespace sycl::detail::hiplike_builtins {
@@ -655,5 +656,5 @@ __device__ T __acpp_select_from_group(
 } // namespace hipsycl
 
 #endif
-#endif // HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
+#endif // ACPP_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
 

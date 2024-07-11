@@ -17,7 +17,7 @@
 #include "hipSYCL/sycl/libkernel/memory.hpp"
 #include "hipSYCL/sycl/libkernel/bit_cast.hpp"
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
 
 namespace hipsycl {
 namespace sycl {

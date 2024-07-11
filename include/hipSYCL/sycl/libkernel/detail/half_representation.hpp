@@ -25,7 +25,7 @@
     (defined(__arm__) && defined(HIPSYCL_ENABLE_HALF_ON_HOST)) ||              \
     (defined(__aarch64__) && defined(HIPSYCL_ENABLE_HALF_ON_HOST)) ||          \
     ((defined(__AMDGPU__) || defined(__SPIR__) || defined(__SPIR64__)) &&      \
-     (HIPSYCL_LIBKERNEL_IS_DEVICE_PASS ||                                      \
+     (ACPP_LIBKERNEL_IS_DEVICE_PASS ||                                      \
       defined(HIPSYCL_SSCP_LIBKERNEL_LIBRARY)))
 // These targets support _Float16
 #define HIPSYCL_HALF_HAS_FLOAT16_TYPE
@@ -33,7 +33,7 @@
 
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA
   #define HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
 #endif
 
@@ -48,7 +48,7 @@ using half_storage = __acpp_uint16;
 
 namespace detail {
 // Currently we cannot call sycl::bit_cast directly, since we do not
-// have HIPSYCL_UNIVERSAL_TARGET attributes available here, which
+// have ACPP_UNIVERSAL_TARGET attributes available here, which
 // are needed for sycl::bit_cast.
 template<class Tout, class Tin>
 Tout bit_cast(Tin x) {

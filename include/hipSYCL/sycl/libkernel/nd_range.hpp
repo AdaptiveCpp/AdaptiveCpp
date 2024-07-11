@@ -21,7 +21,7 @@ template<int Dimensions = 1>
 struct nd_range {
   static constexpr int dimensions = Dimensions;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   nd_range(range<Dimensions> globalSize,
            range<Dimensions> localSize,
            id<Dimensions> offset = id<Dimensions>())
@@ -31,31 +31,31 @@ struct nd_range {
       _offset{offset}
   {}
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   range<Dimensions> get_global() const
   { return _global_range; }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   range<Dimensions> get_global_range() const
   { return get_global(); }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   range<Dimensions> get_local() const
   { return _local_range; }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   range<Dimensions> get_local_range() const
   { return get_local(); }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   range<Dimensions> get_group() const
   { return _num_groups; }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   range<Dimensions> get_group_range() const
   { return get_group(); }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   id<Dimensions> get_offset() const
   { return _offset; }
   

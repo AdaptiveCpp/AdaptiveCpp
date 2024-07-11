@@ -5,11 +5,11 @@
 namespace hipsycl::fp16 {
 
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline float fp32_from_bits(__acpp_uint32 w) {
 #if defined(__OPENCL_VERSION__)
 	return as_float(w);
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+#elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
 	return __uint_as_float((unsigned int) w);
 #elif defined(__INTEL_COMPILER)
 	return _castu32_f32(w);
@@ -24,11 +24,11 @@ static inline float fp32_from_bits(__acpp_uint32 w) {
 #endif
 }
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline __acpp_uint32 fp32_to_bits(float f) {
 #if defined(__OPENCL_VERSION__)
 	return as_uint(f);
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+#elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
 	return (__acpp_uint32) __float_as_uint(f);
 #elif defined(__INTEL_COMPILER)
 	return _castf32_u32(f);
@@ -43,11 +43,11 @@ static inline __acpp_uint32 fp32_to_bits(float f) {
 #endif
 }
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline double fp64_from_bits(__acpp_uint64 w) {
 #if defined(__OPENCL_VERSION__)
 	return as_double(w);
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+#elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
 	return __longlong_as_double((long long) w);
 #elif defined(__INTEL_COMPILER)
 	return _castu64_f64(w);
@@ -62,11 +62,11 @@ static inline double fp64_from_bits(__acpp_uint64 w) {
 #endif
 }
 
-HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
+ACPP_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline __acpp_uint64 fp64_to_bits(double f) {
 #if defined(__OPENCL_VERSION__)
 	return as_ulong(f);
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+#elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
 	return (__acpp_uint64) __double_as_longlong(f);
 #elif defined(__INTEL_COMPILER)
 	return _castf64_u64(f);

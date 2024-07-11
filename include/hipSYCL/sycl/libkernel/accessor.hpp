@@ -325,7 +325,7 @@ template <typename dataT, int dimensions, access_mode accessmode,
           int current_dimension = 1>
 class subscript_proxy
 {
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   static constexpr bool can_invoke_access(int current_dim, int dim) {
     return current_dim == dim - 1;
   }
@@ -340,7 +340,7 @@ public:
       subscript_proxy<dataT, dimensions, accessmode, accessTarget,
                       isPlaceholder, current_dimension+1>;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   subscript_proxy(const accessor_type *original_accessor,
                   sycl::id<dimensions> current_access_id)
       : _original_accessor{original_accessor}, _access_id{current_access_id} {}
@@ -349,7 +349,7 @@ public:
   template <int D = dimensions,
             int C = current_dimension,
             std::enable_if_t<!can_invoke_access(C, D), bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   next_subscript_proxy operator[](size_t index) const {
     return create_next_proxy(index);
   }
@@ -358,7 +358,7 @@ public:
             int C = current_dimension,
             access_mode M = accessmode,
             std::enable_if_t<can_invoke_access(C, D) && (M != access_mode::atomic), bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   reference operator[](size_t index) const {
     return invoke_value_access(index);
   }
@@ -367,27 +367,27 @@ public:
             int C = current_dimension,
             access_mode M = accessmode,
             std::enable_if_t<can_invoke_access(C, D) && (M == access_mode::atomic), bool> = true>
-  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] HIPSYCL_UNIVERSAL_TARGET
+  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] ACPP_UNIVERSAL_TARGET
   auto operator[](size_t index) const {
     return invoke_atomic_value_access(index);
   }
 
 private:
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   reference invoke_value_access(size_t index) const {
     // Set the last index
     _access_id[dimensions - 1] = index;
     return (*_original_accessor)[_access_id];
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   auto invoke_atomic_value_access(size_t index) const {
     // Set the last index
     _access_id[dimensions - 1] = index;
     return (*_original_accessor)[_access_id];
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   next_subscript_proxy create_next_proxy(size_t next_id) const {
     _access_id[current_dimension] = next_id;
     return next_subscript_proxy{_original_accessor, _access_id};
@@ -915,10 +915,10 @@ public:
       : accessor{bufferRef, commandGroupHandlerRef, accessRange, accessOffset,
                  propList} {}
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   accessor(const accessor& other) = default;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   accessor& operator=(const accessor& other) = default;
 
   // Implicit conversion from read-write accessor to const
@@ -927,7 +927,7 @@ public:
             std::enable_if_t<M == access_mode::read &&
                                  is_variant_convertible(P, AccessorVariant),
                              int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   accessor(const accessor<std::remove_const_t<dataT>, dimensions,
                           access_mode::read_write, accessTarget, P> &other)
       : detail::accessor_base<std::remove_const_t<dataT>>{other},
@@ -947,7 +947,7 @@ public:
             std::enable_if_t<is_variant_convertible(OtherV, AccessorVariant) &&
                                  OtherV != AccessorVariant,
                              int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   accessor(const accessor<dataT, dimensions, accessmode,
                           accessTarget, OtherV> &other)
       : detail::accessor_base<std::remove_const_t<dataT>>{other},
@@ -965,7 +965,7 @@ public:
   /* -- common interface members -- */
 
   template <accessor_variant OtherV>
-  HIPSYCL_UNIVERSAL_TARGET friend bool
+  ACPP_UNIVERSAL_TARGET friend bool
   operator==(const accessor &lhs,
              const accessor<dataT, dimensions, accessmode, accessTarget, OtherV>
                  &rhs) noexcept {
@@ -986,7 +986,7 @@ public:
   }
 
   template <accessor_variant OtherV>
-  HIPSYCL_UNIVERSAL_TARGET friend bool
+  ACPP_UNIVERSAL_TARGET friend bool
   operator!=(const accessor &lhs,
              const accessor<dataT, dimensions, accessmode, accessTarget, OtherV>
                  &rhs) noexcept {
@@ -1006,7 +1006,7 @@ public:
     return AdaptiveCpp_hash_code();
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   bool is_placeholder() const noexcept
   {
     if constexpr (has_accessor_properties) {
@@ -1024,7 +1024,7 @@ public:
 
   template<bool IsAllowed = has_size_queries,
           std::enable_if_t<IsAllowed, int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   size_t get_size() const noexcept
   {
     return get_count() * sizeof(dataT);
@@ -1032,13 +1032,13 @@ public:
 
   template <int D = dimensions, bool IsAllowed = has_size_queries,
             std::enable_if_t<(D > 0 && IsAllowed), int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET size_t get_count() const noexcept {
+  ACPP_UNIVERSAL_TARGET size_t get_count() const noexcept {
     return get_range().size();
   }
 
   template<int D = dimensions, bool IsAllowed = has_size_queries,
            std::enable_if_t<D == 0 && IsAllowed, int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   size_t get_count() const noexcept
   { return 1; }
 
@@ -1069,7 +1069,7 @@ public:
   /* Available only when: dimensions > 0 */
   template <int D = dimensions, bool IsAllowed = has_size_queries,
             std::enable_if_t<(D > 0 && IsAllowed), int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET range<dimensions> get_range() const noexcept {
+  ACPP_UNIVERSAL_TARGET range<dimensions> get_range() const noexcept {
     if constexpr(has_access_range) {
       return this->detail::accessor::conditional_access_range_storage<
           has_access_range, dimensions>::ptr()->range;
@@ -1084,7 +1084,7 @@ public:
   /* Available only when: dimensions > 0 */
   template<int D = dimensions,
            std::enable_if_t<(D > 0), int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   id<dimensions> get_offset() const noexcept
   {
     if constexpr(!has_access_range) {
@@ -1097,7 +1097,7 @@ public:
   
   template<int D = dimensions,
             std::enable_if_t<(D == 0), bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   operator reference() const noexcept
   {
     return *(this->_ptr.get());
@@ -1113,7 +1113,7 @@ public:
       // Because of this, we only enable this for D > 1.
       std::enable_if_t<(D > 1) && IsAllowed && (M != access::mode::atomic),
                        bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET reference
+  ACPP_UNIVERSAL_TARGET reference
   operator[](id<dimensions> index) const noexcept {
     return (this->_ptr.get())[get_linear_id(index + get_offset())];
   }
@@ -1123,7 +1123,7 @@ public:
       bool IsAllowed = has_subscript_operators,
       std::enable_if_t<(D == 1) && IsAllowed && (M != access::mode::atomic),
                        bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET reference operator[](size_t index) const noexcept {
+  ACPP_UNIVERSAL_TARGET reference operator[](size_t index) const noexcept {
     return (this->_ptr.get())[index + get_offset()];
   }
 
@@ -1131,7 +1131,7 @@ public:
   template<int D = dimensions,
            access::mode M = accessmode,
            typename = std::enable_if_t<M == access::mode::atomic && D == 0>>
-  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] HIPSYCL_UNIVERSAL_TARGET
+  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] ACPP_UNIVERSAL_TARGET
   operator atomic<dataT, access::address_space::global_space> () const noexcept
   {
     return atomic<dataT, access::address_space::global_space>{
@@ -1144,7 +1144,7 @@ public:
             typename = std::enable_if_t<(D > 0) && IsAllowed &&
                                         (M == access::mode::atomic)>>
   [[deprecated("Atomic accessors are deprecated as of SYCL "
-               "2020")]] HIPSYCL_UNIVERSAL_TARGET
+               "2020")]] ACPP_UNIVERSAL_TARGET
       atomic<dataT, access::address_space::global_space>
       operator[](id<dimensions> index) const noexcept {
     return atomic<dataT, access::address_space::global_space>{global_ptr<dataT>(
@@ -1156,7 +1156,7 @@ public:
             typename = std::enable_if_t<(D == 1) && IsAllowed &&
                                         (M == access::mode::atomic)>>
   [[deprecated("Atomic accessors are deprecated as of SYCL "
-               "2020")]] HIPSYCL_UNIVERSAL_TARGET
+               "2020")]] ACPP_UNIVERSAL_TARGET
       atomic<dataT, access::address_space::global_space>
       operator[](size_t index) const noexcept {
     return atomic<dataT, access::address_space::global_space>{
@@ -1166,7 +1166,7 @@ public:
   /* Available only when: dimensions > 1 */
   template <int D = dimensions, bool IsAllowed = has_subscript_operators,
             std::enable_if_t<(D > 1) && IsAllowed, int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
       detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
                                         accessTarget, AccessorVariant>
       operator[](size_t index) const noexcept {
@@ -1194,7 +1194,7 @@ public:
   /* Available only when: accessTarget == access::target::global_buffer */
   template<access::target T = accessTarget,
            typename = std::enable_if_t<T == access::target::global_buffer>>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   global_ptr<dataT> get_pointer() const noexcept
   {
     return global_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
@@ -1203,7 +1203,7 @@ public:
   /* Available only when: accessTarget == access::target::constant_buffer */
   template<access::target T = accessTarget,
            typename = std::enable_if_t<T == access::target::constant_buffer>>
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   constant_ptr<dataT> get_pointer() const noexcept
   {
     return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
@@ -1252,13 +1252,13 @@ public:
 private:
   template <typename, int, typename> friend class detail::accessor_iterator;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   static constexpr int get_dimensions() noexcept{
     return dimensions;
   }
 
   // Only valid until the embedded pointer has been initialized
-  HIPSYCL_HOST_TARGET
+  ACPP_HOST_TARGET
   glue::unique_id get_uid() const noexcept {
     return this->_ptr.get_uid();
   }
@@ -1319,7 +1319,7 @@ private:
   
   
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   size_t get_linear_id(id<dimensions> idx) const noexcept {
     if constexpr (dimensions == 0) {
       return 0;
@@ -1330,7 +1330,7 @@ private:
     }
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   range<adj_dimensions> get_buffer_shape() const noexcept {
     if constexpr(has_buffer_range) {
       return this->detail::accessor::conditional_buffer_range_storage<
@@ -1340,7 +1340,7 @@ private:
     }
   }
 
-  HIPSYCL_HOST_TARGET
+  ACPP_HOST_TARGET
   std::shared_ptr<rt::buffer_data_region> get_data_region() const noexcept {
     if constexpr(has_buffer_pointer) {
       return this
@@ -1987,26 +1987,26 @@ public:
   }
 
   [[deprecated("get_size() was removed for SYCL 2020, use byte_size() instead")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_size() const
   {
     return get_count() * sizeof(dataT);
   }
 
   [[deprecated("get_count() was removed for SYCL 2020, use size() instead")]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_count() const
   {
     return _num_elements.size();
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t byte_size() const noexcept
   {
     return size() * sizeof(dataT);
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t size() const noexcept
   {
     return _num_elements.size();
@@ -2025,7 +2025,7 @@ public:
   template<int D = dimensions,
            access_mode M = accessmode,
            std::enable_if_t<(D == 0) && (M != access_mode::atomic), bool> = false>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   operator reference() const
   {
     return *detail::local_memory::get_ptr<dataT>(_addr);
@@ -2034,7 +2034,7 @@ public:
   template<int D = dimensions,
            access_mode M = accessmode,
            std::enable_if_t<(D > 0) && (M != access_mode::atomic), bool> = false>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   reference operator[](id<dimensions> index) const
   {
     return *(detail::local_memory::get_ptr<dataT>(_addr) +
@@ -2044,7 +2044,7 @@ public:
   template<int D = dimensions,
            access_mode M = accessmode,
            std::enable_if_t<(D == 1) && (M != access_mode::atomic), bool> = false>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   reference operator[](size_t index) const
   {
     return *(detail::local_memory::get_ptr<dataT>(_addr) + index);
@@ -2054,7 +2054,7 @@ public:
   template<int D = dimensions,
            access_mode M = accessmode,
            std::enable_if_t<(D == 0) && (M == access_mode::atomic), bool> = false>
-  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] HIPSYCL_KERNEL_TARGET
+  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] ACPP_KERNEL_TARGET
   operator atomic<dataT,access::address_space::local_space>() const
   {
     return atomic<dataT, access::address_space::local_space>{
@@ -2066,7 +2066,7 @@ public:
   template<int D = dimensions,
            access_mode M = accessmode,
            std::enable_if_t<(D > 0) && (M == access_mode::atomic), bool> = false>
-  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] HIPSYCL_KERNEL_TARGET
+  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] ACPP_KERNEL_TARGET
   atomic<dataT, access::address_space::local_space> operator[](
        id<dimensions> index) const
   {
@@ -2079,7 +2079,7 @@ public:
   template<int D = dimensions,
            access_mode M = accessmode,
            std::enable_if_t<(D == 1) && (M == access_mode::atomic), bool> = false>
-  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] HIPSYCL_KERNEL_TARGET
+  [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] ACPP_KERNEL_TARGET
   atomic<dataT, access::address_space::local_space> operator[](size_t index) const
   {
     return atomic<dataT, access::address_space::local_space>{local_ptr<dataT>{
@@ -2089,7 +2089,7 @@ public:
   /* Available only when: dimensions > 1 */
   template<int D = dimensions,
            std::enable_if_t<(D > 1)>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
                                       access::target::local, isPlaceholder>
   operator[](size_t index) const
@@ -2103,7 +2103,7 @@ public:
     };
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   local_ptr<dataT> get_pointer() const
   {
     return local_ptr<dataT>{
@@ -2143,7 +2143,7 @@ public:
     return const_reverse_iterator(cbegin());
   }
 private:
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   accessor(address addr, range<dimensions> r)
     : _addr{addr}, _num_elements{r}
   {}

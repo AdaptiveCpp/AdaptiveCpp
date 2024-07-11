@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(hierarchical_dispatch) {
 }
 
 // hierarchical (especially private_memory) is not supported on nvc++
-#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX 
+#ifndef ACPP_LIBKERNEL_CUDA_NVCXX 
 BOOST_AUTO_TEST_CASE(hierarchical_private_memory) {
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;

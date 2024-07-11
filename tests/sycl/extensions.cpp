@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
 }
 #endif
 #if defined(ACPP_EXT_SCOPED_PARALLELISM_V2) &&                              \
-    !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX) // nvc++ currently crashed with sp code
+    !defined(ACPP_LIBKERNEL_CUDA_NVCXX) // nvc++ currently crashed with sp code
 
 template<class KernelName, int N>
 class enumerated_kernel_name;
@@ -443,7 +443,7 @@ void test_interop(cl::sycl::queue& q) {
         // Even though we can target multiple backends simultaneously,
         // the HIP headers cannot be included simultaneously with CUDA.
         // We can therefore only directly call either CUDA or HIP runtime functions.
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA
         cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
                         cudaMemcpyDeviceToHost, stream);
 #endif
@@ -455,7 +455,7 @@ void test_interop(cl::sycl::queue& q) {
         typename sycl::backend_traits<B>::template native_type<sycl::device> dev =
             h.get_native_device<B>();
         
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP
         hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
                         hipMemcpyDeviceToHost, stream);
 #endif
@@ -466,9 +466,9 @@ void test_interop(cl::sycl::queue& q) {
   q.wait();
 
   constexpr bool has_hip_memcpy_test = (B == sycl::backend::hip) &&
-                    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP;
+                    ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP;
   constexpr bool has_cuda_memcpy_test = (B == sycl::backend::cuda) &&
-                    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA;
+                    ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA;
   if constexpr (has_hip_memcpy_test || has_cuda_memcpy_test) {
     for (std::size_t i = 0; i < test_size; ++i) {
       BOOST_TEST(initial_data[i] == target_data[i]);
@@ -538,7 +538,7 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 #endif
 
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 int get_total_group_size() {
   int group_size = 0;
   __acpp_if_target_device(
@@ -560,9 +560,9 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   auto group_size2d = sycl::range{9,9};
   auto group_size3d = sycl::range{5,5,5};
 
-#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
-    defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
-    defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#if defined(__ACPP_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__ACPP_ENABLE_HIP_TARGET__) ||                                  \
+    defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
 #define DEVICE_MODEL
 #endif
 

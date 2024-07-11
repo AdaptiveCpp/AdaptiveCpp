@@ -122,7 +122,7 @@ public:
   }
 
   void finalize_offloading_batch() noexcept {
-#ifndef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
+#ifndef __ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__
     uint64_t batch_end = get_time_now();
     double mean_time = static_cast<double>(batch_end - _batch_start_timestamp) /
                        _instrumented_ops_in_batch.size();
@@ -175,8 +175,8 @@ public:
 
 }
 
-#if defined(__clang__) && defined(HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST) &&    \
-    !defined(__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__)
+#if defined(__clang__) && defined(ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST) &&    \
+    !defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__)
 
 namespace hipsycl::stdpar::detail {
 

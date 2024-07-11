@@ -77,7 +77,7 @@ static std::string get_local_hcf_object() {
       __acpp_local_sscp_hcf_object_size};
 }
 
-// TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
+// TODO: Maybe this can be unified with the ACPP_STATIC_HCF_REGISTRATION
 // macro. We cannot use this macro directly because it expects
 // the object id to be constexpr, which it is not for the SSCP case.
 struct static_hcf_registration {

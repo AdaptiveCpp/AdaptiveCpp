@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
       acc[i++] = s::copysign(acc[0], acc[1]);
       acc[i++] = s::fmin(acc[0], acc[1]);
       acc[i++] = s::fmax(acc[0], acc[1]);
-#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+#ifndef ACPP_LIBKERNEL_CUDA_NVCXX
       // This triggers ICE in nvc++, no workaround yet.
       acc[i++] = s::fmod(acc[0], acc[1]);
 #endif
@@ -272,7 +272,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
       BOOST_TEST(comp(acc[i++], c) == std::copysign(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
       BOOST_TEST(comp(acc[i++], c) == std::fmin(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
       BOOST_TEST(comp(acc[i++], c) == std::fmax(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
-#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+#ifndef ACPP_LIBKERNEL_CUDA_NVCXX
       BOOST_TEST(comp(acc[i++], c) == std::fmod(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
 #endif
       BOOST_TEST(comp(acc[i++], c) == std::fdim(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);

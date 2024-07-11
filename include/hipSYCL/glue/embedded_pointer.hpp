@@ -41,14 +41,14 @@ inline T random_number() {
 struct unique_id {
   static constexpr std::size_t num_components = 2;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   unique_id(uint64_t init_value) {
     for(std::size_t i=0; i < num_components; ++i){
       id[i] = init_value;
     }
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   unique_id() {
     __acpp_if_target_host(
       uint64_t ns =
@@ -69,7 +69,7 @@ struct unique_id {
     );
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator==(const unique_id& a, const unique_id& b) {
     for(std::size_t i = 0; i < num_components; ++i) {
       if(a.id[i] != b.id[i])
@@ -78,7 +78,7 @@ struct unique_id {
     return true;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator!=(const unique_id& a, const unique_id& b) {
     return !(a == b);
   }
@@ -112,13 +112,13 @@ public:
 
   embedded_pointer(const embedded_pointer&) = default;
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   T* get() const {
 
     return reinterpret_cast<T*>(_ptrs[0]);
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   unique_id get_uid() const {
     // Initialize to 0 to avoid generating new id
     unique_id id{0};
@@ -133,12 +133,12 @@ public:
     _ptrs[1] = 0;
   }
   
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator==(const embedded_pointer &a, const embedded_pointer &b) {
     return a._ptrs[0] == b._ptrs[0] && a._ptrs[1] == b._ptrs[1];
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   friend bool operator!=(const embedded_pointer &a, const embedded_pointer &b) {
     return !(a == b);
   }

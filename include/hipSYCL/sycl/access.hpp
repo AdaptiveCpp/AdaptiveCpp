@@ -134,6 +134,12 @@ enum class fence_space : char {
   global_and_local
 };
 
+enum class decorated : char {
+  no,
+  yes,
+  legacy // [[deprecated]] TODO: This is deprecated but used as default value for multi_ptr template argument
+};
+
 inline std::ostream &operator<<(std::ostream &out,
                          const sycl::access::placeholder value)
 {

@@ -627,6 +627,21 @@ inline constexpr sycl::access_mode default_access_mode() {
   return std::is_const_v<T> ? access_mode::read : access_mode::read_write;
 }
 
+template <target accessTarget, typename value_type>
+struct multi_ptr_for_target {
+  using type = void*;
+};
+
+template <typename value_type>
+struct multi_ptr_for_target<target::device, value_type> {
+  using type = global_ptr<value_type>;
+};
+
+template <typename value_type>
+struct multi_ptr_for_target<target::local, value_type> {
+  using type = local_ptr<value_type>;
+};
+    
 } // detail
 
 namespace property {
@@ -754,7 +769,8 @@ public:
       typename detail::accessor::accessor_data_type<dataT, accessmode>::value;
   using reference = value_type &;
   using const_reference = const dataT &;
-  // TODO accessor_ptr
+  template <access::decorated IsDecorated>
+  using accessor_ptr = typename detail::multi_ptr_for_target<accessTarget, value_type>::type;
   using iterator = detail::accessor_iterator<value_type, dimensions, accessor>;
   using const_iterator = detail::accessor_iterator<const value_type, dimensions, accessor>;
   using reverse_iterator = std::reverse_iterator<iterator>;
@@ -1165,8 +1181,11 @@ public:
   }
 
   /* Available only when: accessTarget == access::target::host_buffer */
+  // TODO: T == host_buffer is deprecated in SYCL2020
   template<access::target T = accessTarget,
-           typename = std::enable_if_t<T==access::target::host_buffer>>
+           typename = std::enable_if_t<
+	     T == access::target::host_buffer ||
+	     T == access::target::host_task>>
   dataT *get_pointer() const noexcept
   {
     return const_cast<dataT*>(this->_ptr.get());
@@ -1188,6 +1207,16 @@ public:
   constant_ptr<dataT> get_pointer() const noexcept
   {
     return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
+  }
+
+  /* Available only when: accessTarget == access::target::device */
+  template<access::decorated IsDecorated,
+           access::target T = accessTarget,
+           typename = std::enable_if_t<T == access::target::device>>
+  HIPSYCL_UNIVERSAL_TARGET
+  accessor_ptr<IsDecorated> get_multi_ptr() const noexcept
+  {
+    return accessor_ptr<IsDecorated>{this->_ptr.get()};
   }
 
   iterator begin() const noexcept {
@@ -2122,10 +2151,6 @@ private:
   address _addr{};
   range<dimensions> _num_elements;
 };
-
-template <typename dataT, int dimensions = 1>
-using local_accessor = accessor<dataT, dimensions, access::mode::read_write,
-  access::target::local>;
 
 namespace detail::accessor {
 

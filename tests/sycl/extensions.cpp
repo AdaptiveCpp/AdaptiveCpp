@@ -1,29 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018-2021 Aksel Alpay and contributors
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
+// SPDX-License-Identifier: BSD-2-Clause
 
 
 #include "hipSYCL/sycl/access.hpp"
@@ -523,7 +507,10 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
   sycl::device host_device{sycl::detail::get_host_device()};
 
   if(target_devices.size() > 0) {
-    sycl::queue q{target_devices[0], sycl::property_list{sycl::property::queue::in_order{}}};
+    sycl::queue q{
+        target_devices[0],
+        sycl::property_list{sycl::property::queue::in_order{},
+                            sycl::property::queue::AdaptiveCpp_retargetable{}}};
     int* ptr = sycl::malloc_shared<int>(1, q);
     *ptr = 0;
 
@@ -1101,7 +1088,9 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
   using namespace cl;
   sycl::queue out_of_order_q;
   sycl::queue in_order_q{
-      sycl::property_list{sycl::property::queue::in_order{}}};
+      sycl::property_list{sycl::property::queue::in_order{},
+                          // Needed for accurate get_wait_list results
+                          sycl::property::queue::AdaptiveCpp_retargetable{}}};
 
   auto test = [](sycl::queue& q){
     std::vector<sycl::event> evts;

@@ -21,47 +21,69 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_reduce, enable_unified_shared_memory)
 
-template<class T>
-void test_basic_reduction(T init, std::size_t size) {
+template<class T, class Policy>
+void test_basic_reduction(Policy&& pol, T init, std::size_t size) {
   std::vector<T> data(size);
   for(std::size_t i = 0; i < data.size(); ++i)
     data[i] = static_cast<T>(i);
 
   T reference_result = std::reduce(
       data.begin(), data.end(), init, std::plus<>{});
-  T res = std::reduce(std::execution::par_unseq,
+  T res = std::reduce(pol,
       data.begin(), data.end(), init, std::plus<>{});
   BOOST_CHECK(res == reference_result);
 
-  T res2 = std::reduce(std::execution::par_unseq,
+  T res2 = std::reduce(pol,
       data.begin(), data.end(), init);
   BOOST_CHECK(res2 == res);
 
   T reference_result2 = std::reduce(
       data.begin(), data.end());
-  T res3 = std::reduce(std::execution::par_unseq,
-      data.begin(), data.end());
+  T res3 = std::reduce(pol, data.begin(), data.end());
   BOOST_CHECK(reference_result2 == res3);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty_offset) {
-  test_basic_reduction(10, 0);
+  test_basic_reduction(std::execution::par_unseq, 10, 0);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_single_element_offset) {
-  test_basic_reduction(10, 1);
+  test_basic_reduction(std::execution::par_unseq, 10, 1);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_incomplete_single_work_group_offset) {
-  test_basic_reduction(10, 127);
+  test_basic_reduction(std::execution::par_unseq, 10, 127);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
-  test_basic_reduction(0, 1000);
+  test_basic_reduction(std::execution::par_unseq, 0, 1000);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_large_size) {
-  test_basic_reduction(0ll, 1000*1000);
+  test_basic_reduction(std::execution::par_unseq, 0ll, 1000*1000);
 }
+
+
+
+BOOST_AUTO_TEST_CASE(par_empty_offset) {
+  test_basic_reduction(std::execution::par, 10, 0);
+}
+
+BOOST_AUTO_TEST_CASE(par_single_element_offset) {
+  test_basic_reduction(std::execution::par, 10, 1);
+}
+
+BOOST_AUTO_TEST_CASE(par_incomplete_single_work_group_offset) {
+  test_basic_reduction(std::execution::par, 10, 127);
+}
+
+BOOST_AUTO_TEST_CASE(par_medium_size) {
+  test_basic_reduction(std::execution::par, 0, 1000);
+}
+
+BOOST_AUTO_TEST_CASE(par_large_size) {
+  test_basic_reduction(std::execution::par, 0ll, 1000*1000);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -29,7 +29,7 @@
 
 namespace hipsycl::stdpar {
 
-namespace algorithm_type {
+namespace algorithm_category {
 struct for_each {};
 struct for_each_n {};
 struct transform {};
@@ -54,6 +54,14 @@ struct none_of {};
 struct transform_reduce {};
 struct reduce {};
 } // namespace algorithm_type
+
+template<class AlgorithmCategory, class ExecPolicy>
+struct algorithm {
+  using algorithm_category = AlgorithmCategory;
+  using execution_policy = ExecPolicy;
+
+  algorithm(const AlgorithmCategory&, ExecPolicy&&) {}
+};
 
 
 namespace detail {

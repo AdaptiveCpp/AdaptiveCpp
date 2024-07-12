@@ -201,6 +201,9 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
     return false;
 #endif
     break;
+  case device_support_aspect::work_item_independent_forward_progress:
+    return _properties->major >= 7;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();

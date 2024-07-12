@@ -62,7 +62,16 @@ private:
       : _queue{construct_default_queue()},
         _device_scratch_cache{algorithms::util::allocation_type::device},
         _shared_scratch_cache{algorithms::util::allocation_type::shared},
-        _host_scratch_cache{algorithms::util::allocation_type::host} {}
+        _host_scratch_cache{algorithms::util::allocation_type::host} {
+          auto dev = _queue.get_device().AdaptiveCpp_device_id();
+          auto* be = _queue.get_context().AdaptiveCpp_runtime()->backends().get(
+              dev.get_backend());
+          if (be->get_hardware_manager()
+                  ->get_device(dev.get_id())
+                  ->has(rt::device_support_aspect::
+                            work_item_independent_forward_progress))
+            _has_independent_work_item_forward_progress = true;
+        }
 
   ~stdpar_tls_runtime() {
     _device_scratch_cache.purge();
@@ -75,6 +84,7 @@ private:
   algorithms::util::allocation_cache _shared_scratch_cache;
   algorithms::util::allocation_cache _host_scratch_cache;
   int _outstanding_offloaded_operations = 0;
+  bool _has_independent_work_item_forward_progress = false;
 
   offload_heuristic_db _offload_db;
   std::vector<uint64_t, libc_allocator<uint64_t>> _instrumented_ops_in_batch;
@@ -100,6 +110,10 @@ public:
   
   sycl::queue& get_queue() {
     return _queue;
+  }
+
+  bool device_has_work_item_independent_forward_progress() const {
+    return _has_independent_work_item_forward_progress;
   }
 
   int get_num_outstanding_operations() const {

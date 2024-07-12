@@ -20,38 +20,60 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_transform_reduce, enable_unified_shared_memory)
 
-template<class T>
-void test_basic_reduction(T init, std::size_t size) {
+template<class Policy, class T>
+void test_basic_reduction(Policy&& pol, T init, std::size_t size) {
   std::vector<T> data(size);
   for(std::size_t i = 0; i < data.size(); ++i)
     data[i] = static_cast<T>(i);
 
   T reference_result = std::transform_reduce(
       data.begin(), data.end(), init, std::plus<>{}, [](auto x) { return x; });
-  T res = std::transform_reduce(std::execution::par_unseq,
+  T res = std::transform_reduce(pol,
       data.begin(), data.end(), init, std::plus<>{}, [](auto x) { return x; });
   
   BOOST_CHECK(res == reference_result);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty) {
-  test_basic_reduction(10, 0);
+  test_basic_reduction(std::execution::par_unseq, 10, 0);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
-  test_basic_reduction(10, 1);
+  test_basic_reduction(std::execution::par_unseq, 10, 1);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_incomplete_single_work_group) {
-  test_basic_reduction(10, 127);
+  test_basic_reduction(std::execution::par_unseq, 10, 127);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_int_plus) {
-  test_basic_reduction(0, 1000);
+  test_basic_reduction(std::execution::par_unseq, 0, 1000);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_int_plus_large) {
-  test_basic_reduction(0ll, 1000*1000);
+  test_basic_reduction(std::execution::par_unseq, 0ll, 1000*1000);
+}
+
+
+
+BOOST_AUTO_TEST_CASE(par_empty) {
+  test_basic_reduction(std::execution::par, 10, 0);
+}
+
+BOOST_AUTO_TEST_CASE(par_single_element) {
+  test_basic_reduction(std::execution::par, 10, 1);
+}
+
+BOOST_AUTO_TEST_CASE(par_incomplete_single_work_group) {
+  test_basic_reduction(std::execution::par, 10, 127);
+}
+
+BOOST_AUTO_TEST_CASE(par_int_plus) {
+  test_basic_reduction(std::execution::par, 0, 1000);
+}
+
+BOOST_AUTO_TEST_CASE(par_int_plus_large) {
+  test_basic_reduction(std::execution::par, 0ll, 1000*1000);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_int_unknown_identity) {

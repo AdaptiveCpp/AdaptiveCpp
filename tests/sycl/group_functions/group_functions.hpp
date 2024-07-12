@@ -25,8 +25,9 @@
 
 using namespace cl;
 
-
+#ifndef __ACPP_ENABLE_LLVM_SSCP_TARGET__
 #define HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
+#endif
 
 
 #ifdef TESTS_GROUPFUNCTION_FULL

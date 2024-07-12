@@ -588,14 +588,14 @@ class acpp_config:
       if split_arg[0]=="-std":
         std_args.append(split_arg[1])
     if not std_args:
-       return ["-std=c++17"]
+      return ["-std=c++17"]
     else:
-        if len(std_args) > 1:
-            raise RuntimeError("Multiple c++ standards defined")
-        std_version = std_args[0].strip("c++").strip("gnu++")
-        if std_version in self._insufficient_cpp_standards:
-            raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
-        return []
+      if len(std_args) > 1:
+        raise RuntimeError("Multiple c++ standards defined")
+      std_version = std_args[0].strip("c++").strip("gnu++")
+      if std_version in self._insufficient_cpp_standards:
+        raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
+      return []
 
   def _parse_targets(self, target_arg):
     # Split backends by ;
@@ -1573,11 +1573,11 @@ class compiler:
       self._stdpar_prefetch_mode = None
 
     if "hip" in self._targets and "cuda" in self._targets:
-        if not self._is_explicit_multipass:
-          print_warning("CUDA and HIP cannot be targeted "
-              "simultaneously in non-explicit multipass; enabling explicit "
-              "multipass compilation.")
-          self._is_explicit_multipass = True
+      if not self._is_explicit_multipass:
+        print_warning("CUDA and HIP cannot be targeted "
+                      "simultaneously in non-explicit multipass; enabling explicit "
+                      "multipass compilation.")
+        self._is_explicit_multipass = True
 
     self._backends = []
     self._multipass_backends = []
@@ -1643,7 +1643,7 @@ class compiler:
             not "omp.library-only" in self._targets and not "generic" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
-     self._backends.append(omp_sequential_invocation(config))
+      self._backends.append(omp_sequential_invocation(config))
 
     self._verify_backend_combinations()
 

@@ -198,12 +198,18 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
   
   assert(dimension >= 1 && dimension <= 3);
 
+  auto linear_index = [](id<3> id, range<3> allocation_shape) {
+    return id[2] + allocation_shape[2] * id[1] +
+           allocation_shape[2] * allocation_shape[1] * id[0];
+  };
+
   cl::Event evt;
+  ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
+        _hw_manager->get_device(_device_index));
+  ocl_usm* usm = ocl_ctx->get_usm_provider();
 
   if(dimension == 1) {
-    ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
-        _hw_manager->get_device(_device_index));
-    ocl_usm* usm = ocl_ctx->get_usm_provider();
+    
     cl_int err = usm->enqueue_memcpy(_queue, op.dest().get_access_ptr(),
                         op.source().get_access_ptr(),
                         op.get_num_transferred_bytes(), {}, &evt);
@@ -215,11 +221,60 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
                      error_code{"CL", static_cast<int>(err)}});
     }
   } else {
-    return make_error(
-        __acpp_here(),
-        error_info{
-            "ocl_queue: Multidimensional memory copies are not yet supported.",
-            error_type::unimplemented});
+    id<3> src_offset = op.source().get_access_offset();
+    id<3> dest_offset = op.dest().get_access_offset();
+    std::size_t src_element_size = op.source().get_element_size();
+    std::size_t dest_element_size = op.dest().get_element_size();
+    range<3> src_allocation_shape = op.source().get_allocation_shape();
+    range<3> dest_allocation_shape = op.dest().get_allocation_shape();
+
+    void *base_src = op.source().get_base_ptr();
+    void *base_dest = op.dest().get_base_ptr();
+
+
+    id<3> current_src_offset = src_offset;
+    id<3> current_dest_offset = dest_offset;
+    std::size_t row_size = transfer_range[2] * src_element_size;
+
+    for (std::size_t surface = 0; surface < transfer_range[0]; ++surface) {
+      for (std::size_t row = 0; row < transfer_range[1]; ++row) {
+
+        char *current_src = reinterpret_cast<char *>(base_src);
+        char *current_dest = reinterpret_cast<char *>(base_dest);
+
+        current_src += linear_index(current_src_offset, src_allocation_shape) *
+                       src_element_size;
+
+        current_dest +=
+            linear_index(current_dest_offset, dest_allocation_shape) *
+            dest_element_size;
+
+        assert(current_src + row_size <=
+               reinterpret_cast<char *>(base_src) +
+                   src_allocation_shape.size() * src_element_size);
+        assert(current_dest + row_size <=
+               reinterpret_cast<char *>(base_dest) +
+                   dest_allocation_shape.size() * dest_element_size);
+
+        cl_int err = usm->enqueue_memcpy(_queue, current_dest, current_src,
+                                         row_size, {}, &evt);
+
+        if(err != CL_SUCCESS) {
+          return make_error(
+              __acpp_here(),
+              error_info{"ocl_queue: enqueuing memcpy failed",
+                        error_code{"CL", static_cast<int>(err)}});
+        }
+
+        ++current_src_offset[1];
+        ++current_dest_offset[1];
+      }
+      current_src_offset[1] = src_offset[1];
+      current_dest_offset[1] = dest_offset[1];
+
+      ++current_dest_offset[0];
+      ++current_src_offset[0];
+    }
   }
 
   register_submitted_op(evt);

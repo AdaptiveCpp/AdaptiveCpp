@@ -266,7 +266,7 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
     return this->_usm_provider->has_usm_system_allocations();
     break;
   case device_support_aspect::execution_timestamps:
-    return true;
+    return false;
     break;
   case device_support_aspect::sscp_kernels:
 #ifdef HIPSYCL_WITH_SSCP_COMPILER

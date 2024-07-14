@@ -55,11 +55,25 @@ void test(sycl::queue& q) {
   sycl::free(output, q);
 
   auto tolerance = boost::test_tools::tolerance(0.0001);
+  // divisions may be less precise with OpenCL backend
+  // boost.test seems to not work with double tolerance values
+  // when the data type of the test is float :(
+  auto get_div_tolerance = [&](){
+    if constexpr(std::is_same_v<T, float>) {
+      return boost::test_tools::tolerance(0.001f);
+    } else {
+      return tolerance;
+    }
+  };
+    
+  
   for(int i = 0; i < N; ++i) {
     BOOST_TEST(results[0][i] == a[i] + b[i], tolerance);
     BOOST_TEST(results[1][i] == a[i] - b[i], tolerance);
     BOOST_TEST(results[2][i] == a[i] * b[i], tolerance);
-    BOOST_TEST(results[3][i] == a[i] / (b[i] + static_cast<T>(1)), tolerance);
+    
+    T expected_div = a[i] / (b[i] + static_cast<T>(1));
+    BOOST_TEST(results[3][i] == expected_div, get_div_tolerance());
   }
 
 }

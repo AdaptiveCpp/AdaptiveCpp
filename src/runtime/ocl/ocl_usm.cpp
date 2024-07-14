@@ -166,11 +166,7 @@ public:
     if(err != CL_SUCCESS)
       return err;
 
-    if(mem_type == CL_MEM_TYPE_HOST_INTEL)
-      out.is_optimized_host = true;
-    else if(mem_type == CL_MEM_TYPE_SHARED_INTEL)
-      out.is_usm = true;
-    else if(mem_type == CL_MEM_TYPE_DEVICE_INTEL) {
+    auto query_device = [&](rt::device_id& out) {
       cl_device_id dev;
       err = _mem_alloc_info(_ctx.get(), ptr, CL_MEM_ALLOC_DEVICE_INTEL,
                                  sizeof(dev), &dev, nullptr);
@@ -180,15 +176,30 @@ public:
       
       bool found = false;
       for(std::size_t i = 0; i < _hw_mgr->get_num_devices(); ++i) {
-        ocl_hardware_context* ctx = static_cast<ocl_hardware_context*>(_hw_mgr->get_device(i));
+        ocl_hardware_context *ctx =
+            static_cast<ocl_hardware_context *>(_hw_mgr->get_device(i));
         if(ctx->get_cl_device().get() == dev) {
           found = true;
-          out.dev = _hw_mgr->get_device_id(i);
+          out = _hw_mgr->get_device_id(i);
         }
       }
       if(!found) {
         return CL_INVALID_MEM_OBJECT;
       }
+      return CL_SUCCESS;
+    };
+
+    if(mem_type == CL_MEM_TYPE_HOST_INTEL)
+      out.is_optimized_host = true;
+    else if(mem_type == CL_MEM_TYPE_SHARED_INTEL) {
+      out.is_usm = true;
+      err = query_device(out.dev);
+      if(err != CL_SUCCESS)
+        return err;
+    } else if(mem_type == CL_MEM_TYPE_DEVICE_INTEL) {
+      err = query_device(out.dev);
+      if(err != CL_SUCCESS)
+        return err;
     } else {
       return CL_INVALID_MEM_OBJECT;
     }

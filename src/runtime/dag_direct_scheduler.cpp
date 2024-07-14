@@ -51,9 +51,12 @@ void execute_if_buffer_requirement(dag_node_ptr node, Handler h) {
   }
 }
 
+// Ensures that the argument node has the default device assigned, as well as the
+// appropriate bind_to_device execution hint.
 void assign_devices_or_default(dag_node_ptr node, device_id default_device) {
   if (!node->get_execution_hints().has_hint<hints::bind_to_device>()) {
     node->assign_to_device(default_device);
+    node->get_execution_hints().set_hint(rt::hints::bind_to_device{default_device});
   } else {
     node->assign_to_device(node->get_execution_hints()
                                .get_hint<hints::bind_to_device>()
@@ -279,18 +282,18 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
           // However, at the end of submit() below this section, we then try to
           // to update the data state for device assigned to the node.
           // For a host accessor, because we have in fact updated the host memory,
-          // get_assigned_device() must return the original device at this point.
+          // we need to be able to obtain the original device at this point.
           //
-          // Currently we solve this by retrieving the original assigned device,
-          // changing it to the one we wish to carry out the memcpy during submission,
-          // and then change back afterwards.
-          // This is not pretty. Is this a hint that there are actual two different
-          // parts of the DAG node that we should distinguish architecturally - the SYCL
-          // view and the backend execution view?
+          // We solve this by ensuring that the bind_to_device hint is always present
+          // and returns the target device id. get_assigned_device() instead reaturns
+          // the device that has processed the data transfer.
+          //
+          // We CANNOT assign_to_device the original device after the submit call,
+          // since the executors need to know which device actually has processed
+          // the operation to setup dependencies correctly.
           auto original_device = req->get_assigned_device();
           req->assign_to_device(execution_config.second);
           submit(execution_config.first, req, op);
-          req->assign_to_device(original_device);
         }
       });
     }
@@ -308,13 +311,18 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
   // that regions are valid after discard accesses 
   execute_if_buffer_requirement(
       req, [&](buffer_memory_requirement *bmem_req) {
+        assert(req->get_execution_hints().has_hint<rt::hints::bind_to_device>());
+        rt::device_id requirement_target_device =
+            req->get_execution_hints()
+                .get_hint<rt::hints::bind_to_device>()
+                ->get_device_id();
         if (access_mode == sycl::access::mode::read) {
           bmem_req->get_data_region()->mark_range_valid(
-              req->get_assigned_device(), bmem_req->get_access_offset3d(),
+              requirement_target_device, bmem_req->get_access_offset3d(),
               bmem_req->get_access_range3d());
         } else {
           bmem_req->get_data_region()->mark_range_current(
-              req->get_assigned_device(), bmem_req->get_access_offset3d(),
+              requirement_target_device, bmem_req->get_access_offset3d(),
               bmem_req->get_access_range3d());
         }
       });

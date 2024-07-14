@@ -86,7 +86,8 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
   }
 }
 #endif
-#ifdef ACPP_EXT_CUSTOM_PFWI_SYNCHRONIZATION
+#if defined(ACPP_EXT_CUSTOM_PFWI_SYNCHRONIZATION) &&                           \
+    !defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
 BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
   namespace sync = cl::sycl::vendor::hipsycl::synchronization;
 
@@ -154,8 +155,11 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
   }
 }
 #endif
-#if defined(ACPP_EXT_SCOPED_PARALLELISM_V2) &&                              \
-    !defined(ACPP_LIBKERNEL_CUDA_NVCXX) // nvc++ currently crashed with sp code
+
+#if defined(ACPP_EXT_SCOPED_PARALLELISM_V2) &&                                 \
+    !defined(                                                                  \
+        ACPP_LIBKERNEL_CUDA_NVCXX) && /*nvc++ currently crashed with sp code*/ \
+    !defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
 
 template<class KernelName, int N>
 class enumerated_kernel_name;

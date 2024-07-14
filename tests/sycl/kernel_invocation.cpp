@@ -86,6 +86,7 @@ BOOST_AUTO_TEST_CASE(basic_parallel_for_nd) {
   }
 }
 
+#if !defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
 BOOST_AUTO_TEST_CASE(hierarchical_dispatch) {
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;
@@ -164,7 +165,8 @@ BOOST_AUTO_TEST_CASE(hierarchical_private_memory) {
   for (int i = 0; i < global_size; ++i)
     BOOST_TEST(host_acc[i] == i);
 }
-#endif
+#endif // ACPP_LIBKERNEL_CUDA_NVCXX
+#endif // __ACPP_ENABLE_LLVM_SSCP_TARGET__
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

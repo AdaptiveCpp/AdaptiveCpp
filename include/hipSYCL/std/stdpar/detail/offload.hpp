@@ -383,6 +383,12 @@ private:
 
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
+  if constexpr (std::is_same_v<typename AlgorithmType::execution_policy,
+                               hipsycl::stdpar::par>) {
+    if (!detail::stdpar_tls_runtime::get()
+             .device_has_work_item_independent_forward_progress())
+      return false;
+  }
   // If we have system USM, no need to validate pointers as all
   // will be automatically valid.
 #if !defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__)

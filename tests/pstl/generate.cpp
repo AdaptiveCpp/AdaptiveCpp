@@ -21,8 +21,8 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_generate, enable_unified_shared_memory)
 
-
-void test_generate(std::size_t problem_size) {
+template<class Policy>
+void test_generate(Policy&& pol, std::size_t problem_size) {
   std::vector<int> data(problem_size);
 
   std::generate(std::execution::par_unseq, data.begin(), data.end(),
@@ -30,24 +30,36 @@ void test_generate(std::size_t problem_size) {
 
   std::vector<int> data_host(problem_size);
 
-  std::generate(data_host.begin(), data_host.end(),
+  std::generate(pol, data_host.begin(), data_host.end(),
                 []() { return 42; });
 
   BOOST_CHECK(data == data_host);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty) {
-  test_generate(0);
+  test_generate(std::execution::par_unseq, 0);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
-  test_generate(1);
+  test_generate(std::execution::par_unseq, 1);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
-  test_generate(1000);
+  test_generate(std::execution::par_unseq, 1000);
 }
 
+
+BOOST_AUTO_TEST_CASE(par_empty) {
+  test_generate(std::execution::par, 0);
+}
+
+BOOST_AUTO_TEST_CASE(par_single_element) {
+  test_generate(std::execution::par, 1);
+}
+
+BOOST_AUTO_TEST_CASE(par_medium_size) {
+  test_generate(std::execution::par, 1000);
+}
 
 
 BOOST_AUTO_TEST_SUITE_END()

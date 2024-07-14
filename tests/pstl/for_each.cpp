@@ -38,4 +38,23 @@ BOOST_AUTO_TEST_CASE(par_unseq_incomplete_work_group) {
   }
 }
 
+
+BOOST_AUTO_TEST_CASE(par_zero_size) {
+  std::vector<int> data{24};
+  std::for_each(std::execution::par, data.begin(), data.begin(),
+                [=](auto &x) { x = 12; });
+  BOOST_CHECK(data[0] == 24);
+}
+
+BOOST_AUTO_TEST_CASE(par_incomplete_work_group) {
+  std::vector<int> data(1000);
+  for(int i = 0; i < data.size(); ++i)
+    data[i] = i;
+  std::for_each(std::execution::par, data.begin(), data.end(),
+                [=](auto &x) { x *= 2; });
+  for(int i = 0; i < data.size(); ++i) {
+    BOOST_CHECK(data[i] == 2*i);
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

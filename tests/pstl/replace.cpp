@@ -21,15 +21,15 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_replace, enable_unified_shared_memory)
 
-template <class Generator>
-void test_replace(std::size_t problem_size, Generator gen, int old_val,
+template <class Policy, class Generator>
+void test_replace(Policy&& pol, std::size_t problem_size, Generator gen, int old_val,
                   int new_val) {
   std::vector<int> data(problem_size);
   for(int i = 0; i < problem_size; ++i)
     data[i] = gen(i);
   std::vector<int> host_data = data;
 
-  std::replace(std::execution::par_unseq, data.begin(), data.end(), old_val,
+  std::replace(pol, data.begin(), data.end(), old_val,
                new_val);
   std::replace(host_data.begin(), host_data.end(), old_val,
                new_val);               
@@ -38,19 +38,32 @@ void test_replace(std::size_t problem_size, Generator gen, int old_val,
 
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty) {
-  test_replace(0, [](int i){return i;}, 3, 2);
+  test_replace(std::execution::par_unseq, 0, [](int i){return i;}, 3, 2);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
-  test_replace(1, [](int i){return 42;}, 42, 4);
-  test_replace(1, [](int i){return 42;}, 2, 4);
+  test_replace(std::execution::par_unseq, 1, [](int i){return 42;}, 42, 4);
+  test_replace(std::execution::par_unseq, 1, [](int i){return 42;}, 2, 4);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
-  test_replace(1000, [](int i){return i%10+3;}, 20, 4);
-  test_replace(1000, [](int i){return i%10+3;}, -2, 4);
+  test_replace(std::execution::par_unseq, 1000, [](int i){return i%10+3;}, 20, 4);
+  test_replace(std::execution::par_unseq, 1000, [](int i){return i%10+3;}, -2, 4);
 }
 
 
+BOOST_AUTO_TEST_CASE(par_empty) {
+  test_replace(std::execution::par, 0, [](int i){return i;}, 3, 2);
+}
+
+BOOST_AUTO_TEST_CASE(par_single_element) {
+  test_replace(std::execution::par, 1, [](int i){return 42;}, 42, 4);
+  test_replace(std::execution::par, 1, [](int i){return 42;}, 2, 4);
+}
+
+BOOST_AUTO_TEST_CASE(par_medium_size) {
+  test_replace(std::execution::par, 1000, [](int i){return i%10+3;}, 20, 4);
+  test_replace(std::execution::par, 1000, [](int i){return i%10+3;}, -2, 4);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

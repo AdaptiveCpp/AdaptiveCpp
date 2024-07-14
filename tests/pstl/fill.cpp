@@ -22,8 +22,8 @@
 BOOST_FIXTURE_TEST_SUITE(pstl_fill, enable_unified_shared_memory)
 
 
-template<class T>
-void test_fill(std::size_t problem_size) {
+template<class T, class Policy>
+void test_fill(Policy&& pol, std::size_t problem_size) {
   std::vector<T> data(problem_size);
   for(int i = 0; i < problem_size; ++i) {
     data[i] = T{i};
@@ -43,15 +43,28 @@ void test_fill(std::size_t problem_size) {
 
 using types = boost::mpl::list<int, non_trivial_copy>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types::type) {
-  test_fill<T>(0);
+  test_fill<T>(std::execution::par_unseq, 0);
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types::type) {
-  test_fill<T>(1);
+  test_fill<T>(std::execution::par_unseq, 1);
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types::type) {
-  test_fill<T>(1000);
+  test_fill<T>(std::execution::par_unseq, 1000);
+}
+
+using types = boost::mpl::list<int, non_trivial_copy>;
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_empty, T, types::type) {
+  test_fill<T>(std::execution::par, 0);
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_single_element, T, types::type) {
+  test_fill<T>(std::execution::par, 1);
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size, T, types::type) {
+  test_fill<T>(std::execution::par, 1000);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

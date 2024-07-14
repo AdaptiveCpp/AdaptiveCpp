@@ -101,6 +101,9 @@ public:
     return make_success();
   }
 
+  virtual std::unique_ptr<requirement>
+  clone_requirement(bool bind_to_same_id) const = 0;
+
   virtual ~requirement(){}
 };
 
@@ -278,6 +281,17 @@ public:
   }
   
   void dump(std::ostream & ostr, int indentation=0) const override;
+
+  virtual std::unique_ptr<requirement>
+  clone_requirement(bool bind_to_same_id) const final override {
+    auto new_req = std::make_unique<buffer_memory_requirement>(
+        _mem_region, _offset, _range, _mode, _target);
+    
+    if(bind_to_same_id)
+      new_req->bind(_bound_embedded_ptr_id);
+
+    return new_req;
+  }
 
 private:
   bool page_ranges_intersect(buffer_data_region::page_range other) const{

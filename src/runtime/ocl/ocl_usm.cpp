@@ -161,6 +161,7 @@ public:
 
     out.is_from_host_backend = false;
     out.is_optimized_host = false;
+    out.is_usm = false;
 
     if(err != CL_SUCCESS)
       return err;

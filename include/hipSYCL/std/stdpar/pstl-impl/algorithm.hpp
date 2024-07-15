@@ -743,6 +743,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(hipsycl::stdpar::par,
 }
 
 template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
 void replace(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
              const T &old_value, const T &new_value) {
   auto offloader = [&](auto &queue) {
@@ -762,6 +763,7 @@ void replace(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
 }
 
 template <class ForwardIt, class UnaryPredicate, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
 void replace_if(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
                 UnaryPredicate p, const T &new_value) {
   

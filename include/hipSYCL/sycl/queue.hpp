@@ -500,18 +500,25 @@ public:
   friend bool operator!=(const queue& lhs, const queue& rhs)
   { return !(lhs == rhs); }
 
-  std::vector<event> get_wait_list() const {
+  std::vector<event> get_wait_list() {
     if(is_in_order()) {
-      std::lock_guard<std::mutex> lock{_impl->lock};
+      if(_impl->needs_in_order_emulation) {
+        std::lock_guard<std::mutex> lock{_impl->lock};
 
-      if(auto prev = _impl->previous_submission){
-        if(!prev->is_known_complete()) {
-          return std::vector<event>{event{prev, _impl->handler}};
+        if(auto prev = _impl->previous_submission){
+          if(!prev->is_known_complete()) {
+            return std::vector<event>{event{prev, _impl->handler}};
+          }
         }
+        // If we don't have a previous event or it's complete,
+        // just return empty vector
+        return std::vector<event>{};
+      } else {
+        // If we don't have in-order emulation, we need to create a new
+        // event. We use enqueue_custom_operation to effectively obtain
+        // an asynchronous barrier.
+        return std::vector{AdaptiveCpp_enqueue_custom_operation([](auto&){})};
       }
-      // If we don't have a previous event or it's complete,
-      // just return empty vector
-      return std::vector<event>{};
       
     } else {
       // for non-in-order queues we need to ask the runtime for

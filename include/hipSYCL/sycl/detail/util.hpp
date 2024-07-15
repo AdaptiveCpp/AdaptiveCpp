@@ -62,21 +62,26 @@ extract_tuple(Tuple&& tuple, std::index_sequence<Ints...>) {
 template<class F, typename... Args>
 void separate_last_argument_and_apply(F&& f, Args&& ... args) {
   
-  static_assert(
-      sizeof...(args) > 0,
-      "Cannot extract last argument from template pack for empty pack");
-  
-  constexpr std::size_t last_index = sizeof...(args) - 1;
+  if constexpr(sizeof...(args) > 0) {
+    
+    constexpr std::size_t last_index = sizeof...(args) - 1;
 
-  auto last_element =
-      std::get<last_index>(std::forward_as_tuple(std::forward<Args>(args)...));
+    auto last_element =
+        std::get<last_index>(std::forward_as_tuple(std::forward<Args>(args)...));
 
-  auto preceding_elements =
-      extract_tuple(std::forward_as_tuple(std::forward<Args>(args)...),
-                    std::make_index_sequence<last_index>());
+    auto preceding_elements =
+        extract_tuple(std::forward_as_tuple(std::forward<Args>(args)...),
+                      std::make_index_sequence<last_index>());
 
-  std::apply(f,
-             std::tuple_cat(std::make_tuple(last_element), preceding_elements));
+    std::apply(f,
+              std::tuple_cat(std::make_tuple(last_element), preceding_elements));
+  } else {
+    // We still need the if constexpr, because otherwise parsing may
+    // not terminate in case of an empty argument pack, and the
+    // static_assert is never evaluated.
+    static_assert(sizeof...(args) > 0,
+                  "Invalid call with empty argument list");
+  }
 }
 
 

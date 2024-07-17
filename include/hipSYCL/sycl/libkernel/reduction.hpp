@@ -55,15 +55,14 @@ class initialize_to_identity : public detail::reduction_property
 /// Reducer implementation, builds on \c BackendReducerImpl concept.
 /// \c BackendReducerImpl concept:
 ///   - defines value_type for reduction data type
-///   - defines combiner_type for the binary combiner operation
+///   - defines binary_operation for the binary combiner operation
 ///   - defines value_type identity() const
 ///   - defines void combine(const value_type&)
 template <class BackendReducerImpl>
 class reducer {
 public:
-  using value_type    = typename BackendReducerImpl::value_type;
-  using combiner_type = typename BackendReducerImpl::combiner_type;
-  using binary_operation = combiner_type;
+  using value_type       = typename BackendReducerImpl::value_type;
+  using binary_operation = typename BackendReducerImpl::binary_operation;
   static constexpr int dimensions = 0; // TODO: For span reductions, this should be 1
 
   ACPP_KERNEL_TARGET
@@ -99,7 +98,7 @@ private:
 };
 
 #define HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(T)                                   \
-  class Op = typename reducer<BackendReducerImpl>::combiner_type,              \
+  class Op = typename reducer<BackendReducerImpl>::binary_operation,              \
         std::enable_if_t <                                                     \
                 std::is_same_v<                                                \
                     Op,                                                        \

@@ -264,8 +264,6 @@ void dag_node::for_each_nonvirtual_requirement(
       } else {
         r->for_each_nonvirtual_requirement(handler);
       }
-    } else {
-      std::cout << "############## COULD NOT LOCK ##############\n";
     }
   }
 }

@@ -1,11 +1,11 @@
 name: Benchmark on self-hosted runners
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened,edited,synchronize,labeled]
 
 env:
-  SYCL_BENCH_BENCHMARKS: 2DConvolution 2mm 3DConvolution 3mm CMakeDetermineCompilerABI_C.bin CMakeDetermineCompilerABI_CXX.bin DRAM arith atax atomic_reduction bicg correlation covariance fdtd2d gemm gesummv gramschmidt host_device_bandwidth kmeans lin_reg_coeff lin_reg_error local_mem matmulchain median mol_dyn mvt nbody pattern_L2 reduction scalar_prod segmentedreduction sf syr2k syrk usm_accessors_latency usm_allocation_latency usm_instr_mix usm_pinned_overhead vec_add
+  SYCL_BENCH_BENCHMARKS: 2DConvolution 2mm 3DConvolution 3mm DRAM arith atax atomic_reduction bicg correlation covariance fdtd2d gemm gesummv gramschmidt host_device_bandwidth kmeans lin_reg_coeff lin_reg_error local_mem matmulchain median mol_dyn mvt nbody pattern_L2 reduction scalar_prod segmentedreduction sf syr2k syrk usm_accessors_latency usm_allocation_latency usm_instr_mix usm_pinned_overhead vec_add
 
 jobs:
   run-sycl-bench:

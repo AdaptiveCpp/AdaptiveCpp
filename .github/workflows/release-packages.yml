@@ -109,11 +109,11 @@ jobs:
         run: |
           cd ..
           cp -R AdaptiveCpp acpp-${{ env.PKGNAME }}
-          cd acpp-${{ env.PKGNAME }}/
-          echo $(cmake --list-presets)
-          cmake --preset all-backends
-          echo $(cmake --build --list-presets)
-          cmake --build --preset all-backends
+          cd acpp-${{ env.PKGNAME }}
+          mkdir build && cd build
+          cmake -G Unix\ Makefiles -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++-16 ..
+          cmake --build . --parallel=2
+          cpack -G DEB
       - name: Install the package
         run: |
           cd ${GITHUB_WORKSPACE}/_packages

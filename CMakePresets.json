@@ -4,7 +4,7 @@
 		{
 			"name": "linux-base",
 			"hidden": true,
-			"generator": "Ninja",
+			"generator": "Unix Makefiles",
 			"condition": {
 				"type": "equals",
 				"lhs": "${hostSystemName}",

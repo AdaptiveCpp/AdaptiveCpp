@@ -48,17 +48,26 @@ static constexpr std::array math_builtins = {
     "sqrt",       "sqrtf",       "sqrtl",       "tan",       "tanf",       "tanl",
     "tanh",       "tanhf",       "tanhl",       "tgamma",    "tgammaf",    "tgammal"};
 
+using builtin_mapping = std::array<const char*, 2>;
+// We may want to complete this with soft-float functions defined here:
+// https://gcc.gnu.org/onlinedocs/gccint/Soft-float-library-routines.html
+static constexpr std::array explicitly_mapped_builtins = {
+  // clang sometimes (e.g. -ffast-math) these builtins
+  builtin_mapping{"__powisf2", "__acpp_sscp_pown_f32"},
+  builtin_mapping{"__powidf2", "__acpp_sscp_pown_f64"}
+};
+
 llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
                                                     llvm::ModuleAnalysisManager &MAM) {
 
-  std::unordered_set<std::string> BuiltinsToReplace;
+  std::unordered_set<std::string> GenericBuiltinsToReplace;
   for(const char* name : math_builtins) {
-    BuiltinsToReplace.insert(std::string{name});
+    GenericBuiltinsToReplace.insert(std::string{name});
   }
 
   auto ParseBuiltinName = [&](const std::string &Name, std::string &BaseNameOut,
                               std::string &SuffixOut) -> bool {
-    if(BuiltinsToReplace.count(Name+"f") > 0) {
+    if(GenericBuiltinsToReplace.count(Name+"f") > 0) {
       SuffixOut = "f64";
       BaseNameOut = Name;
     } else {
@@ -74,12 +83,15 @@ llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
 
   std::unordered_map<std::string, std::string> Replacements;
 
-  for(const auto& B : BuiltinsToReplace) {
+  for(const auto& B : GenericBuiltinsToReplace) {
     std::string Suffix;
     std::string BaseName;
     if(ParseBuiltinName(B, BaseName, Suffix)) {
       Replacements[B] = "__acpp_sscp_" + BaseName + "_" + Suffix;
     }
+  }
+   for(const auto& EM : explicitly_mapped_builtins) {
+    Replacements[EM[0]] = EM[1];
   }
 
   for(const auto& B: Replacements) {

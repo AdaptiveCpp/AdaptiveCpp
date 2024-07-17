@@ -115,7 +115,7 @@ public:
     return lhs._logical_local_id == rhs._logical_local_id &&
            lhs._logical_range == rhs._logical_range &&
            lhs._group_id == rhs._group_id &&
-           lhs._num_groups == rhs.num_groups;
+           lhs._num_groups == rhs._num_groups;
   #endif
   }
 

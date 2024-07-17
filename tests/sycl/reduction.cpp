@@ -347,4 +347,34 @@ BOOST_AUTO_TEST_CASE(incremental_reduction) {
   sycl::free(result, q);
 }
 
+BOOST_AUTO_TEST_CASE(chain_combine_reductions) {
+const int size = 1024;
+  sycl::queue q;
+  int* data = sycl::malloc_shared<int>(size, q);
+
+  int* result = sycl::malloc_shared<int>(1, q);
+  for(std::size_t i = 0; i < size;++i)
+    data[i] = static_cast<int>(i);
+
+  int expected_result = 2 * std::accumulate(data, data + size, 0);
+
+  *result = 0;
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) {
+		   (redu += data[idx]) += data[idx];
+		 }).wait();
+  BOOST_CHECK(*result == expected_result);
+
+  *result = 0;
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) {
+		   redu.combine(data[idx]).combine(data[idx]);
+		 }).wait();
+
+  BOOST_CHECK(*result == expected_result);
+
+  sycl::free(data, q);
+  sycl::free(result, q);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

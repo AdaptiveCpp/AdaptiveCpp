@@ -1,0 +1,56 @@
+{
+	"version": 6,
+	"configurePresets": [
+		{
+			"name": "linux-base",
+			"hidden": true,
+			"generator": "Ninja",
+			"condition": {
+				"type": "equals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Linux"
+			},
+			"cacheVariables": {
+				"CMAKE_CXX_COMPILER": "/usr/bin/clang++-16",
+				"CLANG_EXECUTABLE_PATH": "/usr/bin/clang++-16",
+				"WITH_ACCELERATED_CPU": "ON",
+				"WITH_SSCP_COMPILER": "ON",
+				"LLVM_DIR": "/usr/lib/llvm-16/cmake/",
+				"CMAKE_INSTALL_PREFIX": "/opt/AdaptiveCpp",
+				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+				"CMAKE_BUILD_WITH_INSTALL_RPATH": "TRUE",
+				"CPACK_GENERATOR": "DEB"
+			}
+		},
+		{
+			"name": "release",
+			"displayName": "Release (Linux)",
+			"inherits": "linux-base",
+			"binaryDir": "${sourceDir}/build",
+			"installDir": "/opt/AdaptiveCpp",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release"
+			}
+		},
+		{
+			"name": "all-backends",
+			"displayName": "Release build with all backends",
+			"inherits": "release",
+			"cacheVariables": {
+				"WITH_CUDA_BACKEND": "ON",
+				"WITH_ROCM_BACKEND": "ON",
+				"WITH_LEVEL_ZERO_BACKEND": "ON",
+				"WITH_OPENCL_BACKEND": "ON",
+				"CUDA_TOOLKIT_ROOT_DIR": "/usr/local/cuda",
+				"ROCM_PATH": "/opt/rocm"
+			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "all-backends",
+			"displayName": "Release Build with all backends",
+			"configurePreset": "all-backends"
+		}
+	]
+}

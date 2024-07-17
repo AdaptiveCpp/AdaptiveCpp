@@ -65,18 +65,22 @@ public:
   using binary_operation = typename BackendReducerImpl::binary_operation;
   static constexpr int dimensions = 0; // TODO: For span reductions, this should be 1
 
+
   ACPP_KERNEL_TARGET
   reducer(const reducer &) = delete;
 
   ACPP_KERNEL_TARGET
-  reducer(reducer&&) = default;
+  reducer(reducer&&) = delete;
+
+  ACPP_KERNEL_TARGET
+  reducer& operator= (const reducer&) = delete;
+
+  ACPP_KERNEL_TARGET
+  reducer& operator= (reducer&&) = delete;
 
   ACPP_KERNEL_TARGET
   reducer(BackendReducerImpl &impl)
       : _impl{impl} {}
-
-  ACPP_KERNEL_TARGET
-  reducer& operator= (const reducer&) = delete;
 
   ACPP_KERNEL_TARGET
   reducer& combine(const value_type &partial) {

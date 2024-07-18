@@ -32,6 +32,7 @@
 
 #ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
 #include "hipSYCL/compiler/reflection/IntrospectStructPass.hpp"
+#include "hipSYCL/compiler/reflection/FunctionNameExtractionPass.hpp"
 #endif
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
@@ -130,6 +131,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, OptLevel Level) {
                   MPM.addPass(IntrospectStructPass{});
+                  MPM.addPass(FunctionNameExtractionPass{});
                 });
 #endif
 

@@ -45,6 +45,7 @@ if(WITH_SSCP_COMPILER)
   set(SSCP_COMPILER 
     sscp/KernelOutliningPass.cpp
     sscp/IRConstantReplacer.cpp
+    sscp/DynamicFunctionSupport.cpp
     sscp/TargetSeparationPass.cpp
     sscp/HostKernelNameExtractionPass.cpp
     sscp/AggregateArgumentExpansionPass.cpp
@@ -60,15 +61,16 @@ if(WITH_STDPAR_COMPILER)
   set(STDPAR_COMPILER
     stdpar/MallocToUSM.cpp
     stdpar/SyncElision.cpp)
-    add_definitions(-DHIPSYCL_WITH_STDPAR_COMPILER)
+  add_definitions(-DHIPSYCL_WITH_STDPAR_COMPILER)
 else()
   set(STDPAR_COMPILER "")
 endif()
 
 if(WITH_REFLECTION_BUILTINS)
   set(REFLECTION_BUILTINS
-    reflection/IntrospectStructPass.cpp)
-    add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
+    reflection/IntrospectStructPass.cpp
+    reflection/FunctionNameExtractionPass.cpp)
+  add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
 else()
   set(REFLECTION_BUILTINS "")
 endif()

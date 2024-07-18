@@ -4,6 +4,230 @@ AdaptiveCpp implements several extensions that are not defined by the specificat
 
 ## Supported extensions
 
+### `ACPP_EXT_DYNAMIC_FUNCTIONS`
+
+This extension allows users to provide functions used in kernels with definitions selected at runtime. We call such functions *dynamic functions*, since their definition will be determined at runtime using the JIT compiler. Once a kernel using dynamic functions has been JIT-compiled, there are no runtime overheads as dynamic functions are hardwired at JIT-time.
+
+This can be used to assemble custom kernels at runtime, or to obtain kernel-fusion-like semantics with a high degree of user control.
+
+**This functionality relies on JIT compilation to provide correct semantics. It is thus only available with `--acpp-targets=generic`.** For other compilation flows, code using this functionality will not compile.
+
+The extension works by replacing all function calls in the kernel to a target function with function calls to a replacement function. The original function may be just a declaration, or a function with an existing definition.
+
+The following example demonstrates how this feature could be used in kernel-fusion-like style to decide at runtime that the kernel should consist of both calls to `myfunction1` followed by `myfunction2`.
+```c++
+// SYCL_EXTERNAL ensures that these functions are emitted to device code,
+// even though they are not referenced by the kernel at compile time.
+// SYCL_EXTERNAL may be optional in future versions of this extension.
+SYCL_EXTERNAL void myfunction1(sycl::item<1> idx) {
+  // code
+}
+
+SYCL_EXTERNAL void myfunction2(sycl::item<1> idx) {
+  // code
+}
+
+void execute_operations(sycl::item<1> idx);
+
+int main() {
+  sycl::queue q;
+
+  // The dynamic_function_config object stores the JIT-time function mapping information.
+  sycl::jit::dynamic_function_config dyn_function_config;
+  // Requests calls to execute_operations to be replaced at JIT time
+  // with {myfunction1(idx); myfunction2(idx);}
+  dyn_function_config.define_as_call_sequence(&execute_operations, {&myfunction1, &myfunction2});
+  q.parallel_for(sycl::range{1024}, dyn_function_config.apply([=](sycl::item<1> idx){
+    execute_operations(idx);
+  }));
+
+  q.wait();
+}
+```
+
+
+The AdaptiveCpp runtime maintains a kernel cache that automatically distinguishes the same kernel invoked with different dynamic function configuration. JIT compilation is only triggered when a new configuration is requested that is not yet present in the cache.
+
+**Important notes**
+* `dynamic_function_config::apply()` is a very light-weight operation, but constructing a new `dynamic_function_config` object may have some overhead due to initializing the required data structures. It is therefore recommended to reuse a preexisting `dynamic_function_config` object when the same kernel is submitted multiple times with the same configuration.
+* Only a single `dynamic_function_config` object may be applied at a given kernel launch.
+* It is the user's responsibility to ensure that the `dynamic_function_config` object is kept alive at least until all kernels using it have completed.
+* `dynamic_function_config` is not thread-safe; if one object is shared across multiple threads, it is the user's responsibility to ensure appropriate synchronization.
+* With this extension, the user can exchange kernel code at runtime. This means that in general, the compiler cannot know at compile time anymore which parts of the code need to be part of device code. Therefore, functions  providing the definitions have to be marked as `SYCL_EXTERNAL` to ensure that they are emitted to device code. This can be omitted if the function is invoked from the kernel already at compile time.
+* It is possible to provide a "default definition" for dynamic functions by not just declaring them, but also providing a definition (e.g. in the example above, provide a definition for `execute_operations`). However, in this case, we recommend that the function is marked with `__attribute__((noinline))`. Otherwise, in some cases the compiler might decide to already inline the function early on during the optimization process -- and once, inlined, the JIT compiler no loner sees the function and therefore can no longer find function calls to replace. The `noinline` attribute will have no performance implications once the replacement function definition has been put in place by the JIT compiler. Additionally, if the default function does not actually use the function arguments, the frontend might not actually emit function calls to the dynamic function. It is thus a good idea to use `sycl::jit::arguments_are_used()` to assert that these arguments might e.g. be used by a dynamic function replacement function.
+
+With a default function definition, the example above might look like so:
+```c++
+SYCL_EXTERNAL void myfunction1(int* data, sycl::item<1> idx) {
+  // code
+}
+
+SYCL_EXTERNAL void myfunction2(int* data, sycl::item<1> idx) {
+  // code
+}
+
+__attribute__((noinline))
+void execute_operations(int* data, sycl::item<1> idx) {
+  // This prevents the compiler from removing calls to execute_operations if it
+  // sees that the function cannot actually have any side-effects.
+  sycl::jit::arguments_are_used(data, idx);
+}
+
+int main() {
+  sycl::queue q;
+  int* data = ...;
+
+  // The dynamic_function_config object stores the JIT-time function mapping information.
+  sycl::jit::dynamic_function_config dyn_function_config;
+  // Requests calls to execute_operations to be replaced at JIT time
+  // with {myfunction1(idx); myfunction2(idx);}
+  // If this is removed, the regular function definition of execute_operations
+  // will be executed instead.
+  dyn_function_config.define_as_call_sequence(&execute_operations, {&myfunction1, &myfunction2});
+  q.parallel_for(sycl::range{1024}, dyn_function_config.apply([=](sycl::item<1> idx){
+    execute_operations(data, idx);
+  }));
+
+  q.wait();
+}
+```
+
+
+#### API Reference
+
+A more detailed API reference follows:
+
+```c++
+namespace sycl::jit {
+
+// This function can be used in dynamic functions with a definition
+// to prevent the compiler from performing early optimizations if it finds
+// that the function does not actually use the arguments because it cannot know
+// that the definition may be replaced at runtime.
+template<class T, typename... Args>
+void arguments_are_used(Args&&... args);
+
+// Represents a function id. Objects of this class can be obtained from
+// dynamic_function or dynamice_function_definition. dynamic_function_id objects
+// can be passed to dynamice_function_config to control the dynamic function mapping.
+class dynamic_function_id {
+public:
+  dynamic_function_id() = default;
+  explicit dynamic_function_id(__unspecified_handle_type__);
+
+  const __unspecified_handle_type__ get_handle() const;
+};
+
+// Represents a dynamic function, where the definition might be replaced at runtime.
+template<class Ret, typename... Args>
+class dynamic_function {
+public:
+  // Construct object. IMPORTANT: The function pointer it is initialized with
+  // must directly point to the target function in the source code. This is
+  // because the compiler needs to understand at compile-time which functions
+  // are dynamic functions. When a variable however is passed in, this
+  // can no longer be guaranteed. Example:
+  //
+  // Allowed: dynamic_function df{&myfunc};
+  // Not allowed: auto* myfuncptr = &myfunc; dynamic_function{myfuncptr};
+  dynamic_function(Ret (*func)(Args...));
+
+  // Obtain dynamic_function_id object.
+  dynamic_function_id id() const;
+};
+
+
+// Represents a dynamic function definition, i.e. a function whose definition might replace
+// the definition of a dynamic_function at runtime.
+template<class Ret, typename... Args>
+class dynamic_function_definition {
+public:
+
+  // Construct object. The same restrictions apply as with the dynamic_function constructor
+  // regarding the function pointer argument. See above for details.
+  dynamic_function_definition(Ret (*func)(Args...));
+
+  // Obtain dynamic_function_id object.
+  dynamic_function_id id() const;
+};
+
+// Represents the dynamic function configuration that may be applied to a kernel.
+// Per kernel launch, only a single dynamic_function_config may be applied.
+class dynamic_function_config {
+public:
+
+  // Set the definition of `func` to be provided by `definition`.
+  // IMPORTANT: The function pointers passed as arguments
+  // must directly point to the target function in the source code. This is
+  // because the compiler needs to understand at compile-time which functions
+  // are dynamic functions. When a variable however is passed in, this
+  // can no longer be guaranteed.
+  //
+  // This function can be seen as shorthand for
+  // `define(dynamic_function{func}, dynamic_function_definition{definition})`
+  template<class Ret, typename... Args>
+  void define(Ret (*func)(Args...), Ret(*definition)(Args...));
+
+  // Set the definition of `func` to be provided by `definition`.
+  //
+  // This is a type-safer, but semantically equivalent shorthand for
+  // define(df.id(), definition.id()).
+  template <class Ret, typename... Args>
+  void define(dynamic_function<Ret, Args...> df,
+              dynamic_function_definition<Ret, Args...> definition) {
+    define(df.id(), definition.id());
+  }
+
+  // Set the definition of `func` to be provided by `definition`.
+  // In most cases, the type-safe other overloads should be used instead of this one.
+  // However, this function can be useful when type-erasure of the functions is explicitly
+  // desired; e.g. when in a larger framework many function ids need to be stored
+  // in a central location.
+  void define(dynamic_function_id function, dynamic_function_id definition)
+
+  // Set the definition of `func` to be provided by a sequence of calls to the functions
+  // provided in `definitions`. Note that `define_as_call_sequence` is only supported
+  // for functions of void return type.
+  //
+  // IMPORTANT: The function pointers passed as arguments
+  // must directly point to the target function in the source code. This is
+  // because the compiler needs to understand at compile-time which functions
+  // are dynamic functions. When a variable however is passed in, this
+  // can no longer be guaranteed.
+  template <typename... Args>
+  void define_as_call_sequence(void (*func)(Args...),
+                          const std::vector<void (*)(Args...)> &definitions);
+
+  // Set the definition of `func` to be provided by a sequence of calls to the functions
+  // provided in `definitions`. Note that `define_as_call_sequence` is only supported
+  // for functions of void return type.
+  template <typename... Args>
+  void define_as_call_sequence(
+      dynamic_function<void, Args...> call,
+      const std::vector<dynamic_function_definition<void, Args...>>
+          &definitions)
+
+  // Set the definition of `func` to be provided by a sequence of calls to the functions
+  // provided in `definitions`. Note that `define_as_call_sequence` is only supported
+  // for functions of void return type.
+  //
+  // In most cases, the type-safe other overloads should be used instead of this one.
+  // However, this function can be useful when type-erasure of the functions is explicitly
+  // desired; e.g. when in a larger framework many function ids need to be stored
+  // in a central location.
+  void
+  define_as_call_sequence(dynamic_function_id func,
+                          const std::vector<dynamic_function_id> &definitions) 
+
+  // Returns a kernel object that has this configuration applied. The resulting object
+  // can then be passed e.g. to parallel_for().
+  template<class Kernel>
+  auto apply(Kernel k);
+};
+
+}
+```
+
 ### `ACPP_EXT_SPECIALIZED`
 
 This extension adds a mechanism to hint to the SSCP JIT compiler that a kernel specialization should be generated. That is, when `sycl::specialized<T>` is passed as a kernel argument, the compiler will generate a kernel with the value of the object stored in the `specialized` wrapper hardcoded as a constant. This addresses the same problem as SYCL 2020 specialization constants, however it provides two major benefits:

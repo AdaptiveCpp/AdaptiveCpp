@@ -250,6 +250,13 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                                           entry.first, &entry.second);
     }
   }
+  for(const auto& entry : config.function_call_specialization_config()) {
+    auto& config = entry.value->function_call_map;
+    for(const auto& call_specialization : config) {
+      translator->specializeFunctionCalls(call_specialization.first,
+                                          call_specialization.second, false);
+    }
+  }
 
   for(const auto& option : config.build_options()) {
     std::string option_name = rt::to_string(option.first);

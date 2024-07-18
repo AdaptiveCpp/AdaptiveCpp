@@ -109,7 +109,8 @@ public:
       }
     }
 
-    if(cap.get_sscp_invoker().has_value() && _static_data.sscp_kernel_id) {
+    if (cap.get_sscp_invoker().has_value() &&
+        (_static_data.sscp_kernel_id || _static_data.custom_op)) {
       return _static_data.sscp_invoker(_static_data, node, _kernel_config,
                                        cap, params);
     }

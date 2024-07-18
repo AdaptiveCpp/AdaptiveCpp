@@ -36,7 +36,7 @@ template<class T>
 class mobile_shared_ptr
 {
 public:
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   mobile_shared_ptr() {
     __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{nullptr};
@@ -44,35 +44,35 @@ public:
   }
 
   // Argument is ignored on device
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   mobile_shared_ptr(std::shared_ptr<T> ptr){
     __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{ptr};
     );
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   mobile_shared_ptr(const mobile_shared_ptr& other){
     __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   mobile_shared_ptr(mobile_shared_ptr&& other){
     __acpp_if_target_host(
       new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   ~mobile_shared_ptr() {
     __acpp_if_target_host(
       get_shared_ptr_ref().~shared_ptr();
     );
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(const mobile_shared_ptr& other) {
     __acpp_if_target_host(
       get_shared_ptr_ref() = other.get_shared_ptr_ref();
@@ -81,7 +81,7 @@ public:
     return *this;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(mobile_shared_ptr&& other) {
     __acpp_if_target_host(
       get_shared_ptr_ref() = other.get_shared_ptr_ref();
@@ -90,7 +90,7 @@ public:
     return *this;
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   const T* get() const
   { 
     __acpp_if_target_device(
@@ -102,7 +102,7 @@ public:
     );
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
+  ACPP_UNIVERSAL_TARGET
   T* get()
   { 
     __acpp_if_target_device(
@@ -116,7 +116,7 @@ public:
 
   // We cannot make this function available on device, since
   // it would pull shared_ptr_class<T> into device code.
-  HIPSYCL_HOST_TARGET
+  ACPP_HOST_TARGET
   shared_ptr_class<T> get_shared_ptr() const {
     __acpp_if_target_host(
       return get_shared_ptr_ref();
@@ -128,12 +128,12 @@ public:
 
 
 private:
-  HIPSYCL_HOST_TARGET
+  ACPP_HOST_TARGET
   std::shared_ptr<T>& get_shared_ptr_ref() {
     return *reinterpret_cast<std::shared_ptr<T>*>(_data);
   }
 
-  HIPSYCL_HOST_TARGET
+  ACPP_HOST_TARGET
   const std::shared_ptr<T>& get_shared_ptr_ref() const {
     return *reinterpret_cast<const std::shared_ptr<T>*>(_data);
   }

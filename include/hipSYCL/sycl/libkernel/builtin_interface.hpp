@@ -13,16 +13,16 @@
 
 #include "detail/builtin_dispatch.hpp"
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/builtins.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
-    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
+    ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA
 #include "generic/hiplike/builtins.hpp"
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "sscp/builtins.hpp"
 #endif
 

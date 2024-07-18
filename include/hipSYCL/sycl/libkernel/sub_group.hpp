@@ -19,7 +19,7 @@
 #include "range.hpp"
 #include "memory.hpp"
 
-#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#ifdef ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "sscp/builtins/subgroup.hpp"
 #endif
 
@@ -39,12 +39,12 @@ public:
   static constexpr memory_scope fence_scope = memory_scope::sub_group;
 
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id_type get_local_id() const {
     return id_type{get_local_linear_id()};
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   linear_id_type get_local_linear_id() const {
     __acpp_backend_switch(
         return 0, 
@@ -54,13 +54,13 @@ public:
   }
 
   // always returns the maximum sub_group size
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range_type get_local_range() const {
     return range_type{get_local_linear_range()};
   }
 
   // always returns the maximum sub_group size
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   linear_range_type get_local_linear_range() const {
     __acpp_backend_switch(
         return 1, 
@@ -70,7 +70,7 @@ public:
         return __acpp_warp_size);
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range_type get_max_local_range() const {
     __acpp_backend_switch(
         return range_type{1},
@@ -79,12 +79,12 @@ public:
         return range_type{__acpp_warp_size});
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id_type get_group_id() const {
     return id_type{get_group_linear_id()};
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   linear_id_type get_group_linear_id() const {
     __acpp_backend_switch(
         return 0, // TODO This is probably incorrect
@@ -93,7 +93,7 @@ public:
         return local_tid() >> (__ffs(__acpp_warp_size) - 1));
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   linear_range_type get_group_linear_range() const {
     __acpp_backend_switch(
         return 1,
@@ -102,18 +102,18 @@ public:
         return hiplike_num_subgroups());
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range_type get_group_range() const {
     return range_type{get_group_linear_range()};
   }
 
   [[deprecated]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range_type get_max_group_range() const {
     return get_group_range();
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   bool leader() const {
     return get_local_linear_id() == 0;
   }
@@ -127,7 +127,7 @@ private:
     return 0;
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   int local_tid() const {
     __acpp_if_target_device(
       int tid = __acpp_lid_x 
@@ -138,7 +138,7 @@ private:
     return 0;
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   int get_warp_mask() const {
     // Assumes that __acpp_warp_size is a power of two
     __acpp_if_target_hiplike(

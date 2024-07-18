@@ -8,8 +8,9 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#ifndef HIPSYCL_LIBKERNEL_BUILTIN_DISPATCH_HPP
-#define HIPSYCL_LIBKERNEL_BUILTIN_DISPATCH_HPP
+
+#ifndef ACPP_LIBKERNEL_BUILTIN_DISPATCH_HPP
+#define ACPP_LIBKERNEL_BUILTIN_DISPATCH_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 

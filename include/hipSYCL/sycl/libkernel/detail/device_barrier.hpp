@@ -16,7 +16,7 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/access.hpp"
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 #include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 #endif
 
@@ -25,7 +25,7 @@ namespace sycl {
 namespace detail {
 
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 inline void sscp_barrier(access::fence_space space) {
   if(space == access::fence_space::local_space) {
     __acpp_sscp_work_group_barrier(memory_scope::work_group,
@@ -38,7 +38,7 @@ inline void sscp_barrier(access::fence_space space) {
 
 #endif
 
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline void local_device_barrier(
     access::fence_space space = access::fence_space::global_and_local) {
 

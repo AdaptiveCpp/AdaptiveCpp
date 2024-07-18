@@ -22,8 +22,8 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
+    ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP
  #define HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE
 #endif
 
@@ -51,7 +51,7 @@
 
 #if defined(HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE)
 
- #if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+ #if !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
   #include "clang.hpp"
  #else
   #include "nvcxx.hpp"
@@ -540,7 +540,7 @@ private:
   static constexpr bool is_launch_from_module() {
 
     constexpr auto is_cuda_module_launch = [](){
-#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+#ifdef __ACPP_MULTIPASS_CUDA_HEADER__
       return Backend_id == rt::backend_id::cuda;
 #else
       return false;
@@ -548,7 +548,7 @@ private:
     };
 
     constexpr auto is_hip_module_launch = [](){
-#ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
+#ifdef __ACPP_MULTIPASS_HIP_HEADER__
       return Backend_id == rt::backend_id::hip;
 #else
       return false;
@@ -571,7 +571,7 @@ private:
     // In thas case, unnamed kernel lambdas are unsupported which is enforced
     // by the clang plugin in the device compilation pass.
 #elif __has_builtin(__builtin_get_device_side_mangled_name) &&                 \
-    !defined(__HIPSYCL_SPLIT_COMPILER__)
+    !defined(__ACPP_SPLIT_COMPILER__)
     
     // The builtin unfortunately only works with __global__ or
     // __device__ functions. Since our kernel launchers cannot be __global__
@@ -593,15 +593,15 @@ private:
                           unsigned dynamic_shared_mem, Args... args) {
     assert(node);
   
-#if defined(__HIPSYCL_MULTIPASS_CUDA_HEADER__) || defined(__HIPSYCL_MULTIPASS_HIP_HEADER__)
+#if defined(__ACPP_MULTIPASS_CUDA_HEADER__) || defined(__ACPP_MULTIPASS_HIP_HEADER__)
 
     std::size_t local_hcf_object_id = 0;
-#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+#ifdef __ACPP_MULTIPASS_CUDA_HEADER__
     if(Backend_id == rt::backend_id::cuda) {
       local_hcf_object_id = __acpp_local_cuda_hcf_object_id;
     }
 #endif
-#ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
+#ifdef __ACPP_MULTIPASS_HIP_HEADER__
     if(Backend_id == rt::backend_id::hip) {
       local_hcf_object_id = __acpp_local_hip_hcf_object_id;
     }

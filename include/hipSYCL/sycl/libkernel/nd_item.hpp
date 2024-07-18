@@ -45,7 +45,7 @@ struct nd_item
   /* -- common interface members -- */
   static constexpr int dimensions = Dimensions;
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id<Dimensions> get_global_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -57,7 +57,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_global_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -71,20 +71,20 @@ struct nd_item
   }
 
   [[deprecated]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_global(int dimension) const
   {
     return this->get_global_id(dimension);
   }
 
   [[deprecated]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id<Dimensions> get_global() const
   {
     return this->get_global_id();
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_global_linear_id() const
   {
     __acpp_if_target_sscp(
@@ -94,32 +94,32 @@ struct nd_item
                                               get_global_range());
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator ==(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
+  ACPP_KERNEL_TARGET friend bool operator ==(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
   {
     // nd_item is not allowed to be shared across work items, so comparison can only be true
     return true;
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator !=(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
+  ACPP_KERNEL_TARGET friend bool operator !=(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
   {
     return !(lhs==rhs);
   }
 
   [[deprecated]]
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id<Dimensions> get_local() const
   {
     return this->get_local_id();
   }
 
   [[deprecated]] 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_local(int dimension) const
   {
     return this->get_local_id(dimension);
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -131,7 +131,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id<Dimensions> get_local_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -142,7 +142,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_local_linear_id() const
   {
     __acpp_if_target_sscp(
@@ -150,7 +150,7 @@ struct nd_item
     return detail::linear_id<Dimensions>::get(get_local_id(), get_local_range());
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   group<Dimensions> get_group() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -166,7 +166,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_group(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -177,7 +177,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_group_linear_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -190,13 +190,13 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   sub_group get_sub_group() const
   {
     return sub_group{};
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range<Dimensions> get_global_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -207,7 +207,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_global_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -218,7 +218,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range<Dimensions> get_local_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -229,7 +229,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_local_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -240,7 +240,7 @@ struct nd_item
 #endif
   }
   
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   range<Dimensions> get_group_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -251,7 +251,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   size_t get_group_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -262,13 +262,13 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   id<Dimensions> get_offset() const
   {
     return *_offset;
   }
 
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   nd_range<Dimensions> get_nd_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -288,7 +288,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET
+  HIPSYCL_LOOP_SPLIT_BARRIER ACPP_KERNEL_TARGET
   void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {
@@ -303,7 +303,7 @@ struct nd_item
   }
 
   template <access::mode accessMode = access::mode::read_write>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void mem_fence(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
@@ -311,7 +311,7 @@ struct nd_item
   }
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements) const
   {
@@ -319,7 +319,7 @@ struct nd_item
   }
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
@@ -327,7 +327,7 @@ struct nd_item
   }
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
@@ -336,7 +336,7 @@ struct nd_item
   }
 
   template <typename dataT>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
@@ -344,7 +344,7 @@ struct nd_item
   }
 
   template <typename... eventTN>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   void wait_for(eventTN... events) const
   {
     get_group().wait_for(events...);
@@ -352,12 +352,12 @@ struct nd_item
 
   
 #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   nd_item(const id<Dimensions>* offset)
     : _offset{offset}
   {}
 #else
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   nd_item(const id<Dimensions>* offset,
           id<Dimensions> group_id, id<Dimensions> local_id, 
           range<Dimensions> local_range, range<Dimensions> num_groups,

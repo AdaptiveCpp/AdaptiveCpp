@@ -1,29 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2020 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
+// SPDX-License-Identifier: BSD-2-Clause
 
 #include <numeric>
 #include <algorithm>
@@ -204,7 +188,7 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
                 sycl::property::reduction::initialize_to_identity{}}),
         [=](sycl::nd_item<1> idx, auto &add_reducer, auto &mul_reducer) {
           add_reducer += input0[idx.get_global_linear_id()];
-#ifdef __HIPSYCL_USE_ACCELERATED_CPU__
+#ifdef __ACPP_USE_ACCELERATED_CPU__
           idx.barrier(); // workaround for omp simd failure as below.
 #endif
           mul_reducer *= input1[idx.get_global_linear_id()];
@@ -358,6 +342,36 @@ BOOST_AUTO_TEST_CASE(incremental_reduction) {
                  [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
 
   BOOST_CHECK(*result == 2 * expected_result);
+
+  sycl::free(data, q);
+  sycl::free(result, q);
+}
+
+BOOST_AUTO_TEST_CASE(chain_combine_reductions) {
+const int size = 1024;
+  sycl::queue q;
+  int* data = sycl::malloc_shared<int>(size, q);
+
+  int* result = sycl::malloc_shared<int>(1, q);
+  for(std::size_t i = 0; i < size;++i)
+    data[i] = static_cast<int>(i);
+
+  int expected_result = 2 * std::accumulate(data, data + size, 0);
+
+  *result = 0;
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) {
+		   (redu += data[idx]) += data[idx];
+		 }).wait();
+  BOOST_CHECK(*result == expected_result);
+
+  *result = 0;
+  q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
+                 [=](auto idx, auto &redu) {
+		   redu.combine(data[idx]).combine(data[idx]);
+		 }).wait();
+
+  BOOST_CHECK(*result == expected_result);
 
   sycl::free(data, q);
   sycl::free(result, q);

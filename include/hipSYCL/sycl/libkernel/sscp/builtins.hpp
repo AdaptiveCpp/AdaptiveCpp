@@ -8,8 +8,10 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#ifndef HIPSYCL_LIBKERNEL_SSCP_BUILTINS_HPP
-#define HIPSYCL_LIBKERNEL_SSCP_BUILTINS_HPP
+
+
+#ifndef ACPP_LIBKERNEL_SSCP_BUILTINS_HPP
+#define ACPP_LIBKERNEL_SSCP_BUILTINS_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
@@ -23,7 +25,7 @@
 #include <cmath>
 #include <type_traits>
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 
 namespace hipsycl {
 namespace sycl {

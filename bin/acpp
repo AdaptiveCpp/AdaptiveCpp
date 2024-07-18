@@ -2,31 +2,15 @@
 
 '''
  *
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2018,2019 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ SPDX-License-Identifier: BSD-2-Clause
  '''
 
 import json
@@ -154,7 +138,7 @@ class integration_header:
 
 static const std::size_t __acpp_local_{name}_hcf_object_id = {hcf_object_id}ull;
 const unsigned char __acpp_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
-HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_id}, {hcf_size})
+ACPP_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_id}, {hcf_size})
 
 #endif
 """.format(
@@ -604,14 +588,14 @@ class acpp_config:
       if split_arg[0]=="-std":
         std_args.append(split_arg[1])
     if not std_args:
-       return ["-std=c++17"]
+      return ["-std=c++17"]
     else:
-        if len(std_args) > 1:
-            raise RuntimeError("Multiple c++ standards defined")
-        std_version = std_args[0].strip("c++").strip("gnu++")
-        if std_version in self._insufficient_cpp_standards:
-            raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
-        return []
+      if len(std_args) > 1:
+        raise RuntimeError("Multiple c++ standards defined")
+      std_version = std_args[0].strip("c++").strip("gnu++")
+      if std_version in self._insufficient_cpp_standards:
+        raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
+      return []
 
   def _parse_targets(self, target_arg):
     # Split backends by ;
@@ -1007,8 +991,8 @@ class cuda_multipass_invocation:
     flags = self._config.cuda_cxx_flags
     flags += [
         "-x", "cuda",
-        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
-        "-D__HIPSYCL_CLANG__",
+        "-D__ACPP_ENABLE_CUDA_TARGET__",
+        "-D__ACPP_CLANG__",
         "-fplugin=" + self._config.acpp_plugin_path,
         "--cuda-path=" + self._config.cuda_path,
         "--cuda-device-only",
@@ -1018,7 +1002,7 @@ class cuda_multipass_invocation:
       ]
 
     if self._host_compiler != self._config.clang_path:
-      flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
+      flags += ["-D__ACPP_SPLIT_COMPILER__"]
 
     if not sys.platform.startswith("win32"):
       flags += ["-fpass-plugin=" + self._config.acpp_plugin_path]
@@ -1035,9 +1019,9 @@ class cuda_multipass_invocation:
       ] + self._config.cuda_cxx_flags
 
     return [
-      "-D__HIPSYCL_MULTIPASS_CUDA_HEADER__=\"{}\"".format(
+      "-D__ACPP_MULTIPASS_CUDA_HEADER__=\"{}\"".format(
             self._integration_header),
-      "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
+      "-D__ACPP_ENABLE_CUDA_TARGET__"
     ] + cuda_host_flags
 
 
@@ -1134,8 +1118,8 @@ class hip_multipass_invocation:
     flags = self._config.rocm_cxx_flags
     flags += [
         "-x", "hip",
-        "-D__HIPSYCL_ENABLE_HIP_TARGET__",
-        "-D__HIPSYCL_CLANG__",
+        "-D__ACPP_ENABLE_HIP_TARGET__",
+        "-D__ACPP_CLANG__",
         "-fplugin=" + self._config.acpp_plugin_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
@@ -1143,7 +1127,7 @@ class hip_multipass_invocation:
       ]
 
     if self._host_compiler != self._config.clang_path:
-      flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
+      flags += ["-D__ACPP_SPLIT_COMPILER__"]
 
     if not sys.platform.startswith("win32"):
       flags += ["-fpass-plugin=" + self._config.acpp_plugin_path]
@@ -1160,9 +1144,9 @@ class hip_multipass_invocation:
       ] + self._config.rocm_cxx_flags
 
     return [
-      "-D__HIPSYCL_MULTIPASS_HIP_HEADER__=\"{}\"".format(
+      "-D__ACPP_MULTIPASS_HIP_HEADER__=\"{}\"".format(
             self._integration_header),
-      "-D__HIPSYCL_ENABLE_HIP_TARGET__"
+      "-D__ACPP_ENABLE_HIP_TARGET__"
     ] + hip_host_flags
 
 
@@ -1233,9 +1217,9 @@ class cuda_invocation:
     flags = [
         "-x", "cuda",
         "--cuda-path=" + self._cuda_path,
-        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        "-D__ACPP_ENABLE_CUDA_TARGET__",
         "-fplugin=" + self._acpp_plugin_path,
-        "-D__HIPSYCL_CLANG__"
+        "-D__ACPP_CLANG__"
       ]
 
     flags += self._cxx_flags
@@ -1286,7 +1270,7 @@ class cuda_nvcxx_invocation:
 
     flags = [
         "-cuda",
-        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        "-D__ACPP_ENABLE_CUDA_TARGET__",
         # Needed to avoid warnings about unused functions/variables in SYCL headers
         "-isystem", self._acpp_include_path
       ]
@@ -1342,9 +1326,9 @@ class hip_invocation:
     flags = self._cxx_flags
     flags += [
         "-x", "hip",
-        "-D__HIPSYCL_ENABLE_HIP_TARGET__",
+        "-D__ACPP_ENABLE_HIP_TARGET__",
         "-fplugin=" + self._acpp_plugin_path,
-        "-D__HIPSYCL_CLANG__"
+        "-D__ACPP_CLANG__"
       ]
     
     for t in self._hip_targets:
@@ -1393,7 +1377,7 @@ class omp_invocation:
     }
 
   def get_cxx_flags(self):
-    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags = ["-D__ACPP_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
       
     return flags
@@ -1440,12 +1424,12 @@ class omp_accelerated_invocation:
     }
 
   def get_cxx_flags(self):
-    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags = ["-D__ACPP_ENABLE_OMPHOST_TARGET__"]
     if not sys.platform.startswith("win32"):
       flags += [
         "-fplugin=" + config.acpp_plugin_path
         , "-fpass-plugin=" + config.acpp_plugin_path
-        , "-D__HIPSYCL_USE_ACCELERATED_CPU__"
+        , "-D__ACPP_USE_ACCELERATED_CPU__"
       ]
     flags += self._cxx_flags
 
@@ -1491,7 +1475,7 @@ class omp_sequential_invocation:
     }
 
   def get_cxx_flags(self):
-    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags = ["-D__ACPP_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
     return flags
 
@@ -1535,7 +1519,7 @@ class llvm_sscp_invocation:
     }
 
   def get_cxx_flags(self):
-    flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
+    flags = ["-D__ACPP_ENABLE_LLVM_SSCP_TARGET__",
             "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
 
     sscp_compile_opts = []
@@ -1589,11 +1573,11 @@ class compiler:
       self._stdpar_prefetch_mode = None
 
     if "hip" in self._targets and "cuda" in self._targets:
-        if not self._is_explicit_multipass:
-          print_warning("CUDA and HIP cannot be targeted "
-              "simultaneously in non-explicit multipass; enabling explicit "
-              "multipass compilation.")
-          self._is_explicit_multipass = True
+      if not self._is_explicit_multipass:
+        print_warning("CUDA and HIP cannot be targeted "
+                      "simultaneously in non-explicit multipass; enabling explicit "
+                      "multipass compilation.")
+        self._is_explicit_multipass = True
 
     self._backends = []
     self._multipass_backends = []
@@ -1659,7 +1643,7 @@ class compiler:
             not "omp.library-only" in self._targets and not "generic" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
-     self._backends.append(omp_sequential_invocation(config))
+      self._backends.append(omp_sequential_invocation(config))
 
     self._verify_backend_combinations()
 
@@ -1776,9 +1760,9 @@ class compiler:
       ]
       
       if self._is_stdpar_system_usm:
-        args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
+        args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__ACPP_STDPAR_ASSUME_SYSTEM_USM__"]
       if self._is_stdpar_unconditional_offload:
-        args += ["-D__HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
+        args += ["-D__ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__"]
       
       if self._stdpar_prefetch_mode != None:
         prefetch_mode_string = self._stdpar_prefetch_mode
@@ -1797,7 +1781,7 @@ class compiler:
         else:
           raise RuntimeError("Invalid value for stdpar-prefetch-mode: "+prefetch_mode_string)
         
-        args += ["-D__HIPSYCL_STDPAR_PREFETCH_MODE__="+str(prefetch_mode_id)]
+        args += ["-D__ACPP_STDPAR_PREFETCH_MODE__="+str(prefetch_mode_id)]
 
     return args + self._common_compiler_args
 

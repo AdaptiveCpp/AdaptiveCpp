@@ -1,29 +1,13 @@
 /*
- * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
  *
- * Copyright (c) 2023 Aksel Alpay
- * All rights reserved.
+ * Copyright The AdaptiveCpp Contributors
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
  */
+// SPDX-License-Identifier: BSD-2-Clause
 
 
 #include <numeric>
@@ -71,11 +55,25 @@ void test(sycl::queue& q) {
   sycl::free(output, q);
 
   auto tolerance = boost::test_tools::tolerance(0.0001);
+  // divisions may be less precise with OpenCL backend
+  // boost.test seems to not work with double tolerance values
+  // when the data type of the test is float :(
+  auto get_div_tolerance = [&](){
+    if constexpr(std::is_same_v<T, float>) {
+      return boost::test_tools::tolerance(0.001f);
+    } else {
+      return tolerance;
+    }
+  };
+    
+  
   for(int i = 0; i < N; ++i) {
     BOOST_TEST(results[0][i] == a[i] + b[i], tolerance);
     BOOST_TEST(results[1][i] == a[i] - b[i], tolerance);
     BOOST_TEST(results[2][i] == a[i] * b[i], tolerance);
-    BOOST_TEST(results[3][i] == a[i] / (b[i] + static_cast<T>(1)), tolerance);
+    
+    T expected_div = a[i] / (b[i] + static_cast<T>(1));
+    BOOST_TEST(results[3][i] == expected_div, get_div_tolerance());
   }
 
 }
@@ -146,7 +144,7 @@ BOOST_AUTO_TEST_CASE(marray_implicit_conversion) {
   f(arr);
 }
 
-#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+#ifndef ACPP_LIBKERNEL_CUDA_NVCXX
 // nvc++ seems to have a problem with these tests
 BOOST_AUTO_TEST_CASE(marray_constexpr) {
   constexpr sycl::marray arr1{42};

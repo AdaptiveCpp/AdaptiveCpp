@@ -24,7 +24,7 @@ namespace detail {
 
 #define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(                                 \
     name, cuda_variable, hip_variable, sscp_variable, host_variable)           \
-  HIPSYCL_KERNEL_TARGET                                                        \
+  ACPP_KERNEL_TARGET                                                        \
   inline int name() {                                                          \
     __acpp_backend_switch(return 0, return sscp_variable(),                    \
                                  return cuda_variable, return hip_variable)    \
@@ -118,10 +118,10 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_z,
 #define __acpp_ngroups_y ::hipsycl::sycl::detail::__acpp_get_ngroups_y()
 #define __acpp_ngroups_z ::hipsycl::sycl::detail::__acpp_get_ngroups_z()
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
+    ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA
 
-#ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+#ifdef ACPP_LIBKERNEL_CUDA_NVCXX
   // warpSize is not constexpr with nvc++. Hardcode to 32
   // for now
   #define __acpp_warp_size 32
@@ -142,32 +142,32 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_z,
 // is the fastest moving spec. In HIP/CUDA, it is x.
 // Consequently, any id or range that is actually used
 // must be reversed before it can be used in a performant manner!
-inline HIPSYCL_KERNEL_TARGET size_t get_global_id_x()
+inline ACPP_KERNEL_TARGET size_t get_global_id_x()
 {
   return __acpp_gid_x * __acpp_lsize_x + __acpp_lid_x;
 }
 
-inline HIPSYCL_KERNEL_TARGET size_t get_global_id_y()
+inline ACPP_KERNEL_TARGET size_t get_global_id_y()
 {
   return __acpp_gid_y * __acpp_lsize_y + __acpp_lid_y;
 }
 
-inline HIPSYCL_KERNEL_TARGET size_t get_global_id_z()
+inline ACPP_KERNEL_TARGET size_t get_global_id_z()
 {
   return __acpp_gid_z * __acpp_lsize_z + __acpp_lid_z;
 }
 
-inline HIPSYCL_KERNEL_TARGET size_t get_global_size_x()
+inline ACPP_KERNEL_TARGET size_t get_global_size_x()
 {
   return __acpp_ngroups_x * __acpp_lsize_x;
 }
 
-inline HIPSYCL_KERNEL_TARGET size_t get_global_size_y()
+inline ACPP_KERNEL_TARGET size_t get_global_size_y()
 {
   return __acpp_ngroups_y * __acpp_lsize_y;
 }
 
-inline HIPSYCL_KERNEL_TARGET size_t get_global_size_z()
+inline ACPP_KERNEL_TARGET size_t get_global_size_z()
 {
   return __acpp_ngroups_z * __acpp_lsize_z;
 }
@@ -175,42 +175,42 @@ inline HIPSYCL_KERNEL_TARGET size_t get_global_size_z()
 
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 sycl::id<dimensions> get_local_id();
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<1> get_local_id<1>()
 { return sycl::id<1>(__acpp_lid_x); }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<2> get_local_id<2>()
 { return sycl::id<2>(__acpp_lid_y, __acpp_lid_x); }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<3> get_local_id<3>()
 { return sycl::id<3>(__acpp_lid_z, __acpp_lid_y, __acpp_lid_x); }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 sycl::id<dimensions> get_global_id();
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<1> get_global_id<1>()
 { return sycl::id<1>{get_global_id_x()}; }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<2> get_global_id<2>()
 {
   return sycl::id<2>{get_global_id_y(), get_global_id_x()};
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<3> get_global_id<3>()
 {
   return sycl::id<3>{get_global_id_z(),
@@ -220,16 +220,16 @@ inline sycl::id<3> get_global_id<3>()
 
 // For the sake of consistency, we also reverse group ids
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 sycl::id<dimensions> get_group_id();
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<1> get_group_id<1>()
 { return sycl::id<1>(__acpp_gid_x); }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<2> get_group_id<2>()
 {
   return sycl::id<2>(__acpp_gid_y,
@@ -237,7 +237,7 @@ inline sycl::id<2> get_group_id<2>()
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::id<3> get_group_id<3>()
 {
   return sycl::id<3>(__acpp_gid_z,
@@ -246,25 +246,25 @@ inline sycl::id<3> get_group_id<3>()
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 sycl::range<dimensions> get_grid_size();
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::range<1> get_grid_size<1>()
 {
   return sycl::range<1>(__acpp_ngroups_x);
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::range<2> get_grid_size<2>()
 {
   return sycl::range<2>(__acpp_ngroups_y, __acpp_ngroups_x);
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::range<3> get_grid_size<3>()
 {
   return sycl::range<3>(__acpp_ngroups_z, __acpp_ngroups_y, __acpp_ngroups_x);
@@ -272,57 +272,57 @@ inline sycl::range<3> get_grid_size<3>()
 
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 sycl::range<dimensions> get_local_size();
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::range<1> get_local_size<1>()
 {
   return sycl::range<1>(__acpp_lsize_x);
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::range<2> get_local_size<2>()
 {
   return sycl::range<2>(__acpp_lsize_y, __acpp_lsize_x);
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline sycl::range<3> get_local_size<3>()
 {
   return sycl::range<3>(__acpp_lsize_z, __acpp_lsize_y, __acpp_lsize_x);
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 sycl::range<dimensions> get_global_size()
 {
   return get_local_size<dimensions>() * get_grid_size<dimensions>();
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_size(int dimension);
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_size<1>(int dimension)
 {
   return get_global_size_x();
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_size<2>(int dimension)
 {
   return dimension == 0 ? get_global_size_y() : get_global_size_x();
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_size<3>(int dimension)
 {
   switch(dimension)
@@ -338,23 +338,23 @@ inline size_t get_global_size<3>(int dimension)
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_grid_size(int dimension);
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_grid_size<1>(int dimension)
 { return __acpp_ngroups_x; }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_grid_size<2>(int dimension)
 {
   return dimension == 0 ? __acpp_ngroups_y : __acpp_ngroups_x;
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_grid_size<3>(int dimension)
 {
   switch (dimension)
@@ -370,23 +370,23 @@ inline size_t get_grid_size<3>(int dimension)
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_size(int dimension);
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_size<1>(int dimension)
 { return __acpp_lsize_x; }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_size<2>(int dimension)
 {
   return dimension == 0 ? __acpp_lsize_y : __acpp_lsize_x;
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_size<3>(int dimension)
 {
   switch (dimension)
@@ -402,21 +402,21 @@ inline size_t get_local_size<3>(int dimension)
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_id(int dimension);
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_id<1>(int dimension)
 { return get_global_id_x(); }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_id<2>(int dimension)
 { return dimension==0 ? get_global_id_y() : get_global_id_x();}
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_global_id<3>(int dimension)
 {
   switch(dimension)
@@ -432,21 +432,21 @@ inline size_t get_global_id<3>(int dimension)
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_id(int dimension);
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_id<1>(int dimension)
 { return __acpp_lid_x; }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_id<2>(int dimension)
 { return dimension == 0 ? __acpp_lid_y : __acpp_lid_x; }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_local_id<3>(int dimension)
 {
   switch(dimension)
@@ -462,25 +462,25 @@ inline size_t get_local_id<3>(int dimension)
 }
 
 template<int dimensions>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_group_id(int dimension);
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_group_id<1>(int dimension)
 {
   return __acpp_gid_x;
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_group_id<2>(int dimension)
 {
   return dimension == 0 ? __acpp_gid_y : __acpp_gid_x;
 }
 
 template<>
-HIPSYCL_KERNEL_TARGET
+ACPP_KERNEL_TARGET
 inline size_t get_group_id<3>(int dimension)
 {
   switch (dimension)

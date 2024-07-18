@@ -15,6 +15,8 @@
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 #include "../device_id.hpp"
+#include "hipSYCL/common/spin_lock.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -35,6 +37,7 @@ public:
                                unsigned local_mem_size, void **args,
                                std::size_t *arg_sizes, std::size_t num_args,
                                std::string_view kernel_name,
+                               const rt::hcf_kernel_info* kernel_info,
                                const kernel_configuration& config) override;
   
   virtual rt::range<3> select_group_size(const rt::range<3> &num_groups,
@@ -73,7 +76,8 @@ public:
 
   result submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string_view kernel_name, const rt::range<3> &num_groups,
+      const std::string_view kernel_name,
+      const rt::hcf_kernel_info *kernel_info, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
       const kernel_configuration &config);
@@ -85,6 +89,11 @@ private:
 
   omp_sscp_code_object_invoker _sscp_code_object_invoker;
   std::shared_ptr<kernel_cache> _kernel_cache;
+
+  // SSCP submission data
+  common::spin_lock _sscp_submission_spin_lock;
+  glue::jit::cxx_argument_mapper _arg_mapper;
+  kernel_configuration _config;
 };
 
 }

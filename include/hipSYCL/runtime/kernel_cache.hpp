@@ -18,6 +18,7 @@
 #include <array>
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/small_map.hpp"
+#include "hipSYCL/common/unordered_dense.hpp"
 #include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -229,15 +230,8 @@ private:
 
   static info_id generate_info_id(hcf_object_id object_id,
                                   std::string_view object_name) {
-    info_id result;
-    result[0] = static_cast<uint64_t>(object_id);
-
-    common::stable_running_hash h;
-    h(object_name.data(), object_name.size());
-
-    result[1] = h.get_current_hash();
-
-    return result;
+    return {ankerl::unordered_dense::hash<hcf_object_id>{}(object_id),
+            ankerl::unordered_dense::hash<std::string_view>{}(object_name)};
   }
 
   struct info_id_hash {
@@ -251,11 +245,9 @@ private:
     }
   };
 
-  std::unordered_map<info_id,
-                     std::unique_ptr<hcf_kernel_info>, info_id_hash>
+  ankerl::unordered_dense::map<info_id, std::unique_ptr<hcf_kernel_info>, info_id_hash>
       _hcf_kernel_info;
-  std::unordered_map<info_id,
-                     std::unique_ptr<hcf_image_info>, info_id_hash>
+  ankerl::unordered_dense::map<info_id, std::unique_ptr<hcf_image_info>, info_id_hash>
       _hcf_image_info;
 
   mutable std::mutex _mutex;
@@ -384,7 +376,7 @@ private:
 
   mutable std::mutex _mutex;
 
-  std::unordered_map<code_object_id, code_object_ptr, rt::kernel_id_hash>
+  ankerl::unordered_dense::map<code_object_id, code_object_ptr, rt::kernel_id_hash>
       _code_objects;
   
   bool _is_first_jit_compilation = true;

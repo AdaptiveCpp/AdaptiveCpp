@@ -8,8 +8,9 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#ifndef HIPSYCL_LIBKERNEL_SSCP_GROUP_FUNCTIONS_HPP
-#define HIPSYCL_LIBKERNEL_SSCP_GROUP_FUNCTIONS_HPP
+
+#ifndef ACPP_LIBKERNEL_SSCP_GROUP_FUNCTIONS_HPP
+#define ACPP_LIBKERNEL_SSCP_GROUP_FUNCTIONS_HPP
 
 #include "../backend.hpp"
 #include "../detail/data_layout.hpp"
@@ -27,7 +28,7 @@
 
 /// TODO: This file is a placeholder, most group algorithms are unimplemented!
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#if ACPP_LIBKERNEL_IS_DEVICE_PASS_SSCP
 
 #include "builtins/barrier.hpp"
 #include "builtins/broadcast.hpp"
@@ -872,5 +873,5 @@ __acpp_select_from_group(Group g, marray<T,N> x, typename Group::id_type remote_
 
 #endif
 
-#endif // HIPSYCL_LIBKERNEL_SSCP_GROUP_FUNCTIONS_HPP
+#endif // ACPP_LIBKERNEL_SSCP_GROUP_FUNCTIONS_HPP
 

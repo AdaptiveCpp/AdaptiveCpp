@@ -266,7 +266,7 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
     return this->_usm_provider->has_usm_system_allocations();
     break;
   case device_support_aspect::execution_timestamps:
-    return true;
+    return false;
     break;
   case device_support_aspect::sscp_kernels:
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
@@ -275,6 +275,9 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
 #else
     return false;
 #endif
+    break;
+  case device_support_aspect::work_item_independent_forward_progress:
+    return false;
     break;
   }
   assert(false && "Unknown device aspect");
@@ -476,13 +479,29 @@ ocl_hardware_context::get_property(device_uint_list_property prop) const {
   switch (prop) {
   case device_uint_list_property::sub_group_sizes:
     // TODO - there does not seem to be a direct query for this.
-    // The current implementation is a hack and might not return
-    // all possible subgroup sizes.
+    // So we return all power of two values between 1 and
+    // the max workgroup size. The latter corresponds to the case when there is
+    // only a single subgroup for the whole work group.
+    // Unfortunately there does not seem to be a good way to get a min bound.
+    //
+    // This is a heuristic that returns all possible subgroup sizes, but may
+    // also return values that are not actually possible as subgroups.
     std::size_t max_num_sub_groups =
         get_property(device_uint_property::max_num_sub_groups);
-    return std::vector<std::size_t>{
-        get_property(device_uint_property::max_group_size) /
-        max_num_sub_groups};
+    std::size_t max_group_size =
+        get_property(device_uint_property::max_group_size);
+    
+    auto min_bound = 1;
+    auto max_bound = std::max(max_num_sub_groups, max_group_size);
+
+    std::vector<std::size_t> result;
+
+    for(std::size_t i = 1; i < max_bound; i *= 2) {
+      if(i >= min_bound)
+        result.push_back(i);
+    }
+
+    return result;
     break;
   }
   assert(false && "Invalid device property");

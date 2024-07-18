@@ -37,7 +37,6 @@ namespace rt {
 
 namespace {
 
-common::spin_lock submission_lock;
 
 result submit_ocl_kernel(cl::Kernel& kernel,
                         cl::CommandQueue& queue,
@@ -47,10 +46,6 @@ result submit_ocl_kernel(cl::Kernel& kernel,
                         ocl_usm* usm,
                         const hcf_kernel_info *info,
                         cl::Event* evt_out = nullptr) {
-  // All OpenCL API calls are safe, except calls that configure kernel objects
-  // like clSetKernelArgs. Currently we are not guaranteed that each thread gets
-  // its own separate kernel object, so we have to lock the submission process for now.
-  common::spin_lock_guard lock{submission_lock};
 
   cl_int err = 0;
   for(std::size_t i = 0; i < num_args; ++i ){
@@ -203,12 +198,18 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
   
   assert(dimension >= 1 && dimension <= 3);
 
+  auto linear_index = [](id<3> id, range<3> allocation_shape) {
+    return id[2] + allocation_shape[2] * id[1] +
+           allocation_shape[2] * allocation_shape[1] * id[0];
+  };
+
   cl::Event evt;
+  ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
+        _hw_manager->get_device(_device_index));
+  ocl_usm* usm = ocl_ctx->get_usm_provider();
 
   if(dimension == 1) {
-    ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
-        _hw_manager->get_device(_device_index));
-    ocl_usm* usm = ocl_ctx->get_usm_provider();
+    
     cl_int err = usm->enqueue_memcpy(_queue, op.dest().get_access_ptr(),
                         op.source().get_access_ptr(),
                         op.get_num_transferred_bytes(), {}, &evt);
@@ -220,11 +221,60 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
                      error_code{"CL", static_cast<int>(err)}});
     }
   } else {
-    return make_error(
-        __acpp_here(),
-        error_info{
-            "ocl_queue: Multidimensional memory copies are not yet supported.",
-            error_type::unimplemented});
+    id<3> src_offset = op.source().get_access_offset();
+    id<3> dest_offset = op.dest().get_access_offset();
+    std::size_t src_element_size = op.source().get_element_size();
+    std::size_t dest_element_size = op.dest().get_element_size();
+    range<3> src_allocation_shape = op.source().get_allocation_shape();
+    range<3> dest_allocation_shape = op.dest().get_allocation_shape();
+
+    void *base_src = op.source().get_base_ptr();
+    void *base_dest = op.dest().get_base_ptr();
+
+
+    id<3> current_src_offset = src_offset;
+    id<3> current_dest_offset = dest_offset;
+    std::size_t row_size = transfer_range[2] * src_element_size;
+
+    for (std::size_t surface = 0; surface < transfer_range[0]; ++surface) {
+      for (std::size_t row = 0; row < transfer_range[1]; ++row) {
+
+        char *current_src = reinterpret_cast<char *>(base_src);
+        char *current_dest = reinterpret_cast<char *>(base_dest);
+
+        current_src += linear_index(current_src_offset, src_allocation_shape) *
+                       src_element_size;
+
+        current_dest +=
+            linear_index(current_dest_offset, dest_allocation_shape) *
+            dest_element_size;
+
+        assert(current_src + row_size <=
+               reinterpret_cast<char *>(base_src) +
+                   src_allocation_shape.size() * src_element_size);
+        assert(current_dest + row_size <=
+               reinterpret_cast<char *>(base_dest) +
+                   dest_allocation_shape.size() * dest_element_size);
+
+        cl_int err = usm->enqueue_memcpy(_queue, current_dest, current_src,
+                                         row_size, {}, &evt);
+
+        if(err != CL_SUCCESS) {
+          return make_error(
+              __acpp_here(),
+              error_info{"ocl_queue: enqueuing memcpy failed",
+                        error_code{"CL", static_cast<int>(err)}});
+        }
+
+        ++current_src_offset[1];
+        ++current_dest_offset[1];
+      }
+      current_src_offset[1] = src_offset[1];
+      current_dest_offset[1] = dest_offset[1];
+
+      ++current_dest_offset[0];
+      ++current_src_offset[0];
+    }
   }
 
   register_submitted_op(evt);
@@ -380,16 +430,13 @@ ocl_hardware_manager *ocl_queue::get_hardware_manager() const {
 
 result ocl_queue::submit_sscp_kernel_from_code_object(
     const kernel_operation &op, hcf_object_id hcf_object,
-    std::string_view kernel_name, const rt::range<3> &num_groups,
-    const rt::range<3> &group_size, unsigned local_mem_size, void **args,
-    std::size_t *arg_sizes, std::size_t num_args,
-    const kernel_configuration &initial_config) {
-
+    std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const kernel_configuration &initial_config) {
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
-  const hcf_kernel_info *kernel_info =
-      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
   if(!kernel_info) {
     return make_error(
         __acpp_here(),
@@ -397,10 +444,11 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
             std::string{kernel_name}});
   }
 
+  common::spin_lock_guard lock{_sscp_submission_spin_lock};
 
-  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
-                                            num_args};
-  if(!arg_mapper.mapping_available()) {
+  _arg_mapper.construct_mapping(*kernel_info, args, arg_sizes, num_args);
+
+  if(!_arg_mapper.mapping_available()) {
     return make_error(
         __acpp_here(),
         error_info{
@@ -408,7 +456,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   }
 
   kernel_adaptivity_engine adaptivity_engine{
-      hcf_object, kernel_name, kernel_info, arg_mapper, num_groups,
+      hcf_object, kernel_name, kernel_info, _arg_mapper, num_groups,
       group_size, args,        arg_sizes,   num_args, local_mem_size};
 
   ocl_hardware_context *hw_ctx = static_cast<ocl_hardware_context *>(
@@ -416,36 +464,33 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   cl::Context ctx = hw_ctx->get_cl_context();
   cl::Device dev = hw_ctx->get_cl_device();
 
-  // Need to create custom config to ensure we can distinguish other
-  // kernels compiled with different values e.g. of local mem allocation size
-  static thread_local kernel_configuration config;
-  config = initial_config;
+  _config = initial_config;
   
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::backend_id, backend_id::ocl);
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::compilation_flow,
       compilation_flow::sscp);
-  config.append_base_configuration(
+  _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
   
   for(const auto& flag : kernel_info->get_compilation_flags())
-    config.set_build_flag(flag);
+    _config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
-    config.set_build_option(opt.first, opt.second);
+    _config.set_build_option(opt.first, opt.second);
 
-  config.set_build_option(
+  _config.set_build_option(
       kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
   if(hw_ctx->has_intel_extension_profile()) {
-    config.set_build_flag(
+    _config.set_build_flag(
       kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
   }
 
   // TODO: Enable this if we are on Intel
   // config.set_build_flag(kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
 
-  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(config);
+  auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;
   kernel_configuration::extend_hash(
       code_object_configuration_id,
@@ -471,11 +516,11 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     rt::result err;
     if(kernel_names.size() == 1) {
       err = glue::jit::dead_argument_elimination::compile_kernel(
-          translator.get(), hcf_object, selected_image_name, config,
+          translator.get(), hcf_object, selected_image_name, _config,
           binary_configuration_id, compiled_image);
     } else {
       err = glue::jit::compile(translator.get(),
-        hcf_object, selected_image_name, config, compiled_image);
+        hcf_object, selected_image_name, _config, compiled_image);
     }
     
     if(!err.is_success()) {
@@ -487,7 +532,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   auto code_object_constructor = [&](const std::string& compiled_image) -> code_object* {
     ocl_executable_object *exec_obj = new ocl_executable_object{
-        ctx, dev, hcf_object, compiled_image, config};
+        ctx, dev, hcf_object, compiled_image, _config};
     result r = exec_obj->get_build_result();
 
     if(!r.is_success()) {
@@ -515,7 +560,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   }
 
   if(obj->get_jit_output_metadata().kernel_retained_arguments_indices.has_value()) {
-    arg_mapper.apply_dead_argument_elimination_mask(
+    _arg_mapper.apply_dead_argument_elimination_mask(
         obj->get_jit_output_metadata()
             .kernel_retained_arguments_indices.value());
   }
@@ -533,9 +578,9 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   cl::Event completion_evt;
   auto submission_err = submit_ocl_kernel(
-      kernel, _queue, group_size, num_groups, arg_mapper.get_mapped_args(),
-      const_cast<std::size_t *>(arg_mapper.get_mapped_arg_sizes()),
-      arg_mapper.get_mapped_num_args(), hw_ctx->get_usm_provider(), kernel_info,
+      kernel, _queue, group_size, num_groups, _arg_mapper.get_mapped_args(),
+      const_cast<std::size_t *>(_arg_mapper.get_mapped_arg_sizes()),
+      _arg_mapper.get_mapped_num_args(), hw_ctx->get_usm_provider(), kernel_info,
       &completion_evt);
 
   if(!submission_err.is_success())
@@ -550,9 +595,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       error_info{"ocl_queue: SSCP kernel launch was requested, but hipSYCL was "
                  "not built with OpenCL SSCP support."});
 #endif
-
 }
-
 
 void ocl_queue::register_submitted_op(cl::Event evt) {
   this->_state.set_most_recent_event(std::make_shared<ocl_node_event>(

@@ -32,6 +32,7 @@
 #include "../kernel_launcher_data.hpp"
 
 #include <array>
+#include <atomic>
 #include <string_view>
 
 
@@ -76,7 +77,7 @@ static std::string get_local_hcf_object() {
       __acpp_local_sscp_hcf_object_size};
 }
 
-// TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
+// TODO: Maybe this can be unified with the ACPP_STATIC_HCF_REGISTRATION
 // macro. We cannot use this macro directly because it expects
 // the object id to be constexpr, which it is not for the SSCP case.
 struct static_hcf_registration {
@@ -94,6 +95,29 @@ private:
 static static_hcf_registration
     __acpp_register_sscp_hcf_object{get_local_hcf_object()};
 
+
+// This class effectively caches queries into the HCF cache: For each
+// kernel lambda type, a separate object is instantiated which queries the HCF cache.
+// This allows us to not query the cache for every single submission, instead just
+// reusing the pointer here.
+struct kernel_info_retriever {
+  template <class Kernel>
+  static const rt::hcf_kernel_info *get(const Kernel &, rt::hcf_object_id obj,
+                         std::string_view kernel_name) {
+    static kernel_info_retriever retriever;
+
+    const rt::hcf_kernel_info *ptr =
+        retriever._cached_info_ptr.load(std::memory_order_relaxed);
+    if(!ptr) {
+      ptr = rt::hcf_cache::get().get_kernel_info(obj, kernel_name);
+      retriever._cached_info_ptr.store(ptr, std::memory_order_relaxed);
+    }
+    return ptr;
+  }
+
+private:
+  std::atomic<const rt::hcf_kernel_info*> _cached_info_ptr = nullptr;
+};
 
 }
 
@@ -324,11 +348,11 @@ public:
       std::size_t arg_size = launch_config.kernel_args.size();
 
       return invoker->submit_kernel(
-          *kernel_op, launch_config.sscp_hcf_object_id, num_groups, selected_group_size,
-          launch_config.local_mem_size, const_cast<void **>(args.data()), &arg_size,
-          args.size(), launch_config.sscp_kernel_id, kernel_config);
-
-      
+          *kernel_op, launch_config.sscp_hcf_object_id, num_groups,
+          selected_group_size, launch_config.local_mem_size,
+          const_cast<void **>(args.data()), &arg_size, args.size(),
+          launch_config.sscp_kernel_id, launch_config.kernel_info,
+          kernel_config);
     }
   }
 
@@ -358,6 +382,8 @@ private:
     std::memcpy(out.kernel_args.data(), &k, sizeof(Kernel));
 
     out.sscp_kernel_id = generate_kernel(k);
+    out.kernel_info = sscp::kernel_info_retriever::get(
+        k, out.sscp_hcf_object_id, out.sscp_kernel_id);
   }
 
 

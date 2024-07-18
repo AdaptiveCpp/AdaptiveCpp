@@ -103,7 +103,9 @@ add_executable(sycl_tests
   sycl/sycl_test_suite.cpp 
   sycl/usm.cpp
   sycl/vec.cpp
-  sycl/queue.cpp)
+  sycl/queue.cpp
+  sycl/multi_ptr.cpp
+)
 
 # Also test instant submission mode
 target_compile_definitions(sycl_tests PRIVATE -DACPP_ALLOW_INSTANT_SUBMISSION=1)

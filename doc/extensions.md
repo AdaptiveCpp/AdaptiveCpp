@@ -396,6 +396,10 @@ struct AdaptiveCpp_retarget {
 };
 
 }
+
+namespace sycl::property::queue {
+struct AdaptiveCpp_retargetable {};
+}
 ```
 
 ##### Description
@@ -411,6 +415,8 @@ Compared to using multiple queues bound to different devices, using a single que
 
 * A single `queue::wait()` call guarantees that all operations submitted to the queue, no matter to which device they were retargeted, have completed. With multiple queues on the other hand, multiple `wait()` calls are necessary which can add some overhead.
 * If the queue is an in-order queue, the in-order property is *preserved even if the operations are retargeted to run on different devices*. This can be a highly convenient way to formulate in-order USM algorithms that require processing steps on different devices.
+
+The `AdaptiveCpp_retarget` property can only be used with queues that have been constructed with the `AdaptiveCpp_retargetable` property.
 
 
 #### `ACPP_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE`

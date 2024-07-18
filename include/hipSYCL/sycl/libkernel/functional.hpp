@@ -21,101 +21,101 @@ namespace sycl {
 
 // TODO We might want to alias these to std:: types?
 template <typename T = void> struct plus {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x + y; }
 };
 
 template <> struct plus<void> {
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x + y; }
 };
 
 template <typename T = void> struct multiplies {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x * y; }
 };
 
 template<> struct multiplies<void> {
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x * y; }
 };
 
 template <typename T = void> struct bit_and {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x & y; }
 };
 
 template<> struct bit_and <void>{
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x & y; }
 };
 
 template <typename T = void> struct bit_or {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x | y; }
 };
 
 template<> struct bit_or <void>{
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x | y; }
 };
 
 template <typename T = void> struct bit_xor {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x ^ y; }
 };
 
 template<> struct bit_xor <void>{
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x ^ y; }
 };
 
 template <typename T = void> struct logical_and {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return static_cast<T>(x && y); }
 };
 
 template<> struct logical_and <void>{
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return static_cast<T>(x && y); }
 };
 
 template <typename T = void> struct logical_or {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return static_cast<T>(x || y); }
 };
 
 template<> struct logical_or <void>{
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return static_cast<T>(x || y); }
 };
 
 template <typename T = void> struct minimum {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return (x < y) ? x : y; }
 };
 
 template<> struct minimum <void>{
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return (x < y) ? x : y; }
 };
 
 template <typename T = void> struct maximum {
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return (x > y) ? x : y; }
 };
 
 template<> struct maximum <void>{
   template<class T>
-  HIPSYCL_KERNEL_TARGET
+  ACPP_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return (x > y) ? x : y; }
 };
 

@@ -30,6 +30,7 @@ namespace rt {
 class dag_node;
 class kernel_configuration;
 class backend_kernel_launch_capabilities;
+class hcf_kernel_info;
 }
 
 namespace glue {
@@ -63,6 +64,7 @@ struct kernel_launcher_data {
   // compilation flow-specific fields
   unsigned long long sscp_hcf_object_id;
   const char* sscp_kernel_id = nullptr;
+  const rt::hcf_kernel_info* kernel_info = nullptr;
   invoker_function_t sscp_invoker;
 };
 

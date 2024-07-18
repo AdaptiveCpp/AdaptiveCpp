@@ -161,7 +161,7 @@ jobs:
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
-        make pstl_tests -j3
+        make -j3
     - name: run Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp

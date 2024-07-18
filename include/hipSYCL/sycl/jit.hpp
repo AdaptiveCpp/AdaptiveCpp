@@ -37,6 +37,7 @@
 #include "hipSYCL/glue/reflection.hpp"
 #include "hipSYCL/glue/llvm-sscp/fcall_specialization.hpp"
 #include "hipSYCL/common/stable_running_hash.hpp"
+#include "hipSYCL/common/unordered_dense.hpp"
 #include "exception.hpp"
 
 // Meaning: The calling function has a dynamic function as argument 0 (excluding this pointer)
@@ -284,7 +285,7 @@ private:
 
   bool _is_ready = false;
   glue::sscp::fcall_specialized_config _config;
-  std::unordered_map<const char*, std::vector<std::string>> _entries;
+  ankerl::unordered_dense::map<const char*, std::vector<std::string>> _entries;
 };
 
 }

@@ -1114,7 +1114,7 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
 }
 
 #endif
-#ifdef ACPP_EXT_MULTI_DEVICE_QUEUE
+#if defined(ACPP_EXT_MULTI_DEVICE_QUEUE) && defined(ACPP_TEST_MULTI_DEVICE_QUEUE)
 
 BOOST_AUTO_TEST_CASE(multi_device_queue) {
   using namespace cl;

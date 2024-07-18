@@ -204,7 +204,7 @@ HIPSYCL_BUILTIN float __acpp_pown(float x, IntType y) noexcept {
 
 template<class IntType>
 HIPSYCL_BUILTIN double __acpp_pown(double x, IntType y) noexcept {
-  return __acpp_sscp_pown_f64(x, static_cast<__acpp_int64>(y));
+  return __acpp_sscp_pown_f64(x, static_cast<__acpp_int32>(y));
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(remainder)

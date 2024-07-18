@@ -215,7 +215,7 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_pown_f32(float x, __acpp_int32 y) {
   return __acpp_sscp_pow_f32(x, (float)y);
 }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_pown_f64(double x,
-                                                    __acpp_int64 y) {
+                                                    __acpp_int32 y) {
   return __acpp_sscp_pow_f64(x, (double)y);
 }
 

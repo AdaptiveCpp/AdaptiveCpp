@@ -184,8 +184,8 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_pown_f32(float x, __acpp_int32 y) {
   return __nv_powif(x, y);
 }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_pown_f64(double x,
-                                                    __acpp_int64 y) {
-  return __nv_powi(x, static_cast<__acpp_int32>(y));
+                                                    __acpp_int32 y) {
+  return __nv_powi(x, y);
 }
 
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN2(remainder, __nv_remainderf, __nv_remainder)

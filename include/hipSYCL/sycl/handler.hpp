@@ -808,8 +808,16 @@ private:
       // buffers for buffer-accessor reductions
       for(const rt::dag_node_ptr& req : _requirements.get()) {
         auto* op = req->get_operation();
-        if(op->is_requirement())
-          req_list.add_node_requirement(req);
+        if(op->is_requirement()) {
+          auto cloned_op =
+              static_cast<rt::requirement *>(op)->clone_requirement(true);
+
+          req_list.add_requirement(std::move(cloned_op));
+        } else {
+          // Other dependencies that are not requirements should be
+          // covered by the dependency to the previous node that we add
+          // before this for loop.
+        }
       }
       
       previous_event =

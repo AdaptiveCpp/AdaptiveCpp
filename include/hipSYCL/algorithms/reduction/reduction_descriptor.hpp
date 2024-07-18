@@ -61,7 +61,7 @@ struct reduction_binary_operator {
   : _op{op}, _identity{identity} {}
 
   using value_type = T;
-  using combiner_type = BinaryOp;
+  using binary_operation = BinaryOp;
 
   static constexpr bool has_known_identity() noexcept { return true; }
 
@@ -82,7 +82,7 @@ struct reduction_binary_operator<T, BinaryOp, false> {
   : _op{op} {}
 
   using value_type = T;
-  using combiner_type = BinaryOp;
+  using binary_operation = BinaryOp;
 
   static constexpr bool has_known_identity() noexcept { return false; }
 

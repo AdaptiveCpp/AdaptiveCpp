@@ -37,7 +37,7 @@ template<class ReductionBinaryOp>
 class sequential_reducer {
 public:
   using operator_type = ReductionBinaryOp;
-  using combiner_type = typename ReductionBinaryOp::combiner_type;
+  using binary_operation = typename ReductionBinaryOp::binary_operation;
   using value_type = typename ReductionBinaryOp::value_type;
   static constexpr bool is_identity_known =
       ReductionBinaryOp::has_known_identity();

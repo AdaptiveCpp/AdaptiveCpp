@@ -55,32 +55,37 @@ class initialize_to_identity : public detail::reduction_property
 /// Reducer implementation, builds on \c BackendReducerImpl concept.
 /// \c BackendReducerImpl concept:
 ///   - defines value_type for reduction data type
-///   - defines combiner_type for the binary combiner operation
+///   - defines binary_operation for the binary combiner operation
 ///   - defines value_type identity() const
 ///   - defines void combine(const value_type&)
 template <class BackendReducerImpl>
 class reducer {
 public:
-  
-  using value_type    = typename BackendReducerImpl::value_type;
-  using combiner_type = typename BackendReducerImpl::combiner_type;
+  using value_type       = typename BackendReducerImpl::value_type;
+  using binary_operation = typename BackendReducerImpl::binary_operation;
+  static constexpr int dimensions = 0; // TODO: For span reductions, this should be 1
+
 
   ACPP_KERNEL_TARGET
   reducer(const reducer &) = delete;
 
   ACPP_KERNEL_TARGET
-  reducer(reducer&&) = default;
+  reducer(reducer&&) = delete;
+
+  ACPP_KERNEL_TARGET
+  reducer& operator= (const reducer&) = delete;
+
+  ACPP_KERNEL_TARGET
+  reducer& operator= (reducer&&) = delete;
 
   ACPP_KERNEL_TARGET
   reducer(BackendReducerImpl &impl)
       : _impl{impl} {}
 
   ACPP_KERNEL_TARGET
-  reducer& operator= (const reducer&) = delete;
-
-  ACPP_KERNEL_TARGET
-  void combine(const value_type &partial) {
-    return _impl.combine(partial);
+  reducer& combine(const value_type &partial) {
+    _impl.combine(partial);
+    return *this;
   }
 
   // TODO
@@ -97,7 +102,7 @@ private:
 };
 
 #define HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(T)                                   \
-  class Op = typename reducer<BackendReducerImpl>::combiner_type,              \
+  class Op = typename reducer<BackendReducerImpl>::binary_operation,              \
         std::enable_if_t <                                                     \
                 std::is_same_v<                                                \
                     Op,                                                        \
@@ -110,48 +115,48 @@ private:
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::plus)>
 ACPP_KERNEL_TARGET
-void operator+=(reducer<BackendReducerImpl> &r,
+reducer<BackendReducerImpl>& operator+=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
-  r.combine(v);
+  return r.combine(v);
 }
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::multiplies)>
 ACPP_KERNEL_TARGET
-void operator*=(reducer<BackendReducerImpl> &r,
+reducer<BackendReducerImpl>& operator*=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
-  r.combine(v);
+  return r.combine(v);
 }
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_and)>
 ACPP_KERNEL_TARGET
-void operator&=(reducer<BackendReducerImpl> &r,
+reducer<BackendReducerImpl>& operator&=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
-  r.combine(v);
+  return r.combine(v);
 }
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_or)>
 ACPP_KERNEL_TARGET
-void operator|=(reducer<BackendReducerImpl> &r,
+reducer<BackendReducerImpl>& operator|=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
-  r.combine(v);
+  return r.combine(v);
 }
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_xor)>
 ACPP_KERNEL_TARGET
-void operator^=(reducer<BackendReducerImpl> &r,
+reducer<BackendReducerImpl>& operator^=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
-  r.combine(v);
+  return r.combine(v);
 }
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::plus)>
 ACPP_KERNEL_TARGET
-void operator++(reducer<BackendReducerImpl> &r) {
-  r.combine(1);
+reducer<BackendReducerImpl>& operator++(reducer<BackendReducerImpl> &r) {
+  return r.combine(1);
 }
 
 

@@ -161,6 +161,21 @@ kernel_adaptivity_engine::kernel_adaptivity_engine(
 kernel_configuration::id_type
 kernel_adaptivity_engine::finalize_binary_configuration(
     kernel_configuration &config) {
+    
+  // At any adaptivity level need to handle function call specializations.
+  for (int i = 0; i < _kernel_info->get_num_parameters(); ++i) {
+    auto &annotations = _kernel_info->get_known_annotations(i);
+    std::size_t arg_size = _kernel_info->get_argument_size(i);
+    for (auto annotation : annotations) {
+      if (annotation ==
+              hcf_kernel_info::annotation_type::fcall_specialized_config &&
+          arg_size == sizeof(glue::sscp::fcall_config_kernel_property_t)) {
+        glue::sscp::fcall_config_kernel_property_t value;
+        std::memcpy(&value, _arg_mapper.get_mapped_args()[i], arg_size);
+        config.set_function_call_specialization_config(i, value);
+      }
+    }
+  }
 
   if(_adaptivity_level > 0) {
     // Enter single-kernel code model
@@ -194,22 +209,6 @@ kernel_adaptivity_engine::finalize_binary_configuration(
         uint64_t buffer_value = 0;
         std::memcpy(&buffer_value, _arg_mapper.get_mapped_args()[i], arg_size);
         config.set_specialized_kernel_argument(i, buffer_value);
-      }
-    }
-  }
-
-
-  // Handle function call specializations
-  for (int i = 0; i < _kernel_info->get_num_parameters(); ++i) {
-    auto &annotations = _kernel_info->get_known_annotations(i);
-    std::size_t arg_size = _kernel_info->get_argument_size(i);
-    for (auto annotation : annotations) {
-      if (annotation ==
-              hcf_kernel_info::annotation_type::fcall_specialized_config &&
-          arg_size == sizeof(glue::sscp::fcall_config_kernel_property_t)) {
-        glue::sscp::fcall_config_kernel_property_t value;
-        std::memcpy(&value, _arg_mapper.get_mapped_args()[i], arg_size);
-        config.set_function_call_specialization_config(i, value);
       }
     }
   }

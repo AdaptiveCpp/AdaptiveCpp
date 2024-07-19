@@ -1043,9 +1043,20 @@ private:
     cgf(cgh);
 
     rt::dag_node_ptr node = this->extract_dag_node(cgh);
-    if (is_in_order() && _impl->needs_in_order_emulation) {
-      _impl->previous_submission = node;
+    if (is_in_order()) {
+      if(_impl->needs_in_order_emulation) {
+        _impl->previous_submission = node;
+      } else if(cgh.contains_non_instant_nodes()) {
+        // If we have instant submission enabled, non-emulated in-order queue
+        // but non-instant tasks, we need to flush the dag, otherwise future instant
+        // tasks might not wait on the tasks that have been cached in the dag
+        // builder.
+#if ACPP_ALLOW_INSTANT_SUBMISSION
+        _impl->requires_runtime.get()->dag().flush_sync();
+#endif
+      }
     }
+
     return node;
   }
       

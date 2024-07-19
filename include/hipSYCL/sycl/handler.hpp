@@ -1112,6 +1112,10 @@ private:
   const rt::node_list_t& get_cg_nodes() const
   { return _command_group_nodes; }
 
+  bool contains_non_instant_nodes() const {
+    return _contains_non_instant_nodes;
+  }
+
   
   handler(const context &ctx, async_handler handler,
           const rt::execution_hints &hints, rt::runtime* rt,
@@ -1182,6 +1186,8 @@ private:
         op->is_requirement()) {
       // traditional submission
       rt::dag_build_guard build{_rt->dag()};
+      _contains_non_instant_nodes = true;
+      
       return build.builder()->add_command_group(std::move(op), requirements, hints);
     } else {
 
@@ -1220,6 +1226,7 @@ private:
   rt::runtime* _rt;
 
   bool _operation_uses_reductions = false;
+  bool _contains_non_instant_nodes = false;
 
   algorithms::util::allocation_cache* _allocation_cache;
 

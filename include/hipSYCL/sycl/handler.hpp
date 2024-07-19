@@ -897,8 +897,6 @@ private:
                   "Overload resolution should never pick this overload without "
                   "reductions");
 
-    this->_operation_uses_reductions = true;
-
     if constexpr(KernelType == rt::kernel_type::ndrange_parallel_for) {
       _command_group_nodes.push_back(
           submit_ndrange_reduction_kernel<KernelName>(global_range, local_range,
@@ -1182,12 +1180,12 @@ private:
 
     if (!ACPP_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
         has_non_instant_dependency || is_unbound ||
-        !is_dedicated_in_order_queue || _operation_uses_reductions ||
+        !is_dedicated_in_order_queue ||
         op->is_requirement()) {
       // traditional submission
       rt::dag_build_guard build{_rt->dag()};
       _contains_non_instant_nodes = true;
-      
+
       return build.builder()->add_command_group(std::move(op), requirements, hints);
     } else {
 
@@ -1225,7 +1223,6 @@ private:
 
   rt::runtime* _rt;
 
-  bool _operation_uses_reductions = false;
   bool _contains_non_instant_nodes = false;
 
   algorithms::util::allocation_cache* _allocation_cache;

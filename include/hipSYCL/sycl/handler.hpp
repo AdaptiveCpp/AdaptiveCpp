@@ -56,8 +56,17 @@
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
+#ifndef ACPP_FORCE_INSTANT_SUBMISSION
+#define ACPP_FORCE_INSTANT_SUBMISSION 0
+#endif
+
 #if defined(HIPSYCL_ALLOW_INSTANT_SUBMISSION) && !defined(ACPP_ALLOW_INSTANT_SUBMISSION)
 #define ACPP_ALLOW_INSTANT_SUBMISSION HIPSYCL_ALLOW_INSTANT_SUBMISSION
+#endif
+
+#if ACPP_FORCE_INSTANT_SUBMISSION
+#undef ACPP_ACPP_ALLOW_INSTANT_SUBMISSION
+#define ACPP_ACPP_ALLOW_INSTANT_SUBMISSION 1
 #endif
 
 #ifndef ACPP_ALLOW_INSTANT_SUBMISSION
@@ -1182,11 +1191,16 @@ private:
         has_non_instant_dependency || is_unbound ||
         !is_dedicated_in_order_queue ||
         op->is_requirement()) {
+#if ACPP_FORCE_INSTANT_SUBMISSION
+      throw exception{make_error_code(errc::invalid), "Instant submission not possible, "
+          "but application was built with ACPP_FORCE_INSTANT_SUBMISSION=1"};
+#else
       // traditional submission
       rt::dag_build_guard build{_rt->dag()};
       _contains_non_instant_nodes = true;
 
       return build.builder()->add_command_group(std::move(op), requirements, hints);
+#endif
     } else {
 
       rt::dag_node_ptr node = std::make_shared<rt::dag_node>(

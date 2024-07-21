@@ -146,8 +146,10 @@ public:
       "--hip-link",
       "-###"
     };
-    if(IsFastMath)
+    if(IsFastMath) {
       Invocation.push_back("-ffast-math");
+      Invocation.push_back("-fno-hip-fp32-correctly-rounded-divide-sqrt");
+    }
     
     if(!llvm::StringRef{ClangPath}.endswith("hipcc")) {
       // Normally we try to use hipcc. However, when that fails,

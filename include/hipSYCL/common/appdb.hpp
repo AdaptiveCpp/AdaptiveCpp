@@ -24,9 +24,9 @@
 namespace hipsycl::common::db {
 
 struct kernel_arg_value_statistics {
-  uint64_t value; // The kernel argument value
-  uint64_t count; // How many times we have seen this value
-  uint64_t last_used; // The number of the kernel invocation where this value
+  uint64_t value = 0; // The kernel argument value
+  uint64_t count = 0; // How many times we have seen this value
+  uint64_t last_used = 0; // The number of the kernel invocation where this value
                       // was last used
 
   void dump(std::ostream& ostr, int indentation_level=0) const;
@@ -61,13 +61,20 @@ struct kernel_entry {
     pack(kernel_args);
     pack(num_registered_invocations);
     pack(retained_argument_indices);
+    pack(first_iads_invocation_run);
   }
 
   void dump(std::ostream& ostr, int indentation_level=0) const;
 
   std::vector<kernel_arg_entry> kernel_args;
-  std::size_t num_registered_invocations;
+  std::size_t num_registered_invocations = 0;
   std::vector<int> retained_argument_indices;
+
+  // It seems there is a bug in msgpack serializing
+  // std::numeric_limits<size_t>::max(). So we use 1 << 63
+  // to denote an unset/invalid value.
+  static constexpr uint64_t no_usage = 1ull << 63;
+  uint64_t first_iads_invocation_run = no_usage;
 };
 
 struct binary_entry {
@@ -106,7 +113,7 @@ class appdb  {
 public:
   // DO NOT FORGET TO INCREMENT THIS WHEN ADDING/REMOVING
   // FIELDS OR OTHERWISE CHANGING THE DATA LAYOUT!
-  static const uint64_t format_version = 2;
+  static const uint64_t format_version = 3;
 
   appdb(const std::string& db_path);
   ~appdb();

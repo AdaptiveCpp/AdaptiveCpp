@@ -233,7 +233,6 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                           std::string &output) {
 
   assert(translator);
-
   runtime_linker configure_linker {translator, imported_symbol_names};
 
   // Apply configuration

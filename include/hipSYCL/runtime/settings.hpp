@@ -105,8 +105,9 @@ enum class setting {
   ocl_show_all_devices,
   no_jit_cache_population,
   adaptivity_level,
-  jitopt_iads_static_trigger,
-  jitopt_iads_relative_trigger
+  jitopt_iads_relative_threshold,
+  jitopt_iads_relative_eviction_threshold,
+  jitopt_iads_relative_threshold_min_data
 };
 
 template <setting S> struct setting_trait {};
@@ -140,8 +141,11 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_no_shared_context, "rt_ocl_no_shared_
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_show_all_devices, "rt_ocl_show_all_devices", bool)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::no_jit_cache_population, "rt_no_jit_cache_population", bool)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::adaptivity_level, "adaptivity_level", int)
-HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_static_trigger, "jitopt_iads_static_trigger", std::size_t)
-HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_trigger, "jitopt_iads_relative_trigger", double)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_threshold, "jitopt_iads_relative_threshold", double)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_eviction_threshold, "jitopt_iads_relative_eviction_threshold", double)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_threshold_min_data,
+                              "jitopt_iads_relative_threshold_min_data",
+                              std::size_t)
 
 class settings
 {
@@ -180,10 +184,12 @@ public:
       return _no_jit_cache_population;
     } else if constexpr(S == setting::adaptivity_level) {
       return _adaptivity_level;
-    } else if constexpr(S == setting::jitopt_iads_static_trigger) {
-      return _jitopt_iads_static_trigger;
-    } else if constexpr(S == setting::jitopt_iads_relative_trigger) {
-      return _jitopt_iads_relative_trigger;
+    } else if constexpr(S == setting::jitopt_iads_relative_threshold) {
+      return _jitopt_iads_relative_threshold;
+    } else if constexpr(S == setting::jitopt_iads_relative_threshold_min_data) {
+      return _jitopt_iads_relative_threshold_min_data;
+    } else if constexpr(S == setting::jitopt_iads_relative_eviction_threshold) {
+      return _jitopt_iads_relative_eviction_threshold;
     }
     return typename setting_trait<S>::type{};
   }
@@ -229,10 +235,13 @@ public:
         get_environment_variable_or_default<setting::no_jit_cache_population>(false);
     _adaptivity_level =
         get_environment_variable_or_default<setting::adaptivity_level>(1);
-    _jitopt_iads_static_trigger =
-        get_environment_variable_or_default<setting::jitopt_iads_static_trigger>(128);
-    _jitopt_iads_relative_trigger =
-        get_environment_variable_or_default<setting::jitopt_iads_relative_trigger>(0.8);
+    
+    _jitopt_iads_relative_threshold =
+        get_environment_variable_or_default<setting::jitopt_iads_relative_threshold>(0.8);
+    _jitopt_iads_relative_eviction_threshold =
+        get_environment_variable_or_default<setting::jitopt_iads_relative_eviction_threshold>(0.1);
+    _jitopt_iads_relative_threshold_min_data =
+        get_environment_variable_or_default<setting::jitopt_iads_relative_threshold_min_data>(1024);
   }
 
 private:
@@ -261,8 +270,9 @@ private:
   bool _ocl_show_all_devices;
   bool _no_jit_cache_population;
   int _adaptivity_level;
-  std::size_t _jitopt_iads_static_trigger;
-  double _jitopt_iads_relative_trigger;
+  double _jitopt_iads_relative_threshold;
+  double _jitopt_iads_relative_eviction_threshold;
+  std::size_t _jitopt_iads_relative_threshold_min_data;
 };
 
 }

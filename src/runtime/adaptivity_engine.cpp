@@ -51,10 +51,12 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
                                   uint64_t current_value) {
   auto& args = kernel_entry.kernel_args;
 
-  const int static_specialization_trigger =
-      application::get_settings().get<setting::jitopt_iads_static_trigger>();
-  const double relative_specialization_trigger =
-      application::get_settings().get<setting::jitopt_iads_relative_trigger>();
+  const double relative_specialization_threshold =
+      application::get_settings().get<setting::jitopt_iads_relative_threshold>();
+  const double relative_eviction_threshold =
+      application::get_settings().get<setting::jitopt_iads_relative_eviction_threshold>();
+  const int relative_trigger_min_size =
+      application::get_settings().get<setting::jitopt_iads_relative_threshold_min_data>();
 
   // In case we find an empty slot, this stores its index.
   int empty_slot = -1;
@@ -67,7 +69,7 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
     uint64_t& arg_value_count = arg_statistics.count;
     // Is the argument the same as an argument from a previous submission that we
     // are tracking as commonly used?
-    if(arg_statistics.value == current_value && arg_value_count > 0) {
+    if(arg_value_count > 0 && arg_statistics.value == current_value) {
       // Yep, we've hit it again, increase counter
       ++arg_value_count;
       arg_statistics.last_used = kernel_entry.num_registered_invocations;
@@ -82,9 +84,12 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
       double fraction_of_all_invocations = static_cast<double>(arg_value_count) /
                kernel_entry.num_registered_invocations;
 
-      if (arg_value_count > static_specialization_trigger ||
-          ((fraction_of_all_invocations > relative_specialization_trigger) &&
-           application_run > 0)) {
+      bool can_use_fraction_of_all_invocations =
+          (application_run > kernel_entry.first_invocation_run) ||
+          (arg_value_count > relative_trigger_min_size);
+
+      if (can_use_fraction_of_all_invocations &&
+          (fraction_of_all_invocations > relative_specialization_threshold)) {
         is_already_specialized = true;
         return true;
       } else
@@ -118,18 +123,23 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
 
     for(int i = 0; i < common::db::kernel_arg_entry::max_tracked_values; ++i) {
       auto& arg_statistics = args[param_index].common_values[i];
-      
-      if(arg_statistics.last_used < eviction_candidate_last_used_time) {
-        auto age = kernel_entry.num_registered_invocations - arg_statistics.last_used;
-        double fraction_of_all_invocations = static_cast<double>(arg_statistics.count) /
-               kernel_entry.num_registered_invocations;
+      auto& was_specialized = args[param_index].was_specialized[i];
 
-        if (age > static_specialization_trigger &&
-            fraction_of_all_invocations < relative_specialization_trigger) {
-          
-          // Update least-recently-used so that we can find potential entries to evict
-          eviction_candidate_slot = i;
-          eviction_candidate_last_used_time = arg_statistics.last_used;
+      if(arg_statistics.last_used < eviction_candidate_last_used_time) {
+
+        double fraction_of_all_invocations =
+            static_cast<double>(arg_statistics.count) /
+            kernel_entry.num_registered_invocations;
+
+        if (!was_specialized ||
+            (fraction_of_all_invocations < relative_eviction_threshold)) {
+          auto age = kernel_entry.num_registered_invocations - arg_statistics.last_used;
+          if (age > relative_trigger_min_size) {
+            
+            // Update least-recently-used so that we can find potential entries to evict
+            eviction_candidate_slot = i;
+            eviction_candidate_last_used_time = arg_statistics.last_used;
+          }
         }
       }
     }
@@ -220,18 +230,21 @@ kernel_adaptivity_engine::finalize_binary_configuration(
     // invariant kernel arguments
     auto& appdb = common::filesystem::persistent_storage::get().get_this_app_db();
     appdb.read_write_access([&](common::db::appdb_data& data){
+      
       auto& kernel_entry = data.kernels[base_id];
+      if(kernel_entry.first_invocation_run == -1) {
+        kernel_entry.first_invocation_run = data.content_version;
+      }
       ++kernel_entry.num_registered_invocations;
 
       std::size_t num_kernel_args = _kernel_info->get_num_parameters();
       if(kernel_entry.kernel_args.size() != num_kernel_args)
         kernel_entry.kernel_args.resize(num_kernel_args);
 
-      for(int i = 0; i < num_kernel_args; ++i) {
+      auto process_kernel_arg = [&](int i) {
         uint64_t arg_value = 0;
         std::memcpy(&arg_value, _arg_mapper.get_mapped_args()[i],
                     _kernel_info->get_argument_size(i));
-        // TODO: Don't specialize if specialized<> is already used
         if (_kernel_info->get_argument_type(i) !=
                 hcf_kernel_info::argument_type::pointer &&
             is_likely_invariant_argument(kernel_entry, i, data.content_version,
@@ -245,6 +258,16 @@ kernel_adaptivity_engine::finalize_binary_configuration(
         } else {
           HIPSYCL_DEBUG_INFO << "adaptivity_engine: Not specializing kernel argument " << i
                              << std::endl;
+        }
+      };
+
+      if(!kernel_entry.retained_argument_indices.empty()) {
+        for(auto arg_index : kernel_entry.retained_argument_indices) {
+          process_kernel_arg(arg_index);
+        }
+      } else {
+        for(int i = 0; i < num_kernel_args; ++i) {
+          process_kernel_arg(i);
         }
       }
     });

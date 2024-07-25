@@ -61,7 +61,7 @@ struct kernel_entry {
     pack(kernel_args);
     pack(num_registered_invocations);
     pack(retained_argument_indices);
-    pack(first_invocation_run);
+    pack(first_iads_invocation_run);
   }
 
   void dump(std::ostream& ostr, int indentation_level=0) const;
@@ -69,7 +69,12 @@ struct kernel_entry {
   std::vector<kernel_arg_entry> kernel_args;
   std::size_t num_registered_invocations = 0;
   std::vector<int> retained_argument_indices;
-  std::size_t first_invocation_run = -1;
+
+  // It seems there is a bug in msgpack serializing
+  // std::numeric_limits<size_t>::max(). So we use 1 << 63
+  // to denote an unset/invalid value.
+  static constexpr uint64_t no_usage = 1ull << 63;
+  uint64_t first_iads_invocation_run = no_usage;
 };
 
 struct binary_entry {

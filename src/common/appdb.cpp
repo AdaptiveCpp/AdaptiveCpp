@@ -61,7 +61,7 @@ void kernel_entry::dump(std::ostream& ostr, int indentation_level) const {
               "int", indentation_level);
   print_array(ostr, "kernel_args", kernel_args, "arg_entry", indentation_level);
   print_key_value_pair(ostr, "first_invocation_run",
-                       first_invocation_run, indentation_level);
+                       first_iads_invocation_run, indentation_level);
 }
 
 void binary_entry::dump(std::ostream& ostr, int indentation_level) const {

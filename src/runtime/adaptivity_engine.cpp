@@ -85,7 +85,7 @@ bool is_likely_invariant_argument(common::db::kernel_entry &kernel_entry,
                kernel_entry.num_registered_invocations;
 
       bool can_use_fraction_of_all_invocations =
-          (application_run > kernel_entry.first_invocation_run) ||
+          (application_run > kernel_entry.first_iads_invocation_run) ||
           (arg_value_count > relative_trigger_min_size);
 
       if (can_use_fraction_of_all_invocations &&
@@ -232,8 +232,9 @@ kernel_adaptivity_engine::finalize_binary_configuration(
     appdb.read_write_access([&](common::db::appdb_data& data){
       
       auto& kernel_entry = data.kernels[base_id];
-      if(kernel_entry.first_invocation_run == -1) {
-        kernel_entry.first_invocation_run = data.content_version;
+      if (kernel_entry.first_iads_invocation_run ==
+          common::db::kernel_entry::no_usage) {
+        kernel_entry.first_iads_invocation_run = data.content_version;
       }
       ++kernel_entry.num_registered_invocations;
 

@@ -97,11 +97,11 @@ public:
 };
 
 static llvm::cl::opt<bool> SSCPEmitHcf{
-    "hipsycl-sscp-emit-hcf", llvm::cl::init(false),
+    "acpp-sscp-emit-hcf", llvm::cl::init(false),
     llvm::cl::desc{"Emit HCF from hipSYCL LLVM SSCP compilation flow"}};
 
 static llvm::cl::opt<bool> PreoptimizeSSCPKernels{
-    "hipsycl-sscp-preoptimize", llvm::cl::init(false),
+    "acpp-sscp-preoptimize", llvm::cl::init(false),
     llvm::cl::desc{
         "Preoptimize SYCL kernels in LLVM IR instead of embedding unoptimized kernels and relying "
         "on optimization at runtime. This is mainly for hipSYCL developers and NOT supported!"}};

@@ -50,20 +50,20 @@ namespace hipsycl {
 namespace compiler {
 
 static llvm::cl::opt<bool> EnableLLVMSSCP{
-    "hipsycl-sscp", llvm::cl::init(false),
+    "acpp-sscp", llvm::cl::init(false),
     llvm::cl::desc{"Enable AdaptiveCpp LLVM SSCP compilation flow"}};
 
 static llvm::cl::opt<std::string> LLVMSSCPKernelOpts{
-    "hipsycl-sscp-kernel-opts", llvm::cl::init(""),
+    "acpp-sscp-kernel-opts", llvm::cl::init(""),
     llvm::cl::desc{
         "Specify compilation options to use when JIT-compiling AdaptiveCpp SSCP kernels"}};
 
 static llvm::cl::opt<bool> EnableStdPar{
-    "hipsycl-stdpar", llvm::cl::init(false),
+    "acpp-stdpar", llvm::cl::init(false),
     llvm::cl::desc{"Enable hipSYCL C++ standard parallelism support"}};
 
 static llvm::cl::opt<bool> StdparNoMallocToUSM{
-    "hipsycl-stdpar-no-malloc-to-usm", llvm::cl::init(false),
+    "acpp-stdpar-no-malloc-to-usm", llvm::cl::init(false),
     llvm::cl::desc{"Disable hipSYCL C++ standard parallelism malloc-to-usm compiler-side support"}};
 
 // Register and activate passes

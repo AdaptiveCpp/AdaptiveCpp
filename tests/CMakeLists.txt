@@ -122,7 +122,7 @@ target_link_libraries(rt_tests PRIVATE Threads::Threads)
 add_sycl_to_target(TARGET rt_tests)
 
 # We cannot enable building them unconditionally at the moment,
-# because --hipsycl-stdpar is not compatible with all --hipsycl-targets
+# because --acpp-stdpar is not compatible with all --acpp-targets
 # values. Enabling them in all cases would break some existing test flows.
 if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 

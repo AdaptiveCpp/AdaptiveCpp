@@ -110,8 +110,8 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
 bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     std::string &out) {
-  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-host-%%%%%%.so");
+  auto InputFile = llvm::sys::fs::TempFile::create("acpp-sscp-host-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("acpp-sscp-host-%%%%%%.so");
 
   if (auto E = InputFile.takeError()) {
     this->registerError("LLVMToHost: Could not create temp file: " + InputFile->TmpName);

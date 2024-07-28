@@ -81,7 +81,7 @@ using optional_t = std::optional<T>;
 bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::string> &Invocation,
                       std::string &Out) {
 
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-query-%%%%%%.txt");
+  auto OutputFile = llvm::sys::fs::TempFile::create("acpp-sscp-query-%%%%%%.txt");
 
   std::string OutputFilename = OutputFile->TmpName;
 
@@ -395,9 +395,9 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
   for(const auto& BC : DeviceLibs)
     addBitcodeFile(BC);
 
-  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.hipfb");
-  auto DummyFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-dummy-%%%%%%.cpp");
+  auto InputFile = llvm::sys::fs::TempFile::create("acpp-sscp-amdgpu-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("acpp-sscp-amdgpu-%%%%%%.hipfb");
+  auto DummyFile = llvm::sys::fs::TempFile::create("acpp-sscp-amdgpu-dummy-%%%%%%.cpp");
 
   std::string OutputFilename = OutputFile->TmpName;
 

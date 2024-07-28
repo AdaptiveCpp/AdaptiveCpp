@@ -227,8 +227,8 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
 bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
-  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.s");
+  auto InputFile = llvm::sys::fs::TempFile::create("acpp-sscp-ptx-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("acpp-sscp-ptx-%%%%%%.s");
   
   std::string OutputFilename = OutputFile->TmpName;
   

@@ -863,7 +863,6 @@ void Unpacker::unpack_type(uint64_t &value) {
       value += uint64_t(safe_data()) << 8 * (i - 1);
       safe_increment();
     }
-    data_pointer++;
   } else if (safe_data() == uint16) {
     safe_increment();
     for (auto i = sizeof(uint16_t); i > 0; --i) {

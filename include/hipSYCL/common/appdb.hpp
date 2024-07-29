@@ -113,7 +113,7 @@ class appdb  {
 public:
   // DO NOT FORGET TO INCREMENT THIS WHEN ADDING/REMOVING
   // FIELDS OR OTHERWISE CHANGING THE DATA LAYOUT!
-  static const uint64_t format_version = 3;
+  static const uint64_t format_version = 4;
 
   appdb(const std::string& db_path);
   ~appdb();

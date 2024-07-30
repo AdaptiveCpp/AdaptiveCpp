@@ -26,35 +26,39 @@ and can be passed either as `acpp` command line argument (`--acpp-targets=...`),
 Whether a compilation flow needs to be followed by a target list or not varies between the available flows and is described below.
 
 For the following compilation flows, targets cannot be specified:
+
 * `omp.*`
 * `generic`
 
 For the following compilation flows, targets can optionally be specified:
+
 * `cuda-nvcxx` - Targets take the format of `ccXY` where `XY` stands for the compute capability of the device.
 
 For the following compilation flows, targets must be specified:
+
 * `cuda.*` - The target format is defined by clang and takes the format of `sm_XY`. For example:
-  * `sm_52`: NVIDIA Maxwell GPUs
-  * `sm_60`: NVIDIA Pascal GPUs
-  * `sm_70`: NVIDIA Volta GPUs
+    * `sm_52`: NVIDIA Maxwell GPUs
+    * `sm_60`: NVIDIA Pascal GPUs
+    * `sm_70`: NVIDIA Volta GPUs
 * `hip.*` - The target format is defined by clang and takes the format of `gfxXYZ`. For example:
-  * `gfx900`: AMD Vega 10 GPUs (e.g. Radeon Vega 56, Vega 64)
-  * `gfx906`: AMD Vega 20 GPUs (e.g. Radeon VII, Instinct MI50)
-  * `gfx908`: AMD CDNA GPUs (e.g Instinct MI100)
+    * `gfx900`: AMD Vega 10 GPUs (e.g. Radeon Vega 56, Vega 64)
+    * `gfx906`: AMD Vega 20 GPUs (e.g. Radeon VII, Instinct MI50)
+    * `gfx908`: AMD CDNA GPUs (e.g Instinct MI100)
 
 ### Abbreviations
 
 For some compilation flows, abbreviations exist that will be resolved by AdaptiveCpp to one of the available compilation flows:
+
 * `omp` will be translated 
-  * into `omp.accelerated` 
-     * if AdaptiveCpp has been built with support for accelerated CPU and the host compiler is the clang that AdaptiveCpp has been built with or
-     * if `--acpp-use-accelerated-cpu` is set. If the accelerated CPU compilation flow is not available (e.g. AdaptiveCpp has been compiled without support for it), compilation will abort with an error.
-  * into `omp.library-only` otherwise
+    * into `omp.accelerated` 
+        * if AdaptiveCpp has been built with support for accelerated CPU and the host compiler is the clang that AdaptiveCpp has been built with or
+        * if `--acpp-use-accelerated-cpu` is set. If the accelerated CPU compilation flow is not available (e.g. AdaptiveCpp has been compiled without support for it), compilation will abort with an error.
+    * into `omp.library-only` otherwise
 * `cuda` will be translated
-  * into `cuda.explicit-multipass`
-    * if another integrated multipass has been requested, or another backend that would conflict with `cuda.integrated-multipass`. AdaptiveCpp will emit a warning in this case, since switching to explicit multipass can change interoperability guarantees (see the [compilation](compilation.md) documentation).
-    * if `--acpp-explicit-multipass` is set explicitly
-  * into `cuda.integrated-multipass` otherwise
+    * into `cuda.explicit-multipass`
+        * if another integrated multipass has been requested, or another backend that would conflict with `cuda.integrated-multipass`. AdaptiveCpp will emit a warning in this case, since switching to explicit multipass can change interoperability guarantees (see the [compilation](compilation.md) documentation).
+        * if `--acpp-explicit-multipass` is set explicitly
+    * into `cuda.integrated-multipass` otherwise
 * `hip` will be translated into `hip.integrated-multipass`
 
 Of course, the desired flows can also always be specified explicitly.

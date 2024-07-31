@@ -66,7 +66,7 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
 void setFastMathFunctionAttribs(llvm::Module& M) {
   auto forceAttr = [&](llvm::Function& F, llvm::StringRef Key, llvm::StringRef Value) {
     if(F.hasFnAttribute(Key)) {
-      if(!F.getFnAttribute(Key).getValueAsString().equals(Value))
+      if(F.getFnAttribute(Key).getValueAsString() != Value)
         F.removeFnAttr(Key);
     }
     F.addFnAttr(Key, Value);
@@ -343,11 +343,11 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
 
   // silence optimization remarks,..
   M.getContext().setDiagnosticHandlerCallBack(
-      [](const llvm::DiagnosticInfo &DI, void *Context) {
+      [](const llvm::DiagnosticInfo *DI, void *Context) {
         llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
-        if (DI.getSeverity() == llvm::DS_Error) {
+        if (DI->getSeverity() == llvm::DS_Error) {
           llvm::errs() << "LLVMToBackend: Error: ";
-          DI.print(DP);
+          DI->print(DP);
           llvm::errs() << "\n";
         }
       });

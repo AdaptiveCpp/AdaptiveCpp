@@ -195,7 +195,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
           // pointers.
           auto* CalledF = CB->getCalledFunction();
           if (llvmutils::starts_with(CalledF->getName(), "llvm.lifetime.start") ||
-	      llvmutils::starts_with(CalledF->getName(), "llvm.lifetime.end")) {
+              llvmutils::starts_with(CalledF->getName(), "llvm.lifetime.end")) {
             if(CB->getNumOperands() > 1 && CB->getArgOperand(1)->getType()->isPointerTy())
               if (CB->getArgOperand(1)->getType()->getPointerAddressSpace() ==
                   ASMap[AddressSpace::Generic])

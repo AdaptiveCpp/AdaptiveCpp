@@ -10,6 +10,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
 #include "hipSYCL/common/debug.hpp"
+
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Module.h>
+
 #include <unordered_set>
 #include <unordered_map>
 

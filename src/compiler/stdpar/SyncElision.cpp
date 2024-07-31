@@ -202,7 +202,7 @@ void forEachReachableInstructionRequiringSync(
   while(Current) {
     if(auto* CB = llvm::dyn_cast<llvm::CallBase>(Current)) {
       llvm::Function* CalledF = CB->getCalledFunction();
-      if(CalledF->getName().equals(BarrierBuiltinName)) {
+      if(CalledF->getName() == BarrierBuiltinName) {
         // basic block already contains barrier; nothing to do
         return;
       }

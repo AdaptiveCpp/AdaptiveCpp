@@ -1,7 +1,7 @@
 set(CPACK_VERBATIM_VARIABLES YES)
 
 set(CPACK_PACKAGE_NAME "acpp")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Implementation of SYCL and C++ standard parallelism for CPUs and GPUs from all vendors. The independent, community-driven compiler for C++-based heterogeneous programming models.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Implementation of SYCL and C++ standard parallelism for CPUs and GPUs from all vendors.")
 set(CPACK_PACKAGE_VENDOR "AdaptiveCpp")
 set(CPACK_PACKAGE_CONTACT "Sanchi Vaishnavi sanchi.vaishnavi@stud.uni-heidelberg.de")
 
@@ -17,7 +17,6 @@ string(CONCAT CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}"
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 
-#set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
 SET(CPACK_OUTPUT_FILE_PREFIX "${CMAKE_SOURCE_DIR}/_packages")
 set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/AdaptiveCpp")
 
@@ -26,8 +25,6 @@ set(CPACK_BINARY_DEB ON)
 set(CPACK_DEB_COMPONENT_INSTALL YES)
 set(CPACK_DEBIAN_PACKAGE_NAME acpp)
 
-execute_process(COMMAND for file in ${CPACK_PACKAGING_INSTALL_PREFIX}/bin; do ln -s ${CPACK_PACKAGING_INSTALL_PREFIX}/bin/${file} /usr/bin/${file}; done)
-install(DIRECTORY /opt/AdaptiveCpp/bin DESTINATION /usr/)
 
 include(CPack)
 

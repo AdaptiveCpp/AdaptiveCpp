@@ -52,7 +52,7 @@ jobs:
            cd.. && git clone https://github.com/Kitware/CMake.git && cd CMake
            export CC=clang-${{matrix.clang}}
            export CXX=clang++-${{matrix.clang}}
-           git checkout v${{matrix.cmake}}
+           git fetch --tags && git checkout v${{matrix.cmake}}
            ./bootstrap --parallel=2 && make -j2 && make install
       - name: setup build environment
         run: |

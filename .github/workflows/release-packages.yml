@@ -49,9 +49,7 @@ jobs:
       - name: install dependencies
         run: |
            apt install -y python3 libboost-all-dev libtbb-dev
-           echo "$(pwd)"
-           cd.. && git clone https://github.com/Kitware/CMake.git && cd CMake
-           echo "$(pwd)"
+           cd .. && git clone https://github.com/Kitware/CMake.git && cd CMake
            export CC=clang-${{matrix.clang}}
            export CXX=clang++-${{matrix.clang}}
            git fetch --tags && git checkout v${{matrix.cmake}}

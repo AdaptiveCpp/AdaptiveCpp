@@ -1,0 +1,32 @@
+--- CMakeLists.org.txt  2024-07-30 19:44:18.612183498 +0200
++++ CMakeLists.txt      2024-07-30 19:45:17.636893678 +0200
+--- CMakeLists.org.txt  2024-07-30 23:20:34.157373087 +0200
++++ CMakeLists.txt      2024-07-30 23:20:13.249091262 +0200
+@@ -22,6 +22,9 @@
+ if(LLVM_SPIRV_BUILD_EXTERNAL)
+   # Make sure llvm-spirv gets built when building outside the llvm tree.
+   set(LLVM_BUILD_TOOLS ON)
++  # Prevent the LLVM.cmake scripts from issueing an install command
++  # https://github.com/llvm/llvm-project/blob/main/llvm/cmake/modules/AddLLVM.cmake#L928
++  set(LLVM_INSTALL_TOOLCHAIN_ONLY ON)
+ endif(LLVM_SPIRV_BUILD_EXTERNAL)
+
+ # Download spirv.hpp from the official SPIRV-Headers repository.
+@@ -154,7 +154,8 @@
+     ${LLVM_SPIRV_INCLUDE_DIRS}/LLVMSPIRVOpts.h
+     ${LLVM_SPIRV_INCLUDE_DIRS}/LLVMSPIRVExtensions.inc
+   DESTINATION
+-    ${CMAKE_INSTALL_PREFIX}/include/LLVMSPIRVLib
++    ${LLVMSPIRV_RELATIVE_INSTALLDIR}/include/LLVMSPIRVLib
++  COMPONENT ACPP
+ )
+
+ configure_file(LLVMSPIRVLib.pc.in ${CMAKE_BINARY_DIR}/LLVMSPIRVLib.pc @ONLY)
+@@ -162,5 +163,6 @@
+   FILES
+     ${CMAKE_BINARY_DIR}/LLVMSPIRVLib.pc
+   DESTINATION
+-    ${CMAKE_INSTALL_PREFIX}/lib${LLVM_LIBDIR_SUFFIX}/pkgconfig
++    ${LLVMSPIRV_RELATIVE_INSTALLDIR}/lib${LLVM_LIBDIR_SUFFIX}/pkgconfig
++  COMPONENT ACPP
+ )

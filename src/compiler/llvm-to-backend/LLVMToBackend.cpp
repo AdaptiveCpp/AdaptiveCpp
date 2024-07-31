@@ -19,6 +19,7 @@
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
@@ -99,8 +100,8 @@ public:
             // these instructions can sometimes appear as a byproduct of some transformations
             // even without dynamic allocas, but they are generally unsupported on device
             // backends.
-            if (CB->getCalledFunction()->getName().startswith("llvm.stacksave") ||
-                CB->getCalledFunction()->getName().startswith("llvm.stackrestore"))
+            if (llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.stacksave") ||
+		llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.stackrestore"))
               CallsToRemove.push_back(CB);
           }
         }

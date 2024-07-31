@@ -10,7 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/compiler/stdpar/SyncElision.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
-
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/IR/BasicBlock.h>
@@ -82,7 +82,7 @@ void identifyStoresPotentiallyForStdparArgHandling(
                 if (StdparFunctions.contains(CB->getCalledFunction())) {
                   Users.push_back(Current);
                   return true;
-                } else if(CB->getCalledFunction()->getName().startswith("llvm.lifetime")) {
+                } else if(llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.lifetime")) {
                   return true;
                 }
               }
@@ -134,7 +134,7 @@ bool functionDoesNotAccessMemory(llvm::Function* F){
   if(!F)
     return true;
   if(F->isIntrinsic()) {
-    if(F->getName().startswith("llvm.lifetime")){
+    if(llvmutils::starts_with(F->getName(), "llvm.lifetime")){
       return true;
     }
   }

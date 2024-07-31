@@ -12,6 +12,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
@@ -149,7 +150,7 @@ public:
     if(IsFastMath)
       Invocation.push_back("-ffast-math");
     
-    if(!llvm::StringRef{ClangPath}.endswith("hipcc")) {
+    if(!llvmutils::ends_with(llvm::StringRef{ClangPath}, "hipcc")) {
       // Normally we try to use hipcc. However, when that fails,
       // we may have fallen back to clang. In that case we may
       // have to additionally set --rocm-path and --rocm-device-lib-path.

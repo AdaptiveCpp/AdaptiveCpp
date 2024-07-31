@@ -16,6 +16,7 @@
 #include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
 #include "hipSYCL/compiler/sscp/StdAtomicRemapperPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
 #include <cstddef>
@@ -290,7 +291,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
       // if they are not defined, not an intrinsic and don't start with
       // __ like our hipSYCL builtins. This is a hack, it would
       // be better if we could tell clang to annotate the declaration for us :(
-      if(!F.isIntrinsic() && !F.getName().startswith("__"))
+      if(!F.isIntrinsic() && !llvmutils::starts_with(F.getName(), "__"))
         ImportedSymbolsOutput.push_back(F.getName().str());
     }
   }

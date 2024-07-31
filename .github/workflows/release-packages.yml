@@ -114,47 +114,48 @@ jobs:
           apt install -y devscripts debhelper
       - name: package AdaptiveCpp
         run: |
-          cd ..
-          cp -R AdaptiveCpp acpp-${{ env.PKGNAME }}
-          cd acpp-${{ env.PKGNAME }}
           cmake --workflow --preset workflow-release
       - name: Install the package
         run: |
-          cd ${GITHUB_WORKSPACE}/_packages
-          dpkg -i acpp-${{ env.PKGNAME }}-Linux.deb
-      - name: Release Packages
+          dpkg -i ${GITHUB_WORKSPACE}/_packages/acpp-${{ env.PKGNAME }}-Linux.deb
+      - name: Release DEB Package
         uses: actions/upload-artifact@v4
         with:
-          name: all-backends-${{ env.PKGNAME }}
-          path: /home/runner/work/AdaptiveCpp/acpp-${{env.PKGNAME}}/_packages/acpp-${{ env.PKGNAME }}-Linux.*
+          name: all-backends-${{ env.PKGNAME }}-deb
+          path: /home/runner/work/AdaptiveCpp/AdaptiveCpp/_packages/acpp-${{ env.PKGNAME }}-Linux.deb
+      - name: Release RPM Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-backends-${{ env.PKGNAME }}-rpm
+          path: /home/runner/work/AdaptiveCpp/AdaptiveCpp/_packages/acpp-${{ env.PKGNAME }}-Linux.rpm
       - name: build generic SSCP tests
         if: matrix.clang >= 14
         run: |
           mkdir ${GITHUB_WORKSPACE}/build-tests-sscp
           cd ${GITHUB_WORKSPACE}/build-tests-sscp
-          cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+          cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=/opt/AdaptiveCpp/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
           make -j2
       - name: build CPU tests
         run: |
           mkdir ${GITHUB_WORKSPACE}/build-tests-cpu
           cd ${GITHUB_WORKSPACE}/build-tests-cpu
-          cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+          cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=/opt/AdaptiveCpp/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
           make -j2
       - name: build CUDA tests
         run: |
           mkdir ${GITHUB_WORKSPACE}/build-tests-cuda
           cd ${GITHUB_WORKSPACE}/build-tests-cuda
-          cmake -DACPP_TARGETS="cuda:sm_60" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
+          cmake -DACPP_TARGETS="cuda:sm_60" -DAdaptiveCpp_DIR=/opt/AdaptiveCpp/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
           make -j2
       - name: build ROCm tests
         run: |
           mkdir ${GITHUB_WORKSPACE}/build-tests-rocm
           cd ${GITHUB_WORKSPACE}/build-tests-rocm
-          cmake -DACPP_TARGETS="hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
+          cmake -DACPP_TARGETS="hip:gfx906" -DAdaptiveCpp_DIR=/opt/AdaptiveCpp/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
           make -j2
       - name: build explicit multipass tests
         run: |
           mkdir ${GITHUB_WORKSPACE}/build-tests-emp
           cd ${GITHUB_WORKSPACE}/build-tests-emp
-          cmake -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+          cmake -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DAdaptiveCpp_DIR=/opt/AdaptiveCpp/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
           make -j2

@@ -50,6 +50,8 @@ struct find_if_not {};
 struct all_of {};
 struct any_of {};
 struct none_of {};
+struct sort {};
+
 
 struct transform_reduce {};
 struct reduce {};

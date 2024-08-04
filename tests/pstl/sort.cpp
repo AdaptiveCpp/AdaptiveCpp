@@ -54,4 +54,12 @@ BOOST_AUTO_TEST_CASE(par_unseq_pow2_ascending) {
   test_sort(std::execution::par_unseq, 1024, [](int i){return i;});
 }
 
+BOOST_AUTO_TEST_CASE(par_unseq_non_pow2_descending) {
+  test_sort(std::execution::par_unseq, 1000, [](int i){return -i;});
+}
+
+BOOST_AUTO_TEST_CASE(par_unseq_non_pow2_ascending) {
+  test_sort(std::execution::par_unseq, 1000, [](int i){return i;});
+}
+
 BOOST_AUTO_TEST_SUITE_END()

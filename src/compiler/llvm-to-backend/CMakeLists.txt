@@ -26,8 +26,11 @@ function(create_llvm_based_library)
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-  
-  target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
+
+  separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+  target_compile_definitions(${target} PRIVATE
+    ${LLVM_DEFINITIONS_LIST})
+  target_compile_definitions(${target} PRIVATE -DHIPSYCL_COMPILER_COMPONENT)
   find_library(LLVM_LIBRARY NAMES LLVM LLVM-${LLVM_VERSION_MAJOR} HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
   if(NOT LLVM_LIBRARY)
     message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
@@ -76,8 +79,11 @@ function(create_llvm_to_backend_tool)
   target_include_directories(${target}-tool PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   target_include_directories(${target}-tool SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-  
-  target_compile_definitions(${target}-tool PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_TOOL_COMPONENT)
+
+  separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+  target_compile_definitions(${target}-tool PRIVATE
+    ${LLVM_DEFINITIONS_LIST})
+  target_compile_definitions(${target}-tool PRIVATE -DHIPSYCL_TOOL_COMPONENT)
   target_link_libraries(${target}-tool PRIVATE ${target})
 
   install(TARGETS ${target}-tool DESTINATION lib/hipSYCL/llvm-to-backend)

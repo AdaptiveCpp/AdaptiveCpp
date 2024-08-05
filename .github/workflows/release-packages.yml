@@ -159,3 +159,15 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build-tests-emp
           cmake -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DAdaptiveCpp_DIR=/opt/AdaptiveCpp/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
           make -j2
+      - name: run CPU tests
+        run: |
+          cd ${GITHUB_WORKSPACE}/build_tests-cpu
+          ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=/opt/AdaptiveCpp/lib ./sycl_tests
+      - name: run CPU SSCP tests
+        run: |
+          cd ${GITHUB_WORKSPACE}/build_tests-sscp
+          ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=/opt/AdaptiveCpp/lib ./sycl_tests
+      - name: run PSTL tests on CPU
+        run: |
+          cd ${GITHUB_WORKSPACE}/build_tests-sscp
+          ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=/opt/AdaptiveCpp/lib ./pstl_tests

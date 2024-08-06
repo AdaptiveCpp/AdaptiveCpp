@@ -161,13 +161,13 @@ jobs:
           make -j2
       - name: run CPU tests
         run: |
-          cd ${GITHUB_WORKSPACE}/build_tests-cpu
+          cd ${GITHUB_WORKSPACE}/build-tests-cpu
           ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=/opt/AdaptiveCpp/lib ./sycl_tests
       - name: run CPU SSCP tests
         run: |
-          cd ${GITHUB_WORKSPACE}/build_tests-sscp
+          cd ${GITHUB_WORKSPACE}/build-tests-sscp
           ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=/opt/AdaptiveCpp/lib ./sycl_tests
       - name: run PSTL tests on CPU
         run: |
-          cd ${GITHUB_WORKSPACE}/build_tests-sscp
+          cd ${GITHUB_WORKSPACE}/build-tests-sscp
           ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=/opt/AdaptiveCpp/lib ./pstl_tests

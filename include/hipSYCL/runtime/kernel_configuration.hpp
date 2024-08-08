@@ -26,6 +26,7 @@
 #include <string_view>
 
 #include "hipSYCL/common/stable_running_hash.hpp"
+#include "hipSYCL/glue/llvm-sscp/fcall_specialization.hpp"
 
 
 namespace hipsycl {
@@ -163,6 +164,11 @@ public:
         std::make_pair(param_index, buffer_value));
   }
 
+  void set_function_call_specialization_config(
+      int param_index, glue::sscp::fcall_config_kernel_property_t config) {
+    _function_call_specializations.push_back(config);
+  }
+
   void set_build_option(kernel_build_option option, const std::string& value) {
     int_or_string ios;
     ios.string_value = value;
@@ -236,6 +242,13 @@ public:
                         &entry.second, sizeof(entry.second));
     }
 
+    for(int i = 0; i < _function_call_specializations.size(); ++i) {
+      uint64_t numeric_option_id = static_cast<uint64_t>(i) | (1ull << 35);
+      uint64_t config_id = _function_call_specializations[i].value->unique_hash;
+      add_entry_to_hash(result, &numeric_option_id, sizeof(numeric_option_id),
+                        &config_id, sizeof(config_id));
+    }
+
     return result;
   }
 
@@ -253,6 +266,10 @@ public:
 
   const auto& specialized_arguments() const {
     return _specialized_kernel_args;
+  }
+
+  const auto& function_call_specialization_config() const {
+    return _function_call_specializations;
   }
 
 private:
@@ -315,6 +332,8 @@ private:
   std::vector<kernel_build_flag> _build_flags;
   std::vector<std::pair<kernel_build_option, int_or_string>> _build_options;
   std::vector<std::pair<int, uint64_t>> _specialized_kernel_args;
+  std::vector<glue::sscp::fcall_config_kernel_property_t>
+      _function_call_specializations;
 
   id_type _base_configuration_result = {};
 };

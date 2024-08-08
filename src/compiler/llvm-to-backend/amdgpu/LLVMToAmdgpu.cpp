@@ -23,6 +23,7 @@
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
@@ -81,7 +82,7 @@ using optional_t = std::optional<T>;
 bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::string> &Invocation,
                       std::string &Out) {
 
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-query-%%%%%%.txt");
+  auto OutputFile = llvm::sys::fs::TempFile::create("acpp-sscp-query-%%%%%%.txt");
 
   std::string OutputFilename = OutputFile->TmpName;
 
@@ -125,7 +126,8 @@ public:
                                           const std::string& DeviceLibsPath,
                                           const std::string& TargetDevice,
                                           std::vector<std::string>& BitcodeFiles,
-                                          bool IsFastMath = false) {
+                                          bool IsFastMath = false,
+                                          int ForceCodeObjectModel = -1) {
     
 
     llvm::SmallVector<std::string> Invocation;
@@ -146,8 +148,10 @@ public:
       "--hip-link",
       "-###"
     };
-    if(IsFastMath)
+    if(IsFastMath) {
       Invocation.push_back("-ffast-math");
+      Invocation.push_back("-fno-hip-fp32-correctly-rounded-divide-sqrt");
+    }
     
     if(!llvm::StringRef{ClangPath}.endswith("hipcc")) {
       // Normally we try to use hipcc. However, when that fails,
@@ -187,6 +191,13 @@ public:
           CurrentComponent = CurrentComponent.substr(1);
         if(CurrentComponent.find('\"') != std::string::npos)
           CurrentComponent = CurrentComponent.substr(0, CurrentComponent.size() - 1);
+
+        auto OclcABIPos = CurrentComponent.find("oclc_abi_version");
+        if(ForceCodeObjectModel > 0 &&  (OclcABIPos != std::string::npos)) {
+          CurrentComponent.erase(OclcABIPos);
+          CurrentComponent += "oclc_abi_version_" + std::to_string(ForceCodeObjectModel)+".bc";
+        }
+        
         BitcodeFiles.push_back(CurrentComponent);
       } else if(CurrentComponent == "\"-mlink-builtin-bitcode\"")
         ConsumeNext = true;
@@ -258,6 +269,16 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   }
   llvm::AlwaysInlinerPass AIP;
   AIP.run(M, *PH.ModuleAnalysisManager);
+
+  if(llvm::Metadata* MD  = M.getModuleFlag("amdgpu_code_object_version")) {
+    if(auto* V = llvm::cast<llvm::ValueAsMetadata>(MD)) {
+      if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(V->getValue())) {
+        if (CI->getBitWidth() <= 32) {
+          CodeObjectModelVersion = CI->getSExtValue();
+        }
+      }
+    }
+  }
 
   return true;
 }
@@ -334,7 +355,7 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 
   std::vector<std::string> DeviceLibs;
   RocmDeviceLibs::determineRequiredDeviceLibs(RocmPath, RocmDeviceLibsPath, TargetDevice,
-                                              DeviceLibs, IsFastMath);
+                                              DeviceLibs, IsFastMath, CodeObjectModelVersion);
   for(const auto& Lib : DeviceLibs) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Linking with bitcode file: " << Lib << "\n";
     addBitcodeFile(Lib);
@@ -393,9 +414,9 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
   for(const auto& BC : DeviceLibs)
     addBitcodeFile(BC);
 
-  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.hipfb");
-  auto DummyFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-dummy-%%%%%%.cpp");
+  auto InputFile = llvm::sys::fs::TempFile::create("acpp-sscp-amdgpu-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("acpp-sscp-amdgpu-%%%%%%.hipfb");
+  auto DummyFile = llvm::sys::fs::TempFile::create("acpp-sscp-amdgpu-dummy-%%%%%%.cpp");
 
   std::string OutputFilename = OutputFile->TmpName;
 

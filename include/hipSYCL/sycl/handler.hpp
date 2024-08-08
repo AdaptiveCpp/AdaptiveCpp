@@ -56,8 +56,17 @@
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
+#ifndef ACPP_FORCE_INSTANT_SUBMISSION
+#define ACPP_FORCE_INSTANT_SUBMISSION 0
+#endif
+
 #if defined(HIPSYCL_ALLOW_INSTANT_SUBMISSION) && !defined(ACPP_ALLOW_INSTANT_SUBMISSION)
 #define ACPP_ALLOW_INSTANT_SUBMISSION HIPSYCL_ALLOW_INSTANT_SUBMISSION
+#endif
+
+#if ACPP_FORCE_INSTANT_SUBMISSION
+#undef ACPP_ACPP_ALLOW_INSTANT_SUBMISSION
+#define ACPP_ACPP_ALLOW_INSTANT_SUBMISSION 1
 #endif
 
 #ifndef ACPP_ALLOW_INSTANT_SUBMISSION
@@ -808,8 +817,16 @@ private:
       // buffers for buffer-accessor reductions
       for(const rt::dag_node_ptr& req : _requirements.get()) {
         auto* op = req->get_operation();
-        if(op->is_requirement())
-          req_list.add_node_requirement(req);
+        if(op->is_requirement()) {
+          auto cloned_op =
+              static_cast<rt::requirement *>(op)->clone_requirement(true);
+
+          req_list.add_requirement(std::move(cloned_op));
+        } else {
+          // Other dependencies that are not requirements should be
+          // covered by the dependency to the previous node that we add
+          // before this for loop.
+        }
       }
       
       previous_event =
@@ -888,8 +905,6 @@ private:
     static_assert(sizeof...(reductions) > 0,
                   "Overload resolution should never pick this overload without "
                   "reductions");
-
-    this->_operation_uses_reductions = true;
 
     if constexpr(KernelType == rt::kernel_type::ndrange_parallel_for) {
       _command_group_nodes.push_back(
@@ -1104,6 +1119,10 @@ private:
   const rt::node_list_t& get_cg_nodes() const
   { return _command_group_nodes; }
 
+  bool contains_non_instant_nodes() const {
+    return _contains_non_instant_nodes;
+  }
+
   
   handler(const context &ctx, async_handler handler,
           const rt::execution_hints &hints, rt::runtime* rt,
@@ -1170,11 +1189,18 @@ private:
 
     if (!ACPP_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
         has_non_instant_dependency || is_unbound ||
-        !is_dedicated_in_order_queue || _operation_uses_reductions ||
+        !is_dedicated_in_order_queue ||
         op->is_requirement()) {
+#if ACPP_FORCE_INSTANT_SUBMISSION
+      throw exception{make_error_code(errc::invalid), "Instant submission not possible, "
+          "but application was built with ACPP_FORCE_INSTANT_SUBMISSION=1"};
+#else
       // traditional submission
       rt::dag_build_guard build{_rt->dag()};
+      _contains_non_instant_nodes = true;
+
       return build.builder()->add_command_group(std::move(op), requirements, hints);
+#endif
     } else {
 
       rt::dag_node_ptr node = std::make_shared<rt::dag_node>(
@@ -1211,7 +1237,7 @@ private:
 
   rt::runtime* _rt;
 
-  bool _operation_uses_reductions = false;
+  bool _contains_non_instant_nodes = false;
 
   algorithms::util::allocation_cache* _allocation_cache;
 

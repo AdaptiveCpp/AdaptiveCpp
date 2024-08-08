@@ -1520,7 +1520,7 @@ class llvm_sscp_invocation:
 
   def get_cxx_flags(self):
     flags = ["-D__ACPP_ENABLE_LLVM_SSCP_TARGET__",
-            "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
+            "-Xclang", "-disable-O0-optnone", "-mllvm", "-acpp-sscp"]
 
     sscp_compile_opts = []
     if ("-Ofast" in self._config.forwarded_compiler_arguments or 
@@ -1528,7 +1528,7 @@ class llvm_sscp_invocation:
       sscp_compile_opts.append("fast-math")
 
     if len(sscp_compile_opts) > 0:
-      flags += ["-mllvm", "-hipsycl-sscp-kernel-opts="+ ",".join(sscp_compile_opts)]
+      flags += ["-mllvm", "-acpp-sscp-kernel-opts="+ ",".join(sscp_compile_opts)]
 
     if not sys.platform.startswith("win32"):
       flags += [
@@ -1755,12 +1755,12 @@ class compiler:
         "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__", "-D__ADAPTIVECPP_STDPAR__", "-D__ACPP_STDPAR__",
         "-DACPP_ALLOW_INSTANT_SUBMISSION=1",
         # TODO We should find a way to only emit this argument if the clang plugin is used.
-        "-mllvm", "-hipsycl-stdpar",
+        "-mllvm", "-acpp-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
       ]
       
       if self._is_stdpar_system_usm:
-        args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__ACPP_STDPAR_ASSUME_SYSTEM_USM__"]
+        args += ["-mllvm", "-acpp-stdpar-no-malloc-to-usm", "-D__ACPP_STDPAR_ASSUME_SYSTEM_USM__"]
       if self._is_stdpar_unconditional_offload:
         args += ["-D__ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__"]
       

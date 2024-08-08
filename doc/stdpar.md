@@ -4,7 +4,7 @@ AdaptiveCpp supports automatic offloading of C++ standard algorithms.
 
 ## Installation & dependencies
 
-C++ standard parallelism offload requires LLVM >= 14. It is automatically enabled when a sufficiently new LLVM is detected. `cmake -DWITH_STDPAR_COMPILER=ON/OFF` can be used to explicitly enable or disable it at cmake configure time.
+C++ standard parallelism offload requires LLVM >= 14. It is automatically enabled when a sufficiently new LLVM is detected. Requires `cmake -DACPP_COMPILER_FEATURE_PROFILE=full` (this is the default setting) at cmake configure time.
 C++ standard parallelism offload currently is only supported in conjunction with `libstdc++` >= 11. Other standard C++ standard library versions may or may not work. Support for `libc++` is likely easy to add if there is demand.
 
 ## Using accelerated C++ standard parallelism
@@ -42,6 +42,7 @@ Offloading is implemented for the following STL algorithms:
 |`any_of` | |
 |`all_of` | |
 |`none_of` | |
+|`sort` | |
 
 
 For all other execution policies or algorithms, the algorithm will compile and execute correctly, however the regular host implementation of the algorithm provided by the C++ standard library implementation will be invoked and no offloading takes place.

@@ -233,7 +233,6 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                           std::string &output) {
 
   assert(translator);
-
   runtime_linker configure_linker {translator, imported_symbol_names};
 
   // Apply configuration
@@ -248,6 +247,13 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
     for(const auto& entry : config.specialized_arguments()) {
       translator->specializeKernelArgument(translator->getKernels().front(),
                                           entry.first, &entry.second);
+    }
+  }
+  for(const auto& entry : config.function_call_specialization_config()) {
+    auto& config = entry.value->function_call_map;
+    for(const auto& call_specialization : config) {
+      translator->specializeFunctionCalls(call_specialization.first,
+                                          call_specialization.second, false);
     }
   }
 

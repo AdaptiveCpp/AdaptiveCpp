@@ -17,7 +17,7 @@ When using AdaptiveCpp's hip interoperability compiler (`--acpp-targets=hip`), n
 Instead of building AdaptiveCpp against a regular clang/LLVM, it is also possible (but not necessarily recommended, see below) to build AdaptiveCpp against the clang/LLVM that ships with ROCm. This can be interesting if other available clang/LLVM installations are not new enough to work with the ROCm installation.
 * **Such configurations may work, but are generally less tested.**
 * Also note that the LLVM distributions shipping with ROCm are not official LLVM releases, and depending on when the upstream development was last merged, may have slightly diverging functionality. There are multiple known cases where this causes problems: 
-  * the clang 14 from ROCm 5.0 lacks functionality that is present in official clang 14 releases. You can work around those issues by setting `-DWITH_ACCELERATED_CPU=OFF -DWITH_SSCP_COMPILER=OFF` at the expense of reduced kernel performance on CPUs and lack of [SSCP](compilation.md) support.
+  * the clang 14 from ROCm 5.0 lacks functionality that is present in official clang 14 releases. You can work around those issues by setting `-DACPP_COMPILER_FEATURE_PROFILE=minimal` at the expense of missing features, such as reduced kernel performance on CPUs and lack of [SSCP](compilation.md) support.
 * **Due to the potential loss of key AdaptiveCpp functionality such as the generic SSCP compiler, these configurations are typically not recommended.**
 
 *Note: AdaptiveCpp is by default configured to utilize the ROCm compilation flags that apply for recent clang and ROCm versions. If you are using an older clang (<= 10) or ROCm < 4, you might have to adjust `-DROCM_CXX_FLAGS` (not recommended!).*

@@ -189,8 +189,8 @@ HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(powr, __ocml_powr)
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_pown_f32(float x, __acpp_int32 y) {
   return __ocml_pown_f32(x, y);
 }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_pown_f64(double x, __acpp_int64 y) {
-  return __ocml_pown_f64(x, static_cast<__acpp_int32>(y));
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_pown_f64(double x, __acpp_int32 y) {
+  return __ocml_pown_f64(x, y);
 }
 
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(remainder, __ocml_remainder)

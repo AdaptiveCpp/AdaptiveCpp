@@ -32,6 +32,7 @@
 
 #ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
 #include "hipSYCL/compiler/reflection/IntrospectStructPass.hpp"
+#include "hipSYCL/compiler/reflection/FunctionNameExtractionPass.hpp"
 #endif
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
@@ -49,20 +50,20 @@ namespace hipsycl {
 namespace compiler {
 
 static llvm::cl::opt<bool> EnableLLVMSSCP{
-    "hipsycl-sscp", llvm::cl::init(false),
+    "acpp-sscp", llvm::cl::init(false),
     llvm::cl::desc{"Enable AdaptiveCpp LLVM SSCP compilation flow"}};
 
 static llvm::cl::opt<std::string> LLVMSSCPKernelOpts{
-    "hipsycl-sscp-kernel-opts", llvm::cl::init(""),
+    "acpp-sscp-kernel-opts", llvm::cl::init(""),
     llvm::cl::desc{
         "Specify compilation options to use when JIT-compiling AdaptiveCpp SSCP kernels"}};
 
 static llvm::cl::opt<bool> EnableStdPar{
-    "hipsycl-stdpar", llvm::cl::init(false),
+    "acpp-stdpar", llvm::cl::init(false),
     llvm::cl::desc{"Enable hipSYCL C++ standard parallelism support"}};
 
 static llvm::cl::opt<bool> StdparNoMallocToUSM{
-    "hipsycl-stdpar-no-malloc-to-usm", llvm::cl::init(false),
+    "acpp-stdpar-no-malloc-to-usm", llvm::cl::init(false),
     llvm::cl::desc{"Disable hipSYCL C++ standard parallelism malloc-to-usm compiler-side support"}};
 
 // Register and activate passes
@@ -130,6 +131,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, OptLevel Level) {
                   MPM.addPass(IntrospectStructPass{});
+                  MPM.addPass(FunctionNameExtractionPass{});
                 });
 #endif
 

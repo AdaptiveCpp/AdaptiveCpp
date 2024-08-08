@@ -153,7 +153,7 @@ jobs:
         mkdir build && cd build
         export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${{matrix.nvhpc}}
         export NV_HPC_CUDA_ROOT=${NV_HPC_SDK_ROOT}/cuda/${{matrix.cuda}}
-        cmake -DNVCXX_COMPILER=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ -DWITH_CUDA_BACKEND=ON -DWITH_CUDA_NVCXX_ONLY=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=${NV_HPC_CUDA_ROOT} ..
+        cmake -DNVCXX_COMPILER=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ -DWITH_CUDA_BACKEND=ON -DACPP_COMPILER_FEATURE_PROFILE=none -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=${NV_HPC_CUDA_ROOT} ..
         make -j2 install
         cp ${NV_HPC_CUDA_ROOT}/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
         cp ${NV_HPC_CUDA_ROOT}/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1

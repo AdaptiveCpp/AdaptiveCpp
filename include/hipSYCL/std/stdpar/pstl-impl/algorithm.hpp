@@ -487,6 +487,45 @@ bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
 
 
+template <class RandomIt>
+HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq, RandomIt first,
+                                        RandomIt last) {
+  auto offloader = [&](auto& queue) {
+    hipsycl::algorithms::sort(queue, first, last);
+  };
+
+  auto fallback = [&](){
+    std::sort(hipsycl::stdpar::par_unseq_host_fallback, first, last);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD_NORET(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::sort{},
+          hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
+}
+
+
+template <class RandomIt, class Compare>
+HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq, RandomIt first,
+                                        RandomIt last, Compare comp) {
+  auto offloader = [&](auto& queue) {
+    hipsycl::algorithms::sort(queue, first, last, comp);
+  };
+
+  auto fallback = [&]() {
+    std::sort(hipsycl::stdpar::par_unseq_host_fallback, first, last, comp);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD_NORET(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::sort{},
+          hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
+}
+
 
 
 //////////////////// par policy  /////////////////////////////////////
@@ -951,10 +990,43 @@ bool none_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
+template <class RandomIt>
+HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par, RandomIt first,
+                                        RandomIt last) {
+  auto offloader = [&](auto& queue) {
+    hipsycl::algorithms::sort(queue, first, last);
+  };
 
+  auto fallback = [&](){
+    std::sort(hipsycl::stdpar::par_host_fallback, first, last);
+  };
 
+  HIPSYCL_STDPAR_OFFLOAD_NORET(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::sort{},
+          hipsycl::stdpar::par{}),
+      std::distance(first, last), offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
+}
 
+template <class RandomIt, class Compare>
+HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par, RandomIt first,
+                                    RandomIt last, Compare comp) {
+  auto offloader = [&](auto& queue) {
+    hipsycl::algorithms::sort(queue, first, last, comp);
+  };
 
+  auto fallback = [&]() {
+    std::sort(hipsycl::stdpar::par_host_fallback, first, last, comp);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD_NORET(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::sort{},
+          hipsycl::stdpar::par{}),
+      std::distance(first, last), offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
+}
 }
 
 #endif

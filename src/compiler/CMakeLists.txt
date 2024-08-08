@@ -102,8 +102,11 @@ function(configure_target)
     ${CMAKE_BINARY_DIR}/include)
   target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
+  separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
   target_compile_definitions(${target} PRIVATE
-    ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
+    ${LLVM_DEFINITIONS_LIST})
+  target_compile_definitions(${target} PRIVATE
+    -DHIPSYCL_COMPILER_COMPONENT)
 
   if(ROCM_VERSION_MAJOR)
     target_compile_definitions(${target} PRIVATE -DROCM_CLANG_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DROCM_CLANG_VERSION_MINOR=${ROCM_VERSION_MINOR} -DROCM_CLANG_VERSION_PATCH=${ROCM_VERSION_PATCH})

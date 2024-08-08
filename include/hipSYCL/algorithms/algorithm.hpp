@@ -24,6 +24,7 @@
 #include "util/traits.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
+#include "hipSYCL/algorithms/sort/bitonic_sort.hpp"
 
 namespace hipsycl::algorithms {
 
@@ -452,6 +453,15 @@ sycl::event none_of(sycl::queue &q,
   });
 }
 
+template <class RandomIt, class Compare>
+void sort(sycl::queue &q, RandomIt first, RandomIt last,
+          Compare comp = std::less<>{}) {
+  std::size_t problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+  
+  return sorting::bitonic_sort(q, first, last, comp);
+}
 }
 
 #endif

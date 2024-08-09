@@ -455,6 +455,16 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i16(
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
+  if(scope == __acpp_sscp_memory_scope::system) {
+    if(order == __acpp_sscp_memory_order::release) {
+      asm volatile("st.release.sys.s32 [%0], %1;"
+                   :
+                   :"l"(ptr), "r"(x)
+                   : "memory");
+      return;
+    }
+  }
+
   *ptr = x;
   mem_fence(scope);
 }
@@ -484,6 +494,17 @@ HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_load_i16(
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr) {
+  if(scope == __acpp_sscp_memory_scope::system) {
+    if(order == __acpp_sscp_memory_order::acquire) {
+      __acpp_int32 result;
+      asm volatile("ld.acquire.sys.u32 %0,[%1];"
+                   : "=r"(result)
+                   : "l"(ptr)
+                   : "memory");
+      return result;
+    }
+  }
+
   return *ptr;
 }
 
@@ -622,7 +643,21 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
 
   __acpp_int32 old = *expected;
   if (scope == __acpp_sscp_memory_scope::system) {
-    *expected = __iAtomicCAS_system(ptr, *expected, desired);
+    if (success == __acpp_sscp_memory_order::acquire &&
+        failure == __acpp_sscp_memory_order::acquire) {
+      __acpp_int32 compare = *expected;
+      __acpp_int32 result;
+      // Documentation says u32/s32 types should be allowed,
+      // but driver currently does not accept this. So use b32
+      // instead.
+      asm volatile("atom.acquire.sys.cas.b32 %0,[%1],%2,%3;"
+                   : "=r"(result)
+                   : "l"(ptr), "r"(compare), "r"(desired)
+                   : "memory");
+      *expected = result;
+    } else {
+      *expected = __iAtomicCAS_system(ptr, *expected, desired);
+    }
   } else if (scope == __acpp_sscp_memory_scope::device) {
     *expected = __iAtomicCAS(ptr, *expected, desired);
   } else /* work group, sub group or work item */ {
@@ -822,8 +857,18 @@ HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_add_i16(
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_add_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
+  
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicAdd_system(ptr, x);
+    if(order == __acpp_sscp_memory_order::acq_rel) {
+      __acpp_int32 result;
+      asm volatile("atom.add.acq_rel.sys.s32 %0,[%1],%2;"
+                          : "=r"(result)
+                          : "l"(ptr), "r"(x)
+                          : "memory");
+      return result;
+    }
+    else  
+      return __iAtomicAdd_system(ptr, x);
   } else if (scope == __acpp_sscp_memory_scope::device) {
     return __iAtomicAdd(ptr, x);
   } else /* work group, sub group or work item */ {
@@ -863,7 +908,16 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_add_u32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint32 *ptr, __acpp_uint32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __uAtomicAdd_system(ptr, x);
+    if(order == __acpp_sscp_memory_order::acq_rel) {
+      __acpp_uint32 result;
+      asm volatile("atom.add.acq_rel.sys.u32 %0,[%1],%2;"
+                          : "=r"(result)
+                          : "l"(ptr), "r"(x)
+                          : "memory");
+      return result;
+    }
+    else  
+      return __uAtomicAdd_system(ptr, x);
   } else if (scope == __acpp_sscp_memory_scope::device) {
     return __uAtomicAdd(ptr, x);
   } else /* work group, sub group or work item */ {

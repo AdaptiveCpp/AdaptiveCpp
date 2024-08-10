@@ -153,6 +153,8 @@ class queue : public detail::property_carrying_object
 
     // Prevents kernel cache from becoming invalid while we have a queue
     std::shared_ptr<rt::kernel_cache> kernel_cache;
+    // For non-emulated in-order queues only
+    std::atomic<bool> has_non_instant_operations = false;
   };
 
   template<typename, int, access::mode, access::target>
@@ -355,7 +357,8 @@ public:
         assert(exec);
         // Need to ensure everything is submitted before waiting on the stream
         // in case we have non-instant operations
-        _impl->requires_runtime.get()->dag().flush_sync();
+        if(_impl->has_non_instant_operations.load(std::memory_order_relaxed))
+          _impl->requires_runtime.get()->dag().flush_sync();
         
         auto err = exec->wait();
         if(!err.is_success()) {
@@ -1047,6 +1050,7 @@ private:
       if(_impl->needs_in_order_emulation) {
         _impl->previous_submission = node;
       } else if(cgh.contains_non_instant_nodes()) {
+        _impl->has_non_instant_operations.store(true, std::memory_order_relaxed);
         // If we have instant submission enabled, non-emulated in-order queue
         // but non-instant tasks, we need to flush the dag, otherwise future instant
         // tasks might not wait on the tasks that have been cached in the dag

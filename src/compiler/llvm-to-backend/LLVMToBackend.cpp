@@ -101,7 +101,7 @@ public:
             // even without dynamic allocas, but they are generally unsupported on device
             // backends.
             if (llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.stacksave") ||
-		llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.stackrestore"))
+                llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.stackrestore"))
               CallsToRemove.push_back(CB);
           }
         }
@@ -343,6 +343,7 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
 
   // silence optimization remarks,..
   M.getContext().setDiagnosticHandlerCallBack(
+#if LLVM_VERSION_MAJOR >= 19
       [](const llvm::DiagnosticInfo *DI, void *Context) {
         llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
         if (DI->getSeverity() == llvm::DS_Error) {
@@ -351,6 +352,16 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
           llvm::errs() << "\n";
         }
       });
+#else
+      [](const llvm::DiagnosticInfo &DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI.getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI.print(DP);
+          llvm::errs() << "\n";
+        }
+      });
+#endif
 
   llvm::ModulePassManager MPM =
       PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);

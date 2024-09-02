@@ -19,6 +19,7 @@
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
@@ -65,7 +66,7 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
 void setFastMathFunctionAttribs(llvm::Module& M) {
   auto forceAttr = [&](llvm::Function& F, llvm::StringRef Key, llvm::StringRef Value) {
     if(F.hasFnAttribute(Key)) {
-      if(!F.getFnAttribute(Key).getValueAsString().equals(Value))
+      if(F.getFnAttribute(Key).getValueAsString() != Value)
         F.removeFnAttr(Key);
     }
     F.addFnAttr(Key, Value);
@@ -99,8 +100,8 @@ public:
             // these instructions can sometimes appear as a byproduct of some transformations
             // even without dynamic allocas, but they are generally unsupported on device
             // backends.
-            if (CB->getCalledFunction()->getName().startswith("llvm.stacksave") ||
-                CB->getCalledFunction()->getName().startswith("llvm.stackrestore"))
+            if (llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.stacksave") ||
+                llvmutils::starts_with(CB->getCalledFunction()->getName(), "llvm.stackrestore"))
               CallsToRemove.push_back(CB);
           }
         }
@@ -342,6 +343,16 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
 
   // silence optimization remarks,..
   M.getContext().setDiagnosticHandlerCallBack(
+#if LLVM_VERSION_MAJOR >= 19
+      [](const llvm::DiagnosticInfo *DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI->getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI->print(DP);
+          llvm::errs() << "\n";
+        }
+      });
+#else
       [](const llvm::DiagnosticInfo &DI, void *Context) {
         llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
         if (DI.getSeverity() == llvm::DS_Error) {
@@ -350,6 +361,7 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
           llvm::errs() << "\n";
         }
       });
+#endif
 
   llvm::ModulePassManager MPM =
       PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);

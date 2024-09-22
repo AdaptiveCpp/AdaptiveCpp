@@ -22,7 +22,7 @@ namespace detail {
 static std::string version_string()
 {
   std::string version = std::to_string(ACPP_VERSION_MAJOR)
-      + "." + std::to_string(ACPP_VERSION_MINOR)
+      + "." + "0" + std::to_string(ACPP_VERSION_MINOR)
       + "." + std::to_string(ACPP_VERSION_PATCH)
       + std::string(ACPP_VERSION_SUFFIX);
 

@@ -1,24 +1,25 @@
 # Using AdaptiveCpp in projects
-It is recommended to use the CMake integration for larger projects. See the section on the cmake integration below. Alternatively, `acpp` can be used directly as a compiler.
 
-## Using acpp
+It is recommended that the CMake integration be used for larger projects (see the section on the CMake integration below). Alternatively, `acpp` can be used directly as a compiler.
 
-`acpp` can be invoked like a regular compiler (e.g. `acpp -O3 -o test test.cpp`). It supports multiple compilation flows. In a typical installation (i.e. when AdaptiveCpp was built against LLVM >= 14 and the generic SSCP compiler was not explicitly disabled), it uses the `generic` compilation flow by default. This compilation flow usually compiles the fastest, produces the fastest binaries, and its generated binaries can run on all supported devices. **Unless you have have very specific needs, you probably should use the default `generic` compiler.**
+## Using `acpp`
 
-Advanced users or users with more specific needs may want to specify compilation flows explicitly.This is achieved with the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument.
+`acpp` can be invoked like a regular compiler (e.g. `acpp -O3 -o test test.cpp`). It supports multiple compilation flows. A typical installation (i.e. when AdaptiveCpp was built against LLVM >= 14 and the generic SSCP compiler was not explicitly disabled) uses the `generic` compilation flow by default. This compilation flow usually compiles the quickest, produces the fastest binaries, and its generated binaries can run on all supported devices. **Unless you have very specific needs, you should probably use the default `generic` compiler.**
 
-**Other compilation flows like omp, cuda, hip are typically mostly interesting for backend interoperability use cases, not if performance is the top priority.**.
+Advanced users or users with more specific needs may want to specify compilation flows explicitly. This is achieved with the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, the `ACPP_TARGETS` environment variable or the `ACPP_TARGETS` CMake variable.
+
+**Other compilation flows like `omp`, `cuda`, and `hip` are typically mostly attractive for backend interoperability use cases, not when performance is the primary concern.**
 
 ## AdaptiveCpp targets specification
 
-Both `acpp` and the cmake integration can be optionally provided with an AdaptiveCpp targets specification. This specification defines which compilation flows AdaptiveCpp should enable, and which devices from a compilation flow AdaptiveCpp should target during compilation. In general, it has the form:
+Both `acpp` and the CMake integration can optionally be provided with an AdaptiveCpp targets specification. This specification defines which compilation flows AdaptiveCpp should enable and which devices from a compilation flow AdaptiveCpp should target. In general, it has the form:
 
 ```
 "flow1:target1,target2,...;flow2:...;..."
 ```
-and can be passed either as `acpp` command line argument (`--acpp-targets=...`), environment variable (`ACPP_TARGETS=...`) or CMake argument (`-DACPP_TARGETS=...`) depending on whether `acpp` or `cmake` is used.
+and can be passed either as an `acpp` command line argument (`--acpp-targets=...`), environment variable (`ACPP_TARGETS=...`) or CMake argument (`-DACPP_TARGETS=...`) depending on whether `acpp` or `cmake` is used.
 
-"compilation flow" refers to one of the available compilation flows defined in the [compilation flow](compilation.md) documentation.
+"Compilation flow" refers to one of the available compilation flows defined in the [compilation documentation](compilation.md).
 
 
 ### Requirements for specifying targets of individual compilation flows
@@ -36,51 +37,51 @@ For the following compilation flows, targets can optionally be specified:
 
 For the following compilation flows, targets must be specified:
 
-* `cuda.*` - The target format is defined by clang and takes the format of `sm_XY`. For example:
-    * `sm_52`: NVIDIA Maxwell GPUs
-    * `sm_60`: NVIDIA Pascal GPUs
-    * `sm_70`: NVIDIA Volta GPUs
-* `hip.*` - The target format is defined by clang and takes the format of `gfxXYZ`. For example:
+* `cuda.*` - The target format is defined by `clang` and takes the format of `sm_XY`. For example:
+    * `sm_52`: NVIDIA Maxwell GPUs (e.g. GeForce GTX 980, TITAN X)
+    * `sm_61`: NVIDIA Pascal GPUs (e.g. GeForce GTX 1080, TITAN Xp)
+    * `sm_70`: NVIDIA Volta GPUs  (e.g. Tesla V100, TITAN V)
+* `hip.*` - The target format is defined by `clang` and takes the format of `gfxXYZ`. For example:
     * `gfx900`: AMD Vega 10 GPUs (e.g. Radeon Vega 56, Vega 64)
     * `gfx906`: AMD Vega 20 GPUs (e.g. Radeon VII, Instinct MI50)
-    * `gfx908`: AMD CDNA GPUs (e.g Instinct MI100)
+    * `gfx908`: AMD CDNA GPUs (e.g. Instinct MI100)
 
 ### Abbreviations
 
 For some compilation flows, abbreviations exist that will be resolved by AdaptiveCpp to one of the available compilation flows:
 
-* `omp` will be translated 
-    * into `omp.accelerated` 
-        * if AdaptiveCpp has been built with support for accelerated CPU and the host compiler is the clang that AdaptiveCpp has been built with or
+* `omp` will be translated
+    * into `omp.accelerated`
+        * if AdaptiveCpp has been built with support for accelerated CPU and the host compiler is the `clang` that AdaptiveCpp has been built with or
         * if `--acpp-use-accelerated-cpu` is set. If the accelerated CPU compilation flow is not available (e.g. AdaptiveCpp has been compiled without support for it), compilation will abort with an error.
-    * into `omp.library-only` otherwise
+    * into `omp.library-only` otherwise.
 * `cuda` will be translated
     * into `cuda.explicit-multipass`
-        * if another integrated multipass has been requested, or another backend that would conflict with `cuda.integrated-multipass`. AdaptiveCpp will emit a warning in this case, since switching to explicit multipass can change interoperability guarantees (see the [compilation](compilation.md) documentation).
-        * if `--acpp-explicit-multipass` is set explicitly
-    * into `cuda.integrated-multipass` otherwise
-* `hip` will be translated into `hip.integrated-multipass`
+        * if another integrated multipass has been requested, or another backend that would conflict with `cuda.integrated-multipass`. AdaptiveCpp will emit a warning in this case, since switching to explicit multipass can change interoperability guarantees (see the [compilation documentation](compilation.md)).
+        * if `--acpp-explicit-multipass` is set explicitly.
+    * into `cuda.integrated-multipass` otherwise.
+* `hip` will be translated into `hip.integrated-multipass`.
 
 Of course, the desired flows can also always be specified explicitly.
 
 ### Examples
 
-* `generic` - creates a binary that can run on all backends. This also typically creates the fastest binaries.
-* `"omp.library-only;cuda.explicit-multipass:sm_61;sm_70"`  - compiles for the CPU backend and Pascal and Volta era GPUs
-* `"omp;cuda:sm_70;hip:gfx906"`  - compiles for the CPU backend (library or accelerated), NVIDIA Volta era GPUs via explicit multipass, AMD Vega 20 GPUs
-* `"omp.accelerated;cuda:sm_70`" - compiles for the CPU backend (compiler accelerated) and NVIDIA Volta era GPUs.
-* `"omp;cuda-nvcxx"` - compiles for the CPU backend and NVIDIA GPUs using nvc++
+* `"generic"` - creates a binary that can run on all backends. This also typically creates the fastest binaries.
+* `"omp.library-only;cuda.explicit-multipass:sm_61;sm_70"` - compiles for the CPU backend and Pascal- and Volta-era GPUs.
+* `"omp;cuda:sm_70;hip:gfx906"` - compiles for the CPU backend (library or accelerated), NVIDIA Volta-era GPUs via explicit multipass and AMD Vega 20 GPUs.
+* `"omp.accelerated;cuda:sm_70"` - compiles for the CPU backend (compiler-accelerated) and NVIDIA Volta-era GPUs.
+* `"omp;cuda-nvcxx"` - compiles for the CPU backend and NVIDIA GPUs using `nvc++`.
 
 ### Offloading C++ standard parallelism
 
 See [here](stdpar.md) for details on how to offload C++ standard STL algorithms using AdaptiveCpp.
 
-## All the flags: acpp --help
+## All the flags: `acpp --help`
 
-The full excerpt from `acpp --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in the `/acpp/install/path/etc/AdaptiveCpp/*.json` files.
+The full output obtained when running `acpp --help` is provided below. Note that the options can also be set via environment variables or the corresponding CMake options. Default values can be set in the `/acpp/install/path/etc/AdaptiveCpp/*.json` files.
 ```
-acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the AdaptiveCpp project
-  AdaptiveCpp version: 23.10.0+git.2d0c6b6f.20240226.branch.develop
+acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2024 Aksel Alpay and the AdaptiveCpp project
+  AdaptiveCpp version: 24.06.0+git.8cf7a902.20241001.branch.develop
   Installation root: /install/path
   Plugin LLVM version: <version>, can accelerate CPU: <bool>
   Available runtime backends:
@@ -96,7 +97,7 @@ Options are:
   [can also be set with environment variable: ACPP_PLATFORM=<value>]
   [default value provided by field 'default-platform' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
-  (deprecated) The platform that hipSYCL should target. Valid values:
+  (deprecated) The platform that AdaptiveCpp should target. Valid values:
     * cuda: Target NVIDIA CUDA GPUs
     * rocm: Target AMD GPUs running on the ROCm platform
     * cpu: Target only CPUs
@@ -106,8 +107,8 @@ Options are:
   [default value provided by field 'default-clang' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
   The path to the clang executable that should be used for compilation
-    (Note: *must* be compatible with the clang version that the 
-     hipSYCL clang plugin was compiled against!)
+    (Note: *must* be compatible with the clang version that the
+     AdaptiveCpp clang plugin was compiled against!)
 
 --acpp-nvcxx=<value>
   [can also be set with environment variable: ACPP_NVCXX=<value>]
@@ -201,7 +202,7 @@ Options are:
   [default value provided by field 'default-config-file-dir' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
   Select an alternative path for the config files containing the default AdaptiveCpp settings.
-    It is normally not necessary for the user to change this setting. 
+    It is normally not necessary for the user to change this setting.
 
 --acpp-targets=<value>
   [can also be set with environment variable: ACPP_TARGETS=<value>]
@@ -215,11 +216,11 @@ Options are:
                                    Uses Boost.Fiber for nd_range parallel_for support.
                - omp.accelerated: Uses clang as host compiler to enable compiler support
                                   for nd_range parallel_for (see --acpp-use-accelerated-cpu).
-      * cuda - CUDA backend 
+      * cuda - CUDA backend
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
                Backend Flavors:
-               - cuda.explicit-multipass: CUDA backend in explicit multipass mode 
+               - cuda.explicit-multipass: CUDA backend in explicit multipass mode
                                           (see --acpp-explicit-multipass)
                - cuda.integrated-multipass: Force CUDA backend to operate in integrated
                                            multipass mode.
@@ -263,8 +264,8 @@ Options are:
   [can also be set by setting environment variable ACPP_DRYRUN to any value other than false|off|0 ]
   [default value provided by field 'default-is-dryrun' in JSON files from directories: ['/install/path/etc/AdaptiveCpp'].]
   [current value: NOT SET]
-  If set, only shows compilation commands that would be executed, 
-  but does not actually execute it. 
+  If set, only shows compilation commands that would be executed,
+  but does not actually execute it.
 
 --acpp-explicit-multipass
   [can also be set by setting environment variable ACPP_EXPLICIT_MULTIPASS to any value other than false|off|0 ]
@@ -273,7 +274,7 @@ Options are:
   If set, executes device passes as separate compiler invocation and lets AdaptiveCpp control embedding device
   images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
   incompatible. In this mode, source code level interoperability may not be supported in the host pass.
-  For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode. 
+  For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode.
 
 --acpp-save-temps
   [can also be set by setting environment variable ACPP_SAVE_TEMPS to any value other than false|off|0 ]
@@ -313,15 +314,14 @@ Options are:
 Any other options will be forwarded to the compiler.
 
 Note: Command line arguments take precedence over environment variables.
-
 ```
 
 ## Using the CMake integration
-Setting up a project using the AdaptiveCpp CMake integration is quite straight forward.
-The main points are adding `find_package(AdaptiveCpp REQUIRED)` and after defining the targets to build, adding `add_sycl_to_target(TARGET <target_name>)` to have the compilation handled by the AdaptiveCpp toolchain.
-See the [example cmake project](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/examples/CMakeLists.txt).
 
-A typical configure command line looks like this: `cmake .. -DAdaptiveCpp_DIR=/acpp/install/dir/lib/cmake/AdaptiveCpp -DACPP_TARGETS="<targets>"`.
-`ACPP_TARGETS` has to be set either as environment variable or on the command line for the `find_package` call to succeed. See the documentation of this flag above.
+Setting up a project using the AdaptiveCpp CMake integration is fairly straightforward.
+The main points are adding `find_package(AdaptiveCpp REQUIRED)` and, after defining the targets to build, adding `add_sycl_to_target(TARGET <target_name>)` to have the compilation handled by the AdaptiveCpp toolchain (see the [example CMake project](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/examples/CMakeLists.txt)).
+
+A typical configure command might look like this: `cmake .. -DAdaptiveCpp_DIR=/acpp/install/dir/lib/cmake/AdaptiveCpp -DACPP_TARGETS="<targets>"`.
+`ACPP_TARGETS` has to be set either as an environment variable or through the command line for the `find_package` call to succeed. See the documentation of this flag above.
 
 If the accelerated CPU flow has been built, `-DACPP_USE_ACCELERATED_CPU=ON/OFF` can be used to override whether `omp` should refer to the `omp.library-only` or `omp.accelerated` compilation flow.

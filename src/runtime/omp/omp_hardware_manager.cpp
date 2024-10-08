@@ -37,11 +37,11 @@ std::size_t omp_hardware_context::get_max_memcpy_concurrency() const {
 }
 
 std::string omp_hardware_context::get_device_name() const {
-  return "hipSYCL OpenMP host device";
+  return "AdaptiveCpp OpenMP host device";
 }
 
 std::string omp_hardware_context::get_vendor_name() const {
-  return "the hipSYCL project";
+  return "the AdaptiveCpp project";
 }
 
 std::string omp_hardware_context::get_device_arch() const {

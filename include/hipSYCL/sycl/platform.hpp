@@ -152,7 +152,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, name)
 
 HIPSYCL_SPECIALIZE_GET_INFO(platform, vendor)
 {
-  return "The hipSYCL project";
+  return "The AdaptiveCpp project";
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(platform, extensions)

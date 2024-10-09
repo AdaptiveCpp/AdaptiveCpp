@@ -13,7 +13,7 @@ Welcome to the documentation of AdaptiveCpp!
 
     [:octicons-arrow-right-24: Installation](./installing.md)
 
--   :fontawesome-solid-gears:{ .lg .middle } __Can run on most hardware__
+-   :fontawesome-solid-gears:{ .lg .middle } __Can run on hardware from all major vendors__
 
     ---
 

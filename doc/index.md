@@ -1,7 +1,7 @@
 #
-![The Rust Logo](img/logo/logo-color.png)
+![The AdaptiveCpp Logo](img/logo/logo-color.png)
 
-Welcome to the documentation of the AdaptiveCpp !
+Welcome to the documentation of AdaptiveCpp!
 
 <div class="grid cards" markdown>
 
@@ -9,16 +9,15 @@ Welcome to the documentation of the AdaptiveCpp !
 
     ---
 
-    Configure and install AdaptiveCpp
+    Configure and install AdaptiveCpp.
 
     [:octicons-arrow-right-24: Installation](./installing.md)
 
--   :fontawesome-solid-gears:{ .lg .middle } __Can run on any hardware__
+-   :fontawesome-solid-gears:{ .lg .middle } __Can run on hardware from all major vendors__
 
     ---
 
-    We support CPUs, GPUs, from all vendors, either through multipass compilation.
-    Or through our single pass SSCP compiler
+    We support CPUs and GPUs from all major vendors, either through multipass compilation or through our single-pass SSCP compiler.
 
     [:octicons-arrow-right-24: Usage](./using-hipsycl.md)
 
@@ -27,4 +26,4 @@ Welcome to the documentation of the AdaptiveCpp !
 
 !!! note
 
-    This documentation webpage is WIP.
+    This documentation webpage is still work-in-progress.

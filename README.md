@@ -35,7 +35,7 @@ In order to compile software with AdaptiveCpp, use `acpp`. `acpp` can be used li
 
 `acpp` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target to compile for). See `acpp --help` for a comprehensive list of options.
 
-For details and instructions on using AdaptiveCpp in CMake projects, please see the documentation on [using AdaptiveCpp](doc/using-hipsycl.md).
+For details and instructions on using AdaptiveCpp in CMake projects, please see the documentation on [using AdaptiveCpp](doc/using-acpp.md).
 
 
 ## About the project

@@ -115,7 +115,7 @@ approach is employed to achieve good performance and functional correctness (_Ka
 A deep dive into how the implementation works and why this approach was chosen
 can be found in Joachim Meyer's [master thesis](https://joameyer.de/hipsycl/Thesis_JoachimMeyer.pdf).
 
-For more details, see the [installation instructions](installing.md) and the documentation [using AdaptiveCpp](using-hipsycl.md).
+For more details, see the [installation instructions](installing.md) and the documentation [using AdaptiveCpp](using-acpp.md).
 
 ## acpp compilation driver
 

@@ -10,7 +10,7 @@ nav:
 
 
   - 'Usage' :
-      - 'Using AdaptiveCpp' : 'using-hipsycl.md'
+      - 'Using AdaptiveCpp' : 'using-acpp.md'
       - 'Compilation model' : 'compilation.md'
       - 'Env variables' : 'env_variables.md'
       - 'Performance guide' : 'performance.md'

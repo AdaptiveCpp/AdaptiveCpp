@@ -21,10 +21,12 @@
 #include "hipSYCL/sycl/libkernel/functional.hpp"
 #include "hipSYCL/sycl/event.hpp"
 #include "hipSYCL/sycl/queue.hpp"
+#include "merge/merge.hpp"
 #include "util/traits.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/sort/bitonic_sort.hpp"
+#include "hipSYCL/algorithms/merge/merge.hpp"
 
 namespace hipsycl::algorithms {
 
@@ -454,14 +456,40 @@ sycl::event none_of(sycl::queue &q,
 }
 
 template <class RandomIt, class Compare>
-void sort(sycl::queue &q, RandomIt first, RandomIt last,
-          Compare comp = std::less<>{}) {
+sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
+                 Compare comp = std::less<>{}) {
   std::size_t problem_size = std::distance(first, last);
   if(problem_size == 0)
     return sycl::event{};
   
   return sorting::bitonic_sort(q, first, last, comp);
 }
+
+template< class ForwardIt1, class ForwardIt2,
+          class ForwardIt3, class Compare >
+sycl::event merge(sycl::queue& q,
+                  util::allocation_group &scratch_allocations,
+                  ForwardIt1 first1, ForwardIt1 last1,
+                  ForwardIt2 first2, ForwardIt2 last2,
+                  ForwardIt3 d_first, Compare comp = std::less<>{},
+                  const std::vector<sycl::event>& deps = {}) {
+
+  std::size_t size1 =  std::distance(first1, last1);
+  std::size_t size2 =  std::distance(first2, last2);
+
+  if(size1 == 0)
+    return copy(q, first2, last2, d_first);
+  if(size2 == 0)
+    return copy(q, first1, last1, d_first);
+
+  std::size_t problem_size = size1 + size2;
+  if(problem_size == 0)
+    return sycl::event{};
+
+  return merging::segmented_merge(q, first1, last1, first2, last2, d_first,
+                                  comp);
+}
+
 }
 
 #endif

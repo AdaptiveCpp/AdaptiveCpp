@@ -41,6 +41,12 @@ enum class device_support_aspect {
 
 enum class device_uint_property {
   max_compute_units,
+  max_num_work_groups_nd_range0,
+  max_num_work_groups_nd_range1,
+  max_num_work_groups_nd_range2,
+  max_num_work_groups_range0,
+  max_num_work_groups_range1,
+  max_num_work_groups_range2,
   max_global_size0,
   max_global_size1,
   max_global_size2,

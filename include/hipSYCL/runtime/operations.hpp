@@ -12,6 +12,7 @@
 #define HIPSYCL_OPERATIONS_HPP
 
 #include "hipSYCL/glue/kernel_names.hpp"
+#include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/small_vector.hpp"

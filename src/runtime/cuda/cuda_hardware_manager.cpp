@@ -222,6 +222,24 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_compute_units:
     return _properties->multiProcessorCount;
     break;
+  case device_uint_property::max_num_work_groups_nd_range0:
+    return _properties->maxGridSize[0];
+    break;
+  case device_uint_property::max_num_work_groups_nd_range1:
+    return _properties->maxGridSize[1];
+    break;
+  case device_uint_property::max_num_work_groups_nd_range2:
+    return _properties->maxGridSize[2];
+    break;
+  case device_uint_property::max_num_work_groups_range0:
+    return _properties->maxGridSize[0];
+    break;
+  case device_uint_property::max_num_work_groups_range1:
+    return _properties->maxGridSize[1];
+    break;
+  case device_uint_property::max_num_work_groups_range2:
+    return _properties->maxGridSize[2];
+    break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(_properties->maxThreadsDim[0]) *
                                     _properties->maxGridSize[0];

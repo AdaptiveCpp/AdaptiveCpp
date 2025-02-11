@@ -314,6 +314,44 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
       rt::device_uint_property::max_compute_units);
 }
 
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups_nd_range0)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups_nd_range0);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups_nd_range1)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups_nd_range1);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups_nd_range2)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups_nd_range2);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups_range0)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups_range0);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups_range1)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups_range1);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups_range2)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups_range2);
+}
+
+
+
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 { return 3; }
 

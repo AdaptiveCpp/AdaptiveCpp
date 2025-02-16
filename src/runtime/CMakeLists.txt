@@ -38,6 +38,7 @@ add_library(acpp-rt SHARED
   kernel_configuration.cpp
   multi_queue_executor.cpp
   runtime_event_handlers.cpp
+  minicoro_impl.cpp
   dag.cpp
   dag_node.cpp
   dag_builder.cpp

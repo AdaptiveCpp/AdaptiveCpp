@@ -14,20 +14,18 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
 /**
- * Due to an issue with Boost.Intrusive (used by Boost.Fiber), on Windows,
- * which is triggered in device pass of Clang CUDA, we may only use this in host pass.
- * This should not be a problem, as this implementation is anyways just required during host pass.
+ * Allow disabling fibers; and don't try using them in device pass.
  */
-#if !defined(HIPSYCL_NO_FIBERS) && !defined(SYCL_DEVICE_ONLY)
-#define HIPSYCL_HAS_FIBERS
+#if !defined(ACPP_NO_FIBERS) && !defined(SYCL_DEVICE_ONLY)
+#define ACPP_USE_FIBERS
 #endif
 
-#ifdef HIPSYCL_HAS_FIBERS
+#ifdef ACPP_USE_FIBERS
 
 #include <functional>
+#include <vector>
 
-#include <boost/fiber/fiber.hpp>
-#include <boost/fiber/barrier.hpp>
+#include "minicoro.h"
 
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
@@ -45,18 +43,26 @@ enum class group_execution_iteration {
   sequential
 };
 
+namespace yield_kind {
+// Some odd value not easily confused with pointers
+static void* spawn = reinterpret_cast<void*>(0xff07);
+static void* barrier = reinterpret_cast<void*>(0xff09);
+static void* next_item = reinterpret_cast<void*>(0xff11);
+}
+static constexpr size_t fiber_stack_size = 256*1024;
+
 template<int Dim>
 class collective_execution_engine {
 public:
   collective_execution_engine(
       sycl::range<Dim> num_groups, sycl::range<Dim> local_size,
       sycl::id<Dim> offset,
-      const static_range_decomposition<Dim> &group_range_decomposition,
+      const static_range_decomposition<Dim>& group_range_decomposition,
       int my_group_region)
       : _num_groups{num_groups}, _local_size{local_size}, _offset{offset},
-        _group_barrier{local_size.size()}, _fibers_spawned{false},
-        _fibers(local_size.size()), _groups{group_range_decomposition},
-        _my_group_region{my_group_region} {}
+        _fibers_spawned{false}, _fibers(local_size.size(), nullptr),
+        _groups{group_range_decomposition}, _my_group_region{my_group_region},
+        _current_coro{nullptr} {}
 
   template <class WorkItemFunction>
   void run_kernel(WorkItemFunction f) {
@@ -64,99 +70,169 @@ public:
     _fibers_spawned = false;
     _master_group_position = 0;
 
-    // Try sequential processing (using only one fiber) - if
-    // other fibers need to be spawned, only process first work item
-    // as other work items will be processed by other fibers
-    _fibers[0] = boost::fibers::fiber([this]() {
-      _groups.for_each_local_element(
-          _my_group_region, [this](sycl::id<Dim> group_id) {
-            if (!_fibers_spawned) {
-              iterate_range(_local_size, [&](sycl::id<Dim> local_id) {
-                if (!_fibers_spawned)
-                  execute_work_item(local_id, group_id);
-              });
-            } else {
-              barrier();
-              // Only execute work item 0 from now on
-              execute_work_item(sycl::id<Dim>{}, group_id);
-            }
-            ++_master_group_position;
-          });
-    });
+    // Create master coroutine
+    mco_desc desc = mco_desc_init(master_entry, fiber_stack_size);
+    desc.user_data = this;
+    mco_coro* master_co;
+    mco_result res = mco_create(&master_co, &desc);
+    assert(res == MCO_SUCCESS);
+    _fibers[0] = master_co;
 
-    if (_fibers.size() > 0) {
-      _fibers[0].join();
-      if(_fibers_spawned){
-        for (std::size_t i = 1; i < _fibers.size(); ++i) {
-          _fibers[i].join();
+    bool all_done = false;
+
+    // Launch master coroutine
+    void* result = resume(_fibers[0]);
+    if (mco_status(_fibers[0]) == MCO_DEAD) {
+      all_done = true;
+    } else {
+      assert(result == yield_kind::spawn);
+      spawn_fibers();
+    }
+
+    while (!all_done) {
+      all_done = true;
+      void* master_yield_kind = nullptr;
+      for (auto& co : _fibers) {
+        if (co && mco_status(co) != MCO_DEAD) {
+          void* result = resume(co);
+          if (mco_status(co) != MCO_DEAD) {
+            assert(result == yield_kind::barrier || result == yield_kind::next_item);
+            if (!master_yield_kind) master_yield_kind = result;
+            assert(result == master_yield_kind && "Inconsistent yield reasons");
+            all_done = false;
+          }
         }
       }
     }
 
+    // Cleanup
+    for (auto& co : _fibers) {
+      if (co) {
+        mco_destroy(co);
+        co = nullptr;
+      }
+    }
+  }
+
+  void* resume(mco_coro* co) {
+    _current_coro = co;
+    mco_result res = mco_resume(co);
+    _current_coro = nullptr;
+
+    if (res != MCO_SUCCESS) {
+      assert(false && "mco_resume failed");
+      return nullptr;
+    }
+
+    if (mco_status(co) == MCO_DEAD)
+      return nullptr;
+
+    void* yield_kind = nullptr;
+    size_t bytes = mco_get_bytes_stored(co);
+    if (bytes >= sizeof(void*))
+      mco_pop(co, &yield_kind, sizeof(void*));
+    return yield_kind;
   }
 
   void barrier() {
-    if(!_fibers_spawned){
-      // We are still in sequential processing mode,
-      // need to spawn the other fibers
-      spawn_fibers();
-      // Perform additional barrier on master fiber
-      // to participate in the other fibers initial barrier
-      // when entering the first group
-      barrier();
+    assert(_current_coro && "Barrier outside coroutine");
+    if (!_fibers_spawned) {
+      mco_push(_current_coro, &yield_kind::spawn, sizeof(void*));
+      mco_yield(_current_coro);
+      mco_push(_current_coro, &yield_kind::next_item, sizeof(void*));
+      mco_yield(_current_coro);
     }
-    
-    _group_barrier.wait();
+    mco_push(_current_coro, &yield_kind::barrier, sizeof(void*));
+    mco_yield(_current_coro);
   }
 
 private:
-  // Spawn remaining fibers
+  sycl::range<Dim> _num_groups;
+  sycl::range<Dim> _local_size;
+  sycl::id<Dim> _offset;
+  bool _fibers_spawned;
+  std::vector<mco_coro*> _fibers;
+  std::function<void(sycl::id<Dim>, sycl::id<Dim>)> _kernel;
+  size_t _master_group_position;
+  const static_range_decomposition<Dim>& _groups;
+  int _my_group_region;
+  mco_coro* _current_coro;
+
+  static void master_entry(mco_coro* co) {
+    auto* engine = static_cast<collective_execution_engine*>(mco_get_user_data(co));
+    engine->master_coro_body(co);
+  }
+
+  void master_coro_body(mco_coro* co) {
+    _groups.for_each_local_element(
+      _my_group_region, [this, co](sycl::id<Dim> group_id) {
+        if (!_fibers_spawned) {
+          iterate_range(_local_size, [&](sycl::id<Dim> local_id) {
+            if (!_fibers_spawned)
+              execute_work_item(local_id, group_id);
+          });
+        } else {
+          assert(co == _current_coro);
+          mco_push(co, &yield_kind::next_item, sizeof(void*));
+          mco_yield(co);
+          execute_work_item(sycl::id<Dim>{}, group_id);
+        }
+        ++_master_group_position;
+      });
+  }
+
+  struct CoroutineData {
+    collective_execution_engine* engine;
+    sycl::id<Dim> local_id;
+    size_t master_offset;
+  };
+
+  static void worker_entry(mco_coro* co) {
+    auto* data = static_cast<CoroutineData*>(mco_get_user_data(co));
+    data->engine->worker_coro_body(co, data->local_id, data->master_offset);
+    delete data;
+  }
+
+  void worker_coro_body(mco_coro* co, sycl::id<Dim> local_id, size_t master_offset) {
+    size_t current_group = 0;
+    _groups.for_each_local_element(
+      _my_group_region, [&](sycl::id<Dim> group_id) {
+        if (current_group >= master_offset) {
+          assert(co == _current_coro);
+          mco_push(co, &yield_kind::next_item, sizeof(void*));
+          mco_yield(co);
+          execute_work_item(local_id, group_id);
+        }
+        current_group++;
+      });
+  }
+
   void spawn_fibers() {
-
-    std::size_t n = 0;
+    size_t n = 0;
     iterate_range(_local_size, [&](sycl::id<Dim> local_id) {
-      // First work item will be processed by master fiber
       if (n != 0) {
-        
-        std::size_t master_offset = _master_group_position;
-        _fibers[n] = boost::fibers::fiber([local_id, this, master_offset]() {
-          std::size_t current_group = 0;
-          _groups.for_each_local_element(
-              _my_group_region, [&, this](sycl::id<Dim> group_id) {
-                if (current_group >= master_offset) {
-                  barrier();
-                  execute_work_item(local_id, group_id);
-                }
-                ++current_group;
-              });
-        });
+        auto* data = new CoroutineData{this, local_id, _master_group_position};
+        mco_desc desc = mco_desc_init(worker_entry, fiber_stack_size);
+        desc.user_data = data;
+        mco_coro* worker_co;
+        mco_result res = mco_create(&worker_co, &desc);
+        assert(res == MCO_SUCCESS);
+        _fibers[n] = worker_co;
       }
-      ++n;
+      n++;
     });
-
     _fibers_spawned = true;
   }
 
   void execute_work_item(sycl::id<Dim> local_id, sycl::id<Dim> group_id) {
     _kernel(local_id, group_id);
   }
-
-  sycl::range<Dim> _num_groups;
-  sycl::range<Dim> _local_size;
-  sycl::id<Dim> _offset;
-  boost::fibers::barrier _group_barrier;
-  bool _fibers_spawned;
-  std::vector<boost::fibers::fiber> _fibers;
-  std::function<void(sycl::id<Dim>, sycl::id<Dim>)> _kernel;
-  std::size_t _master_group_position;
-  const static_range_decomposition<Dim> &_groups;
-  int _my_group_region;
 };
 
 }
 }
 } // namespace hipsycl
 
-#endif // HIPSYCL_HAS_FIBERS
+#endif // ACPP_USE_FIBERS
 
 #endif

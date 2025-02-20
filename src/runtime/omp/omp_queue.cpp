@@ -209,9 +209,17 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
   if (num_groups.size() == 1 && shared_memory == 0) {
     // still need to be able to support group algorithms
     // make thread-local in case we have multiple threads submitting.
+    //
+    // Note: This data array is also utilized to implement
+    // static local memory (i.e. globals in address space 3 of fixed size).
+    // At offset 0, internal memory is used for group algorithms,
+    // starting at offset 1024*sizeof(uint64_t) it is
+    // used for such static local memory.
+    //
+    constexpr std::size_t static_local_mem_size = 32768 * sizeof(uint64_t);
     static thread_local std::vector<char> internal_local_memory;
     auto aligned_internal_local_memory = resize_and_strongly_align(
-        internal_local_memory, local_size.size() * sizeof(uint64_t));
+        internal_local_memory, 1024 * sizeof(uint64_t) + static_local_mem_size);
 
     omp_sscp_executable_object::work_group_info info{
         num_groups, rt::id<3>{0, 0, 0}, local_size, nullptr,

@@ -22,6 +22,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/host/HostKernelWrapperPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/host/StaticLocalMemoryPass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 
@@ -80,6 +81,12 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
     }
   }
+
+  // This pass needs to be run before builtins are linked,
+  // as it potentially generates additional builtin calls.
+  // So we cannot run it in the pipeline at the end of this function.
+  HostStaticLocalMemoryPass SLMPass{};
+  SLMPass.run(M, *PH.ModuleAnalysisManager);
 
   std::string BuiltinBitcodeFileName = "libkernel-sscp-host-full.bc";
   if(IsFastMath)

@@ -89,7 +89,8 @@ ACPP_PCUDA_API void __pcudaPushCallConfiguration(dim3 grid, dim3 block,
                                                  pcudaStream_t stream = nullptr);
 ACPP_PCUDA_API pcudaError_t __pcudaKernelCall(const char *kernel_name,
                                               void **args,
-                                              std::size_t hcf_object);
+                                              std::size_t hcf_object,
+                                              void **kernel_specific_storage);
 
 
 ACPP_PCUDA_API pcudaError_t pcudaGetDeviceCount(int* count);

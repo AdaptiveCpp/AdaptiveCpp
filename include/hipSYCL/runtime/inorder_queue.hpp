@@ -65,6 +65,13 @@ public:
 
   virtual result query_status(inorder_queue_status& status) = 0;
 
+  // low-level SSCP submission interface
+  virtual result submit_sscp_kernel_from_code_object(hcf_object_id hcf_object,
+      std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+      const rt::range<3> &num_groups, const rt::range<3> &group_size,
+      unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+      std::size_t num_args, const kernel_configuration &config) = 0;
+
   virtual ~inorder_queue(){}
 };
 

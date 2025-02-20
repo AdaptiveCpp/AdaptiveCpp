@@ -12,6 +12,7 @@
 #include "hipSYCL/compiler/sscp/pcuda/FreeKernelCall.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Instructions.h>
@@ -24,6 +25,14 @@ namespace {
 static const char* IsDeviceGVName = "__acpp_sscp_is_device";
 static const char* HcfObjectIdGVName = "__acpp_local_sscp_hcf_object_id";
 static const char* KernelCallFunctionName = "__pcudaKernelCall";
+
+llvm::Type* getVoidPtrType(llvm::Module* M, unsigned AS = 0) {
+#if LLVM_VERSION_MAJOR >= 16
+    return llvm::PointerType::get(M->getContext(), AS);
+#else
+    return llvm::PointerType::get(llvm::Type::getInt8Ty(M->getContext()), AS);
+#endif
+
 }
 
 llvm::GlobalVariable* getSSCPIsDevicePassGV(llvm::Module* M) {
@@ -70,28 +79,50 @@ llvm::GlobalVariable* generateKernelName(llvm::Function* F) {
   }
 }
 
+llvm::GlobalVariable* getKernelSpecificStorage(llvm::Module* M, llvm::Function* F) {
+  std::string Name = F->getName().str();
+  std::string GVName = "__acpp_kernel_specific_storage_" + Name;
+
+  if(auto* GV = M->getGlobalVariable(GVName))
+    return GV;
+  else {
+    llvm::Type* VoidPtrType = getVoidPtrType(M);
+
+    auto *NullInitializer =
+        llvm::ConstantPointerNull::get(llvm::dyn_cast<llvm::PointerType>(VoidPtrType));
+    llvm::GlobalVariable *NewGV =
+        new llvm::GlobalVariable{*M,      VoidPtrType,
+                                 false,   llvm::GlobalVariable::InternalLinkage,
+                                 NullInitializer, GVName};
+    NewGV->setAlignment(M->getDataLayout().getABITypeAlign(VoidPtrType));
+    return NewGV;
+  }
+}
+
 llvm::Function* getKernelLaunchFunction(llvm::Module* M) {
   if(auto* F = M->getFunction(KernelCallFunctionName)) {
     return F;
   } else {
     llvm::SmallVector<llvm::Type*> ParamTs;
     // const char*
-#if LLVM_VERSION_MAJOR >= 16
-    ParamTs.push_back(llvm::PointerType::get(M->getContext(), 0));
-#else
-    ParamTs.push_back(llvm::PointerType::get(llvm::Type::getInt8Ty(M->getContext()), 0));
-#endif
+    // With typed ptrs, void* is mapped to i8*, so void* is equivalent
+    // to i8* type when we have typed pointers.
+    ParamTs.push_back(getVoidPtrType(M));
 
     // void**
 #if LLVM_VERSION_MAJOR >= 16
-    ParamTs.push_back(llvm::PointerType::get(M->getContext(), 0));
+    auto VoidVoidPtrType = llvm::PointerType::get(M->getContext(), 0);
 #else
     auto* VoidPtrType = llvm::PointerType::get(llvm::Type::getInt8Ty(M->getContext()), 0);
-    ParamTs.push_back(llvm::PointerType::get(VoidPtrType, 0));
+    auto* VoidVoidPtrType = llvm::PointerType::get(VoidPtrType, 0));
 #endif
+    ParamTs.push_back(VoidVoidPtrType);
 
     // std::size_t
     ParamTs.push_back(llvm::Type::getInt64Ty(M->getContext()));
+    // void**
+    ParamTs.push_back(VoidVoidPtrType);
+
     auto FC = M->getOrInsertFunction(KernelCallFunctionName,
                            llvm::FunctionType::get(llvm::Type::getInt32Ty(M->getContext()),
                                                    llvm::ArrayRef<llvm::Type *>{ParamTs}, false));
@@ -205,12 +236,13 @@ llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
         "", ElseBranch);
 
     llvm::Function* KLF = getKernelLaunchFunction(M);
-    
+    llvm::GlobalVariable* KernelSpecificStorage = getKernelSpecificStorage(M, NewF);
 
     llvm::SmallVector<llvm::Value*> KLFArgs {
       KernelNamePtr,
       VoidVoidPtrParamList,
-      HcfObjectId
+      HcfObjectId,
+      KernelSpecificStorage
     };
 
     llvm::CallInst::Create(llvm::FunctionCallee{KLF->getFunctionType(), KLF},
@@ -232,6 +264,7 @@ llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
   return NewF;
 }
 
+}
 
 llvm::PreservedAnalyses FreeKernelCallPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
   llvm::SmallPtrSet<llvm::Function *, 16> FreeKernels;

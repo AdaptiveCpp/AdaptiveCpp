@@ -147,16 +147,16 @@ struct KernelParam {
 
 struct KernelInfo {
   std::string Name;
-  std::size_t NumOriginalParams;
+  std::vector<std::size_t> OriginalParamSizes;
   std::vector<KernelParam> Parameters;
 
   KernelInfo() = default;
   KernelInfo(const std::string &KernelName, llvm::Module &M,
-             std::size_t NumOriginalParameters,
-             const std::vector<OriginalParamInfo>& OriginalParamInfos) {
+             const std::vector<std::size_t> &OriginalParamSizes,
+             const std::vector<OriginalParamInfo> &OriginalParamInfos) {
 
     this->Name = KernelName;
-    this->NumOriginalParams = NumOriginalParameters;
+    this->OriginalParamSizes = OriginalParamSizes;
     if(auto* F = M.getFunction(KernelName)) {
 
       auto* FType = F->getFunctionType();
@@ -332,11 +332,22 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     }
   }
 
-  // Save original number of params before expanding arguments
-  std::unordered_map<std::string, std::size_t> NumOriginalParameters;
+  // Save original number of params and sizes before expanding arguments.
+  // This corresponds to host-side interface of the kernel.
+  // Note: Assumes that the KernelArgumentCanonicalizationPass has been run!
+  std::unordered_map<std::string, std::vector<std::size_t>> OriginalParameterSizes;
   for(const auto& KN : EPP.getKernelNames()) {
     if(auto* F = M.getFunction(KN)) {
-      NumOriginalParameters[F->getName().str()] = F->getFunctionType()->getNumParams();
+      std::vector<std::size_t> OriginalParamSizes;
+      auto& Sizes = OriginalParameterSizes[F->getName().str()];
+      for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+        auto* Arg = F->getArg(i);
+        if(Arg->hasByValAttr())
+          Sizes.push_back(M.getDataLayout().getIndexTypeSizeInBits(Arg->getParamByValType()) /
+                          CHAR_BIT);
+        else
+          Sizes.push_back(M.getDataLayout().getTypeSizeInBits(Arg->getType()) / CHAR_BIT);
+      }
     }
   }
 
@@ -357,7 +368,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     auto* OriginalParamInfos = KernelArgExpansionPass.getInfosOnOriginalParams(Name);
     assert(OriginalParamInfos);
 
-    KernelInfo KI{Name, *DeviceModule, NumOriginalParameters[Name], *OriginalParamInfos};
+    KernelInfo KI{Name, *DeviceModule, OriginalParameterSizes[Name], *OriginalParamInfos};
     KernelInfoOutput.push_back(KI);
   }
 
@@ -399,7 +410,11 @@ generateHCF(llvm::Module &DeviceModule, std::size_t HcfObjectId,
   for(const auto& Kernel : Kernels) {
     auto* K = KernelsNode->add_subnode(Kernel.Name);
     K->set_as_list("image-providers", {std::string{"llvm-ir.global"}});
-    K->set("num-original-parameters", std::to_string(Kernel.NumOriginalParams));
+
+    std::vector<std::string> OriginalSizesStrings;
+    for(const auto& S : Kernel.OriginalParamSizes)
+      OriginalSizesStrings.push_back(std::to_string(S));
+    K->set_as_list("host-side-parameter-sizes", OriginalSizesStrings);
 
     auto* FlagsNode = K->add_subnode("compile-flags");
     for(const auto& F : KernelCompileFlags) {

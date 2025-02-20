@@ -54,7 +54,12 @@ private:
   std::vector<std::string> OutliningEntrypoints;
 };
 
-//  Removes all code not belonging to kernels
+// Canonicalizes kernel argument conventions. In particlar, for all aggregates
+// passed by value, attaches ByVal attribute with the value type. With opaque
+// pointers, this requires type-scavenging.
+//
+// For free kernels, this is currently only supported for kernels with at least
+// one callsite in the TU.
 class KernelArgumentCanonicalizationPass
     : public llvm::PassInfoMixin<KernelArgumentCanonicalizationPass> {
 public:

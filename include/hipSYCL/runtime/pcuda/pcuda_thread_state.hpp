@@ -15,14 +15,17 @@
 #include <optional>
 
 #include "hipSYCL/pcuda/pcuda_runtime.hpp"
-#include "hipSYCL/runtime/pcuda/pcuda_runtime.hpp"
 #include "pcuda_stream.hpp"
 
 
 namespace hipsycl::rt::pcuda {
 
+class pcuda_runtime;
+
 class thread_local_state {
 public:
+  ~thread_local_state();
+
   struct kernel_call_configuration {
     dim3 grid;
     dim3 block;
@@ -31,6 +34,8 @@ public:
   };
 
   thread_local_state(pcuda_runtime* rt);
+  thread_local_state(const thread_local_state&) = delete;
+  thread_local_state& operator=(const thread_local_state&) = delete;
 
   bool set_device(int dev);
   bool set_platform(int platform);
@@ -41,6 +46,9 @@ public:
   int get_backend() const;
 
   internal_stream_t* get_default_stream() const;
+
+  void push_kernel_call_config(const kernel_call_configuration& config);
+  kernel_call_configuration pop_kernel_call_config();
 
 private:
   pcuda_runtime* _rt;
@@ -56,7 +64,7 @@ private:
   mutable std::vector<std::vector<std::vector<per_device_data>>>
       _per_device_data;
 
-  kernel_call_configuration current_call_config;
+  std::optional<kernel_call_configuration> _current_call_config;
 
 };
 

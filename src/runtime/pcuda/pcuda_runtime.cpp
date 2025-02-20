@@ -11,22 +11,30 @@
 
 #include <memory>
 #include "hipSYCL/runtime/pcuda/pcuda_runtime.hpp"
+#include "hipSYCL/runtime/pcuda/pcuda_device_topology.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_thread_state.hpp"
 
 
 
 namespace hipsycl::rt::pcuda {
 
-namespace {
-thread_local std::unique_ptr<thread_local_state> tls_state;
+pcuda_runtime::pcuda_runtime()
+: _topology{get_rt()} {}
+
+thread_local_state& pcuda_application::tls_state() {
+  thread_local thread_local_state* tls_state_ptr = nullptr;
+
+  if(!tls_state_ptr) {
+    std::lock_guard<std::mutex> lock{_lock};
+    
+    _tls_states.emplace_back(&_pcuda_rt);
+    tls_state_ptr = &(_tls_states.back());
+  }
+  return *tls_state_ptr;
 }
 
-
-const thread_local_state& pcuda_runtime::get_tls_state() const {
-  if(!tls_state)
-    tls_state.reset(new thread_local_state{this});
-  return *tls_state.get();
-}
+pcuda_runtime &pcuda_application::pcuda_rt() { return _pcuda_rt; }
+const pcuda_runtime &pcuda_application::pcuda_rt() const { return _pcuda_rt; }
 
 }
 

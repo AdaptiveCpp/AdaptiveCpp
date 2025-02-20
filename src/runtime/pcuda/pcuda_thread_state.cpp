@@ -10,9 +10,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/runtime/pcuda/pcuda_thread_state.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/pcuda/pcuda_error.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_stream.hpp"
@@ -21,6 +23,21 @@
 #include <cstdint>
 
 namespace hipsycl::rt::pcuda {
+
+thread_local_state::~thread_local_state() {
+  for(auto& backend : _per_device_data){
+    for(auto& platform : backend) {
+      for(auto& device : platform) {
+        if(device.default_stream.has_value()) {
+          auto err = stream_destroy(device.default_stream.value(), _rt);
+          if(err != pcudaSuccess) {
+            register_pcuda_error(__acpp_here(), err, "default stream destruction failed");
+          }
+        }
+      }
+    }
+  }
+}
 
 thread_local_state::thread_local_state(pcuda_runtime* rt)
 : _rt{rt}, _current_backend{0}, _current_platform{0}, _current_device{0} {
@@ -83,10 +100,11 @@ thread_local_state::thread_local_state(pcuda_runtime* rt)
   }
 
   if(best_score < 0) {
-    HIPSYCL_DEBUG_ERROR << "[PCUDA] pcuda_thread_state: Did not find any "
-                           "devices (not even CPU); this should "
-                           "never happen. Things are going to break now."
-                        << std::endl;
+    // Cannot register as this happens typically during startup
+    print_warning(__acpp_here(),
+                  error_info{"[PCUDA] pcuda_thread_state: Did not find any "
+                             "devices (not even CPU); this should "
+                             "never happen. Things are going to break now."});
   } else {
     _current_backend = best_backend;
     _current_platform = best_platform;
@@ -122,11 +140,10 @@ internal_stream_t* thread_local_state::get_default_stream() const {
     return s;
   
   internal_stream_t* default_stream = nullptr;
-  auto err = create_stream(default_stream, _rt, 0, 0);
+  auto err = stream_create(default_stream, _rt, 0, 0);
   if(err != pcudaSuccess) {
-    rt::register_error(rt::make_error(
-        __acpp_here(),
-        rt::error_info{"[PCUDA] default stream construction failed", err}));
+    register_pcuda_error(__acpp_here(), err,
+                         "default stream construction failed");
     return nullptr;
   }
   assert(default_stream);
@@ -135,5 +152,29 @@ internal_stream_t* thread_local_state::get_default_stream() const {
   return default_stream;
 }
 
+void thread_local_state::push_kernel_call_config(const kernel_call_configuration& config) {
+  if(_current_call_config.has_value()) {
+    HIPSYCL_DEBUG_WARNING
+        << "[PCUDA] thread_local_state: Pushing new call configuration, but "
+           "the previous call configuration has not yet been popped. This "
+           "indicates a prior incomplete kernel launch and should not happen."
+        << std::endl;
+  }
+  _current_call_config = config;
+}
+
+thread_local_state::kernel_call_configuration
+thread_local_state::pop_kernel_call_config() {
+  if(!_current_call_config.has_value()) {
+    register_pcuda_error(__acpp_here(), pcudaErrorMissingConfiguration,
+                         "thread_local_state: Could not pop kernel "
+                         "launch configuration. The kernel launch was likely "
+                         "not configured prior to launch.");
+    return kernel_call_configuration{};
+  }
+  auto value = _current_call_config.value();
+  _current_call_config.reset();
+  return value;
+}
 
 }

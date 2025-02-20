@@ -138,9 +138,9 @@ hcf_kernel_info::hcf_kernel_info(
             std::make_pair(o.value(), option.second));
     }
   }
-  if (const auto *num_orig_params =
-          kernel_node->get_value("num-original-parameters")) {
-    _num_original_parameters = std::stoll(*num_orig_params);
+  auto host_side_param_sizes = kernel_node->get_as_list("host-side-parameter-sizes");
+  for(const std::string& s : host_side_param_sizes) {
+    _host_side_parameter_sizes.push_back(std::stoll(s));
   }
 
   _parsing_successful = true;
@@ -148,6 +148,11 @@ hcf_kernel_info::hcf_kernel_info(
 
 std::size_t hcf_kernel_info::get_num_parameters() const {
   return _arg_sizes.size();
+}
+
+const std::vector<std::size_t> &
+hcf_kernel_info::get_host_side_parameter_sizes() const {
+  return _host_side_parameter_sizes;
 }
 
 bool hcf_kernel_info::is_valid() const {

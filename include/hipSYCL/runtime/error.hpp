@@ -37,7 +37,8 @@ enum class error_type {
   memory_allocation_error,
   platform_error,
   profiling_error,
-  feature_not_supported
+  feature_not_supported,
+  pcuda_error
 };
 
 class source_location {

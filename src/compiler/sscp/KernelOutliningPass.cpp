@@ -263,7 +263,7 @@ llvm::Type* estimateFreeKernelPtrTypeFromValue(llvm::Value* V) {
   else if(auto* GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V)){
     return GEP->getResultElementType();
   } else if(auto* LI = llvm::dyn_cast<llvm::LoadInst>(V)) {
-    return LI->getAccessType();
+    return LI->getType();
   } else if(auto* GV = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
     // When GV pointer is passed in - does this really mean
     // that the user intended to pass the GV by value?

@@ -24,6 +24,8 @@ __attribute__((address_space(3))) void* __acpp_sscp_get_dynamic_local_memory() {
 }
 
 
+// Note: HostStaticLocalMemoryPass generates calls to this builtin;
+// do not rename or change signature without also changing the name there.
 HIPSYCL_SSCP_BUILTIN
 void* __acpp_sscp_host_get_internal_local_memory() {
   return (void *)(__builtin_assume_aligned(

@@ -24,6 +24,8 @@ llvm::PreservedAnalyses SMCPCompatPass::run(llvm::Module& M, llvm::ModuleAnalysi
   for(auto& F : M) {
     if(F.getName() == "llvm.amdgcn.readlane.i32")
       F.setName("llvm.amdgcn.readlane");
+    if(F.getName() == "llvm.amdgcn.readfirstlane.i32")
+      F.setName("llvm.amdgcn.readfirstlane");
   }
 #endif
 

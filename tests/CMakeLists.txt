@@ -155,6 +155,7 @@ if(WITH_PSTL_TESTS)
     pstl/replace_if.cpp
     pstl/replace_copy.cpp
     pstl/replace_copy_if.cpp
+    pstl/reverse_copy.cpp
     pstl/sort.cpp
     pstl/transform.cpp
     pstl/transform_reduce.cpp

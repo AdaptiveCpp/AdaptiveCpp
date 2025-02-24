@@ -407,6 +407,29 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, p, new_value);
 }
 
+template<class BidirIt, class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq,
+                                                  BidirIt first, BidirIt last,
+                                                  ForwardIt d_first) {
+  auto offloader = [&](auto& queue) {
+    ForwardIt d_last = d_first;
+    std::advance(d_last, std::distance(first, last));
+    hipsycl::algorithms::reverse_copy(queue, first, last, d_first);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::reverse_copy(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+                     d_first);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::reverse_copy{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), ForwardIt, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
+}
+
 /*
 template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(const hipsycl::stdpar::par_unseq, ForwardIt first,
@@ -1016,6 +1039,29 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
                              hipsycl::stdpar::par{}),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, p, new_value);
+}
+
+template<class BidirIt, class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par,
+                                                  BidirIt first, BidirIt last,
+                                                  ForwardIt d_first) {
+  auto offloader = [&](auto& queue) {
+    ForwardIt d_last = d_first;
+    std::advance(d_last, std::distance(first, last));
+    hipsycl::algorithms::reverse_copy(queue, first, last, d_first);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::reverse_copy(hipsycl::stdpar::par_host_fallback, first, last,
+                     d_first);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::reverse_copy{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first, last), ForwardIt, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
 
 /*

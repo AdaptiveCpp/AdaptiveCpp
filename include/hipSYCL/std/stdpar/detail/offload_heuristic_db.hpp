@@ -45,6 +45,7 @@ struct replace {};
 struct replace_if {};
 struct replace_copy {};
 struct replace_copy_if {};
+struct reverse_copy {};
 struct find {};
 struct find_if {};
 struct find_if_not {};

@@ -228,6 +228,11 @@ sycl::event replace_copy(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
                          const T &new_value,
                          const std::vector<sycl::event> &deps = {});
 
+template <class BidirIt, class ForwardIt>
+sycl::event reverse_copy(sycl::queue &q, BidirIt first,
+                         BidirIt last, ForwardIt d_first,
+                         const std::vector<sycl::event> &deps = {});
+
 /// The result of the operation will be stored in out.
 ///
 /// out must point to device-accessible memory, and will be set to 0

@@ -89,8 +89,15 @@
 #define @ACPP_PCUDA_PREFIX@GetDevice pcudaGetDevice
 #define @ACPP_PCUDA_PREFIX@SetDevice pcudaSetDevice
 
+// Getters/setters for platforms are pcuda extensions and therefore not aliased
+
 #define @ACPP_PCUDA_PREFIX@GetLastError pcudaGetLastError
 
 #define @ACPP_PCUDA_PREFIX@DeviceSynchronize pcudaDeviceSynchronize
+
+#define @ACPP_PCUDA_PREFIX@Malloc pcudaMalloc
+#define @ACPP_PCUDA_PREFIX@MallocHost pcudaMallocHost
+#define @ACPP_PCUDA_PREFIX@MallocManaged pcudaMallocManaged
+#define @ACPP_PCUDA_PREFIX@Free pcudaFree
 
 #endif

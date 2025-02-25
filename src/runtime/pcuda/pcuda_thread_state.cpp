@@ -94,6 +94,7 @@ thread_local_state::thread_local_state(pcuda_runtime* rt)
         if(platform_score > best_score) {
           best_backend = i;
           best_platform = j;
+          best_score = platform_score;
         }
       }
     }
@@ -140,7 +141,11 @@ internal_stream_t* thread_local_state::get_default_stream() const {
     return s;
   
   internal_stream_t* default_stream = nullptr;
-  auto err = stream_create(default_stream, _rt, 0, 0);
+  auto *dev = _rt->get_topology().get_device(
+      _current_backend, _current_platform, _current_device);
+  assert(dev);
+  auto err = stream_create(default_stream, _rt, dev->rt_device_id, 0, 0);
+
   if(err != pcudaSuccess) {
     register_pcuda_error(__acpp_here(), err,
                          "default stream construction failed");
@@ -175,6 +180,37 @@ thread_local_state::pop_kernel_call_config() {
   auto value = _current_call_config.value();
   _current_call_config.reset();
   return value;
+}
+
+bool thread_local_state::set_device(int dev) {
+  auto &devs = _rt->get_topology()
+                   .get_platform(_current_backend, _current_platform)
+                   ->devices;
+  if(dev < devs.size()) {
+    _current_device = dev;
+    return true;
+  }
+  return false;
+}
+
+bool thread_local_state::set_platform(int platform) {
+  auto &platforms = _rt->get_topology()
+                   .get_backend(_current_backend)
+                   ->platforms;
+  if(platform < platforms.size()) {
+    _current_platform = platform;
+    return true;
+  }
+  return false;
+}
+
+bool thread_local_state::set_backend(int backend) {
+  auto& backends = _rt->get_topology().all_backends();
+  if(backend < backends.size()) {
+    _current_backend = backend;
+    return true;
+  }
+  return false;
 }
 
 }

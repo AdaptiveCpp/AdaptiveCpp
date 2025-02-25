@@ -18,6 +18,7 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"
+#include <clang/AST/OperationKinds.h>
 #include <cstddef>
 
 #include "pcuda_runtime.hpp"
@@ -124,31 +125,10 @@ struct __pcudaGridDim {
 };
 
 template<class F>
-[[clang::annotate("hipsycl_sscp_kernel")]]
-[[clang::annotate("hipsycl_sscp_outlining")]]
-[[clang::annotate("hipsycl_kernel_dimension", 3)]]
-void __pcuda_kernel(const F& f){
-  if (__acpp_sscp_is_device) {
-    F g = f;
-    g();
-  }
-}
-
-namespace __sscp_dispatch {
-
-template<class F>
-class pcuda_wrapper {
-public:
-  pcuda_wrapper(F f)
-  : _f {f} {}
-
-  void operator()() {
-    _f();
-  }
-private:
-  F _f;
-};
-
+__global__
+void __pcuda_parallel_for(F f){
+  if(__acpp_sscp_is_device)
+    f();
 }
 
 extern const __pcudaThreadIdx threadIdx;
@@ -163,27 +143,42 @@ inline int __pcuda_warp_size() {
 }
 #define warpSize __pcuda_warp_size()
 
+struct __pcuda_dummy_configuration_t {};
+
+template<class T>
+T operator*(__pcuda_dummy_configuration_t, T x) {
+  return x;
+}
+__pcuda_dummy_configuration_t
+__pcuda_pp_generate_configuration(dim3 grid, dim3 block, size_t shared_mem = 0,
+                                  pcudaStream_t s = nullptr) {
+  __pcudaPushCallConfiguration(grid, block, shared_mem, s);
+  return __pcuda_dummy_configuration_t{};
+}
+
 template <class F>
-inline pcudaError_t pcudaSubmit(dim3 grid, dim3 block, size_t shared_mem,
+inline pcudaError_t pcudaParallelFor(dim3 grid, dim3 block, size_t shared_mem,
                                 pcudaStream_t stream, F f) {
   __pcudaPushCallConfiguration(grid, block, shared_mem, stream);
-  __pcuda_kernel(__sscp_dispatch::pcuda_wrapper{f});
+  __pcuda_parallel_for(f);
   return pcudaGetLastError();
 }
 
 template<class F>
-inline pcudaError_t pcudaSubmit(dim3 grid, dim3 block, size_t shared_mem, F f) {
-  return pcudaSubmit(grid, block, 0, nullptr, f);
+inline pcudaError_t pcudaParallelFor(dim3 grid, dim3 block, size_t shared_mem, F f) {
+  return pcudaParallelFor(grid, block, 0, nullptr, f);
 }
 
 template<class F>
-inline pcudaError_t pcudaSubmit(dim3 grid, dim3 block, F f) {
-  return pcudaSubmit(grid, block, 0, f);
+inline pcudaError_t pcudaParallelFor(dim3 grid, dim3 block, F f) {
+  return pcudaParallelFor(grid, block, 0, f);
 }
 
 #define PCUDA_KERNEL_NAME(...) __VA_ARGS__
 #define PCUDA_SYMBOL(X) X
-#define pcudaLaunchKernelGGL(kernel_name, grid, block, shared_mem, stream, ...) \
-  pcudaSubmit(grid, block, shared_mem, stream, [=](){ kernel_name(__VA_ARGS__); })
+#define pcudaLaunchKernelGGL(kernel_name, grid, block, shared_mem, stream,     \
+                             ...)                                              \
+  __pcudaPushCallConfiguration(grid, block, shared_mem, stream);               \
+  kernel_name(__VA_ARGS__);
 
 #endif

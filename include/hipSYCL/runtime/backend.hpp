@@ -27,6 +27,7 @@ class backend_allocator;
 class backend_hardware_manager;
 class hw_model;
 class kernel_cache;
+class inorder_queue;
 
 class backend
 {

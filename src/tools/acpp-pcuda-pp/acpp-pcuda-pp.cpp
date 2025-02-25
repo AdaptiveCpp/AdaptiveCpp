@@ -61,7 +61,6 @@ int main(int argc, char** argv) {
   
   while((pos = content.find("<<<")) !=  std::string::npos) {
     content.erase(pos, 3);
-    content.insert(pos, "__pcudaPushCallConfiguration(");
     
     auto paren_close = content.find(">>>", pos);
 
@@ -70,10 +69,19 @@ int main(int argc, char** argv) {
       return -1;
     } else {
       content.erase(paren_close, 3);
+
+      std::string call_config_args = content.substr(pos, paren_close - pos);
+      content.erase(pos, paren_close - pos);
       // TODO A better transformation would be something like
       // (__pcudaPushCallConfiguration(...), kernel(....))
       // so that it remains a single statement.
-      content.insert(paren_close, ");");
+
+      for(;pos < content.size(); ++pos) {
+        if(content[pos] == '(')
+          break;
+      }
+
+      content.insert(pos + 1, "__pcuda_pp_generate_configuration("+call_config_args+") * ");
     }
   }
 

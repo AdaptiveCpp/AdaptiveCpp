@@ -14,9 +14,10 @@
 #include <string_view>
 
 #include "hipSYCL/pcuda/pcuda_runtime.hpp"
-#include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/async_errors.hpp"
+#include "hipSYCL/runtime/allocator.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_error.hpp"
@@ -28,6 +29,27 @@
 namespace hipsycl::rt::pcuda {
 
 namespace {
+
+const hardware_context* get_current_device_ctx(){
+  int b = pcuda_application::get().tls_state().get_backend();
+  int p = pcuda_application::get().tls_state().get_platform();
+  int d = pcuda_application::get().tls_state().get_device();
+
+  return pcuda_application::get().pcuda_rt().get_topology().get_device(b, p, d)->dev;
+}
+
+device_id get_current_device_id(){
+  int b = pcuda_application::get().tls_state().get_backend();
+  int p = pcuda_application::get().tls_state().get_platform();
+  int d = pcuda_application::get().tls_state().get_device();
+
+  return pcuda_application::get()
+      .pcuda_rt()
+      .get_topology()
+      .get_device(b, p, d)
+      ->rt_device_id;
+}
+
 
 pcudaStream_t stream_or_default_stream(pcudaStream_t stream) {
   if(!stream) {
@@ -88,7 +110,7 @@ ACPP_PCUDA_API pcudaError_t __pcudaKernelCall(const char *kernel_name,
                                               void **args,
                                               hcf_object_id hcf_object,
                                               void **kernel_specific_storage){
-  return_if_prior_error(); 
+  return_if_prior_error();
 
   thread_local_state::kernel_call_configuration call_config =
       pcuda_application::get().tls_state().pop_kernel_call_config();
@@ -121,7 +143,223 @@ ACPP_PCUDA_API pcudaError_t __pcudaKernelCall(const char *kernel_name,
   }
 }
 
+///////////////////// Device management //////////////////
+
+ACPP_PCUDA_API pcudaError_t pcudaGetDeviceCount(int *count) {
+  return_if_prior_error();
+
+  if(!count)
+    return pcudaErrorInvalidValue;
+    
+
+  int b = pcuda_application::get().tls_state().get_backend();
+  int p = pcuda_application::get().tls_state().get_platform();
+  int n = static_cast<int>(pcuda_application::get()
+                               .pcuda_rt()
+                               .get_topology()
+                               .get_platform(b, p)
+                               ->devices.size());
+  
+  *count = n;
+
+  if(n == 0)
+    return pcudaErrorNoDevice;
+
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaGetPlatformCount(int *count) {
+  return_if_prior_error();
+
+  if(!count)
+    return pcudaErrorInvalidValue;
+
+  int b = pcuda_application::get().tls_state().get_backend();
+  int n = static_cast<int>(pcuda_application::get()
+                                   .pcuda_rt()
+                                   .get_topology()
+                                   .get_backend(b)->platforms.size());
+  *count = n;
+
+  if(n == 0)
+    return pcudaErrorNoDevice;
+
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaGetBackendCount(int *count) {
+  return_if_prior_error();
+
+  if(!count)
+    return pcudaErrorInvalidValue;
+
+  int n = static_cast<int>(pcuda_application::get()
+                                   .pcuda_rt()
+                                   .get_topology()
+                                   .all_backends().size());
+  *count = n;
+
+  if(n == 0)
+    return pcudaErrorNoDevice;
+
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaGetDevice(int *d) {
+  return_if_prior_error();
+
+    if(!d)
+      return pcudaErrorInvalidValue;
+
+  *d = pcuda_application::get().tls_state().get_device();
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaGetPlatform(int *p) {
+  return_if_prior_error();
+
+  if(!p)
+      return pcudaErrorInvalidValue;
+  
+  *p = pcuda_application::get().tls_state().get_platform();
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaGetBackend(int *b) {
+  return_if_prior_error();
+
+  if(!b)
+    return pcudaErrorInvalidValue;
+
+  *b = pcuda_application::get().tls_state().get_backend();
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaSetDevice(int val) {
+  return_if_prior_error();
+
+  if(pcuda_application::get().tls_state().set_device(val))
+    return pcudaSuccess;
+  return pcudaErrorInvalidDevice;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaSetPlatform(int val) {
+  return_if_prior_error();
+
+  if(pcuda_application::get().tls_state().set_platform(val))
+    return pcudaSuccess;
+  return pcudaErrorInvalidValue;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int val) {
+  return_if_prior_error();
+
+  if(pcuda_application::get().tls_state().set_backend(val))
+    return pcudaSuccess;
+  return pcudaErrorInvalidValue;
+}
+
+///////////// Device synchronization ///////////////////
+
+ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize() {
+  return_if_prior_error();
+
+  auto dev = get_current_device_id();
+  return stream_wait_all(dev);
+}
+
+///////////// Error management /////////////////////////
+
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError() {
   return pop_most_recent_pcuda_error();
 }
+
+///////////// Memory management ///////////////////////
+
+ACPP_PCUDA_API pcudaError_t pcudaMalloc(void** ptr, size_t s) {
+  return_if_prior_error();
+
+  if(!ptr)
+    return pcudaErrorInvalidValue;
+
+  auto dev = get_current_device_id();
+  auto* allocator = pcuda_application::get()
+      .pcuda_rt()
+      .get_rt()
+      ->backends()
+      .get(dev.get_backend())
+      ->get_allocator(dev);
+  
+  void* mem = allocate_device(allocator, 0, s, {});
+  if(!mem)
+    return pcudaErrorMemoryAllocation;
+  *ptr = mem;
+
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaMallocHost(void** ptr, size_t s) {
+  return_if_prior_error();
+
+  if(!ptr)
+    return pcudaErrorInvalidValue;
+
+  auto dev = get_current_device_id();
+  auto* allocator = pcuda_application::get()
+      .pcuda_rt()
+      .get_rt()
+      ->backends()
+      .get(dev.get_backend())
+      ->get_allocator(dev);
+  
+  void* mem = allocate_host(allocator, 0, s, {});
+  if(!mem)
+    return pcudaErrorMemoryAllocation;
+  *ptr = mem;
+
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaMallocManaged(void** ptr, size_t s) {
+  return_if_prior_error();
+
+  if(!ptr)
+    return pcudaErrorInvalidValue;
+
+  auto dev = get_current_device_id();
+  auto* allocator = pcuda_application::get()
+      .pcuda_rt()
+      .get_rt()
+      ->backends()
+      .get(dev.get_backend())
+      ->get_allocator(dev);
+  
+  void* mem = allocate_shared(allocator, s, {});
+  if(!mem)
+    return pcudaErrorMemoryAllocation;
+  *ptr = mem;
+
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr, size_t s) {
+  return_if_prior_error();
+
+  // CUDA accepts deallocating nullptr
+  if(!ptr)
+    return pcudaSuccess;
+
+  auto dev = get_current_device_id();
+  auto* allocator = pcuda_application::get()
+      .pcuda_rt()
+      .get_rt()
+      ->backends()
+      .get(dev.get_backend())
+      ->get_allocator(dev);
+  deallocate(allocator, ptr);
+
+  return pcudaSuccess;
+}
+
+
 }

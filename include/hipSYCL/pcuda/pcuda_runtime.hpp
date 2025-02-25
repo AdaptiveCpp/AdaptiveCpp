@@ -107,7 +107,12 @@ ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int platform);
 
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError();
 
+
 ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize();
 
+ACPP_PCUDA_API pcudaError_t pcudaMalloc(void** ptr, size_t s);
+ACPP_PCUDA_API pcudaError_t pcudaMallocHost(void** ptr, size_t s);
+ACPP_PCUDA_API pcudaError_t pcudaMallocManaged(void** ptr, size_t s);
+ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr, size_t s);
 
 #endif

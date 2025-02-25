@@ -1624,6 +1624,7 @@ class llvm_sscp_invocation:
 
 class compiler:
   def __init__(self, config):
+    self._config = config
     self._user_args = config.forwarded_compiler_arguments
     self._requires_linking = config.contains_linking_stage()
     self._requires_compilation = not config.is_pure_linking_stage()
@@ -1913,16 +1914,54 @@ class compiler:
     if not self._is_dry_run:
       multipass_backend.create_code_objects(targets)
 
-  # Returns processed filename
-  def _run_pcdua_pp(self, source_file):
+
+  # Returns list of modified arguments
+  def _preprocess_pcuda_sources(self, compiler_executable, args, tempdir):
+    source_args = self._config.source_file_arguments
+
+    consume_next = False
+    
+    preprocessor_invocation_args = []
+    for arg in args:
+      if consume_next:
+        preprocessor_invocation_args.append(arg)
+        consume_next = False
+      else:
+        consuming_flags = ["-isystem", "-I", "-D", "-Xclang", "-include"]
+        single_arg_flag_starts = ["-I", "-D", "-std=", "-f"]
+
+        if arg in consuming_flags:
+          preprocessor_invocation_args.append(arg)
+          consume_next = True
+        elif any(arg.startswith(x) for x in single_arg_flag_starts):
+          preprocessor_invocation_args.append(arg)
+    
     pcuda_pp_app = os.path.join(self._acpp_pcuda_pp_path)
-    with tempfile.TemporaryDirectory(prefix="adaptivecpp-") as temp_dir:
-      outfile = os.path.join(temp_dir, "acpp-pcuda-pp.out.cpp")
-      ret_val = run_or_print([pcuda_pp_app, source_file, outfile])
+    file_replacement_map = {}
+
+    for i,s in enumerate(source_args):
+      # Invoke clang -E
+      preprocessed_infile = os.path.join(tempdir, "acpp-preprocessed{}.cpp".format(i))
+      ret_val = run_or_print([self._clang_path, "-E", "-o", preprocessed_infile, s]+preprocessor_invocation_args, self._is_dry_run)
       if ret_val != 0:
-        raise RuntimeError("acpp-pcuda-pp invocation failed with error code ", ret_val)
-      return outfile
-    raise RuntimeError("Could not create temporary directory")
+        raise RuntimeError("clang -E invocation failed with error code " + str(ret_val))
+
+      # Run acpp-pcuda-pp
+      outfile = os.path.join(tempdir, "acpp-pcuda-pp-{}.cpp".format(i))
+      ret_val = run_or_print([pcuda_pp_app, preprocessed_infile, outfile], self._is_dry_run)
+      if ret_val != 0:
+        raise RuntimeError("acpp-pcuda-pp invocation failed with error code " + str(ret_val))
+      
+      file_replacement_map[s] = outfile
+
+    result_args = []
+    for arg in args:
+      if arg in file_replacement_map:
+        result_args.append(file_replacement_map[arg])
+      else:
+        result_args.append(arg)
+    
+    return result_args
 
   def _select_compiler(self):
     compiler_executable, compiler_priority = ("", 0)
@@ -1983,7 +2022,13 @@ class compiler:
     if self._requires_linking:
       args += ld_flags
 
-    return run_or_print([compiler_executable] + args,
+    if self._is_pcuda:
+      with tempfile.TemporaryDirectory(prefix="adaptivecpp-") as temp_dir:
+        modified_args = self._preprocess_pcuda_sources(compiler_executable, args, temp_dir)
+        return run_or_print([compiler_executable] + modified_args,
+                        self._is_dry_run, self._only_std_flags)
+    else:
+      return run_or_print([compiler_executable] + args,
                         self._is_dry_run, self._only_std_flags)
 
   def run(self):

@@ -81,7 +81,19 @@ int main(int argc, char** argv) {
           break;
       }
 
-      content.insert(pos + 1, "__pcuda_pp_generate_configuration("+call_config_args+") * ");
+      std::size_t opening_paren = pos + 1;
+      bool has_arguments = false;
+      for(std::size_t i = opening_paren; i < content.size(); ++i) {
+        if(!std::isspace(content[i])) {
+          if(content[i] == ')') {
+            has_arguments = true;
+            break;
+          }
+        }
+      }
+
+      if(has_arguments)
+        content.insert(opening_paren, "__pcuda_pp_generate_configuration("+call_config_args+") * ");
     }
   }
 

@@ -126,7 +126,7 @@ struct __pcudaGridDim {
 
 template<class F>
 __global__
-void __pcuda_parallel_for(F f){
+void __pcuda_parallel_for(const F& f){
   if(__acpp_sscp_is_device)
     f();
 }
@@ -160,7 +160,9 @@ template <class F>
 inline pcudaError_t pcudaParallelFor(dim3 grid, dim3 block, size_t shared_mem,
                                 pcudaStream_t stream, F f) {
   __pcudaPushCallConfiguration(grid, block, shared_mem, stream);
-  __pcuda_parallel_for(f);
+  // Compiler looks for this alloca
+  F g = f;
+  __pcuda_parallel_for(g);
   return pcudaGetLastError();
 }
 
@@ -178,7 +180,7 @@ inline pcudaError_t pcudaParallelFor(dim3 grid, dim3 block, F f) {
 #define PCUDA_SYMBOL(X) X
 #define pcudaLaunchKernelGGL(kernel_name, grid, block, shared_mem, stream,     \
                              ...)                                              \
-  __pcudaPushCallConfiguration(grid, block, shared_mem, stream);               \
-  kernel_name(__VA_ARGS__);
+  (__pcudaPushCallConfiguration(grid, block, shared_mem, stream),              \
+   kernel_name(__VA_ARGS__))
 
 #endif

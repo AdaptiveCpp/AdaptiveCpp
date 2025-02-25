@@ -372,7 +372,10 @@ class acpp_config:
   This currently only works with translation units that include the sycl.hpp header."""),
       'pcuda' : option("--acpp-pcuda", "ACPP_PCUDA", "default-pcuda",
 """  Enable AdaptiveCpp portable CUDA (PCUDA) support as input language.
-  This is *exclusively* supported with --acpp-targets=generic.""")
+  This is *exclusively* supported with --acpp-targets=generic."""),
+      'pcuda-chevron-launch' : option("--acpp-pcuda-chevron-launch", "ACPP_PCUDA_CHEVRON_LAUNCH", "default-pcuda-chevron-launch",
+"""  Enable AdaptiveCpp portable CUDA (PCUDA) support for triple-chevron kernel launch syntax.
+  Note: This is only meant for convenience, and only supported on a best-effort basis!""")
     }
 
 
@@ -868,6 +871,14 @@ class acpp_config:
       return self._is_flag_set("pcuda")
     except OptionNotSet:
       return False
+
+  @property
+  def is_pcuda_chevron_launch(self):
+    try:
+      return self._is_flag_set("pcuda-chevron-launch")
+    except OptionNotSet:
+      return False
+
 
   @property
   def save_temps(self):
@@ -2022,7 +2033,7 @@ class compiler:
     if self._requires_linking:
       args += ld_flags
 
-    if self._is_pcuda:
+    if self._is_pcuda and self._config.is_pcuda_chevron_launch:
       with tempfile.TemporaryDirectory(prefix="adaptivecpp-") as temp_dir:
         modified_args = self._preprocess_pcuda_sources(compiler_executable, args, temp_dir)
         return run_or_print([compiler_executable] + modified_args,

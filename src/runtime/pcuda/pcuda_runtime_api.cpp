@@ -342,7 +342,7 @@ ACPP_PCUDA_API pcudaError_t pcudaMallocManaged(void** ptr, size_t s) {
   return pcudaSuccess;
 }
 
-ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr, size_t s) {
+ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr) {
   return_if_prior_error();
 
   // CUDA accepts deallocating nullptr

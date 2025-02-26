@@ -138,9 +138,16 @@ hcf_kernel_info::hcf_kernel_info(
             std::make_pair(o.value(), option.second));
     }
   }
-  auto host_side_param_sizes = kernel_node->get_as_list("host-side-parameter-sizes");
-  for(const std::string& s : host_side_param_sizes) {
-    _host_side_parameter_sizes.push_back(std::stoll(s));
+
+  if(auto* hsps_node = kernel_node->get_subnode("host-side-parameter-sizes")) {
+    std::size_t num_entries = hsps_node->get_subnodes().size();
+    for(int i = 0; i < num_entries; ++i) {
+      const std::string *s = hsps_node->get_value(std::to_string(i));
+      if(!s)
+        return;
+      
+      _host_side_parameter_sizes.push_back(std::stoll(*s));
+    }
   }
 
   _parsing_successful = true;

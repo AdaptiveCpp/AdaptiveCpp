@@ -414,7 +414,10 @@ generateHCF(llvm::Module &DeviceModule, std::size_t HcfObjectId,
     std::vector<std::string> OriginalSizesStrings;
     for(const auto& S : Kernel.OriginalParamSizes)
       OriginalSizesStrings.push_back(std::to_string(S));
-    K->set_as_list("host-side-parameter-sizes", OriginalSizesStrings);
+    
+    auto* HSPS = K->add_subnode("host-side-parameter-sizes");
+    for(int i = 0; i < OriginalSizesStrings.size(); ++i)
+      HSPS->set(std::to_string(i), OriginalSizesStrings[i]);
 
     auto* FlagsNode = K->add_subnode("compile-flags");
     for(const auto& F : KernelCompileFlags) {

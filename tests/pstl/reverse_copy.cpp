@@ -29,7 +29,7 @@ void test_reverse_copy(Policy&& pol, std::size_t problem_size) {
   for(int i = 0; i < problem_size; ++i) {
     data[i] = T{i};
   }
-  
+
   std::vector<T> dest_device(problem_size);
   std::vector<T> dest_host(problem_size);
 

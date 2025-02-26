@@ -140,6 +140,10 @@ template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par,
                                           ForwardIt1 first, ForwardIt1 last,
                                           ForwardIt2 d_first);
+template<class BidirIt, class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par,
+                                                  BidirIt first, BidirIt last,
+                                                  ForwardIt d_first);
 }
 
 #endif

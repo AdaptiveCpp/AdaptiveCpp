@@ -423,22 +423,15 @@ sycl::event reverse_copy(sycl::queue &q, BidirIt first,
   using value_type1 = typename std::iterator_traits<BidirIt>::value_type;
   using value_type2 = typename std::iterator_traits<ForwardIt>::value_type;
 
-  // ??
-  if (std::is_trivially_copyable_v<BidirIt> &&
-      std::is_same_v<value_type1, value_type2> &&
-      util::is_contiguous<BidirIt>() && util::is_contiguous<ForwardIt>() &&
-      detail::should_use_memcpy(q.get_device())) {
-    return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1), deps);
-  } else {
-    return q.parallel_for(sycl::range{size}, deps,
-                          [=](sycl::id<1> id) {
-                            auto input = last;
-                            auto output = d_first;
-                            std::advance(input, -id[0]);
-                            std::advance(output, id[0]);
-                            *output = *input;
-                          });
-  }
+  return q.parallel_for(sycl::range{size}, deps,
+                        [=](sycl::id<1> id) {
+                          int offset = - static_cast<int>(size);
+                          auto input = first;
+                          auto output = d_first;
+                          std::advance(input, offset);
+                          std::advance(output, id[0]);
+                          *output = *input;
+                        });
 }
 
 // Need transform_reduce functionality for find etc, so forward

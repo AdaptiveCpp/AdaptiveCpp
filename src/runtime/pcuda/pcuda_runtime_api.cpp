@@ -276,7 +276,7 @@ ACPP_PCUDA_API pcudaError_t pcudaGetLastError() {
 
 ///////////// Memory management ///////////////////////
 
-ACPP_PCUDA_API pcudaError_t pcudaMalloc(void** ptr, size_t s) {
+ACPP_PCUDA_API pcudaError_t pcudaAllocateDevice(void** ptr, size_t s) {
   return_if_prior_error();
 
   if(!ptr)
@@ -298,7 +298,7 @@ ACPP_PCUDA_API pcudaError_t pcudaMalloc(void** ptr, size_t s) {
   return pcudaSuccess;
 }
 
-ACPP_PCUDA_API pcudaError_t pcudaMallocHost(void** ptr, size_t s) {
+ACPP_PCUDA_API pcudaError_t pcudaAllocateHost(void** ptr, size_t s) {
   return_if_prior_error();
 
   if(!ptr)
@@ -320,7 +320,8 @@ ACPP_PCUDA_API pcudaError_t pcudaMallocHost(void** ptr, size_t s) {
   return pcudaSuccess;
 }
 
-ACPP_PCUDA_API pcudaError_t pcudaMallocManaged(void** ptr, size_t s) {
+ACPP_PCUDA_API pcudaError_t pcudaAllocateShared(void **ptr, size_t s,
+                                               unsigned int flags) {
   return_if_prior_error();
 
   if(!ptr)

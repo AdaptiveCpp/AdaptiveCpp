@@ -84,6 +84,10 @@ typedef enum pcudaError : int {
 
 using pcudaStream_t = void*;
 
+#define pcudaMemAttachGlobal 0x01
+#define pcudaMemAttachHost 0x02
+#define pcudaMemAttachSingle 0x04 
+
 ACPP_PCUDA_API void __pcudaPushCallConfiguration(dim3 grid, dim3 block,
                                                  size_t shared_mem = 0,
                                                  pcudaStream_t stream = nullptr);
@@ -110,9 +114,26 @@ ACPP_PCUDA_API pcudaError_t pcudaGetLastError();
 
 ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize();
 
-ACPP_PCUDA_API pcudaError_t pcudaMalloc(void** ptr, size_t s);
-ACPP_PCUDA_API pcudaError_t pcudaMallocHost(void** ptr, size_t s);
-ACPP_PCUDA_API pcudaError_t pcudaMallocManaged(void** ptr, size_t s);
+ACPP_PCUDA_API pcudaError_t pcudaAllocateDevice(void** ptr, size_t s);
+ACPP_PCUDA_API pcudaError_t pcudaAllocateHost(void** ptr, size_t s);
+ACPP_PCUDA_API pcudaError_t pcudaAllocateShared(
+    void **ptr, size_t s, unsigned int flags = pcudaMemAttachGlobal);
+
+template<class T>
+pcudaError_t pcudaMalloc(T** ptr, size_t s) {
+  return pcudaAllocateDevice((void**)ptr, s);
+}
+
+template<class T>
+pcudaError_t pcudaMallocHost(T** ptr, size_t s) {
+  return pcudaAllocateHost((void**)ptr, s);
+}
+
+template<class T>
+pcudaError_t pcudaMallocManaged(T** ptr, size_t s) {
+  return pcudaAllocateShared((void**)ptr, s);
+}
+
 ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr);
 
 #endif

@@ -1844,12 +1844,12 @@ class compiler:
       args += ["-D_USE_MATH_DEFINES"]
 
     if self._is_pcuda:
-      args += [
+      args = [
         "-isystem", os.path.join(self._acpp_include_path, "hipSYCL", "pcuda"),
         "-D__ACPP_PCUDA__", 
         "-mllvm", "-acpp-sscp-pcuda",
         "-fdeclspec"
-      ]
+      ] + args
     if self._is_stdpar:
       stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
       args += [

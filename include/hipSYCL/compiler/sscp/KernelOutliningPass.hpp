@@ -63,6 +63,8 @@ private:
 class KernelArgumentCanonicalizationPass
     : public llvm::PassInfoMixin<KernelArgumentCanonicalizationPass> {
 public:
+  static llvm::SmallVector<bool> areFreeKernelFunctionParamsByValue(llvm::Function *FreeKernel);
+
   KernelArgumentCanonicalizationPass(const std::vector<std::string>& KernelNames);
 
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);

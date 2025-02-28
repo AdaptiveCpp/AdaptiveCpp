@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/compiler/sscp/pcuda/FreeKernelCall.hpp"
+#include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
@@ -138,6 +139,8 @@ llvm::Function* getKernelLaunchFunction(llvm::Module* M) {
 // call */ } }
 llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
   llvm::Module* M = KernelF->getParent();
+  auto IsArgByValue =
+      KernelArgumentCanonicalizationPass::areFreeKernelFunctionParamsByValue(KernelF);
 
   if(!KernelF->getReturnType()->isVoidTy()) {
     HIPSYCL_DEBUG_ERROR << "FreeKernelCallPass: Kernel " << KernelF->getName().str()
@@ -202,12 +205,19 @@ llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
     llvm::AllocaInst *ParamPtrList = new llvm::AllocaInst(PtrArrayTy, AllocaAS, "", ElseBranch);
     for(int i = 0; i < NewF->getFunctionType()->getNumParams(); ++i) {
 
-      llvm::AllocaInst *ParamAlloca =
-          new llvm::AllocaInst{NewF->getFunctionType()->getParamType(i),
+      llvm::Value *ParamValue = nullptr;
+      if(NewF->getFunctionType()->getParamType(i)->isPointerTy() && IsArgByValue[i]) {
+        // A pointer could be either an actual pointer, or a pointer to a ByVal struct,
+        // in which case we need to pass in the pointer directly, not an alloca pointer holding the
+        // pointer
+        ParamValue = NewF->getArg(i);
+      } else {
+        ParamValue = new llvm::AllocaInst{NewF->getFunctionType()->getParamType(i),
                                AllocaAS, "", ElseBranch};
-      auto* SI = new llvm::StoreInst(NewF->getArg(i), ParamAlloca, ElseBranch);
+        auto* SI = new llvm::StoreInst(NewF->getArg(i), ParamValue, ElseBranch);
+      }
       // In case we still have typed ptrs
-      auto *VoidPtrParam = new llvm::BitCastInst(ParamAlloca, VoidPtrType, "", ElseBranch);
+      auto *VoidPtrParam = new llvm::BitCastInst(ParamValue, VoidPtrType, "", ElseBranch);
       // Store VoidPtrParam in ParamPtrList
       llvm::SmallVector<llvm::Value*> Indices;
       Indices.push_back(

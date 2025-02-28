@@ -85,10 +85,10 @@ int main(int argc, char** argv) {
       bool has_arguments = false;
       for(std::size_t i = opening_paren; i < content.size(); ++i) {
         if(!std::isspace(content[i])) {
-          if(content[i] == ')') {
+          if(content[i] != ')') {
             has_arguments = true;
-            break;
           }
+          break;
         }
       }
 

@@ -105,7 +105,7 @@ llvm::PreservedAnalyses HostStaticLocalMemoryPass::run(llvm::Module &M, llvm::Mo
       Offset += Size;
     }
   }
-M.print(llvm::outs(), nullptr);
+
   return llvm::PreservedAnalyses::none();
 }
 

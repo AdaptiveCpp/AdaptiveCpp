@@ -136,22 +136,13 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     // use this.
     return omp_get_num_procs();
     break;
-    case device_uint_property::max_num_work_groups_nd_range0:
+    case device_uint_property::max_num_work_groups0:
     return std::numeric_limits<std::size_t>::max();
     break;
-  case device_uint_property::max_num_work_groups_nd_range1:
+  case device_uint_property::max_num_work_groups1:
     return std::numeric_limits<std::size_t>::max();
     break;
-  case device_uint_property::max_num_work_groups_nd_range2:
-    return std::numeric_limits<std::size_t>::max();
-    break;
-  case device_uint_property::max_num_work_groups_range0:
-    return std::numeric_limits<std::size_t>::max();
-    break;
-  case device_uint_property::max_num_work_groups_range1:
-    return std::numeric_limits<std::size_t>::max();
-    break;
-  case device_uint_property::max_num_work_groups_range2:
+  case device_uint_property::max_num_work_groups2:
     return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::max_global_size0:

@@ -80,5 +80,6 @@
 // KHR extensions
 
 #define SYCL_KHR_DEFAULT_CONTEXT 1
+#define SYCL_KHR_MAX_NUM_WORK_GROUPS 1
 
 #endif

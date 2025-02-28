@@ -111,11 +111,16 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_frexp_f32(float x, __acpp_int32 *y) {
   }
 }
 
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x, __acpp_int64 *y) {
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x, __acpp_int32 *y) {
   __acpp_int32 w;
-  double res = __ocml_frexp_f64(x, to_private(&w));
-  *y = static_cast<__acpp_int64>(w);
-  return res;
+  if(__ockl_is_private_addr(y))
+    return __ocml_frexp_f64(x, to_private(y));
+  else {
+    __acpp_int32 w;
+    float res = __ocml_frexp_f64(x, to_private(&w));
+    *y = w;
+    return res;
+  }
 }
 
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(hypot, __ocml_hypot)
@@ -125,7 +130,7 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ldexp_f32(float x, __acpp_int32 k) {
   return __ocml_ldexp_f32(x, k);
 }
 
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_ldexp_f64(double x, __acpp_int64 k) {
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_ldexp_f64(double x, __acpp_int32 k) {
   return __ocml_ldexp_f64(x, k);
 }
 
@@ -144,11 +149,15 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y ) {
   }
 }
 
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int64* y) {
-  __acpp_int32 w;
-  auto res = __ocml_lgamma_r_f64(x, to_private(&w));
-  *y = w;
-  return res;
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) {
+  if(__ockl_is_private_addr(y)) {
+    return __ocml_lgamma_r_f64(x, to_private(y));
+  } else {
+    __acpp_int32 w;
+    auto res = __ocml_lgamma_r_f64(x, to_private(&w));
+    *y = w;
+    return res;
+  }
 }
 
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(log, __ocml_log)
@@ -200,8 +209,8 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_rootn_f32(float x, __acpp_int32 y) {
   return __ocml_rootn_f32(x, y);
 }
 
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rootn_f64(double x, __acpp_int64 y) {
-  return __ocml_rootn_f64(x, static_cast<__acpp_int32>(y));
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rootn_f64(double x, __acpp_int32 y) {
+  return __ocml_rootn_f64(x, y);
 }
 
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(round, __ocml_round)

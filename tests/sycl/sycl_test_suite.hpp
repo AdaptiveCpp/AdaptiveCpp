@@ -16,8 +16,8 @@
 
 #define BOOST_MPL_CFG_GPU_ENABLED // Required for nvcc
 #include <boost/test/unit_test.hpp>
-#include <boost/mpl/list_c.hpp>
-#include <boost/mpl/list.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/mpl_list.hpp>
 
 
 #define SYCL_SIMPLE_SWIZZLES
@@ -25,7 +25,7 @@
 
 #include "../common/reset.hpp"
 
-using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;
+using test_dimensions = boost::mp11::mp_list_c<int, 1, 2, 3>;
 
 
 template<int dimensions, template<int D> class T>

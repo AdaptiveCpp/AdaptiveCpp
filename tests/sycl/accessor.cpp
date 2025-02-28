@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(local_accessors) {
     queue.submit([&](cl::sycl::handler& cgh) {
       using namespace cl::sycl::access;
       auto acc = buf.get_access<mode::read_write>(cgh);
-      auto scratch = cl::sycl::accessor<int, 1, mode::read_write, target::local>
+      auto scratch = cl::sycl::local_accessor<int, 1>
         {local_size, cgh};
 
       cgh.parallel_for<class dynamic_local_memory_reduction>(
@@ -193,8 +193,8 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 
   // Test local accessors
   queue.submit([&](s::handler& cgh) {
-    s::accessor<int, 1, s::access::mode::read_write, s::access::target::local> acc_a(32, cgh);
-    s::accessor<int, 1, s::access::mode::read_write, s::access::target::local> acc_b(32, cgh);
+    s::local_accessor<int, 1> acc_a(32, cgh);
+    s::local_accessor<int, 1> acc_b(32, cgh);
     auto acc_c = acc_a;
 
     BOOST_REQUIRE(acc_a == acc_a);

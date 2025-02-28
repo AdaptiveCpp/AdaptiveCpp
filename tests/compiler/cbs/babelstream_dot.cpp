@@ -36,7 +36,7 @@ int main()
       auto kb = d_b.template get_access<mode::read>(cgh);
       auto ksum = d_sum.template get_access<mode::discard_write>(cgh);
 
-      auto wg_sum = cl::sycl::accessor<int, 1, mode::read_write, target::local>(cl::sycl::range<1>(dot_wgsize), cgh);
+      auto wg_sum = cl::sycl::local_accessor<int, 1>(cl::sycl::range<1>(dot_wgsize), cgh);
 
       size_t N = array_size;
       cgh.parallel_for<class dot_kernel>(

@@ -16,20 +16,21 @@
 #include <atomic>
 
 #include <boost/test/unit_test.hpp>
-#include <boost/mpl/list.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/mpl_list.hpp>
 
 #include "pstl_test_suite.hpp"
 
 
-using atomic_int_test_types = boost::mpl::list<
+using atomic_int_test_types = boost::mp11::mp_list<
   int, unsigned, long long, unsigned long long>;
 
-using atomic_test_types = boost::mpl::list<
+using atomic_test_types = boost::mp11::mp_list<
   int, unsigned, long long, unsigned long long, float, double>;
 
 BOOST_FIXTURE_TEST_SUITE(pstl_std_atomic, enable_unified_shared_memory)
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_load_store, T, atomic_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_load_store, T, atomic_test_types) {
   std::vector<std::atomic<T>> data(1);
   data[0] = T{42};
 
@@ -43,7 +44,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_load_store, T, atomic_test_types::type) {
 }
 
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_exchange, T, atomic_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_exchange, T, atomic_test_types) {
   std::vector<std::atomic<T>> data(1);
   data[0] = T{42};
 
@@ -57,7 +58,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_exchange, T, atomic_test_types::type) {
   BOOST_CHECK(data[0] == T{43});
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_cmp_exchange, T, atomic_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_cmp_exchange, T, atomic_test_types) {
   std::vector<std::atomic<T>> data(1);
   data[0] = T{42};
   
@@ -105,33 +106,33 @@ void test_fetch_op(T expected_result, F f) {
 
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_add, T, atomic_int_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_add, T, atomic_int_test_types) {
   test_fetch_op(T{44}, [](auto& x){ return x.fetch_add(T{2}, std::memory_order_relaxed);});
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_sub, T, atomic_int_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_sub, T, atomic_int_test_types) {
   test_fetch_op(T{40}, [](auto& x){ return x.fetch_sub(T{2}, std::memory_order_relaxed);});
 }
 
 /* C++ 26 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_max, T, atomic_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_max, T, atomic_test_types) {
   test_fetch_op(T{45}, [](auto& x){ return x.fetch_max(T{45}, std::memory_order_relaxed);});
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_min, T, atomic_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_min, T, atomic_test_types) {
   test_fetch_op(T{41}, [](auto& x){ return x.fetch_min(T{41}, std::memory_order_relaxed);});
 }
 */
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_or, T, atomic_int_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_or, T, atomic_int_test_types) {
   test_fetch_op(T{42}|T{15}, [](auto& x){ return x.fetch_or(T{15}, std::memory_order_relaxed);});
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_and, T, atomic_int_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_and, T, atomic_int_test_types) {
   test_fetch_op(T{42}&T{15}, [](auto& x){ return x.fetch_and(T{15}, std::memory_order_relaxed);});
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_xor, T, atomic_int_test_types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(atomic_fetch_xor, T, atomic_int_test_types) {
   test_fetch_op(T{42}^T{30}, [](auto& x){ return x.fetch_xor(T{30}, std::memory_order_relaxed);});
 }
 

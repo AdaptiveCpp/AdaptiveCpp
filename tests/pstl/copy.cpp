@@ -15,7 +15,8 @@
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
-#include <boost/mpl/list.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/mpl_list.hpp>
 
 #include "pstl_test_suite.hpp"
 
@@ -40,28 +41,28 @@ void test_copy(Policy&& pol, std::size_t problem_size) {
   BOOST_CHECK(dest_device == dest_host);
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types::type) {
+using types = boost::mp11::mp_list<int, non_trivial_copy>;
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types) {
   test_copy<T>(std::execution::par_unseq, 0);
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types) {
   test_copy<T>(std::execution::par_unseq, 1);
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types) {
   test_copy<T>(std::execution::par_unseq, 1000);
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_empty, T, types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_empty, T, types) {
   test_copy<T>(std::execution::par, 0);
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_single_element, T, types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_single_element, T, types) {
   test_copy<T>(std::execution::par, 1);
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size, T, types::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size, T, types) {
   test_copy<T>(std::execution::par, 1000);
 }
 

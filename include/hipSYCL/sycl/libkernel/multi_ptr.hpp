@@ -144,9 +144,8 @@ template <typename dataT, int dimensions, access::mode accessmode, access::targe
           access::placeholder isPlaceholder>
 class accessor;
 
-template <typename dataT, int dimensions = 1>
-using local_accessor = accessor<dataT, dimensions, access::mode::read_write, access::target::local,
-                                access::placeholder::false_t>;
+template <typename dataT, int dimensions>
+class local_accessor;
 
 template <typename T> struct remove_decoration {
   using type = T;
@@ -742,12 +741,12 @@ public:
   multi_ptr(accessor<ElementType, Dimensions, Mode, target::local, IsPlaceholder> a)
       : _ptr{a.get_pointer()} {}
 
-  // // Available only when:
-  // //   (Space == access::address_space::local_space ||
-  // //    Space == access::address_space::generic_space) &&
-  // //   (std::is_same_v<std::remove_const_t<ElementType>,
-  // //   std::remove_const_t<AccDataT>>) && (std::is_const_v<ElementType> ||
-  // //   !std::is_const_v<AccDataT>)
+  // Available only when:
+  //   (Space == access::address_space::local_space ||
+  //    Space == access::address_space::generic_space) &&
+  //   (std::is_same_v<std::remove_const_t<ElementType>,
+  //   std::remove_const_t<AccDataT>>) && (std::is_const_v<ElementType> ||
+  //   !std::is_const_v<AccDataT>)
   template <
       typename AccDataT, int Dimensions, access::address_space S = Space, typename E = ElementType,
       std::enable_if_t<(S == access::address_space::local_space ||

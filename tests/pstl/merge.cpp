@@ -18,7 +18,8 @@
 #include <random>
 
 #include <boost/test/unit_test.hpp>
-#include <boost/mpl/list.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/mpl_list.hpp>
 
 #include "pstl_test_suite.hpp"
 

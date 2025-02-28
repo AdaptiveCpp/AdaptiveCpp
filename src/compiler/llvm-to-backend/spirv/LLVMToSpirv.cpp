@@ -222,17 +222,19 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
 
   auto InputFile = llvm::sys::fs::TempFile::create("acpp-sscp-spirv-%%%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("acpp-sscp-spirv-%%%%%%.spv");
-  
-  std::string OutputFilename = OutputFile->TmpName;
-  
-  auto E = InputFile.takeError();
-  if(E){
+
+  if (auto Err = InputFile.takeError()) {
     this->registerError("LLVMToSpirv: Could not create temp file: "+InputFile->TmpName);
     return false;
   }
 
-  AtScopeExit DestroyInputFile([&]() { auto Err = InputFile->discard(); });
-  AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
+  if (auto Err = OutputFile.takeError()) {
+    this->registerError("LLVMToPtx: Could not create temp file: " + OutputFile->TmpName);
+    return false;
+  }
+
+  AtScopeExit DestroyInputFile([&]() { consumeError(std::move(InputFile->discard())); });
+  AtScopeExit DestroyOutputFile([&]() { consumeError(std::move(OutputFile->discard())); });
 
   std::error_code EC;
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
@@ -245,7 +247,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
 
 
   llvm::SmallVector<std::string> Args{
-      "-o=" + OutputFilename
+      "-o=" + OutputFile->TmpName
   };
   if(UseIntelLLVMSpirvArgs)
     appendIntelLLVMSpirvOptions(Args);

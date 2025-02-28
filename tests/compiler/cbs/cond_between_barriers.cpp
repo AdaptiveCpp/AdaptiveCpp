@@ -33,7 +33,7 @@ int main()
     queue.submit([&](cl::sycl::handler &cgh) {
       using namespace cl::sycl::access;
       auto acc = buf.get_access<mode::read_write>(cgh);
-      auto scratch = cl::sycl::accessor<bool, 1, mode::read_write, target::local>{1, cgh};
+      auto scratch = cl::sycl::local_accessor<bool, 1>{1, cgh};
 
       cgh.parallel_for<class test_kernel>(
         cl::sycl::nd_range<1>{global_size, local_size},

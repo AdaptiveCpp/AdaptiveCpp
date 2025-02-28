@@ -283,7 +283,8 @@ T *aligned_alloc(std::size_t alignment, std::size_t count, const sycl::queue &q,
 }
 
 inline void free(void *ptr, const sycl::context &ctx) {
-  return rt::deallocate(detail::select_usm_allocator(ctx), ptr);
+  if (ptr != nullptr)
+    return rt::deallocate(detail::select_usm_allocator(ctx), ptr);
 }
 
 inline void free(void *ptr, const sycl::queue &q) {

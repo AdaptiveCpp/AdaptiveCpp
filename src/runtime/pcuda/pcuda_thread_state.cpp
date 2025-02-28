@@ -128,10 +128,13 @@ int thread_local_state::get_platform() const { return _current_platform; }
 int thread_local_state::get_backend() const { return _current_backend; }
 
 internal_stream_t* thread_local_state::get_default_stream() const {
-  assert(_current_backend < _per_device_data.size());
-  assert(_current_platform < _per_device_data[_current_backend].size());
-  assert(_current_device <
-         _per_device_data[_current_backend][_current_platform].size());
+  if(_current_backend >= _per_device_data.size())
+    return nullptr;
+  if(_current_platform >= _per_device_data[_current_backend].size())
+    return nullptr;
+  if(_current_device >=
+         _per_device_data[_current_backend][_current_platform].size())
+    return nullptr;
 
   auto &device_data =
       _per_device_data[_current_backend][_current_platform][_current_device];

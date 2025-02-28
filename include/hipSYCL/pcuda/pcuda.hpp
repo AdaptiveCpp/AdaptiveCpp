@@ -18,7 +18,7 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"
-#include <clang/AST/OperationKinds.h>
+#include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 #include <cstddef>
 
 #include "pcuda_runtime.hpp"
@@ -142,6 +142,18 @@ inline int __pcuda_warp_size() {
       static_cast<int>(__acpp_sscp_get_subgroup_max_size()), 0);
 }
 #define warpSize __pcuda_warp_size()
+
+void __syncthreads() {
+  PCUDA_BUILTIN_CALL(__acpp_sscp_work_group_barrier(
+      __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed));
+}
+
+void __syncwarp() {
+  PCUDA_BUILTIN_CALL(__acpp_sscp_sub_group_barrier(
+      __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed));
+}
+
+///////////////// Kernel launch mechanisms ////////////////////
 
 struct __pcuda_dummy_configuration_t {};
 

@@ -52,7 +52,6 @@ device_topology::device_topology(runtime *rt) {
 
       backend_descriptor.platforms.push_back(plat);
     }
-
     backends.push_back(backend_descriptor);
 
     ++backend_idx;

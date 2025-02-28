@@ -258,22 +258,13 @@ hip_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_compute_units:
     return _properties->multiProcessorCount;
     break;
-    case device_uint_property::max_num_work_groups_nd_range0:
+    case device_uint_property::max_num_work_groups0:
     return _properties->maxGridSize[0];
     break;
-  case device_uint_property::max_num_work_groups_nd_range1:
+  case device_uint_property::max_num_work_groups1:
     return _properties->maxGridSize[1];
     break;
-  case device_uint_property::max_num_work_groups_nd_range2:
-    return _properties->maxGridSize[2];
-    break;
-  case device_uint_property::max_num_work_groups_range0:
-    return _properties->maxGridSize[0];
-    break;
-  case device_uint_property::max_num_work_groups_range1:
-    return _properties->maxGridSize[1];
-    break;
-  case device_uint_property::max_num_work_groups_range2:
+  case device_uint_property::max_num_work_groups2:
     return _properties->maxGridSize[2];
     break;
   case device_uint_property::max_global_size0:

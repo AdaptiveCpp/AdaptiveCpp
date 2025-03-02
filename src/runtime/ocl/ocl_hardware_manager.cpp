@@ -292,16 +292,13 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
         info_query<CL_DEVICE_MAX_COMPUTE_UNITS, cl_uint>(_dev));
     break;
   case device_uint_property::max_num_work_groups0:
-    return static_cast<std::size_t>(
-        std::numeric_limits<int>::max());
+    return static_cast<std::size_t>(std::numeric_limits<int>::max());
     break;
   case device_uint_property::max_num_work_groups1:
-    return static_cast<std::size_t>(
-        std::numeric_limits<int>::max());
+    return static_cast<std::size_t>(std::numeric_limits<int>::max());
     break;
   case device_uint_property::max_num_work_groups2:
-    return static_cast<std::size_t>(
-        std::numeric_limits<int>::max());
+    return static_cast<std::size_t>(std::numeric_limits<int>::max());
     break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(

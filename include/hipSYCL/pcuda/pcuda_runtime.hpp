@@ -136,4 +136,31 @@ pcudaError_t pcudaMallocManaged(T** ptr, size_t s) {
 
 ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr);
 
+// Streams
+
+#define pcudaStreamDefault 0x00
+#define pcudaStreamNonBlocking 0x01 
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamCreate(pcudaStream_t *pStream);
+ACPP_PCUDA_API pcudaError_t pcudaStreamCreateWithFlags(pcudaStream_t *pStream,
+                                                       unsigned int flags);
+ACPP_PCUDA_API pcudaError_t pcudaStreamCreateWithPriority(
+    pcudaStream_t *pStream, unsigned int flags, int priority);
+ACPP_PCUDA_API pcudaError_t pcudaStreamDestroy(pcudaStream_t stream);
+ACPP_PCUDA_API pcudaError_t pcudaStreamSynchronize(pcudaStream_t stream);
+
+enum pcudaMemcpyKind {
+  pcudaMemcpyHostToHost,
+  pcudaMemcpyHostToDevice,
+  pcudaMemcpyDeviceToHost,
+  pcudaMemcpyDeviceToDevice,
+  pcudaMemcpyDefault
+};
+
+ACPP_PCUDA_API pcudaError_t pcudaMemcpy(void *dst, const void *src,
+                                        size_t count, pcudaMemcpyKind kind);
+ACPP_PCUDA_API pcudaError_t pcudaMemcpyAsync(void *dst, const void *src,
+                                             size_t count, pcudaMemcpyKind kind,
+                                             pcudaStream_t stream = 0);
+
 #endif

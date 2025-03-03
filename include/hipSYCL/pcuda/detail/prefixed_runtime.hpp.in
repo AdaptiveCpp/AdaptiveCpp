@@ -105,4 +105,22 @@
 
 #define @ACPP_PCUDA_PREFIX@Free pcudaFree
 
+#define @ACPP_PCUDA_PREFIX@StreamDefault pcudaStreamDefault
+#define @ACPP_PCUDA_PREFIX@StreamNonBlocking pcudaStreamNonBlocking
+
+#define @ACPP_PCUDA_PREFIX@StreamCreate pcudaStreamCreate
+#define @ACPP_PCUDA_PREFIX@StreamCreateWithFlags pcudaStreamCreateWithFlags
+#define @ACPP_PCUDA_PREFIX@StreamCreateWithPriority pcudaStreamCreateWithPriority
+#define @ACPP_PCUDA_PREFIX@StreamDestory pcudaStreamDestroy
+#define @ACPP_PCUDA_PREFIX@StreamSynchronize pcudaStreamSynchronize
+
+#define @ACPP_PCUDA_PREFIX@MemcpyKind pcudaMemcpyKind
+#define @ACPP_PCUDA_PREFIX@MemcpyHostToHost pcudaMemcpyHostToHost
+#define @ACPP_PCUDA_PREFIX@MemcpyHostToDevice pcudaMemcpyHostToDevice
+#define @ACPP_PCUDA_PREFIX@MemcpyDeviceToHost pcudaMemcpyDeviceToHost
+#define @ACPP_PCUDA_PREFIX@MemcpyDeviceToDevice pcudaMemcpyDeviceToDevice
+#define @ACPP_PCUDA_PREFIX@MemcpyDefault pcudaMemcpyDefault
+#define @ACPP_PCUDA_PREFIX@Memcpy pcudaMemcpy
+#define @ACPP_PCUDA_PREFIX@MemcpyAsync pcudaMemcpyAsync
+
 #endif

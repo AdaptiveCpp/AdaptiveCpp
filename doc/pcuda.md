@@ -248,6 +248,13 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaMallocHost` | |
 |`pcudaMallocManaged` | optional `flags` argument is currently ignored. |
 |`pcudaFree` | |
+|`pcudaStreamCreate` | |
+|`pcudaStreamCreateWithFlags` | flags are currently ignored |
+|`pcudaStreamCreateWithPriority` | flags are currently ignored |
+|`pcudaStreamDestory` | |
+|`pcudaStreamSynchronize` | |
+|`pcudaMemcpy` | copy direction is ignored |
+|`pcudaMemcpyAsync` | copy direction is ignored |
 
 ### Extensions
 
@@ -289,6 +296,20 @@ In case the backend or platform is changed to a backend or platform without devi
 
 When using `--acpp-targets=generic`, all programming models supported by AdaptiveCpp are interchangable arbitrarily in device code.
 You can mix-and-match code as needed with any of the programming models.
+
+Example:
+
+```c++
+
+sycl::queue q;
+float* data = ...
+q.parallel_for(range, [=](auto idx){
+  // Note: Include <pcuda.hpp> and compile with --acpp-pcuda
+  int gid = threadIdx.x + blockIdx.x * blockDim.x;
+  data[gid] *= 2.5f;
+});
+
+```
 
 ## Interoperability with SYCL for runtime objects
 

@@ -15,6 +15,8 @@
 
 #include "hipSYCL/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
@@ -24,11 +26,17 @@
 #include "hipSYCL/runtime/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_stream.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_thread_state.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
 
 namespace hipsycl::rt::pcuda {
 
 namespace {
+
+device_id get_host_device() {
+  return device_id{
+      backend_descriptor(hardware_platform::cpu, api_platform::omp), 0};
+}
 
 const hardware_context* get_current_device_ctx(){
   int b = pcuda_application::get().tls_state().get_backend();
@@ -68,7 +76,10 @@ pcudaStream_t stream_or_default_stream(pcudaStream_t stream) {
 }
 
 inorder_queue* queue_or_default_queue(pcudaStream_t stream) {
-  return stream_get(stream_or_default_stream(stream));
+  pcudaStream_t s = stream_or_default_stream(stream);
+  if(!s)
+    return nullptr;
+  return stream_get(s);
 }
 
 auto dim3_size(dim3 v){
@@ -388,6 +399,123 @@ ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr) {
   deallocate(allocator, ptr);
 
   return pcudaSuccess;
+}
+
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamCreate(pcudaStream_t *stream) {
+  return_if_prior_error();
+  return pcudaStreamCreateWithFlags(stream, pcudaStreamDefault);
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamCreateWithFlags(pcudaStream_t *stream,
+                                                       unsigned int flags) {
+  return_if_prior_error();
+  return pcudaStreamCreateWithPriority(stream, flags, 0);
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamCreateWithPriority(
+    pcudaStream_t *stream, unsigned int flags, int priority) {
+  return_if_prior_error();
+
+  if(!stream)
+    return pcudaErrorInvalidValue;
+
+  if(flags != pcudaStreamDefault && flags != pcudaStreamNonBlocking)
+    return pcudaErrorInvalidValue;
+
+  const device_id* dev = get_current_device_id();
+  if(!dev)
+    return pcudaErrorNoDevice;
+
+  internal_stream_t* s;
+  auto err = stream_create(s, &(pcuda_application::get().pcuda_rt()), *dev,
+                           flags, priority);
+  if(err == pcudaSuccess)
+    *stream = s;
+  return err;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamDestroy(pcudaStream_t s) {
+  return_if_prior_error();
+
+  if(!s)
+    return pcudaErrorInvalidValue;
+  return stream_destroy(static_cast<internal_stream_t *>(s),
+                        &(pcuda_application::get().pcuda_rt()));
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamSynchronize(pcudaStream_t stream) {
+  return_if_prior_error();
+
+  auto* queue = queue_or_default_queue(stream);
+  if(!queue)
+    return pcudaErrorNoDevice;
+  queue->wait();
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaMemcpyAsync(void *dst, const void *src,
+                                             size_t count, pcudaMemcpyKind kind,
+                                             pcudaStream_t stream = 0) {
+  return_if_prior_error();
+
+  auto* queue = queue_or_default_queue(stream);
+  if(!queue)
+    return pcudaErrorNoDevice;
+
+  device_id queue_dev = queue->get_device();
+  auto* allocator = pcuda_application::get()
+      .pcuda_rt()
+      .get_rt()
+      ->backends()
+      .get(queue_dev.get_backend())
+      ->get_allocator(queue_dev);
+  assert(allocator);
+
+
+  auto get_device_for_ptr = [&](const void* ptr) {
+    pointer_info info;
+    if(!allocator->query_pointer(ptr, info).is_success())
+      return get_host_device();
+    else {
+      if(info.is_optimized_host)
+        return get_host_device();
+      else if(info.is_usm)
+        return queue_dev;
+      else
+        return device_id{info.dev};
+    }
+  };
+
+  device_id src_dev = get_device_for_ptr(src);
+  device_id dst_dev = get_device_for_ptr(dst);
+
+  memory_location source_location{src_dev, const_cast<void *>(src), rt::id<3>{},
+                                  embed_in_range3(range<1>{count}), 1};
+  memory_location dest_location{dst_dev, const_cast<void *>(dst), rt::id<3>{},
+                                  embed_in_range3(range<1>{count}), 1};
+
+  memcpy_operation op{source_location, dest_location,
+                      embed_in_range3(range<1>(count))};
+
+  auto err = queue->submit_memcpy(op, nullptr);
+  if(!err.is_success()) {
+    register_pcuda_error(err, pcudaErrorUnknown);
+    return pcudaErrorUnknown;
+  }
+
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaMemcpy(void *dst, const void *src,
+                                        size_t count, pcudaMemcpyKind kind) {
+  return_if_prior_error();
+
+  auto err = pcudaMemcpyAsync(dst, src, count, kind, 0);
+  if(err != pcudaSuccess)
+    return err;
+
+  return pcudaStreamSynchronize(0);
 }
 
 

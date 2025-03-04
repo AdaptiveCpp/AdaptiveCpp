@@ -126,6 +126,12 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-stdpar
           cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
           ACPP_VISIBILITY_MASK=ocl LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar
+      - name: run PCUDA LIT tests (OpenCL)
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-pcuda
+          cd ${GITHUB_WORKSPACE}/build/tests-pcuda
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          ACPP_VISIBILITY_MASK=ocl LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-pcuda
       - name: run SSCP LIT tests (OpenMP)
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-sscp  
@@ -137,4 +143,8 @@ jobs:
       - name: run stdpar LIT tests (OpenMP)
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-stdpar
+          ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar
+      - name: run PCUDA LIT tests (OpenMP)
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-pcuda
           ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar

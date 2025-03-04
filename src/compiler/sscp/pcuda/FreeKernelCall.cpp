@@ -9,6 +9,8 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
+#include <optional>
+
 #include "hipSYCL/compiler/sscp/pcuda/FreeKernelCall.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
@@ -115,7 +117,7 @@ llvm::Function* getKernelLaunchFunction(llvm::Module* M) {
     auto VoidVoidPtrType = llvm::PointerType::get(M->getContext(), 0);
 #else
     auto* VoidPtrType = llvm::PointerType::get(llvm::Type::getInt8Ty(M->getContext()), 0);
-    auto* VoidVoidPtrType = llvm::PointerType::get(VoidPtrType, 0));
+    auto* VoidVoidPtrType = llvm::PointerType::get(VoidPtrType, 0);
 #endif
     ParamTs.push_back(VoidVoidPtrType);
 
@@ -256,7 +258,7 @@ llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
     };
 
     llvm::CallInst::Create(llvm::FunctionCallee{KLF->getFunctionType(), KLF},
-                           llvm::ArrayRef<llvm::Value *>{KLFArgs}, std::nullopt, "", ElseBranch);
+                           llvm::ArrayRef<llvm::Value *>{KLFArgs}, "", ElseBranch);
 
     llvm::BranchInst::Create(EndBlock, ElseBranch);
   }

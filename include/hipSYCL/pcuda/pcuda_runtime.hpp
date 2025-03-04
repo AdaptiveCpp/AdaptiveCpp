@@ -18,7 +18,14 @@
 
 #define ACPP_PCUDA_API extern "C"
 
-
+namespace hipsycl {
+namespace rt {
+namespace pcuda {
+class stream;
+class event;
+}
+}
+}
 
 typedef enum pcudaError : int {
   pcudaSuccess,
@@ -82,7 +89,7 @@ typedef enum pcudaError : int {
   pcudaErrorApiFailureBase
 } pcudaError_t;
 
-using pcudaStream_t = void*;
+using pcudaStream_t = hipsycl::rt::pcuda::stream*;
 
 #define pcudaMemAttachGlobal 0x01
 #define pcudaMemAttachHost 0x02
@@ -157,10 +164,48 @@ enum pcudaMemcpyKind {
   pcudaMemcpyDefault
 };
 
+// Data transfer
+
 ACPP_PCUDA_API pcudaError_t pcudaMemcpy(void *dst, const void *src,
                                         size_t count, pcudaMemcpyKind kind);
 ACPP_PCUDA_API pcudaError_t pcudaMemcpyAsync(void *dst, const void *src,
                                              size_t count, pcudaMemcpyKind kind,
                                              pcudaStream_t stream = 0);
+
+// Event
+
+using pcudaEvent_t = hipsycl::rt::pcuda::event *;
+
+ACPP_PCUDA_API pcudaError_t pcudaEventCreate(pcudaEvent_t *event);
+ACPP_PCUDA_API pcudaError_t pcudaEventCreateWithFlags(pcudaEvent_t *event,
+                                                     unsigned int flags);
+
+#define pcudaEventBlockingSync 0x01
+#define pcudaEventDefault 0x00
+#define pcudaEventDisableTiming 0x02
+#define pcudaEventInterprocess 0x04
+
+#define pcudaEventRecordDefault 0x00
+#define pcudaEventRecordExternal 0x01
+
+#define pcudaEventWaitDefault 0x00
+#define pcudaEventWaitExternal 0x01
+
+ACPP_PCUDA_API pcudaError_t pcudaEventDestroy(pcudaEvent_t event);
+// TBD cudaError_t cudaEventElapsedTime ( float* ms, cudaEvent_t start,
+// cudaEvent_t end )
+// Returns success if complete, or not ready otherwise
+ACPP_PCUDA_API pcudaError_t pcudaEventQuery(pcudaEvent_t event);
+
+ACPP_PCUDA_API pcudaError_t pcudaEventRecord(pcudaEvent_t event,
+                                             pcudaStream_t stream = 0);
+ACPP_PCUDA_API pcudaError_t pcudaEventRecordWithFlags(pcudaEvent_t event,
+                                                      pcudaStream_t stream = 0,
+                                                      unsigned int flags = 0);
+ACPP_PCUDA_API pcudaError_t pcudaEventSynchronize(pcudaEvent_t event);
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamWaitEvent(pcudaStream_t stream,
+                                                 pcudaEvent_t event,
+                                                 unsigned int flags = 0);
 
 #endif

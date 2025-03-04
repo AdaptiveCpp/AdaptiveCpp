@@ -11,6 +11,7 @@
 
 #include <cassert>
 #include <atomic>
+#include <memory>
 #include <string_view>
 
 #include "hipSYCL/pcuda/pcuda_runtime.hpp"
@@ -26,6 +27,7 @@
 #include "hipSYCL/runtime/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_stream.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_thread_state.hpp"
+#include "hipSYCL/runtime/pcuda/pcuda_event.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
 
@@ -79,7 +81,7 @@ inorder_queue* queue_or_default_queue(pcudaStream_t stream) {
   pcudaStream_t s = stream_or_default_stream(stream);
   if(!s)
     return nullptr;
-  return stream_get(s);
+  return stream::get_queue(s);
 }
 
 auto dim3_size(dim3 v){
@@ -293,7 +295,7 @@ ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize() {
   auto* dev = get_current_device_id();
   if(!dev)
     return pcudaErrorNoDevice;
-  return stream_wait_all(*dev);
+  return stream::wait_all(*dev);
 }
 
 ///////////// Error management /////////////////////////
@@ -427,8 +429,8 @@ ACPP_PCUDA_API pcudaError_t pcudaStreamCreateWithPriority(
   if(!dev)
     return pcudaErrorNoDevice;
 
-  internal_stream_t* s;
-  auto err = stream_create(s, &(pcuda_application::get().pcuda_rt()), *dev,
+  pcuda::stream* s;
+  auto err = stream::create(s, &(pcuda_application::get().pcuda_rt()), *dev,
                            flags, priority);
   if(err == pcudaSuccess)
     *stream = s;
@@ -440,7 +442,7 @@ ACPP_PCUDA_API pcudaError_t pcudaStreamDestroy(pcudaStream_t s) {
 
   if(!s)
     return pcudaErrorInvalidValue;
-  return stream_destroy(static_cast<internal_stream_t *>(s),
+  return stream::destroy(static_cast<pcuda::stream *>(s),
                         &(pcuda_application::get().pcuda_rt()));
 }
 
@@ -518,5 +520,127 @@ ACPP_PCUDA_API pcudaError_t pcudaMemcpy(void *dst, const void *src,
   return pcudaStreamSynchronize(0);
 }
 
+ACPP_PCUDA_API pcudaError_t pcudaEventCreate(pcudaEvent_t *event) {
+  return pcudaEventCreateWithFlags(event, 0);
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaEventCreateWithFlags(pcudaEvent_t *event, unsigned int flags) {
+  return_if_prior_error();
+  if(!event)
+    return pcudaErrorInvalidValue;
+
+  auto err =
+      pcuda::event::create(*event, &pcuda_application::get().pcuda_rt(), flags);
+
+  return err;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaEventDestroy(pcudaEvent_t event) {
+  return_if_prior_error();
+
+  if(!event)
+    return pcudaErrorInvalidValue;
+
+  return pcuda::event::destroy(event);
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaEventQuery(pcudaEvent_t event) {
+  return_if_prior_error();
+
+  if(!event)
+    return pcudaErrorInvalidValue;
+
+  if(!event->is_recorded())
+    return pcudaErrorNotReady;
+
+  return event->is_complete() ? pcudaSuccess : pcudaErrorNotReady;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaEventRecordWithFlags(pcudaEvent_t event,
+                                                      pcudaStream_t stream,
+                                                      unsigned int flags) {
+  return_if_prior_error();
+
+  if(!event)
+    return pcudaErrorInvalidValue;
+
+  inorder_queue* q = queue_or_default_queue(stream);
+  if(!q)
+    return pcudaErrorInvalidResourceHandle;
+
+  return event->record(q);
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaEventRecord(pcudaEvent_t event, pcudaStream_t stream) {
+  return pcudaEventRecordWithFlags(event, stream, 0);
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaEventSynchronize(pcudaEvent_t event) {
+  return_if_prior_error();
+
+  if(!event)
+    return pcudaErrorInvalidValue;
+
+  return event->wait();
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaStreamWaitEvent(pcudaStream_t stream,
+                                                 pcudaEvent_t event,
+                                                 unsigned int flags = 0) {
+  return_if_prior_error();
+
+  inorder_queue* q = queue_or_default_queue(stream);
+  if(!q)
+    return pcudaErrorInvalidResourceHandle;
+  if(!event)
+    return pcudaErrorInvalidResourceHandle;
+
+
+  if(!event->is_recorded())
+    return pcudaSuccess;
+
+  // TODO Create new API that does not need dag_node_ptr?
+  dag_node_ptr node =
+      std::make_shared<dag_node>(execution_hints{}, node_list_t{}, nullptr,
+                                 pcuda_application::get().pcuda_rt().get_rt());
+  node->mark_submitted(event->get_event_shared_ptr());
+  node->assign_to_device(event->get_device());
+  
+  bool  is_same_platform = true;
+  if(event->get_device().get_backend() != q->get_device().get_backend())
+    is_same_platform = false;
+  else {
+    backend *b = pcuda_application::get().pcuda_rt().get_rt()->backends().get(
+        event->get_device().get_backend());
+    assert(b);
+
+    std::size_t evt_platform_index =
+        b->get_hardware_manager()
+            ->get_device(event->get_device().get_id())
+            ->get_platform_index();
+    std::size_t queue_platform_index =
+        b->get_hardware_manager()
+            ->get_device(q->get_device().get_id())
+            ->get_platform_index();
+    
+    if(evt_platform_index != queue_platform_index)
+      is_same_platform = false;
+  }
+  
+  result err;
+  if(is_same_platform) {
+    err = q->submit_queue_wait_for(node);
+  } else {
+    err = q->submit_external_wait_for(node);
+  } 
+
+  // This should not happen, so let's make a sticky error
+  if(!err.is_success()) {
+    register_pcuda_error(err, pcudaErrorUnknown);
+    return pcudaErrorUnknown;
+  }
+
+  return pcudaSuccess;
+}
 
 }

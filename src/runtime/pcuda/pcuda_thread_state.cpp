@@ -29,7 +29,7 @@ thread_local_state::~thread_local_state() {
     for(auto& platform : backend) {
       for(auto& device : platform) {
         if(device.default_stream.has_value()) {
-          auto err = stream_destroy(device.default_stream.value(), _rt);
+          auto err = stream::destroy(device.default_stream.value(), _rt);
           if(err != pcudaSuccess) {
             register_pcuda_error(__acpp_here(), err, "default stream destruction failed");
           }
@@ -127,7 +127,7 @@ int thread_local_state::get_device() const { return _current_device; }
 int thread_local_state::get_platform() const { return _current_platform; }
 int thread_local_state::get_backend() const { return _current_backend; }
 
-internal_stream_t* thread_local_state::get_default_stream() const {
+pcuda::stream* thread_local_state::get_default_stream() const {
   if(_current_backend >= _per_device_data.size())
     return nullptr;
   if(_current_platform >= _per_device_data[_current_backend].size())
@@ -140,14 +140,14 @@ internal_stream_t* thread_local_state::get_default_stream() const {
       _per_device_data[_current_backend][_current_platform][_current_device];
 
 
-  if(internal_stream_t* s = device_data.default_stream.value_or(nullptr))
+  if(pcuda::stream* s = device_data.default_stream.value_or(nullptr))
     return s;
   
-  internal_stream_t* default_stream = nullptr;
+  pcuda::stream* default_stream = nullptr;
   auto *dev = _rt->get_topology().get_device(
       _current_backend, _current_platform, _current_device);
   assert(dev);
-  auto err = stream_create(default_stream, _rt, dev->rt_device_id, 0, 0);
+  auto err = stream::create(default_stream, _rt, dev->rt_device_id, 0, 0);
 
   if(err != pcudaSuccess) {
     register_pcuda_error(__acpp_here(), err,

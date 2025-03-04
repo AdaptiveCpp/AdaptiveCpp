@@ -1,5 +1,7 @@
 # AdaptiveCpp portable CUDA (PCUDA)
 
+**Note**: PCUDA is under development and in WIP/experimental state. Only a small subset of the target functionality is currently implemented (see feature support further down)
+
 AdaptiveCpp supports a dialect of the CUDA/HIP language called portable CUDA (PCUDA). This is exclusively supported with the generic JIT compiler (`--acpp-targets=generic`), and is supported on all backends.
 Similarly to using `--acpp-targets=generic` with SYCL or C++ standard parallelism code (stdpar), AdaptiveCpp can JIT-compile the input PCUDA code for any target from a single binary, including CPUs, NVIDIA GPUs, AMD GPUs, and Intel GPUs.
 
@@ -253,8 +255,16 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaStreamCreateWithPriority` | flags are currently ignored |
 |`pcudaStreamDestory` | |
 |`pcudaStreamSynchronize` | |
+|`pcudaStreamWaitEvent` | flags are currently ignored |
 |`pcudaMemcpy` | copy direction is ignored |
 |`pcudaMemcpyAsync` | copy direction is ignored |
+|`pcudaEventCreate` | |
+|`pcudaEventCreateWithFlags` | Flags are currently ignored |
+|`pcudaEventDestroy` | |
+|`pcudaEventQuery` | |
+|`pcudaEventRecord` | |
+|`pcudaEventRecordWithFlags` | Flags are currently ignored |
+|`pcudaEventSynchronize` | |
 
 ### Extensions
 

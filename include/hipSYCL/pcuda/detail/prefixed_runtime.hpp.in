@@ -113,6 +113,7 @@
 #define @ACPP_PCUDA_PREFIX@StreamCreateWithPriority pcudaStreamCreateWithPriority
 #define @ACPP_PCUDA_PREFIX@StreamDestory pcudaStreamDestroy
 #define @ACPP_PCUDA_PREFIX@StreamSynchronize pcudaStreamSynchronize
+#define @ACPP_PCUDA_PREFIX@StreamWaitEvent pcudaStreamWaitEvent
 
 #define @ACPP_PCUDA_PREFIX@MemcpyKind pcudaMemcpyKind
 #define @ACPP_PCUDA_PREFIX@MemcpyHostToHost pcudaMemcpyHostToHost
@@ -122,5 +123,23 @@
 #define @ACPP_PCUDA_PREFIX@MemcpyDefault pcudaMemcpyDefault
 #define @ACPP_PCUDA_PREFIX@Memcpy pcudaMemcpy
 #define @ACPP_PCUDA_PREFIX@MemcpyAsync pcudaMemcpyAsync
+
+#define @ACPP_PCUDA_PREFIX@Event_t pcudaEvent_t
+#define @ACPP_PCUDA_PREFIX@EventCreate pcudaEventCreate
+#define @ACPP_PCUDA_PREFIX@EventCreateWithFlags pcudaEventCreateWithFlags
+#define @ACPP_PCUDA_PREFIX@EventBlockingSync pcudaEventBlockingSync
+#define @ACPP_PCUDA_PREFIX@EventDefault pcudaEventDefault
+#define @ACPP_PCUDA_PREFIX@EventDisableTiming pcudaEventDisableTiming
+#define @ACPP_PCUDA_PREFIX@EventInterprocess pcudaEventInterprocess
+#define @ACPP_PCUDA_PREFIX@EventRecordDefault pcudaEventRecordDefault
+#define @ACPP_PCUDA_PREFIX@EventRecordExternal pcudaEventRecordExternal
+#define @ACPP_PCUDA_PREFIX@EventWaitDefault pcudaEventWaitDefault
+#define @ACPP_PCUDA_PREFIX@EventWaitExternal pcudaEventWaitExternal
+
+#define @ACPP_PCUDA_PREFIX@EventDestroy pcudaEventDestroy
+#define @ACPP_PCUDA_PREFIX@EventQuery pcudaEventQuery
+#define @ACPP_PCUDA_PREFIX@EventRecord pcudaEventRecord
+#define @ACPP_PCUDA_PREFIX@EventRecordWithFlags pcudaEventRecordWithFlags
+#define @ACPP_PCUDA_PREFIX@EventSynchronize pcudaEventSynchronize
 
 #endif

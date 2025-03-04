@@ -45,7 +45,7 @@ public:
   int get_platform() const;
   int get_backend() const;
 
-  internal_stream_t* get_default_stream() const;
+  pcuda::stream* get_default_stream() const;
 
   void push_kernel_call_config(const kernel_call_configuration& config);
   kernel_call_configuration pop_kernel_call_config();
@@ -58,7 +58,7 @@ private:
   int _current_backend;
 
   struct per_device_data {
-    std::optional<internal_stream_t*> default_stream;
+    std::optional<pcuda::stream*> default_stream;
   };
 
   mutable std::vector<std::vector<std::vector<per_device_data>>>

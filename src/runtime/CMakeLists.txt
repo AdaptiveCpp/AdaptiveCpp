@@ -56,7 +56,8 @@ add_library(acpp-rt SHARED
   pcuda/pcuda_stream.cpp
   pcuda/pcuda_runtime_api.cpp
   pcuda/pcuda_runtime.cpp
-  pcuda/pcuda_thread_state.cpp)
+  pcuda/pcuda_thread_state.cpp
+  pcuda/pcuda_event.cpp)
 
 target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
 target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} acpp-common Threads::Threads)

@@ -16,6 +16,7 @@
 #include "hipSYCL/runtime/pcuda/pcuda_stream.hpp"
 #include "hipSYCL/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/inorder_executor.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_error.hpp"
 #include "hipSYCL/runtime/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
@@ -24,12 +25,12 @@ namespace hipsycl::rt::pcuda {
 
 namespace {
 
-std::vector<internal_stream_t*> stream_registry;
+std::vector<pcuda::stream*> stream_registry;
 std::mutex stream_registry_lock;
 
 }
 
-pcudaError_t stream_create(internal_stream_t *&out, pcuda_runtime *pcuda_rt,
+pcudaError_t stream::create(pcuda::stream *&out, pcuda_runtime *pcuda_rt,
                            device_id dev, unsigned int flags, int priority){
   assert(pcuda_rt);
   auto executor = pcuda_rt->get_rt()
@@ -44,7 +45,8 @@ pcudaError_t stream_create(internal_stream_t *&out, pcuda_runtime *pcuda_rt,
   }
 
   inorder_executor* exec = static_cast<inorder_executor*>(executor.release());
-  out = new std::shared_ptr<inorder_executor>{exec};
+  out = new pcuda::stream{};
+  out->_executor = std::shared_ptr<inorder_executor>{exec};
 
   {
     std::lock_guard<std::mutex> lock{stream_registry_lock};
@@ -54,7 +56,7 @@ pcudaError_t stream_create(internal_stream_t *&out, pcuda_runtime *pcuda_rt,
   return pcudaSuccess;
 }
 
-pcudaError_t stream_destroy(internal_stream_t *stream, pcuda_runtime *) {
+pcudaError_t stream::destroy(stream *stream, pcuda_runtime *) {
 
   if(!stream)
     return pcudaSuccess;
@@ -69,27 +71,30 @@ pcudaError_t stream_destroy(internal_stream_t *stream, pcuda_runtime *) {
     }
   }
 
-  
   delete stream;
   return pcudaSuccess;
 }
 
-inorder_queue* stream_get(pcudaStream_t stream) {
-  return static_cast<internal_stream_t*>(stream)->get()->get_queue();
+inorder_queue* stream::get_queue() const {
+  return _executor.get()->get_queue();
 }
 
-pcudaError_t stream_wait_all(rt::device_id dev) {
-  std::vector<internal_stream_t> streams_to_wait;
+inorder_queue* stream::get_queue(pcudaStream_t s) {
+  return static_cast<pcuda::stream*>(s)->get_queue();
+}
+
+pcudaError_t stream::wait_all(rt::device_id dev) {
+  std::vector<pcuda::stream> streams_to_wait;
   {
     std::lock_guard<std::mutex> lock{stream_registry_lock};
     for(int i = 0; i < stream_registry.size(); ++i) {
-      if(stream_get(stream_registry[i])->get_device() == dev) {
+      if(stream_registry[i]->get_queue()->get_device() == dev) {
         streams_to_wait.push_back(*stream_registry[i]);
       }
     }
   }
   for(auto& s : streams_to_wait) {
-    s->wait();
+    s.get_queue()->wait();
   }
   return pcudaSuccess;
 }

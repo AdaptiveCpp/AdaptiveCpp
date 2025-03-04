@@ -24,11 +24,12 @@ int main() {
   std::size_t global_size = grid_size * block_size;
 
   int* in; int* out;
-  for(int i = 0; i < global_size; ++i)
-    in[i] = int{i};
 
   pcudaMallocManaged(&in,  global_size * sizeof(int));
   pcudaMallocManaged(&out,  global_size * sizeof(int));
+
+  for(int i = 0; i < global_size; ++i)
+    in[i] = int{i};
 
   kernel<<<grid_size, block_size>>>(in, out);
 

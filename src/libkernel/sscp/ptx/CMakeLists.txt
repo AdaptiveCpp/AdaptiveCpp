@@ -21,5 +21,5 @@ if(WITH_LLVM_TO_PTX)
       scan_inclusive.cpp
       scan_exclusive.cpp
       collpredicate.cpp
-      ADDITIONAL_ARGS -Xclang -target-feature -Xclang +sm_60)
+      ADDITIONAL_ARGS -Xclang -target-feature -Xclang +sm_60 -Xclang -target-feature -Xclang +ptx60)
 endif()

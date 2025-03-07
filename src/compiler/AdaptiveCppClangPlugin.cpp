@@ -14,6 +14,7 @@
 #include "hipSYCL/compiler/GlobalsPruningPass.hpp"
 #include "hipSYCL/compiler/SMCPCompatPass.hpp"
 #include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
+#include "hipSYCL/compiler/sscp/pcuda/ExternDynamicLocalMemoryPass.hpp"
 
 
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
@@ -30,6 +31,7 @@
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 #include "hipSYCL/compiler/sscp/TargetSeparationPass.hpp"
 #include "hipSYCL/compiler/sscp/pcuda/FreeKernelCall.hpp"
+#include "hipSYCL/compiler/sscp/pcuda/StaticLocalMemoryPass.hpp"
 #endif
 
 #ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
@@ -167,8 +169,20 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
                   if(EnablePCuda) {
                     // Must be run before target separation pass!
                     MPM.addPass(FreeKernelCallPass{});
+                    // Currently all our backends have AS 3 refer to local AS.
+                    // (or don't care about it).
+                    // If that ever changes, we will need to run this pass at JIT-time.
+                    const unsigned LocalAS = 3;
+                    MPM.addPass(StaticLocalMemoryPass{LocalAS});
                   }
-                  MPM.addPass(TargetSeparationPass{LLVMSSCPKernelOpts});
+                  // Target separation pass also runs the device-side
+                  // ExternDynamicLocalMemoryPass for PCUDA
+                  MPM.addPass(TargetSeparationPass{LLVMSSCPKernelOpts, EnablePCuda});
+                  if(EnablePCuda) {
+                    const unsigned LocalAS = 3;
+                    // Need to handle extern __shared__ declarations on the host side
+                    MPM.addPass(ExternDynamicLocalMemoryPass{LocalAS, false});
+                  }
                 });
           }
 #endif

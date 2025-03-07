@@ -15,6 +15,8 @@
 
 #define __acpp_sscp_local static __attribute__((address_space(3)))
 
+// Compiler may generate calls to this builtin in ExternDynamicLocalMemoryPass.
+// Do not change function signature without also changing it on the compiler side!
 HIPSYCL_SSCP_BUILTIN
 __attribute__((address_space(3))) void* __acpp_sscp_get_dynamic_local_memory();
 

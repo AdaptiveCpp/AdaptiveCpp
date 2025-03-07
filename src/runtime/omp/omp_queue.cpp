@@ -206,6 +206,10 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
                       const rt::range<3> &num_groups,
                       const rt::range<3> &local_size, unsigned shared_memory,
                       void **kernel_args) {
+
+  constexpr std::size_t static_local_mem_size = 32768 * sizeof(uint64_t);
+  std::size_t internal_local_mem_size;
+  
   if (num_groups.size() == 1 && shared_memory == 0) {
     // still need to be able to support group algorithms
     // make thread-local in case we have multiple threads submitting.
@@ -216,7 +220,7 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
     // starting at offset 1024*sizeof(uint64_t) it is
     // used for such static local memory.
     //
-    constexpr std::size_t static_local_mem_size = 32768 * sizeof(uint64_t);
+    
     static thread_local std::vector<char> internal_local_memory;
     auto aligned_internal_local_memory = resize_and_strongly_align(
         internal_local_memory, 1024 * sizeof(uint64_t) + static_local_mem_size);

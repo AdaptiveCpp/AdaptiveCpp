@@ -18,6 +18,7 @@
 #include "hipSYCL/compiler/sscp/StdAtomicRemapperPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
+#include "hipSYCL/compiler/sscp/pcuda/ExternDynamicLocalMemoryPass.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 #include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
@@ -200,7 +201,8 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
                                                const std::vector<std::string>& DynamicFunctions,
                                                std::vector<KernelInfo> &KernelInfoOutput,
                                                std::vector<std::string> &ExportedSymbolsOutput,
-                                               std::vector<std::string> &ImportedSymbolsOutput) {
+                                               std::vector<std::string> &ImportedSymbolsOutput,
+                                               bool EnablePCuda) {
 
   std::unique_ptr<llvm::Module> DeviceModule = llvm::CloneModule(M);
   DeviceModule->setModuleIdentifier("device." + DeviceModule->getModuleIdentifier());
@@ -286,6 +288,12 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
       if(IsAcppNoInline)
         F.addFnAttr(llvm::Attribute::NoInline);
     }
+  }
+
+  if (EnablePCuda) {
+    const unsigned LocalMemAS = 3;
+    ExternDynamicLocalMemoryPass EDLMP{LocalMemAS, true};
+    EDLMP.run(*DeviceModule, DeviceMAM);
   }
 
   EntrypointPreparationPass EPP{ExportAllSymbols};
@@ -468,6 +476,7 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
 
   {
     ScopedPrintingTimer totalTimer{"TargetSeparationPass (total)"};
+
     // TODO If we know that the SSCP compilation flow is the only one using HCF,
     // we could just enumerate the objects instead of generating (hopefully)
     // unique random numbers.
@@ -486,7 +495,8 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
       
       Timer IRGenTimer{"generateDeviceIR", true};
       std::unique_ptr<llvm::Module> DeviceIR = generateDeviceIR(
-          M, DFI.getDynamicFunctionNames(), Kernels, ExportedSymbols, ImportedSymbols);
+          M, DFI.getDynamicFunctionNames(), Kernels, ExportedSymbols, ImportedSymbols, EnablePCuda);
+      
       IRGenTimer.stopAndPrint();
 
       Timer HCFGenTimer{"generateHCF"};
@@ -543,7 +553,9 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
   return llvm::PreservedAnalyses::none();
 }
 
-TargetSeparationPass::TargetSeparationPass(const std::string &KernelCompilationOptions) {
+TargetSeparationPass::TargetSeparationPass(const std::string &KernelCompilationOptions, bool PCUDA)
+    : EnablePCuda{PCUDA} {
+
   llvm::StringRef Opts{KernelCompilationOptions};
 
   llvm::SmallVector<llvm::StringRef> Fragments;

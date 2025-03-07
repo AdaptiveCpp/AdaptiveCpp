@@ -1,0 +1,39 @@
+/*
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
+ *
+ * Copyright The AdaptiveCpp Contributors
+ *
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
+ */
+// SPDX-License-Identifier: BSD-2-Clause
+
+
+#ifndef ACPP_SSCP_PCUDA_EXTERN_DYNAMIC_LOCAL_MEMORY_PASS_HPP
+#define ACPP_SSCP_PCUDA_EXTERN_DYNAMIC_LOCAL_MEMORY_PASS_HPP
+
+#include <llvm/IR/PassManager.h>
+
+namespace hipsycl {
+namespace compiler {
+
+// Replaces extern globals with calls to the SSCP dynamic local memory builtin.
+// This enables support e.g. for CUDA's extern __shared__ syntax.
+class ExternDynamicLocalMemoryPass : public llvm::PassInfoMixin<ExternDynamicLocalMemoryPass> {
+public:
+  // If IsDevicePass is true, will generate calls to __acpp_sscp_get_dynamic_local_memory().
+  // Otherwise, will remove affected local memory declarations.
+  ExternDynamicLocalMemoryPass(unsigned LocalMemAddressSpace, bool IsDevicePass);
+
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM);
+
+private:
+  unsigned LocalMemAS;
+  bool IsDevice;
+};
+} // namespace compiler
+}
+
+
+#endif

@@ -37,7 +37,13 @@
   [[clang::annotate("acpp_free_kernel")]]                                      \
   [[clang::annotate("hipsycl_kernel_dimension", 3)]]
 
-
+// static local memory is marked using the acpp_local_memory annotation.
+// Unfortunately, clang does not codegen this annotation for extern variables
+// (i.e. dynamically sized local memory, extern __shared__ syntax),
+// so we currently use ABI tags for that purpose as a hack :(
+#define __shared__                                                             \
+  __attribute__((annotate("acpp_local_memory")))                               \
+  __attribute__((abi_tag("__acpp_local_memory_tag__")))
 
 #define PCUDA_BUILTIN_CALL(builtin) if(__acpp_sscp_is_device){builtin;}
 #define PCUDA_BUILTIN_CALL_RESULT(builtin, fallback)                           \

@@ -20,12 +20,13 @@ namespace compiler {
 
 class TargetSeparationPass : public llvm::PassInfoMixin<TargetSeparationPass> {
 public:
-  TargetSeparationPass(const std::string& KernelCompilationOptions);
+  TargetSeparationPass(const std::string& KernelCompilationOptions, bool EnablePCuda);
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);
 private:
   std::vector<std::string> CompilationFlags;
   std::vector<std::pair<std::string, std::string>> CompilationOptions;
+  bool EnablePCuda;
 };
 
 }

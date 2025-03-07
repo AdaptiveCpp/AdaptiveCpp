@@ -15,6 +15,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "info/device.hpp"
 #include "types.hpp"
 #include "aspect.hpp"
 #include "info/info.hpp"
@@ -314,24 +315,40 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
       rt::device_uint_property::max_compute_units);
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups0)
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups<1>)
 {
-  return get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups0);
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups0));
+  return range<1>{size0};
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups1)
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups<2>)
 {
-  return get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups1);
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups1));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<2>{size1, size0};
+  else
+    return range<2>{size0, size1};
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups2)
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_work_groups<3>)
 {
-  return get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups2);
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups1));
+  std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_num_work_groups2));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<3>{size2, size1, size0};
+  else
+    return range<3>{size0, size1, size2};
 }
-
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 { return 3; }

@@ -67,7 +67,7 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   sscp:
-    name: SSCP/Reflection/stdpar, clang ${{ matrix.clang }}, ${{ matrix.os }}
+    name: SSCP/Reflection/stdpar/pcuda, clang ${{ matrix.clang }}, ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -147,4 +147,4 @@ jobs:
       - name: run PCUDA LIT tests (OpenMP)
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-pcuda
-          ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar
+          ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-pcuda

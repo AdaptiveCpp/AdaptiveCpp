@@ -34,7 +34,7 @@
 #define __global__                                                             \
   [[clang::annotate("hipsycl_sscp_kernel")]]                                   \
   [[clang::annotate("hipsycl_sscp_outlining")]]                                \
-  [[clang::annotate("acpp_free_kernel")]]                                      \
+  [[clang::annotate("acpp_free_kernel")]]
 
 
 // static local memory is marked using the acpp_local_memory annotation.

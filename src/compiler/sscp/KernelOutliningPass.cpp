@@ -348,6 +348,17 @@ void canonicalizeFreeKernelParameters(llvm::Function* F, llvm::Module& M) {
   }
 }
 
+void attachKernelDim(llvm::Module &M, llvm::Function *F, llvm::Constant *DimVal) {
+
+  llvm::SmallVector<llvm::Metadata *, 4> Operands;
+  Operands.push_back(llvm::ValueAsMetadata::get(F));
+  Operands.push_back(llvm::MDString::get(M.getContext(), SscpKernelDimensionName));
+  Operands.push_back(llvm::ValueAsMetadata::getConstant(DimVal));
+
+  M.getOrInsertNamedMetadata(SscpAnnotationsName)
+      ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+}
+
 }
 
 EntrypointPreparationPass::EntrypointPreparationPass(bool ExportByDefault)
@@ -360,7 +371,7 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
   static constexpr const char* SSCPOutliningMarker = "hipsycl_sscp_outlining";
 
   llvm::SmallSet<std::string, 16> Kernels;
-
+  
 
   llvm::DenseSet<llvm::Function*> MarkedFunctions;
   auto MarkThisFunctionForOutlining = [&](llvm::Function* F) {
@@ -379,6 +390,7 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
     }
   };
 
+  llvm::SmallPtrSet<llvm::Function*, 16> KernelFunctionsWithDimAnnotations;
   utils::findFunctionsWithStringAnnotationsWithArg(M, [&](llvm::Function* F, llvm::StringRef Annotation, llvm::Constant* Argument){
     if(F) {
       if(Annotation.compare(SscpKernelDimensionName) == 0){
@@ -387,19 +399,12 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
         for (auto &U : F->uses()) {
           if (auto *CI = llvm::dyn_cast<llvm::CallInst>(U.getUser())) {
             if (CI->getCalledFunction() == F) {
-
               auto DimVal = llvm::cast<llvm::Constant>(Argument->getOperand(0));
               if (DimVal->getNumOperands() > 0) {
                 DimVal = llvm::cast<llvm::Constant>(DimVal->getOperand(0));
               }
-
-              llvm::SmallVector<llvm::Metadata *, 4> Operands;
-              Operands.push_back(llvm::ValueAsMetadata::get(CI->getFunction()));
-              Operands.push_back(llvm::MDString::get(M.getContext(), SscpKernelDimensionName));
-              Operands.push_back(llvm::ValueAsMetadata::getConstant(DimVal));
-
-              M.getOrInsertNamedMetadata(SscpAnnotationsName)
-                  ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+              attachKernelDim(M, CI->getFunction(), DimVal);
+              KernelFunctionsWithDimAnnotations.insert(CI->getFunction());
             }
           }
         }
@@ -415,6 +420,17 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
       }
     }
   });
+  for(auto KernelName : Kernels) {
+    if(auto* F = M.getFunction(KernelName)) {
+      if(!KernelFunctionsWithDimAnnotations.contains(F)) {
+        // Kernels without dim annotations (e.g. free kernel calls)
+        // need to default to dim = 3
+        attachKernelDim(
+            M, F,
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), llvm::APInt(32, 3)));
+      }
+    }
+  }
 
   if(ExportAll) {
     for(auto& F: M) {

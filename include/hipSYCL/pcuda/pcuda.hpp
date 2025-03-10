@@ -35,7 +35,7 @@
   [[clang::annotate("hipsycl_sscp_kernel")]]                                   \
   [[clang::annotate("hipsycl_sscp_outlining")]]                                \
   [[clang::annotate("acpp_free_kernel")]]                                      \
-  [[clang::annotate("hipsycl_kernel_dimension", 3)]]
+
 
 // static local memory is marked using the acpp_local_memory annotation.
 // Unfortunately, clang does not codegen this annotation for extern variables

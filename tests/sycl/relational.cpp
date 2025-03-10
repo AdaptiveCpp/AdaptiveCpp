@@ -11,14 +11,12 @@
 
 #include "sycl_test_suite.hpp"
 
-#include <boost/mpl/joint_view.hpp>
-
 #include <cmath>
 
 BOOST_FIXTURE_TEST_SUITE(rel_tests, reset_device_fixture)
 
 // list of types classified as "genfloat" in the SYCL standard
-using rel_test_genfloats = boost::mpl::list<
+using rel_test_genfloats = boost::mp11::mp_list<
   float,
   // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
   // if this is an oversight or intentional.
@@ -99,7 +97,7 @@ namespace {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
-                              rel_test_genfloats::type) {
+                              rel_test_genfloats) {
 
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;

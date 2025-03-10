@@ -101,11 +101,8 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_frexp_f32(float x,
   return __nv_frexpf(x, y);
 }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x,
-                                                     __acpp_int64 *y) {
-  __acpp_int32 w;
-  double res = __nv_frexp(x, &w);
-  *y = static_cast<__acpp_int64>(w);
-  return res;
+                                                     __acpp_int32 *y) {
+  return __nv_frexp(x, y);
 }
 
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN2(hypot, __nv_hypotf, __nv_hypot)
@@ -117,7 +114,7 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ldexp_f32(float x,
 }
 
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_ldexp_f64(double x,
-                                                     __acpp_int64 k) {
+                                                     __acpp_int32 k) {
   return __nv_ldexp(x, k);
 }
 
@@ -132,7 +129,7 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y ) {
   return r;
 }
 
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int64* y) {
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) {
   auto r = __acpp_sscp_lgamma_f64(x);
   auto g = __acpp_sscp_tgamma_f64(x);
   *y = (g >= 0) ? 1 : -1;
@@ -192,7 +189,7 @@ HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN2(remainder, __nv_remainderf, __nv_remainder)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(rint, __nv_rintf, __nv_rint)
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_rootn_f32(float x, __acpp_int32 y) { return __acpp_sscp_pow_f32(x, 1.f/y); }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rootn_f64(double x, __acpp_int64 y) {return __acpp_sscp_pow_f64(x, 1./y); }
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rootn_f64(double x, __acpp_int32 y) {return __acpp_sscp_pow_f64(x, 1./y); }
 
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(round, __nv_roundf, __nv_round)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(rsqrt, __nv_rsqrtf, __nv_rsqrt)

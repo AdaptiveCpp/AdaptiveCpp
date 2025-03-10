@@ -29,7 +29,7 @@ int main()
     queue.submit([&](cl::sycl::handler &cgh) {
       using namespace cl::sycl::access;
       auto acc = buf.get_access<mode::read_write>(cgh);
-      auto scratch = cl::sycl::accessor<int, 1, mode::read_write, target::local>{local_size, cgh};
+      auto scratch = cl::sycl::local_accessor<int, 1>{local_size, cgh};
 
       cgh.parallel_for<class dynamic_local_memory_reduction>(
         cl::sycl::nd_range<1>{global_size, local_size},

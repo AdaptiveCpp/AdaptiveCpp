@@ -61,7 +61,8 @@ void replaceGVsWithDynamicLocalMemory(llvm::Module &M,
                 llvm::FunctionCallee{DynamicLocalMemBuiltin}, "", InsertionPt);
 #if LLVM_VERSION_MAJOR < 17
             llvm::Type *CastAsType = llvm::PointerType::getWithSamePointeeType(
-                F->getReturnType(), GV->getAddressSpace());
+                llvm::dyn_cast<llvm::PointerType>(DynamicLocalMemBuiltin->getReturnType()),
+                GV->getAddressSpace());
 #else
             llvm::Type *CastAsType = llvm::PointerType::get(M.getContext(), GV->getAddressSpace());
 #endif

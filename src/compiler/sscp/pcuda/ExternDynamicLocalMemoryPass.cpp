@@ -54,7 +54,7 @@ void replaceGVsWithDynamicLocalMemory(llvm::Module &M,
     for (auto &U : GV->uses()) {
       if (auto *I = llvm::dyn_cast<llvm::Instruction>(U.getUser())) {
         llvm::Function *F = I->getParent()->getParent();
-        if (!FunctionToDynamicLocalMemMap.contains(F)) {
+        if (FunctionToDynamicLocalMemMap.find(F) == FunctionToDynamicLocalMemMap.end()) {
           if (!F->isDeclaration()) {
             auto *InsertionPt = &(*F->getEntryBlock().getFirstInsertionPt());
             llvm::Instruction *BuiltinCall = llvm::CallInst::Create(

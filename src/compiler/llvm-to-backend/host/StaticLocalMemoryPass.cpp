@@ -157,7 +157,7 @@ void replaceGVWithInternalLocalMem(llvm::GlobalVariable* GV, llvm::Module& M, st
   for (auto *U : GV->users()) {
     if (auto *I = llvm::dyn_cast<llvm::Instruction>(U)) {
       llvm::Function *F = I->getParent()->getParent();
-      if (!FunctionToLocalMemMap.contains(F)) {
+      if (FunctionToLocalMemMap.find(F) == FunctionToLocalMemMap.end()) {
         if (!F->isDeclaration()) {
           FunctionToLocalMemMap[F] =
               prependInternalLocalMemAccessCall(M, GV->getType(), F, Offset, LocalMemAS);

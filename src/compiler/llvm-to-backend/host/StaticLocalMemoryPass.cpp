@@ -11,6 +11,7 @@
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/Support/Casting.h>
@@ -69,8 +70,87 @@ llvm::Value *prependInternalLocalMemAccessCall(llvm::Module &M, llvm::Type *Targ
   return BI;
 }
 
+void collectFunctionUsers(llvm::ConstantExpr *CE,
+                          llvm::SmallPtrSet<llvm::Function *, 16> &Functions) {
+  for (auto *Use : CE->users()) {
+    if (auto *I = llvm::dyn_cast<llvm::Instruction>(Use)) {
+      auto *BB = I->getParent();
+      if (BB && BB->getParent()) {
+        Functions.insert(BB->getParent());
+      }
+    }
+  }
+}
+
+llvm::Instruction *unfoldConstantExpression(llvm::ConstantExpr *CE,
+                                            llvm::Instruction * InsertionPt) {
+
+  llvm::Instruction* NewI = CE->getAsInstruction(InsertionPt);
+
+  llvm::SmallDenseMap<llvm::Value*, llvm::Instruction*> Replacements;
+  for(auto& O : NewI->operands()) {
+    auto* V = O.get();
+    if(auto* NestedCE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
+      auto* NestedI = unfoldConstantExpression(NestedCE, NewI);
+      Replacements[V] = NestedI;
+    }
+  }
+
+  for(auto R : Replacements) {
+    R.getFirst()->replaceUsesWithIf(R.second, [&](llvm::Use& U){
+      return U.getUser() == NewI;
+    });
+  }
+
+  return NewI;
+}
+
+void unfoldConstantExpression(llvm::ConstantExpr *CE,
+                              const llvm::SmallVector<llvm::Instruction *> &InsertionPts) {
+
+  for (auto *I : InsertionPts) {
+    auto *NewI = unfoldConstantExpression(CE, I);
+    CE->replaceUsesWithIf(NewI, [&](auto &U) {
+      if (auto *UserI = llvm::dyn_cast<llvm::Instruction>(U.getUser())) {
+        if (UserI->getParent() && UserI->getParent()->getParent()) {
+          return UserI->getParent()->getParent() == I->getParent()->getParent();
+        }
+      }
+      return false;
+    });
+  }
+}
+
+// Unfold constant expression. This only works if the CE is actually used
+// by an instruction.
+void unfoldConstantExpression(llvm::ConstantExpr *CE) {
+  llvm::SmallPtrSet<llvm::Function*, 16> FunctionUsers;
+  collectFunctionUsers(CE, FunctionUsers);
+
+  llvm::SmallVector<llvm::Instruction*> InsertionPts;
+  for(auto* F : FunctionUsers) {
+    if(!F->isDeclaration()) {
+      InsertionPts.push_back(&(*F->getEntryBlock().getFirstInsertionPt()));
+    }
+  }
+
+  if(InsertionPts.size() > 0)
+    unfoldConstantExpression(CE, InsertionPts);
+}
+
 void replaceGVWithInternalLocalMem(llvm::GlobalVariable* GV, llvm::Module& M, std::size_t Offset) {
   const unsigned LocalMemAS = 3;
+
+  // If the GV is not directly used by instructions but instead used by
+  // constant expressions (which might then be used by instructions),
+  // we need to unfold the CEs first.
+  llvm::SmallVector<llvm::ConstantExpr*> CEUsers;
+  for(auto* U : GV->users()) {
+    if(auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(U))
+      CEUsers.push_back(CE);
+  }
+  for(auto* CE : CEUsers)
+    unfoldConstantExpression(CE);
 
   llvm::SmallDenseMap<llvm::Function *, llvm::Value *> FunctionToLocalMemMap;
 
@@ -110,7 +190,7 @@ llvm::PreservedAnalyses HostStaticLocalMemoryPass::run(llvm::Module &M, llvm::Mo
   // These parameters need to be aligned with the kernel call and allocation
   // the local memory block in omp_queue.cpp!
   std::size_t Offset = 1024 * sizeof(uint64_t);
-  std::size_t MaxSize = 32768 * sizeof(uint64_t);
+  std::size_t MaxSize = 64 * sizeof(uint64_t) * 1024;
 
   for(llvm::GlobalVariable& GV : M.globals()) {
     if(GV.getAddressSpace() == 3 && GV.getLinkage() != llvm::GlobalValue::LinkageTypes::ExternalLinkage) {
@@ -131,7 +211,7 @@ llvm::PreservedAnalyses HostStaticLocalMemoryPass::run(llvm::Module &M, llvm::Mo
       Offset += Size;
     }
   }
-M.print(llvm::outs(), nullptr);
+
   return llvm::PreservedAnalyses::none();
 }
 

@@ -46,38 +46,6 @@ llvm::GlobalVariable* copyGVToAS(unsigned AS, llvm::Module& M, llvm::GlobalVaria
 
   NewVar->setAlignment(GV->getAlign());
 
-  llvm::SmallDenseMap<llvm::Function *, llvm::Value *> FunctionToReplacementMap;
-  for (auto *U : GV->users()) {
-    if (auto *I = llvm::dyn_cast<llvm::Instruction>(U)) {
-      if (I->getParent() && I->getParent()->getParent()) {
-        llvm::Function *F = I->getParent()->getParent();
-        if (!FunctionToReplacementMap.contains(F)) {
-          if (!F->isDeclaration()) {
-            auto *InsertionPt = &(*F->getEntryBlock().getFirstInsertionPt());
-            auto *ASCastInst = new llvm::AddrSpaceCastInst{NewVar, GV->getType(), "", InsertionPt};
-            FunctionToReplacementMap[F] = ASCastInst;
-          }
-        }
-      }
-    }
-  }
-  for (auto Entry : FunctionToReplacementMap) {
-    llvm::Function *TargetF = Entry.first;
-    llvm::Value *ReplacementI = Entry.second;
-
-    GV->replaceUsesWithIf(ReplacementI, [&](llvm::Use &U) {
-      if (auto *I = llvm::dyn_cast<llvm::Instruction>(U.getUser())) {
-        if (I->getParent() && I->getParent()->getParent()) {
-          auto *OwningF = I->getParent()->getParent();
-          if (OwningF == TargetF) {
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-  }
-
   llvm::Value *V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
 
   GV->replaceAllUsesWith(V);

@@ -140,7 +140,7 @@ hcf_kernel_info::hcf_kernel_info(
   }
 
   if(auto* hsps_node = kernel_node->get_subnode("host-side-parameter-sizes")) {
-    std::size_t num_entries = hsps_node->get_subnodes().size();
+    std::size_t num_entries = hsps_node->key_value_pairs.size();
     for(int i = 0; i < num_entries; ++i) {
       const std::string *s = hsps_node->get_value(std::to_string(i));
       if(!s)

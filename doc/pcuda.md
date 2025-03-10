@@ -228,6 +228,8 @@ Supported features in device code include:
 |`gridDim.x`| Also `hipGridDim_x` with the HIP header |
 |`gridDim.y`| Also `hipGridDim_y` with the HIP header |
 |`gridDim.z`| Also `hipGridDim_z` with the HIP header |
+|Static local memory | E.g. `__shared__ int x;` syntax |
+|Dynamic local memory | E.g. `extern __shared__ int x;` syntax |
 |`warpSize` | Not `constexpr` in PCUDA! |
 |`__syncthreads` | |
 |`__syncwarp` | |

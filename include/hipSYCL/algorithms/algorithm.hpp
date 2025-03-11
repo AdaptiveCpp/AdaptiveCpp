@@ -420,12 +420,9 @@ sycl::event reverse_copy(sycl::queue &q, BidirIt first,
 
   auto size = std::distance(first, last);
 
-  using value_type1 = typename std::iterator_traits<BidirIt>::value_type;
-  using value_type2 = typename std::iterator_traits<ForwardIt>::value_type;
-
   return q.parallel_for(sycl::range{size}, deps,
                         [=](sycl::id<1> id) {
-                          int offset = - static_cast<int>(size);
+                          int offset = static_cast<int>(size) - id[0] - 1;
                           auto input = first;
                           auto output = d_first;
                           std::advance(input, offset);

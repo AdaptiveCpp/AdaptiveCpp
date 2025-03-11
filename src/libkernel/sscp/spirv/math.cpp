@@ -110,12 +110,7 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_fract_f64(double x, double* y) { return 
 float __spirv_ocl_frexp(float x, __acpp_int32* y);
 double __spirv_ocl_frexp(double x, __acpp_int32* y);
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_frexp_f32(float x, __acpp_int32* y ) { return __spirv_ocl_frexp(x, y); }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x, __acpp_int64* y) {
-  __acpp_int32 v;
-  auto res = __spirv_ocl_frexp(x, &v);
-  *y = v;
-  return res;
-}
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x, __acpp_int32* y) { return __spirv_ocl_frexp(x, y); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(hypot)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(ilogb)
@@ -127,8 +122,8 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ldexp_f32(float x,
   return __spirv_ocl_ldexp(x, k);
 }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_ldexp_f64(double x,
-                                                     __acpp_int64 k) {
-  return __spirv_ocl_ldexp(x, static_cast<__acpp_int32>(k));
+                                                     __acpp_int32 k) {
+  return __spirv_ocl_ldexp(x, k);
 }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(tgamma)
@@ -141,11 +136,8 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x,
   return __spirv_ocl_lgamma_r(x, y);
 }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x,
-                                                        __acpp_int64 *y) {
-  __acpp_int32 v;
-  auto res = __spirv_ocl_lgamma_r(x, &v);
-  *y = v;
-  return res;
+                                                        __acpp_int32 *y) {
+  return __spirv_ocl_lgamma_r(x, y);
 }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(log)
@@ -180,10 +172,7 @@ float __spirv_ocl_rootn(float, __acpp_int32);
 double __spirv_ocl_rootn(double, __acpp_int32);
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_rootn_f32(float x, __acpp_int32 y) { return __spirv_ocl_rootn(x, y); }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rootn_f64(double x,
-                                                     __acpp_int64 y) {
-  return __spirv_ocl_rootn(x, static_cast<__acpp_int32>(y));
-}
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rootn_f64(double x, __acpp_int32 y) { return __spirv_ocl_rootn(x, y); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(round)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(rsqrt)

@@ -15,7 +15,7 @@
 BOOST_FIXTURE_TEST_SUITE(item_tests, reset_device_fixture)
 
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions) {
   namespace s = cl::sycl;
   // Specify type explicitly to workaround Clang bug #45538
   constexpr int d = _dimensions::value;

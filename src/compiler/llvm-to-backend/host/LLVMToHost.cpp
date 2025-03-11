@@ -142,16 +142,8 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     return false;
   }
 
-  std::string OutputFilename = OutputFile->TmpName;
-
-  AtScopeExit DestroyInputFile([&]() {
-    if (InputFile->discard())
-      ;
-  });
-  AtScopeExit DestroyOutputFile([&]() {
-    if (OutputFile->discard())
-      ;
-  });
+  AtScopeExit DestroyInputFile([&]() { consumeError(std::move(InputFile->discard())); });
+  AtScopeExit DestroyOutputFile([&]() { consumeError(std::move(OutputFile->discard())); });
 
   std::error_code EC;
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
@@ -171,7 +163,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     "-Wno-pass-failed",
                                                     "-fPIC",
                                                     "-o",
-                                                    OutputFilename,
+                                                    OutputFile->TmpName,
                                                     InputFile->TmpName};
 
   std::string ArgString;

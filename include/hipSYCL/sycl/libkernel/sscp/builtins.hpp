@@ -115,7 +115,7 @@ HIPSYCL_BUILTIN float __acpp_frexp(float x, IntT* ptr) {
 
 template<class IntT>
 HIPSYCL_BUILTIN double __acpp_frexp(double x, IntT* ptr) {
-  __acpp_int64 val;
+  __acpp_int32 val;
   double res = __acpp_sscp_frexp_f64(x, &val);
   *ptr = static_cast<IntT>(val);
   return res;
@@ -131,7 +131,7 @@ HIPSYCL_BUILTIN float __acpp_ldexp(float x, IntType k) noexcept {
 
 template<class IntType>
 HIPSYCL_BUILTIN double __acpp_ldexp(double x, IntType k) noexcept {
-  return __acpp_sscp_ldexp_f64(x, static_cast<__acpp_int64>(k));
+  return __acpp_sscp_ldexp_f64(x, static_cast<__acpp_int32>(k));
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(lgamma)
@@ -147,7 +147,7 @@ HIPSYCL_BUILTIN float __acpp_lgamma_r(float x, IntT* ptr) {
 
 template<class IntT>
 HIPSYCL_BUILTIN double __acpp_lgamma_r(double x, IntT* ptr) {
-  __acpp_int64 val;
+  __acpp_int32 val;
   double res = __acpp_sscp_lgamma_r_f64(x, &val);
   *ptr = static_cast<IntT>(val);
   return res;
@@ -218,7 +218,7 @@ HIPSYCL_BUILTIN float __acpp_rootn(float x, IntType y) noexcept {
 
 template<class IntType>
 HIPSYCL_BUILTIN double __acpp_rootn(double x, IntType y) noexcept {
-  return __acpp_sscp_rootn_f64(x, static_cast<__acpp_int64>(y));
+  return __acpp_sscp_rootn_f64(x, static_cast<__acpp_int32>(y));
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(round)

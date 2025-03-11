@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(half_arithmetic) {
 }
 
 using half_test_types =
-  boost::mpl::list<float, double,
+  boost::mp11::mp_list<float, double,
                    int, unsigned int,
                    long, long long,
                    unsigned long, unsigned long long>;

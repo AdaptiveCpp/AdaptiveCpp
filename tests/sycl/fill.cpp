@@ -73,13 +73,13 @@ void fill_test_helper(cl::sycl::id<d> offset = cl::sycl::id<d>{}) {
 BOOST_FIXTURE_TEST_SUITE(fill_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(fill_buffer, _dimensions,
-  test_dimensions::type) {
+  test_dimensions) {
 
   fill_test_helper<_dimensions::value>();
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(fill_with_offset, _dimensions,
-                              test_dimensions::type) {
+                              test_dimensions) {
   namespace s = cl::sycl;
   auto offset = make_test_value<s::id, _dimensions::value>({8}, {8, 8}, {8, 8, 8});
   fill_test_helper<_dimensions::value>(offset);

@@ -19,8 +19,8 @@ jobs:
       id: cache-boost
       uses: actions/cache@v4
       with:
-        path: ${{github.workspace}}/boost_1_81_0
-        key: ${{runner.os}}-boost1810
+        path: ${{github.workspace}}/boost_1_87_0
+        key: ${{runner.os}}-boost1870
 
     - name: Cache LLVM ${{matrix.clang}}
       id: cache-llvm
@@ -52,7 +52,7 @@ jobs:
       shell: powershell
       run: |
         $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
-        $boostURL = "https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.7z"
+        $boostURL = "https://archives.boost.io/release/1.87.0/source/boost_1_87_0.7z"
         $boostFolderName = $boostUrl.Split("/")[-1].Split(".")[0]
         Invoke-WebRequest $boostURL -OutFile boost.7z
         7z.exe x boost.7z
@@ -70,7 +70,7 @@ jobs:
          md build
          cd build
 
-         cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE/acpp_install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_81_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64
+         cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE/acpp_install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_87_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64
          ninja install
          
     - name: Build and run CPU tests
@@ -83,7 +83,7 @@ jobs:
         cd $env:GITHUB_WORKSPACE\tests
         md build
         cd build
-        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DACPP_TARGETS=omp -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_81_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64 -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE\acpp_install\lib\cmake\AdaptiveCpp"
+        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DACPP_TARGETS=omp -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_87_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64 -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE\acpp_install\lib\cmake\AdaptiveCpp"
         ninja
 
         .\sycl_tests

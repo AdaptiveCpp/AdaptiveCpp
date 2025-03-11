@@ -17,12 +17,12 @@ BOOST_FIXTURE_TEST_SUITE(explicit_copy_tests, reset_device_fixture)
 #ifndef HIPSYCL_TEST_NO_3D_COPIES
 using explicit_copy_test_dimensions = test_dimensions;
 #else
-using explicit_copy_test_dimensions = boost::mpl::list_c<int, 1, 2>;
+using explicit_copy_test_dimensions = boost::mp11::mp_list_c<int, 1, 2>;
 #endif
 
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
-    explicit_copy_test_dimensions::type) {
+    explicit_copy_test_dimensions) {
   namespace s = cl::sycl;
   // Specify type explicitly to workaround Clang bug #45538
   constexpr int d = _dimensions::value;
@@ -183,7 +183,7 @@ void run_two_accessors_copy_test(const callback& copy_cb) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_d2d,
-  _dimensions, explicit_copy_test_dimensions::type) {
+  _dimensions, explicit_copy_test_dimensions) {
   constexpr auto d = _dimensions::value;
   namespace s = cl::sycl;
   run_two_accessors_copy_test<d>([](s::handler& cgh, s::range<d> copy_range,

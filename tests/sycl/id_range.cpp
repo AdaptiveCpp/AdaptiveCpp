@@ -63,7 +63,7 @@ void test_id_range_operators() {
   }
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(range_api, _dimensions, test_dimensions::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(range_api, _dimensions, test_dimensions) {
   namespace s = cl::sycl;
   constexpr auto d = _dimensions::value;
 
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(range_api, _dimensions, test_dimensions::type) {
   test_id_range_operators<s::range, d>();
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions::type) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions) {
   namespace s = cl::sycl;
   constexpr auto d = _dimensions::value;
 

@@ -208,13 +208,13 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
 }
 
 
-using all_test_types = boost::mpl::list<char, unsigned int, int, long long, float, 
+using all_test_types = boost::mp11::mp_list<char, unsigned int, int, long long, float, 
   double>;
 
-using large_test_types = boost::mpl::list<unsigned int, int, long long, float, 
+using large_test_types = boost::mp11::mp_list<unsigned int, int, long long, float, 
   double>;
 
-using very_large_test_types = boost::mpl::list<unsigned int, long long, float, 
+using very_large_test_types = boost::mp11::mp_list<unsigned int, long long, float, 
   double>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(single_kernel_single_scalar_reduction, T, all_test_types) {

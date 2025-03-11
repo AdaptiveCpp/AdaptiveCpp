@@ -45,11 +45,11 @@ unsigned long long t_to_int(T x) {
 }
 
 using exchange_test_types =
-    boost::mpl::list<int, unsigned int, long, unsigned long, long long,
+    boost::mp11::mp_list<int, unsigned int, long, unsigned long, long long,
                      unsigned long long, float, double, int *>;
 // mainly compile test
 BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
-                              exchange_test_types::type) {
+                              exchange_test_types) {
   sycl::queue q;
 
   Type initial = int_to_t<Type>(0);

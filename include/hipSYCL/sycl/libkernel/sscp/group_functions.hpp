@@ -139,7 +139,7 @@ __acpp_group_broadcast(
   return result;
 }
 
-template<class Group, typename T, int N,
+template<class Group, typename T, size_t N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN
 std::enable_if_t<(sizeof(marray<T,N>) > 8), marray<T,N>>
@@ -430,7 +430,7 @@ vec<T,N> __acpp_reduce_over_group(sub_group g, vec<T,N> x, BinaryOperation binar
   return result;
 }
 
-template<typename T, int N, typename BinaryOperation>
+template<typename T, size_t N, typename BinaryOperation>
 HIPSYCL_BUILTIN
 marray<T,N> __acpp_reduce_over_group(sub_group g, marray<T,N> x, BinaryOperation binary_op) {
   marray<T,N> result;
@@ -521,7 +521,7 @@ vec<T,N> __acpp_reduce_over_group(group<Dim> g, vec<T,N> x, BinaryOperation bina
   return result;
 }
 
-template<typename T, int N, int Dim, typename BinaryOperation>
+template<typename T, size_t N, int Dim, typename BinaryOperation>
 HIPSYCL_BUILTIN
 marray<T,N> __acpp_reduce_over_group(group<Dim> g, marray<T,N> x, BinaryOperation binary_op) {
   marray<T,N> result;
@@ -541,7 +541,7 @@ __acpp_joint_reduce(Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
   const size_t num_elements = last - first;
   const size_t lid          = g.get_local_linear_id();
 
-  using value_type = std::remove_reference_t<decltype(*first)>;
+  using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
 
   if(num_elements == 0)
     return value_type{};
@@ -702,7 +702,7 @@ HIPSYCL_BUILTIN vec<T, N> __acpp_inclusive_scan_over_group(Group g, vec<T, N> x,
   return result;
 }
 
-template <typename Group, typename T, int N, typename BinaryOperation,
+template <typename Group, typename T, size_t N, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN marray<T, N> __acpp_inclusive_scan_over_group(Group g, marray<T, N> x,
                                                               BinaryOperation binary_op) {
@@ -726,14 +726,18 @@ HIPSYCL_BUILTIN T __acpp_inclusive_scan_over_group(Group g, V x, T init,
   return x;
 }
 
-template <typename Group, typename InPtr, typename OutPtr, typename BinaryOperation,
+template <typename Group, typename InPtr, typename OutPtr, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN OutPtr __acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                                                   BinaryOperation binary_op) {
+                                                   BinaryOperation binary_op, T init) {
+
   const size_t lrange = g.get_local_range().size();
   const size_t num_elements = last - first;
   const size_t lid = g.get_local_linear_id();
-  using value_type = std::remove_reference_t<decltype(*first)>;
+  using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
+
+  auto identity = sscp_binary_operation_identity<std::decay_t<value_type>,
+                                                 sscp_binary_operation_v<BinaryOperation>>::get();
 
   if (num_elements == 0)
     return result;
@@ -743,48 +747,36 @@ HIPSYCL_BUILTIN OutPtr __acpp_joint_inclusive_scan(Group g, InPtr first, InPtr l
     return result;
   }
 
-  // Ptr start_ptr = first + lid;
-  using type = decltype(*first);
-  auto identity = sscp_binary_operation_identity<std::decay_t<type>,
-                                                 sscp_binary_operation_v<BinaryOperation>>::get();
+
   size_t segment = 0;
   size_t num_segments = (num_elements + lrange - 1) / lrange;
 
-  // for (Ptr p = start_ptr + lrange; p < last; p += lrange){
   for (size_t segment = 0; segment < num_segments; segment++) {
     size_t element_idx = segment * lrange + lid;
     auto local_element = element_idx < num_elements ? first[element_idx] : identity;
-    auto segment_result = __acpp_inclusive_scan_over_group(g, local_element, binary_op);
+    value_type segment_result;
+    if (segment > 0) {
+      segment_result = __acpp_inclusive_scan_over_group(g, local_element, result[segment*lrange-1], binary_op);
+    } else {
+      segment_result = __acpp_inclusive_scan_over_group(g, local_element, init, binary_op);
+    }
     if (element_idx < num_elements) {
       result[element_idx] = segment_result;
-    }
-    __acpp_group_barrier(g);
-
-    if (segment > 0) {
-      auto update_value = result[segment * lrange - 1];
-      if (element_idx < num_elements) {
-        result[element_idx] = binary_op(update_value, result[element_idx]);
-      }
     }
     __acpp_group_barrier(g);
   }
   return result;
 }
 
-template <typename Group, typename InPtr, typename OutPtr, typename T, typename BinaryOperation,
+template <typename Group, typename InPtr, typename OutPtr, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN OutPtr __acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                                                   BinaryOperation binary_op, T init) {
+                                                   BinaryOperation binary_op) {
+  using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
 
-  const size_t lrange = g.get_local_range().size();
-  const size_t num_elements = last - first;
-  const size_t lid = g.get_local_linear_id();
-
-  if (lid == 0 && num_elements > 0) {
-    first[0] = binary_op(first[0], init);
-  }
-  __acpp_group_barrier(g);
-  OutPtr updated_result = __acpp_joint_inclusive_scan(g, first, last, result, binary_op);
+  auto identity = sscp_binary_operation_identity<std::decay_t<value_type>,
+                                                 sscp_binary_operation_v<BinaryOperation>>::get();
+  OutPtr updated_result = __acpp_joint_inclusive_scan(g, first, last, result, binary_op, identity);
   __acpp_group_barrier(g);
   return updated_result;
 }
@@ -943,7 +935,7 @@ HIPSYCL_BUILTIN vec<T, N> __acpp_exclusive_scan_over_group(Group g, vec<T, N> x,
   return result;
 }
 
-template <typename T, int N, typename BinaryOperation, class Group,
+template <typename T, size_t N, typename BinaryOperation, class Group,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN marray<T, N> __acpp_exclusive_scan_over_group(Group g, marray<T, N> x,
                                                               BinaryOperation binary_op) {
@@ -971,40 +963,31 @@ HIPSYCL_BUILTIN T __acpp_exclusive_scan_over_group(Group g, V x, T init,
   }
   return x;
 }
+template <typename Group, typename InPtr, typename OutPtr, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+HIPSYCL_BUILTIN OutPtr __acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
+                                                   T init, BinaryOperation binary_op) {
+  const size_t lid = g.get_local_linear_id();
+  __acpp_joint_inclusive_scan(g, first, last - 1, result + 1, binary_op, init);
+
+  if (lid == 0) {
+    result[0] = init;
+  }
+  __acpp_group_barrier(g);
+  return result;
+}
 
 template <typename Group, typename InPtr, typename OutPtr, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN OutPtr __acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                                                    BinaryOperation binary_op) {
-  const size_t lid = g.get_local_linear_id();
-  __acpp_joint_inclusive_scan(g, first, last - 1, result + 1, binary_op);
-  __acpp_group_barrier(g);
-  using type = decltype(*first);
-  auto identity = sscp_binary_operation_identity<std::decay_t<type>,
-                                                 sscp_binary_operation_v<BinaryOperation>>::get();
-  if (lid == 0) {
-    result[0] = identity;
-  }
-  __acpp_group_barrier(g);
-
-  return result;
-}
-
-template <typename Group, typename InPtr, typename OutPtr, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_BUILTIN OutPtr __acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                                                   T init, BinaryOperation binary_op) {
-
   const size_t lrange = g.get_local_range().size();
   const size_t num_elements = last - first;
   const size_t lid = g.get_local_linear_id();
-  __acpp_group_barrier(g);
-  if (lid == 0 && num_elements > 0) {
-    first[0] = binary_op(first[0], init);
-    result[0] = init;
-  }
-  __acpp_group_barrier(g);
-  OutPtr updated_result = __acpp_joint_inclusive_scan(g, first, last - 1, result + 1, binary_op);
+  using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
+  auto identity = sscp_binary_operation_identity<std::decay_t<value_type>,
+                                                 sscp_binary_operation_v<BinaryOperation>>::get();
+  OutPtr updated_result = __acpp_joint_inclusive_scan(g, first, last - 1, result + 1, binary_op, identity);
   __acpp_group_barrier(g);
   return updated_result;
 }
@@ -1062,7 +1045,7 @@ __acpp_shift_group_left(Group g, vec<T,N> x, typename Group::linear_id_type delt
   return result;
 }
 
-template <class Group, typename T, int N,
+template <class Group, typename T, size_t N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN
 std::enable_if_t<(sizeof(marray<T, N>) > 8), marray<T,N>>
@@ -1126,7 +1109,7 @@ __acpp_shift_group_right(Group g, vec<T,N> x, typename Group::linear_id_type del
   return result;
 }
 
-template <class Group, typename T, int N,
+template <class Group, typename T, size_t N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN
 std::enable_if_t<(sizeof(marray<T, N>) > 8), marray<T,N>>
@@ -1189,7 +1172,7 @@ __acpp_permute_group_by_xor(Group g, vec<T,N> x, typename Group::linear_id_type 
   return result;
 }
 
-template <class Group, typename T, int N,
+template <class Group, typename T, size_t N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN
 std::enable_if_t<(sizeof(marray<T, N>) > 8), marray<T,N>>
@@ -1260,7 +1243,7 @@ __acpp_select_from_group(Group g, vec<T,N> x, typename Group::id_type remote_loc
   return result;
 }
 
-template <class Group, typename T, int N,
+template <class Group, typename T, size_t N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN
 std::enable_if_t<(sizeof(marray<T, N>) > 8), marray<T,N>>

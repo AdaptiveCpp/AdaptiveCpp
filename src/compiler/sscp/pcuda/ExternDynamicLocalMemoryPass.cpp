@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/compiler/sscp/pcuda/ExternDynamicLocalMemoryPass.hpp"
+#include "hipSYCL/compiler/utils/ConstantExpressions.hpp"
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalValue.h>
@@ -46,9 +47,15 @@ static const char* LocalMemoryABITag = "__acpp_local_memory_tag__";
 void replaceGVsWithDynamicLocalMemory(llvm::Module &M,
                                       const llvm::SmallVector<llvm::GlobalVariable *> &GVs,
                                       unsigned LocalMemAS) {
+
   llvm::Function *DynamicLocalMemBuiltin = getSscpDynamicLocalMemoryBuiltin(M, LocalMemAS);
 
   for (auto *GV : GVs) {
+    for(auto* U : GV->users()) {
+      if(auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(U))
+        utils::unfoldConstantExpression(CE);
+    }
+
     llvm::SmallDenseMap<llvm::Function *, llvm::Value *> FunctionToDynamicLocalMemMap;
 
     for (auto &U : GV->uses()) {

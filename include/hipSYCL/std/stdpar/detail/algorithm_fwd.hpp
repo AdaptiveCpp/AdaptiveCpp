@@ -99,6 +99,10 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2
 replace_copy_if(hipsycl::stdpar::par_unseq, ForwardIt1 first, ForwardIt1 last,
                 ForwardIt2 d_first, UnaryPredicate p, const T &new_value);
 
+template<class BidirIt>
+HIPSYCL_STDPAR_ENTRYPOINT void reverse (hipsycl::stdpar::par_unseq,
+                                        BidirIt first, BidirIt last);
+
 template<class BidirIt, class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq,
                                                   BidirIt first, BidirIt last,
@@ -140,6 +144,11 @@ template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par,
                                           ForwardIt1 first, ForwardIt1 last,
                                           ForwardIt2 d_first);
+
+template<class BidirIt>
+HIPSYCL_STDPAR_ENTRYPOINT void reverse (hipsycl::stdpar::par,
+                                        BidirIt first, BidirIt last);
+
 template<class BidirIt, class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par,
                                                   BidirIt first, BidirIt last,

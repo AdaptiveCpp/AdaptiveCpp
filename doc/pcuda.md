@@ -43,7 +43,7 @@ Due to the single-pass nature of AdaptiveCpp's compiler, host and device code ar
 Due to the JIT nature, the target device is not known at compile-time. Therefore, it is not possible to specialize code paths for different devices using preprocesor macros.
 Instead, control flow and AdaptiveCpp's JIT reflection and `compile_if` functionality must be used (**Note**: This API is currently available in SYCL and can be used from PCUDA, however, a native PCUDA version will follow in the future).
 
-Another consequence of the JIT nature is that `warpSize` is not `constexpr`, since the target device and its warp size if not known at compile time.
+Another consequence of the JIT nature is that `warpSize` is not `constexpr`, since the target device and its warp size is not known at compile time.
 
 ### Default-stream semantics
 
@@ -90,7 +90,7 @@ Utilizing devices from other platforms or backends requires the PCUDA extensions
 As in SYCL or stdpar, AdaptiveCpp mostly figures out by itself which functions need to be compiled for device and which for host.
 The `__host__` attribute is available, but meaningless in PCUDA. The `__device__` attribute is only needed on device functions that are invoked from other translation units.
 
-`__host__` and `__device__` functions can otherwise call each other arbitrarily. (This is a necessary requiremnt for interoperability with SYCL device code, where functions don't have any attributes at all, and are therefore "host" in CUDA logic).
+`__host__` and `__device__` functions can otherwise call each other arbitrarily. (This is a necessary requirement for interoperability with SYCL device code, where functions don't have any attributes at all, and are therefore "host" in CUDA logic).
 
 Unlike hipcc or clang CUDA, but similarly to nvcc, functions in PCUDA **cannot** be overloaded based on whether they have the `__host__` or `__device__` attribute:
 

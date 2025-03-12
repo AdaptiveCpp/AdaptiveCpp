@@ -24,7 +24,7 @@
 #include "pcuda_runtime.hpp"
 
 #ifndef __device__
-#define __device__ [[clang::annotate("hipsycl_sscp_outlining")]]
+#define __device__ __attribute__((annotate("hipsycl_sscp_outlining")))
 #endif
 
 #ifndef __host__
@@ -32,10 +32,9 @@
 #endif
 
 #define __global__                                                             \
-  [[clang::annotate("hipsycl_sscp_kernel")]]                                   \
-  [[clang::annotate("hipsycl_sscp_outlining")]]                                \
-  [[clang::annotate("acpp_free_kernel")]]
-
+  __attribute__((annotate("hipsycl_sscp_kernel")))                             \
+  __attribute__((annotate("hipsycl_sscp_outlining")))                          \
+  __attribute__((annotate("acpp_free_kernel")))
 
 // static local memory is marked using the acpp_local_memory annotation.
 // Unfortunately, clang does not codegen this annotation for extern variables

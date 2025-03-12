@@ -247,6 +247,8 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaGetDevice`| |
 |`pcudaSetDevice`| |
 |`pcudaGetLastError` | |
+|`pcudaGetErrorName` | |
+|`pcudaGetErrorString` | |
 |`pcudaDeviceSynchronize` | |
 |`pcudaMalloc` | |
 |`pcudaMallocHost` | |

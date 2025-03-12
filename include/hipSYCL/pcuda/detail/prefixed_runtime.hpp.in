@@ -92,6 +92,8 @@
 // Getters/setters for platforms are pcuda extensions and therefore not aliased
 
 #define @ACPP_PCUDA_PREFIX@GetLastError pcudaGetLastError
+#define @ACPP_PCUDA_PREFIX@GetErrorName pcudaGetErrorName
+#define @ACPP_PCUDA_PREFIX@GetErrorString pcudaGetErrorString
 
 #define @ACPP_PCUDA_PREFIX@DeviceSynchronize pcudaDeviceSynchronize
 
@@ -149,7 +151,7 @@
 #define @ACPP_PCUDA_PREFIX@ComputeModeExclusiveProcess pcudaComputeModeExclusiveProcess
 
 #define @ACPP_PCUDA_PREFIX@DeviceProp pcudaDeviceProp
-#define @ACPP_PCUDA_PREFIX@GetDevicePropreties pcudaGetDeviceProperties
+#define @ACPP_PCUDA_PREFIX@GetDeviceProperties pcudaGetDeviceProperties
 
 
 #endif

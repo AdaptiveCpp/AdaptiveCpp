@@ -357,7 +357,7 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *pro
   prop->maxGridSize[0] = std::numeric_limits<int>::max(); // TODO
   prop->maxGridSize[1] = std::numeric_limits<int>::max(); // TODO
   prop->maxGridSize[2] = std::numeric_limits<int>::max(); // TODO
-  
+
   prop->clockRate =
       device_ctx->get_property(device_uint_property::max_clock_speed);
   prop->totalConstMem = 0;
@@ -416,6 +416,86 @@ ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize() {
 
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError() {
   return pop_most_recent_pcuda_error();
+}
+
+ACPP_PCUDA_API const char *pcudaGetErrorName(pcudaError_t error) {
+  #define DECLARE_ERROR_NAME(errortype) {errortype, #errortype}
+
+  static std::unordered_map<pcudaError_t, std::string> errors = {
+    DECLARE_ERROR_NAME(pcudaSuccess),
+    DECLARE_ERROR_NAME(pcudaErrorMissingConfiguration),
+    DECLARE_ERROR_NAME(pcudaErrorMemoryAllocation),
+    DECLARE_ERROR_NAME(pcudaErrorInitializationError),
+    DECLARE_ERROR_NAME(pcudaErrorLaunchFailure),
+    DECLARE_ERROR_NAME(pcudaErrorPriorLaunchFailure),
+    DECLARE_ERROR_NAME(pcudaErrorLaunchTimeout),
+    DECLARE_ERROR_NAME(pcudaErrorLaunchOutOfResources),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidDeviceFunction),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidConfiguration),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidDevice),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidValue),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidPitchValue),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidSymbol),
+    DECLARE_ERROR_NAME(pcudaErrorMapBufferObjectFailed),
+    DECLARE_ERROR_NAME(pcudaErrorUnmapBufferObjectFailed),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidHostPointer),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidDevicePointer),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidTexture),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidTextureBinding),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidChannelDescriptor),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidMemcpyDirection),
+    DECLARE_ERROR_NAME(pcudaErrorAddressOfConstant),
+    DECLARE_ERROR_NAME(pcudaErrorTextureFetchFailed),
+    DECLARE_ERROR_NAME(pcudaErrorTextureNotBound),
+    DECLARE_ERROR_NAME(pcudaErrorSynchronizationError),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidFilterSetting),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidNormSetting),
+    DECLARE_ERROR_NAME(pcudaErrorMixedDeviceExecution),
+    DECLARE_ERROR_NAME(pcudaErrorCudartUnloading),
+    DECLARE_ERROR_NAME(pcudaErrorUnknown),
+    DECLARE_ERROR_NAME(pcudaErrorNotYetImplemented),
+    DECLARE_ERROR_NAME(pcudaErrorMemoryValueTooLarge),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidResourceHandle),
+    DECLARE_ERROR_NAME(pcudaErrorNotReady),
+    DECLARE_ERROR_NAME(pcudaErrorInsufficientDriver),
+    DECLARE_ERROR_NAME(pcudaErrorSetOnActiveProcess),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidSurface),
+    DECLARE_ERROR_NAME(pcudaErrorNoDevice),
+    DECLARE_ERROR_NAME(pcudaErrorECCUncorrectable),
+    DECLARE_ERROR_NAME(pcudaErrorSharedObjectSymbolNotFound),
+    DECLARE_ERROR_NAME(pcudaErrorSharedObjectInitFailed),
+    DECLARE_ERROR_NAME(pcudaErrorUnsupportedLimit),
+    DECLARE_ERROR_NAME(pcudaErrorDuplicateVariableName),
+    DECLARE_ERROR_NAME(pcudaErrorDuplicateTextureName),
+    DECLARE_ERROR_NAME(pcudaErrorDuplicateSurfaceName),
+    DECLARE_ERROR_NAME(pcudaErrorDevicesUnavailable),
+    DECLARE_ERROR_NAME(pcudaErrorInvalidKernelImage),
+    DECLARE_ERROR_NAME(pcudaErrorNoKernelImageForDevice),
+    DECLARE_ERROR_NAME(pcudaErrorIncompatibleDriverContext),
+    DECLARE_ERROR_NAME(pcudaErrorPeerAccessAlreadyEnabled),
+    DECLARE_ERROR_NAME(pcudaErrorPeerAccessNotEnabled),
+    DECLARE_ERROR_NAME(pcudaErrorDeviceAlreadyInUse),
+    DECLARE_ERROR_NAME(pcudaErrorProfilerDisabled),
+    DECLARE_ERROR_NAME(pcudaErrorProfilerNotInitialized),
+    DECLARE_ERROR_NAME(pcudaErrorProfilerAlreadyStarted),
+    DECLARE_ERROR_NAME(pcudaErrorProfilerAlreadyStopped),
+    DECLARE_ERROR_NAME(pcudaErrorStartupFailure),
+    DECLARE_ERROR_NAME(pcudaErrorApiFailureBase)
+  };
+
+  static const char* not_found = "unrecognized error code";
+
+  auto it = errors.find(error);
+  if(it == errors.end())
+    return not_found;
+  return it->second.c_str();
+
+  #undef DECLARE_ERROR_NAME
+}
+
+ACPP_PCUDA_API const char *pcudaGetErrorString(pcudaError_t error) {
+  // TODO: Return actual description
+  return pcudaGetErrorName(error);
 }
 
 ///////////// Memory management ///////////////////////

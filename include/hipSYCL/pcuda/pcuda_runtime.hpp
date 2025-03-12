@@ -170,7 +170,8 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *pro
                                                     int device);
 
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError();
-
+ACPP_PCUDA_API const char *pcudaGetErrorName(pcudaError_t error);
+ACPP_PCUDA_API const char *pcudaGetErrorString(pcudaError_t error);
 
 ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize();
 

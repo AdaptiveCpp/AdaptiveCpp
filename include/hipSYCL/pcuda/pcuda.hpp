@@ -22,6 +22,7 @@
 #include <cstddef>
 
 #include "detail/vec.hpp"
+#include "detail/math.hpp"
 #include "pcuda_runtime.hpp"
 
 #ifndef __device__

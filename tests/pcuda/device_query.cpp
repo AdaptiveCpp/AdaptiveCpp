@@ -27,9 +27,7 @@ public:
   }
 
   ~reset_device() {
-    pcudaSetBackend(_b);
-    pcudaSetPlatform(_p);
-    pcudaSetDevice(_d);
+    pcudaSetDeviceExt(_b, _p, _d);
   }
 private:
   int _b;

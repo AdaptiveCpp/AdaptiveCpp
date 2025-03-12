@@ -116,6 +116,8 @@ ACPP_PCUDA_API pcudaError_t pcudaGetBackendCount(int* count);
 ACPP_PCUDA_API pcudaError_t pcudaGetBackend(int* backend);
 ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int backend);
 
+ACPP_PCUDA_API pcudaError_t pcudaSetDeviceExt(int backend, int platform, int device);
+
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError();
 
 

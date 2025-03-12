@@ -299,10 +299,24 @@ ACPP_PCUDA_API pcudaError_t pcudaGetBackend(int* backend);
 /// pcudaSetPlatform(0).
 ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int backend);
 
+/// Sets backend, platform and device at the same time.
+ACPP_PCUDA_API pcudaError_t pcudaSetDeviceExt(int backend, int platform, int device);
+
 ```
 
 They return `pcudaSuccess` in case of success, and `pcudaErrorInvalidValue` in case of error (e.g. the pointers are null, or the enumeration indices are invalid).
 In case the backend or platform is changed to a backend or platform without devices, `pcudaErrorNoDevice` is returned.
+
+Note that in general, the order in which `pcudaSet*` calls on different levels of the hierarchy are made is important: For example, `pcudaSetDevice` only considers devices from the current platform. If the device index is invalid in the current platform, `pcudaSetDevice()` may fail, even if afterwards a `pcudaSetPlatform()` is used to set the platform to one where the device index may be valid.
+Therefore, the only correct order when multiple levels of the hierarchy need to be changed is 
+
+```c++
+pcudaSetBackend(backend);
+pcudaSetPlatform(platform);
+pcudaSetDevice(device);
+```.
+
+`pcudaSetDeviceExt()` takes this into account and may thus be more convenient and safer.
 
 ## Interoperability with SYCL or C++ standard parallelism in device code
 

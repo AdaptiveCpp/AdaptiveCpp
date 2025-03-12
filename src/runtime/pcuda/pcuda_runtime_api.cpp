@@ -287,6 +287,24 @@ ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int val) {
   return pcudaErrorInvalidValue;
 }
 
+ACPP_PCUDA_API pcudaError_t pcudaSetDeviceExt(int backend, int platform, int device) {
+  return_if_prior_error();
+
+  pcudaError_t err = pcudaSetBackend(backend);
+  if(err != pcudaSuccess)
+    return err;
+
+  err = pcudaSetPlatform(platform);
+  if(err != pcudaSuccess)
+    return err;
+
+  err = pcudaSetDevice(device);
+  if(err != pcudaSuccess)
+    return err;
+
+  return pcudaSuccess;
+}
+
 ///////////// Device synchronization ///////////////////
 
 ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize() {

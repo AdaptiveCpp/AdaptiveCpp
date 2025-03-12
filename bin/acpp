@@ -1844,12 +1844,20 @@ class compiler:
       args += ["-D_USE_MATH_DEFINES"]
 
     if self._is_pcuda:
-      args = [
+      args_prologue = [
         "-isystem", os.path.join(self._acpp_include_path, "hipSYCL", "pcuda"),
         "-D__ACPP_PCUDA__", 
         "-mllvm", "-acpp-sscp-pcuda",
         "-fdeclspec"
-      ] + args
+      ]
+      force_cpp_language = False
+      for s in self._config.source_file_arguments:
+        if s.endswith(".cu"):
+          force_cpp_language = True
+      if force_cpp_language:
+        args_prologue += ["-x","c++"]
+      args = args_prologue + args
+
     if self._is_stdpar:
       stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
       args += [
@@ -1953,7 +1961,7 @@ class compiler:
     for i,s in enumerate(source_args):
       # Invoke clang -E
       preprocessed_infile = os.path.join(tempdir, "acpp-preprocessed{}.cpp".format(i))
-      ret_val = run_or_print([self._clang_path, "-E", "-o", preprocessed_infile, s]+preprocessor_invocation_args, self._is_dry_run)
+      ret_val = run_or_print([self._clang_path, "-E", "-o", preprocessed_infile, "-x", "c++", s]+preprocessor_invocation_args, self._is_dry_run)
       if ret_val != 0:
         raise RuntimeError("clang -E invocation failed with error code " + str(ret_val))
 

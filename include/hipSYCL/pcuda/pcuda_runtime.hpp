@@ -113,8 +113,8 @@ ACPP_PCUDA_API pcudaError_t pcudaGetPlatform(int* platform);
 ACPP_PCUDA_API pcudaError_t pcudaSetPlatform(int platform);
 
 ACPP_PCUDA_API pcudaError_t pcudaGetBackendCount(int* count);
-ACPP_PCUDA_API pcudaError_t pcudaGetBackend(int* platform);
-ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int platform);
+ACPP_PCUDA_API pcudaError_t pcudaGetBackend(int* backend);
+ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int backend);
 
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError();
 

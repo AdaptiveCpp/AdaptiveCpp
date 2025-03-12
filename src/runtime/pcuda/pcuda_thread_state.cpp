@@ -111,7 +111,9 @@ thread_local_state::thread_local_state(pcuda_runtime* rt)
     _current_platform = best_platform;
     _current_device = 0;
   }
-
+  HIPSYCL_DEBUG_INFO << "[PCUDA] thread_state: Default device: backend "
+                     << _current_backend << ", platform " << _current_platform
+                     << ", device " << _current_device << std::endl;
 
   _per_device_data.resize(topo.all_backends().size());
   for(int i = 0; i < _per_device_data.size(); ++i) {

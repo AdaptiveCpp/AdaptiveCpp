@@ -149,12 +149,12 @@ inline int __pcuda_warp_size() {
 }
 #define warpSize __pcuda_warp_size()
 
-void __syncthreads() {
+inline void __syncthreads() {
   PCUDA_BUILTIN_CALL(__acpp_sscp_work_group_barrier(
       __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed));
 }
 
-void __syncwarp() {
+inline void __syncwarp() {
   PCUDA_BUILTIN_CALL(__acpp_sscp_sub_group_barrier(
       __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed));
 }
@@ -164,12 +164,11 @@ void __syncwarp() {
 struct __pcuda_dummy_configuration_t {};
 
 template<class T>
-T operator*(__pcuda_dummy_configuration_t, T x) {
+inline T operator*(__pcuda_dummy_configuration_t, T x) {
   return x;
 }
-__pcuda_dummy_configuration_t
-__pcuda_pp_generate_configuration(dim3 grid, dim3 block, size_t shared_mem = 0,
-                                  pcudaStream_t s = nullptr) {
+__pcuda_dummy_configuration_t inline __pcuda_pp_generate_configuration(
+    dim3 grid, dim3 block, size_t shared_mem = 0, pcudaStream_t s = nullptr) {
   __pcudaPushCallConfiguration(grid, block, shared_mem, s);
   return __pcuda_dummy_configuration_t{};
 }

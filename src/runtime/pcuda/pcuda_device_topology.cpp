@@ -56,6 +56,20 @@ device_topology::device_topology(runtime *rt) {
 
     ++backend_idx;
   });
+
+  for(int i = 0; i < backends.size(); ++i) {
+    HIPSYCL_DEBUG_INFO << "[PCUDA] device_topology: Backend " << i << " ("
+                       << backends[i].backend_ptr->get_name() << ")\n";
+    for(int p = 0; p < backends[i].platforms.size(); ++p) {
+      HIPSYCL_DEBUG_INFO << "[PCUDA] device_topology:   Platform " << p << "\n";
+      for(int d = 0; d < backends[i].platforms[p].devices.size(); ++d) {
+        HIPSYCL_DEBUG_INFO
+            << "[PCUDA] device_topology:   Device " << d << ": "
+            << backends[i].platforms[p].devices[d].dev->get_device_name()
+            << "\n";
+      }
+    }
+  }
 }
 
 const device_topology::backend *

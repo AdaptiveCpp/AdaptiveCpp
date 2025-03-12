@@ -80,7 +80,7 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON -DWITH_PCUDA_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j2
     - name: build CUDA tests
       run: |
@@ -105,15 +105,17 @@ jobs:
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
     - name: run CPU SSCP tests
-      if: matrix.clang >= 14
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
     - name: run PSTL tests on CPU
-      if: matrix.clang >= 14
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./pstl_tests
+    - name: run PCUDA tests on CPU
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./pcuda_tests
   test-nvcxx-based:
     name: nvcxx ${{matrix.nvhpc}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}

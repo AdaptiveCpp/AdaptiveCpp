@@ -305,6 +305,102 @@ ACPP_PCUDA_API pcudaError_t pcudaSetDeviceExt(int backend, int platform, int dev
   return pcudaSuccess;
 }
 
+ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *prop,
+                                                    int device) {
+  return_if_prior_error();
+
+  int b = pcuda_application::get().tls_state().get_backend();
+  int p = pcuda_application::get().tls_state().get_platform();
+  
+  auto* dev = pcuda_application::get()
+      .pcuda_rt()
+      .get_topology()
+      .get_device(b, p, device);
+  
+  if(!dev)
+    return  pcudaErrorInvalidDevice;
+
+  auto string_to_cstring = [](const std::string &s, std::size_t buffer_size,
+                              char *buffer) {
+    if(buffer_size == 0)
+      return;
+    for (std::size_t i = 0; (i < s.size()) && (i < buffer_size); ++i) {
+      buffer[i] = s[i];
+    }
+    std::size_t end_pos = std::min(buffer_size - 1, s.size());
+    buffer[end_pos] = '\0';
+  };
+
+  auto *device_ctx = dev->dev;
+  string_to_cstring(device_ctx->get_device_name(), 256, prop->name);
+
+  prop->totalGlobalMem =
+      device_ctx->get_property(device_uint_property::global_mem_size);
+  prop->sharedMemPerBlock =
+      device_ctx->get_property(device_uint_property::local_mem_size);
+  prop->regsPerBlock = 0;
+  // This is not very useful in case the device supports more than one
+  // subgroup size :(
+  prop->warpSize =
+      device_ctx->get_property(device_uint_list_property::sub_group_sizes)[0];
+  
+  prop->memPitch = 0;
+  prop->maxThreadsPerBlock =
+      device_ctx->get_property(device_uint_property::max_group_size);
+  prop->maxThreadsDim[0] =
+      device_ctx->get_property(device_uint_property::max_group_size0);
+  prop->maxThreadsDim[1] =
+      device_ctx->get_property(device_uint_property::max_group_size1);
+  prop->maxThreadsDim[2] =
+      device_ctx->get_property(device_uint_property::max_group_size2);
+  
+  prop->maxGridSize[0] = std::numeric_limits<int>::max(); // TODO
+  prop->maxGridSize[1] = std::numeric_limits<int>::max(); // TODO
+  prop->maxGridSize[2] = std::numeric_limits<int>::max(); // TODO
+  
+  prop->clockRate =
+      device_ctx->get_property(device_uint_property::max_clock_speed);
+  prop->totalConstMem = 0;
+  prop->major = 0; // ??? How to map these?
+  prop->minor = 0;
+  prop->textureAlignment = 0;
+  prop->deviceOverlap = 1; // TODO
+  prop->multiProcessorCount =
+      device_ctx->get_property(device_uint_property::max_compute_units);
+  prop->kernelExecTimeoutEnabled = 0;
+  prop->integrated = 0; // TODO
+  prop->canMapHostMemory = 1;
+  prop->computeMode = pcudaComputeModeDefault;
+  prop->maxTexture1D = 0;
+  prop->maxTexture2D[0] = 0;
+  prop->maxTexture2D[1] = 0;
+  prop->maxTexture3D[0] = 0;
+  prop->maxTexture3D[1] = 0;
+  prop->maxTexture3D[2] = 0;
+  prop->maxTexture1DLayered[0] = 0;
+  prop->maxTexture1DLayered[1] = 0;
+  prop->maxTexture2DLayered[0] = 0;
+  prop->maxTexture2DLayered[1] = 0;
+  prop->maxTexture2DLayered[2] = 0;
+  prop->surfaceAlignment = 0;
+  prop->concurrentKernels = device_ctx->get_max_kernel_concurrency() > 1;
+  prop->ECCEnabled = 0; // TODO
+  prop->pciBusID = 0;
+  prop->pciDeviceID = 0;
+  prop->pciDomainID = 0;
+  prop->tccDriver = 0;
+  // this is not really a correct mapping...
+  prop->asyncEngineCount = device_ctx->get_max_memcpy_concurrency();
+  prop->unifiedAddressing = 1;
+  prop->memoryClockRate = 0;
+  prop->memoryBusWidth = 0;
+  prop->l2CacheSize =
+      device_ctx->get_property(device_uint_property::global_mem_cache_size);
+  prop->maxThreadsPerMultiProcessor =
+      device_ctx->get_property(device_uint_property::max_group_size);
+  return pcudaSuccess;
+}
+
 ///////////// Device synchronization ///////////////////
 
 ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize() {

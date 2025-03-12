@@ -118,6 +118,57 @@ ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int backend);
 
 ACPP_PCUDA_API pcudaError_t pcudaSetDeviceExt(int backend, int platform, int device);
 
+enum pcudaComputeMode {
+  pcudaComputeModeDefault = 0,
+  pcudaComputeModeExclusive = 1,
+  pcudaComputeModeProhibited = 2,
+  pcudaComputeModeExclusiveProcess = 3
+};
+
+struct pcudaDeviceProp {
+  char name[256];
+  size_t totalGlobalMem;
+  size_t sharedMemPerBlock;
+  int regsPerBlock;
+  int warpSize;
+  size_t memPitch;
+  int maxThreadsPerBlock;
+  int maxThreadsDim[3];
+  int maxGridSize[3];
+  int clockRate;
+  size_t totalConstMem;
+  int major;
+  int minor;
+  size_t textureAlignment;
+  int deviceOverlap;
+  int multiProcessorCount;
+  int kernelExecTimeoutEnabled;
+  int integrated;
+  int canMapHostMemory;
+  int computeMode;
+  int maxTexture1D;
+  int maxTexture2D[2];
+  int maxTexture3D[3];
+  int maxTexture1DLayered[2];
+  int maxTexture2DLayered[3];
+  size_t surfaceAlignment;
+  int concurrentKernels;
+  int ECCEnabled;
+  int pciBusID;
+  int pciDeviceID;
+  int pciDomainID;
+  int tccDriver;
+  int asyncEngineCount;
+  int unifiedAddressing;
+  int memoryClockRate;
+  int memoryBusWidth;
+  int l2CacheSize;
+  int maxThreadsPerMultiProcessor;
+};
+
+ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *prop,
+                                                    int device);
+
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError();
 
 

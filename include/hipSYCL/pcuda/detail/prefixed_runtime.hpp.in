@@ -142,4 +142,14 @@
 #define @ACPP_PCUDA_PREFIX@EventRecordWithFlags pcudaEventRecordWithFlags
 #define @ACPP_PCUDA_PREFIX@EventSynchronize pcudaEventSynchronize
 
+#define @ACPP_PCUDA_PREFIX@ComputeMode pcudaComputeMode
+#define @ACPP_PCUDA_PREFIX@ComputeModeDefault pcudaComputeModeDefault
+#define @ACPP_PCUDA_PREFIX@ComputeModeExclusive pcudaComputeModeExclusive
+#define @ACPP_PCUDA_PREFIX@ComputeModeProhibited pcudaComputeModeProhibited
+#define @ACPP_PCUDA_PREFIX@ComputeModeExclusiveProcess pcudaComputeModeExclusiveProcess
+
+#define @ACPP_PCUDA_PREFIX@DeviceProp pcudaDeviceProp
+#define @ACPP_PCUDA_PREFIX@GetDevicePropreties pcudaGetDeviceProperties
+
+
 #endif

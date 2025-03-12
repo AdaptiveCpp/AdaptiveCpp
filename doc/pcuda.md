@@ -267,6 +267,7 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaEventRecord` | |
 |`pcudaEventRecordWithFlags` | Flags are currently ignored |
 |`pcudaEventSynchronize` | |
+|`pcudaGetDeviceProperties` | |
 
 ### Extensions
 

@@ -452,7 +452,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     enableModuleStateDumping(M, "full_optimizations", getCompilationIdentifier());
     
     enableModuleStateDumping(M, "final", getCompilationIdentifier());
-M.print(llvm::outs(), nullptr);
+
     bool ContainsUnsetIRConstants = false;
     S2IRConstant::forEachS2IRConstant(M, [&](S2IRConstant C) {
       if (C.isValid()) {

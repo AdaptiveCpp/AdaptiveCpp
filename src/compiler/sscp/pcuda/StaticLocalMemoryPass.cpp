@@ -57,14 +57,18 @@ llvm::GlobalVariable* copyGVToAS(unsigned AS, llvm::Module& M, llvm::GlobalVaria
 llvm::ConstantDataArray* getAnnotationGVString(llvm::Value* V) {
   if(auto* GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V)) {
     return getAnnotationGVString(GEP->getPointerOperand());
-  } else {
-    if(auto* GV = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
-      auto* Initializer = GV->getInitializer();
-      if(Initializer) {
-        if(auto* CDA = llvm::dyn_cast<llvm::ConstantDataArray>(Initializer)) {
-          return CDA;
-        }
+  } else if (auto *GV = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
+    auto *Initializer = GV->getInitializer();
+    if (Initializer) {
+      if (auto *CDA = llvm::dyn_cast<llvm::ConstantDataArray>(Initializer)) {
+        return CDA;
       }
+    }
+  } else if (auto *CE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
+    int Opcode = CE->getOpcode();
+    if (Opcode == llvm::Instruction::GetElementPtr || Opcode == llvm::Instruction::AddrSpaceCast ||
+        Opcode == llvm::Instruction::BitCast) {
+      return getAnnotationGVString(CE->getOperand(0));
     }
   }
   return nullptr;

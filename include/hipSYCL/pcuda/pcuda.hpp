@@ -21,6 +21,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 #include <cstddef>
 
+#include "detail/vec.hpp"
 #include "pcuda_runtime.hpp"
 
 #ifndef __device__

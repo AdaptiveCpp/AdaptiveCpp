@@ -234,6 +234,7 @@ Supported features in device code include:
 |`__syncthreads` | |
 |`__syncwarp` | |
 | Math functions from `<math.h>`/`<cmath>` | |
+| CUDA/HIP vector types | |
 
 ## Supported runtime APIs
 

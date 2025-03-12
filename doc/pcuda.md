@@ -124,7 +124,7 @@ __global__ void kernel(int* in, int* out, int num_elements) {
 Depending on your use case, you may wish to include different headers:
 
 * `<pcuda.hpp>`: The main PCUDA header, recommended for PCUDA-exclusive code. Exposes the API with `pcuda` prefix, e.g. `pcudaMalloc()`.
-* `<cuda_runtime_api.h>`, `<cuda_runtime.h>`: For compatibility with CUDA code. Exposes the  API with `cuda` prefix, e.g. `cudaMalloc()`.
+* `<cuda_runtime_api.h>`, `<cuda_runtime.h>`, `<cuda.h>`: For compatibility with CUDA code. Exposes the  API with `cuda` prefix, e.g. `cudaMalloc()`.
 * `<hip/hip_runtime.h>`, `<hip/hip_runtime_api.h>`. For compatibility with HIP code. Exposes the runtime API with `hip` prefix, e.g. `hipMalloc()`.
 
 ## Kernel launch
@@ -251,6 +251,7 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaGetErrorName` | |
 |`pcudaGetErrorString` | |
 |`pcudaDeviceSynchronize` | |
+|`pcudaThreadSynchronize` | |
 |`pcudaMalloc` | |
 |`pcudaMallocHost` | |
 |`pcudaMallocManaged` | optional `flags` argument is currently ignored. |

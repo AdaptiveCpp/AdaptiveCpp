@@ -412,6 +412,10 @@ ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize() {
   return stream::wait_all(*dev);
 }
 
+ACPP_PCUDA_API pcudaError_t pcudaThreadSynchronize() {
+  return pcudaDeviceSynchronize();
+}
+
 ///////////// Error management /////////////////////////
 
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError() {

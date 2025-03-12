@@ -174,6 +174,7 @@ ACPP_PCUDA_API const char *pcudaGetErrorName(pcudaError_t error);
 ACPP_PCUDA_API const char *pcudaGetErrorString(pcudaError_t error);
 
 ACPP_PCUDA_API pcudaError_t pcudaDeviceSynchronize();
+ACPP_PCUDA_API pcudaError_t pcudaThreadSynchronize();
 
 ACPP_PCUDA_API pcudaError_t pcudaAllocateDevice(void** ptr, size_t s);
 ACPP_PCUDA_API pcudaError_t pcudaAllocateHost(void** ptr, size_t s);

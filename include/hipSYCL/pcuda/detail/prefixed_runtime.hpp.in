@@ -96,6 +96,7 @@
 #define @ACPP_PCUDA_PREFIX@GetErrorString pcudaGetErrorString
 
 #define @ACPP_PCUDA_PREFIX@DeviceSynchronize pcudaDeviceSynchronize
+#define @ACPP_PCUDA_PREFIX@ThreadSynchronize pcudaThreadSynchronize
 
 #define @ACPP_PCUDA_PREFIX@Malloc pcudaMalloc
 #define @ACPP_PCUDA_PREFIX@MallocHost pcudaMallocHost

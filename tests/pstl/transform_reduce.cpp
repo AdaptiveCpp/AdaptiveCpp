@@ -102,23 +102,23 @@ struct aggregate {
 };
 
 BOOST_AUTO_TEST_CASE(par_unseq_aggregate) {
-  std::vector<int> data(1000);
-  for(int i = 0; i < data.size(); ++i)
+  std::vector<std::uint64_t> data(1000);
+  for(std::uint64_t i = 0; i < data.size(); ++i)
     data[i] = i;
 
-  auto transform = [](int x){
-    return aggregate<int>{x*2, x % 10};
+  auto transform = [](std::uint64_t x){
+    return aggregate<std::uint64_t>{x*2, x % 10};
   };
 
   auto reference_result = std::transform_reduce(
-      data.begin(), data.end(), aggregate<int>{0, 0}, std::plus<>{},
+      data.begin(), data.end(), aggregate<std::uint64_t>{0, 0}, std::plus<>{},
       transform);
 
   auto res =
       std::transform_reduce(std::execution::par_unseq, data.begin(), data.end(),
-                            aggregate<int>{0, 0}, std::plus<>{}, transform);
-  BOOST_CHECK(res.a == reference_result.a);
-  BOOST_CHECK(res.b == reference_result.b);
+                            aggregate<std::uint64_t>{0, 0}, std::plus<>{}, transform);
+  BOOST_CHECK_EQUAL(res.a, reference_result.a);
+  BOOST_CHECK_EQUAL(res.b, reference_result.b);
 }
 
 template<class T>

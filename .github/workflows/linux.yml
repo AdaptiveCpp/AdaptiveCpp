@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   prep-container:
-    name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}, CUDA ${{matrix.cuda_major_version}}.${{matrix.cuda_minor_version}}.${{matrix.cuda_patch_version}}, ROCm ${{matrix.rocm}}, ${{ matrix.test_kind}}
+    name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}, CUDA ${{matrix.cuda_major_version}}.${{matrix.cuda_minor_version}}.${{matrix.cuda_patch_version}}, ROCm ${{matrix.rocm}}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: read
@@ -20,7 +20,6 @@ jobs:
         cuda_minor_version: [0]
         cuda_patch_version: [2]
         rocm: [5.4.3]
-        test_kind: [cpu, sscp, gpu]
         include:
           - clang: 17
             os: ubuntu-22.04
@@ -28,14 +27,6 @@ jobs:
             cuda_minor_version: 0
             cuda_patch_version: 2
             rocm: 5.6.1
-            test_kind: sscp
-          - clang: 17
-            os: ubuntu-22.04
-            cuda_major_version: 11
-            cuda_minor_version: 0
-            cuda_patch_version: 2
-            rocm: 5.6.1
-            test_kind: gpu
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,16 +51,16 @@ jobs:
             os: ${{ matrix.os }}
             cuda: ${{matrix.cuda_major_version}}.${{matrix.cuda_minor_version}}.${{matrix.cuda_patch_version}}
             rocm: ${{matrix.rocm}}
-            test_kind: ${{matrix.test_kind}}
             image: ${{ steps.docker.outputs.docker_image }}
 
   test-clang-based:
-    name: clang ${{ matrix.docker.clang }}, ${{ matrix.docker.test_kind }}, CUDA ${{matrix.docker.cuda}}, ROCm ${{matrix.docker.rocm}}, ${{ matrix.docker.os }}
+    name: clang ${{ matrix.docker.clang }}, ${{ matrix.test_kind }}, CUDA ${{matrix.docker.cuda}}, ROCm ${{matrix.docker.rocm}}, ${{ matrix.docker.os }}
     runs-on: ${{ matrix.docker.os }}
     needs: prep-container
     strategy:
       matrix:
         docker: ${{fromJson(needs.prep-container.outputs.docker_matrix)}}
+        test_kind: [cpu, sscp, gpu]
     container:
       image: ${{ matrix.docker.image }}
     defaults:
@@ -82,7 +73,7 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: ${{ github.job }}-${{matrix.docker.clang}}-${{matrix.docker.os}}-${{matrix.docker.cuda}}-${{matrix.docker.rocm}}-${{ matrix.docker.test_kind }}
+        key: ${{ github.job }}-${{matrix.docker.clang}}-${{matrix.docker.os}}-${{matrix.docker.cuda}}-${{matrix.docker.rocm}}-${{ matrix.test_kind }}
     - name: build AdaptiveCpp
       run: |
         mkdir build && cd build
@@ -91,52 +82,52 @@ jobs:
         cp /opt/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
         cp /opt/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
     - name: build CPU tests
-      if: matrix.docker.test_kind == 'cpu'
+      if: matrix.test_kind == 'cpu'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         cmake -GNinja -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         ninja
     - name: build generic SSCP tests
-      if: matrix.docker.clang >= 14 && matrix.docker.test_kind == 'sscp'
+      if: matrix.docker.clang >= 14 && matrix.test_kind == 'sscp'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         cmake -GNinja -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         ninja
     - name: build CUDA tests
-      if: matrix.docker.test_kind == 'gpu'
+      if: matrix.test_kind == 'gpu'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
         cmake -GNinja -DACPP_TARGETS="cuda:sm_60" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.docker.clang}}/lib"
         ninja
     - name: build ROCm tests
-      if: matrix.docker.test_kind == 'gpu'
+      if: matrix.test_kind == 'gpu'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
         cmake -GNinja -DACPP_TARGETS="hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.docker.clang}}/lib"
         ninja
     - name: build explicit multipass tests
-      if: matrix.docker.test_kind == 'gpu'
+      if: matrix.test_kind == 'gpu'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-emp
         cd ${GITHUB_WORKSPACE}/build/tests-emp
         cmake -GNinja -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         ninja
     - name: run CPU tests
-      if: matrix.docker.test_kind == 'cpu'
+      if: matrix.test_kind == 'cpu'
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
     - name: run CPU SSCP tests
-      if: matrix.docker.clang >= 14 && matrix.docker.test_kind == 'sscp'
+      if: matrix.docker.clang >= 14 && matrix.test_kind == 'sscp'
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
     - name: run PSTL tests on CPU
-      if: matrix.docker.clang >= 14 && matrix.docker.test_kind == 'sscp'
+      if: matrix.docker.clang >= 14 && matrix.test_kind == 'sscp'
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./pstl_tests

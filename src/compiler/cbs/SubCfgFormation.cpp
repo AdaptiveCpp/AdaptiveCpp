@@ -1131,6 +1131,16 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
   return true;
 }
 
+template <class Instruction>
+llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, Instruction *I) {
+  return llvm::IRBuilder{BB, I->getIterator()};
+}
+
+template <class iterator>
+llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, iterator I) {
+  return llvm::IRBuilder{BB, I};
+}
+
 // Widens the allocas in the entry block to array allocas.
 // Replace uses of the original alloca with GEP that indexes the new alloca with
 // \a Idx.
@@ -1174,9 +1184,9 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
     Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
     for (auto &SubCfg : SubCfgs) {
-      auto *GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
+      auto GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
 
-      llvm::IRBuilder LoadBuilder{GepIp};
+      llvm::IRBuilder LoadBuilder = createLoadBuilder(SubCfg.getLoadBB(), GepIp);
       auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
           Alloca->getAllocatedType(), Alloca, SubCfg.getContiguousIdx(), I->getName() + "_gep"));
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);

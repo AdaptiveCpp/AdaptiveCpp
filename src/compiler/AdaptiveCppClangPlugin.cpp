@@ -120,16 +120,29 @@ static llvm::RegisterStandardPasses
   "v" HIPSYCL_STRINGIFY(ACPP_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
       ACPP_VERSION_MINOR) "." HIPSYCL_STRINGIFY(ACPP_VERSION_PATCH)
 
+template <class CallbackF>
+struct LastEPAdapter{
+  LastEPAdapter(CallbackF &&CB) : CB(std::forward<CallbackF>(CB)) {}
+  void operator()(llvm::ModulePassManager &MPM, OptLevel Level, llvm::ThinOrFullLTOPhase) {
+    CB(MPM, Level);
+  }
+  void operator()(llvm::ModulePassManager &MPM, OptLevel Level) {
+    CB(MPM, Level);
+  }
+  CallbackF CB;
+};
+
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {
     LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING,
         [](llvm::PassBuilder &PB) {
           // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
           // really used there anyways..
-          PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, OptLevel) {
+          
+          PB.registerOptimizerLastEPCallback(LastEPAdapter{[&](llvm::ModulePassManager &MPM, OptLevel) {
             MPM.addPass(hipsycl::compiler::SMCPCompatPass{});
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
-          });
+          }});
 #ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
           PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, OptLevel Level) {
@@ -146,11 +159,12 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
               }
             });
           
-            PB.registerOptimizerLastEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
+            
+          PB.registerOptimizerLastEPCallback(LastEPAdapter{[&](llvm::ModulePassManager &MPM, OptLevel) {
               MPM.addPass(SyncElisionInliningPass{});
               MPM.addPass(llvm::AlwaysInlinerPass{});
               MPM.addPass(SyncElisionPass{});
-            });
+            }});
           }
 #endif
 

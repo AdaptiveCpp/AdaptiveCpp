@@ -47,6 +47,12 @@ namespace {
 
 static const char* DynamicLocalMemArrayName = "__acpp_sscp_spirv_dynamic_local_mem";
 
+#if LLVM_VERSION_MAJOR >= 20
+#define SPIRV_INTEL_LONG_CONSTANT_EXT_NAME "SPV_INTEL_long_composites"
+#else
+#define SPIRV_INTEL_LONG_CONSTANT_EXT_NAME "SPV_INTEL_long_constant_composite"
+#endif
+
 void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
   llvm::SmallVector<std::string> Args {"-spirv-max-version=1.3",
       "-spirv-debug-info-version=ocl-100",
@@ -62,8 +68,8 @@ void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
       "vector_compute,+SPV_INTEL_fast_composite,+SPV_INTEL_fpga_buffer_location,+SPV_INTEL_joint_"
       "matrix,+SPV_INTEL_arbitrary_precision_fixed_point,+SPV_INTEL_arbitrary_precision_floating_"
       "point,+SPV_INTEL_arbitrary_precision_floating_point,+SPV_INTEL_variable_length_array,+SPV_"
-      "INTEL_fp_fast_math_mode,+SPV_INTEL_fpga_cluster_attributes,+SPV_INTEL_loop_fuse,+SPV_INTEL_"
-      "long_constant_composite,+SPV_INTEL_fpga_invocation_pipelining_attributes,+SPV_INTEL_fpga_"
+      "INTEL_fp_fast_math_mode,+SPV_INTEL_fpga_cluster_attributes,+SPV_INTEL_loop_fuse,+"
+      SPIRV_INTEL_LONG_CONSTANT_EXT_NAME ",+SPV_INTEL_fpga_invocation_pipelining_attributes,+SPV_INTEL_fpga_"
       "dsp_control,+SPV_INTEL_arithmetic_fence,+SPV_INTEL_runtime_aligned,"
       "+SPV_INTEL_optnone,+SPV_INTEL_token_type,+SPV_INTEL_bfloat16_conversion,+SPV_INTEL_joint_"
       "matrix,+SPV_INTEL_hw_thread_queries,+SPV_INTEL_memory_access_aliasing,+SPV_EXT_relaxed_printf_string_address_space"

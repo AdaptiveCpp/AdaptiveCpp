@@ -319,7 +319,7 @@ Therefore, the only correct order when multiple levels of the hierarchy need to 
 pcudaSetBackend(backend);
 pcudaSetPlatform(platform);
 pcudaSetDevice(device);
-```.
+```
 
 `pcudaSetDeviceExt()` takes this into account and may thus be more convenient and safer.
 

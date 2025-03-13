@@ -36,12 +36,6 @@ runs:
       shell: bash
       run: echo "::add-mask::${{ inputs.GITHUB_TOKEN }}"
     - uses: dorny/paths-filter@v3
-      id: filter-pr
-      with:
-        filters: |
-          docker:
-            - '.github/workflows/create-ci-docker/**'
-    - uses: dorny/paths-filter@v3
       id: filter-last-push
       with:
         base: ${{ github.ref }}
@@ -55,14 +49,8 @@ runs:
         BASE_OS=${{ inputs.BASE_TAG }}
         echo "BASE_OS=${BASE_OS//-/:}" >> $GITHUB_OUTPUT
 
-        # We cannot push to the target repo... Can we push to the src?
-        if [[ "${{github.event_name}}" == "pull_request" ]]; then
-          REPO_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
-          echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
-        else
-          REPO_OWNER=${{ github.repository_owner }}
-          echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
-        fi
+        REPO_OWNER=${{ github.repository_owner }}
+        echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -79,10 +67,9 @@ runs:
       with:
         images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
-          type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
           type=sha
           type=ref,event=branch
-          type=ref,event=pr
         flavor: |
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}-
@@ -93,10 +80,9 @@ runs:
       with:
         images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
-          type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }},prefix=
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }},prefix=
           type=sha
           type=ref,event=branch
-          type=ref,event=pr
         flavor: |
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-
@@ -107,10 +93,9 @@ runs:
       with:
         images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
-          type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
           type=sha
           type=ref,event=branch
-          type=ref,event=pr
         flavor: |
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}-
@@ -121,10 +106,9 @@ runs:
       with:
         images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
-          type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }},prefix=
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }},prefix=
           type=sha
           type=ref,event=branch
-          type=ref,event=pr
         flavor: |
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-
@@ -172,14 +156,14 @@ runs:
       shell: bash
       run: |
         # use fallback if no changes were made to docker
-        if [[ "${{ steps.filter-pr.outputs.docker }}" == "false" ]]; then
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
           echo "docker_image=${{ steps.select-metadata.outputs.fallback_tag }}" >> $GITHUB_OUTPUT
         else
           echo "docker_image=${{ steps.select-metadata.outputs.docker_image }}" >> $GITHUB_OUTPUT
         fi
         
     - name: Build and push Docker images
-      if: steps.filter-last-push.outputs.docker == 'true' || steps.filter-pr.outputs.docker == 'true' && steps.tag-exists.outputs.tag == 'not found'
+      if: steps.filter-last-push.outputs.docker == 'true' || steps.tag-exists.outputs.tag == 'not found' && github.event_name != 'pull_request'
       uses: docker/build-push-action@v6
       id: build
       with:

@@ -54,8 +54,15 @@ runs:
       run: |
         BASE_OS=${{ inputs.BASE_TAG }}
         echo "BASE_OS=${BASE_OS//-/:}" >> $GITHUB_OUTPUT
-        REPO_OWNER=${{ github.repository_owner }}
-        echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
+
+        # We cannot push to the target repo... Can we push to the src?
+        if [[ "${{github.event_name}}" == "pull_request" ]]; then
+          REPO_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
+          echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
+        else
+          REPO_OWNER=${{ github.repository_owner }}
+          echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
+        fi
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 

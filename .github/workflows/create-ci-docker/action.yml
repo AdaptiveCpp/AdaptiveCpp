@@ -54,7 +54,8 @@ runs:
       run: |
         BASE_OS=${{ inputs.BASE_TAG }}
         echo "BASE_OS=${BASE_OS//-/:}" >> $GITHUB_OUTPUT
-
+        REPO_OWNER=${{ github.repository_owner }}
+        echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -69,7 +70,7 @@ runs:
       id: metadata
       if: inputs.CUDA_MAJOR_VERSION != '' && inputs.ROCM_VERSION != ''
       with:
-        images: ghcr.io/${{github.repository_owner}}/adaptivecpp-ci-linux
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
           type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
           type=sha
@@ -83,7 +84,7 @@ runs:
       id: metadata-no-cuda
       if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION != ''
       with:
-        images: ghcr.io/${{github.repository_owner}}/adaptivecpp-ci-linux
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
           type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }},prefix=
           type=sha
@@ -97,7 +98,7 @@ runs:
       id: metadata-no-rocm
       if: inputs.CUDA_MAJOR_VERSION != '' && inputs.ROCM_VERSION == ''
       with:
-        images: ghcr.io/${{github.repository_owner}}/adaptivecpp-ci-linux
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
           type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
           type=sha
@@ -111,7 +112,7 @@ runs:
       id: metadata-no-cuda-no-rocm
       if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION == ''
       with:
-        images: ghcr.io/${{github.repository_owner}}/adaptivecpp-ci-linux
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
           type=raw,enable=${{ github.ref_name == 'develop' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }},prefix=
           type=sha
@@ -145,7 +146,7 @@ runs:
         fi
         echo "docker_image=${TAGS}" | head -n 1 >> $GITHUB_OUTPUT
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "fallback_tag=ghcr.io/${{github.repository_owner}}/adaptivecpp-ci-linux:${FALLBACK_TAG}" >> $GITHUB_OUTPUT
+        echo "fallback_tag=ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux:${FALLBACK_TAG}" >> $GITHUB_OUTPUT
         cat << EOF >> $GITHUB_OUTPUT
         tags<<${OUTPUT_EOF}
         ${TAGS}
@@ -156,7 +157,7 @@ runs:
       id: tag-exists
       with:
         registry: ghcr.io
-        repository: ${{github.repository_owner}}/adaptivecpp-ci-linux
+        repository: ${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tag: ${{ steps.select-metadata.outputs.version }}
     
     - name: Final docker_image value

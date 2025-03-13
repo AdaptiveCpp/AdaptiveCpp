@@ -54,6 +54,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{matrix.docker.clang}}-${{matrix.docker.os}}-${{matrix.docker.cuda}}-${{matrix.docker.rocm}}-${{ matrix.docker.test_kind }}
       - name: setup build env
         run: |
           export CXXFLAGS="$CXXFLAGS"
@@ -70,7 +74,7 @@ jobs:
           mkdir build && cd build
           echo ${CXXFLAGS}
           
-          cmake -GNinja -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.docker.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.docker.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.docker.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
+          cmake -GNinja -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.docker.clang}} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.docker.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.docker.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
           ninja install
       - name: setup CPU tests with loop splitting
         run: |
@@ -106,6 +110,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{matrix.docker.clang}}-${{matrix.docker.os}}-${{matrix.docker.cuda}}-${{matrix.docker.rocm}}-${{ matrix.docker.test_kind }}
       - name: Install OpenCL
         run: |
           wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
@@ -115,7 +123,7 @@ jobs:
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build
-          cmake -GNinja -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.docker.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.docker.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.docker.clang}}/cmake -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
+          cmake -GNinja -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.docker.clang}} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.docker.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.docker.clang}}/cmake -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
           ninja install
       - name: Print detected devices
         run: |

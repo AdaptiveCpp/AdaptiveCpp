@@ -119,15 +119,15 @@ struct __pcudaGridDim {
   operator dim3() { return dim3{x, y, z}; }
 
   static inline __attribute__((always_inline)) unsigned __fetch_x() {
-    return PCUDA_BUILTIN_CALL_RESULT(__acpp_sscp_get_local_size_x(), 0);
+    return PCUDA_BUILTIN_CALL_RESULT(__acpp_sscp_get_num_groups_x(), 0);
   }
 
   static inline __attribute__((always_inline)) unsigned __fetch_y() {
-    return PCUDA_BUILTIN_CALL_RESULT(__acpp_sscp_get_local_size_y(), 0);
+    return PCUDA_BUILTIN_CALL_RESULT(__acpp_sscp_get_num_groups_y(), 0);
   }
 
   static inline __attribute__((always_inline)) unsigned __fetch_z() {
-    return PCUDA_BUILTIN_CALL_RESULT(__acpp_sscp_get_local_size_z(), 0);
+    return PCUDA_BUILTIN_CALL_RESULT(__acpp_sscp_get_num_groups_z(), 0);
   }
 };
 

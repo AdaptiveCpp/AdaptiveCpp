@@ -151,6 +151,7 @@ if(WITH_PSTL_TESTS)
     pstl/copy_n.cpp
     pstl/count.cpp
     pstl/count_if.cpp
+    pstl/equal.cpp
     pstl/exclusive_scan.cpp
     pstl/fill.cpp
     pstl/fill_n.cpp

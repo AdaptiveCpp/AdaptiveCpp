@@ -120,7 +120,7 @@
 #define @ACPP_PCUDA_PREFIX@StreamCreate pcudaStreamCreate
 #define @ACPP_PCUDA_PREFIX@StreamCreateWithFlags pcudaStreamCreateWithFlags
 #define @ACPP_PCUDA_PREFIX@StreamCreateWithPriority pcudaStreamCreateWithPriority
-#define @ACPP_PCUDA_PREFIX@StreamDestory pcudaStreamDestroy
+#define @ACPP_PCUDA_PREFIX@StreamDestroy pcudaStreamDestroy
 #define @ACPP_PCUDA_PREFIX@StreamSynchronize pcudaStreamSynchronize
 #define @ACPP_PCUDA_PREFIX@StreamWaitEvent pcudaStreamWaitEvent
 

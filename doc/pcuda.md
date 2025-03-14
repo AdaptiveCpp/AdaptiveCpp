@@ -254,6 +254,7 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaThreadSynchronize` | |
 |`pcudaMalloc` | |
 |`pcudaMallocHost` | |
+|`pcudaHostAlloc` | Flags are ignored; behaves like pcudaMallocHost |
 |`pcudaMallocManaged` | optional `flags` argument is currently ignored. |
 |`pcudaFree` | |
 |`pcudaStreamCreate` | |

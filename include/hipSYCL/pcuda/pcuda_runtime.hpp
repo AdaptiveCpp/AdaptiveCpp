@@ -191,6 +191,16 @@ pcudaError_t pcudaMallocHost(T** ptr, size_t s) {
   return pcudaAllocateHost((void**)ptr, s);
 }
 
+#define pcudaHostAllocDefault 0x00
+#define pcudaHostAllocMapped 0x02
+#define pcudaHostAllocPortable 0x01
+#define pcudaHostAllocWriteCombined 0x04 
+
+template <class T>
+pcudaError_t pcudaHostAlloc(T **ptr, size_t s, unsigned int flags) {
+  return pcudaAllocateHost((void **)ptr, s);
+}
+
 template<class T>
 pcudaError_t pcudaMallocManaged(T** ptr, size_t s) {
   return pcudaAllocateShared((void**)ptr, s);

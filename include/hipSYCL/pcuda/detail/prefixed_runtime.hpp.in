@@ -100,6 +100,12 @@
 
 #define @ACPP_PCUDA_PREFIX@Malloc pcudaMalloc
 #define @ACPP_PCUDA_PREFIX@MallocHost pcudaMallocHost
+#define @ACPP_PCUDA_PREFIX@HostAlloc pcudaHostAlloc
+
+#define @ACPP_PCUDA_PREFIX@HostAllocDefault pcudaHostAllocDefault
+#define @ACPP_PCUDA_PREFIX@HostAllocMapped pcudaHostAllocMapped
+#define @ACPP_PCUDA_PREFIX@HostAllocPortable pcudaHostAllocPortable
+#define @ACPP_PCUDA_PREFIX@HostAllocWriteCombined pcudaHostAllocWriteCombined
 
 #define @ACPP_PCUDA_PREFIX@MemAttachGlobal pcudaMemAttachGlobal
 #define @ACPP_PCUDA_PREFIX@MemAttachHost pcudaMemAttachHost

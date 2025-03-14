@@ -85,6 +85,8 @@
 #define @ACPP_PCUDA_PREFIX@Error_t pcudaError_t
 #define @ACPP_PCUDA_PREFIX@Stream_t pcudaStream_t
 
+#define @ACPP_PCUDA_PREFIX@DriverGetVersion pcudaDriverGetVersion
+
 #define @ACPP_PCUDA_PREFIX@GetDeviceCount pcudaGetDeviceCount
 #define @ACPP_PCUDA_PREFIX@GetDevice pcudaGetDevice
 #define @ACPP_PCUDA_PREFIX@SetDevice pcudaSetDevice
@@ -92,6 +94,7 @@
 // Getters/setters for platforms are pcuda extensions and therefore not aliased
 
 #define @ACPP_PCUDA_PREFIX@GetLastError pcudaGetLastError
+#define @ACPP_PCUDA_PREFIX@PeekAtLastError pcudaPeekAtLastError
 #define @ACPP_PCUDA_PREFIX@GetErrorName pcudaGetErrorName
 #define @ACPP_PCUDA_PREFIX@GetErrorString pcudaGetErrorString
 
@@ -113,6 +116,7 @@
 #define @ACPP_PCUDA_PREFIX@MallocManaged pcudaMallocManaged
 
 #define @ACPP_PCUDA_PREFIX@Free pcudaFree
+#define @ACPP_PCUDA_PREFIX@FreeHost pcudaFreeHost
 
 #define @ACPP_PCUDA_PREFIX@StreamDefault pcudaStreamDefault
 #define @ACPP_PCUDA_PREFIX@StreamNonBlocking pcudaStreamNonBlocking

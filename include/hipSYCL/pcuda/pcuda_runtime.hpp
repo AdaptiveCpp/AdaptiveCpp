@@ -103,6 +103,7 @@ ACPP_PCUDA_API pcudaError_t __pcudaKernelCall(const char *kernel_name,
                                               std::size_t hcf_object,
                                               void **kernel_specific_storage);
 
+ACPP_PCUDA_API pcudaError_t pcudaDriverGetVersion(int *version);
 
 ACPP_PCUDA_API pcudaError_t pcudaGetDeviceCount(int* count);
 ACPP_PCUDA_API pcudaError_t pcudaGetDevice(int* dev);
@@ -170,6 +171,7 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *pro
                                                     int device);
 
 ACPP_PCUDA_API pcudaError_t pcudaGetLastError();
+ACPP_PCUDA_API pcudaError_t pcudaPeekAtLastError();
 ACPP_PCUDA_API const char *pcudaGetErrorName(pcudaError_t error);
 ACPP_PCUDA_API const char *pcudaGetErrorString(pcudaError_t error);
 
@@ -207,6 +209,7 @@ pcudaError_t pcudaMallocManaged(T** ptr, size_t s) {
 }
 
 ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr);
+ACPP_PCUDA_API pcudaError_t pcudaFreeHost(void* ptr);
 
 // Streams
 

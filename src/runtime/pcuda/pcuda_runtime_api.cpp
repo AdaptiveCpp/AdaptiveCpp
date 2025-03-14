@@ -422,6 +422,10 @@ ACPP_PCUDA_API pcudaError_t pcudaGetLastError() {
   return pop_most_recent_pcuda_error();
 }
 
+ACPP_PCUDA_API pcudaError_t pcudaPeekAtLastError() {
+  return get_most_recent_pcuda_error();
+}
+
 ACPP_PCUDA_API const char *pcudaGetErrorName(pcudaError_t error) {
   #define DECLARE_ERROR_NAME(errortype) {errortype, #errortype}
 
@@ -599,6 +603,12 @@ ACPP_PCUDA_API pcudaError_t pcudaFree(void* ptr) {
   deallocate(allocator, ptr);
 
   return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaFreeHost(void* ptr) {
+  return_if_prior_error();
+
+  return pcudaFree(ptr);
 }
 
 
@@ -838,6 +848,16 @@ ACPP_PCUDA_API pcudaError_t pcudaStreamWaitEvent(pcudaStream_t stream,
     return pcudaErrorUnknown;
   }
 
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaDriverGetVersion(int *version) {
+  return_if_prior_error();
+
+  if(!version)
+    return pcudaErrorInvalidValue;
+
+  *version = 0;
   return pcudaSuccess;
 }
 

@@ -248,6 +248,7 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaGetDevice`| |
 |`pcudaSetDevice`| |
 |`pcudaGetLastError` | |
+|`pcudaPeekAtLastError` | |
 |`pcudaGetErrorName` | |
 |`pcudaGetErrorString` | |
 |`pcudaDeviceSynchronize` | |
@@ -257,6 +258,7 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaHostAlloc` | Flags are ignored; behaves like pcudaMallocHost |
 |`pcudaMallocManaged` | optional `flags` argument is currently ignored. |
 |`pcudaFree` | |
+|`pcudaFreeHost` | |
 |`pcudaStreamCreate` | |
 |`pcudaStreamCreateWithFlags` | flags are currently ignored |
 |`pcudaStreamCreateWithPriority` | flags are currently ignored |
@@ -273,6 +275,7 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaEventRecordWithFlags` | Flags are currently ignored |
 |`pcudaEventSynchronize` | |
 |`pcudaGetDeviceProperties` | |
+|`pcudaDriverGetVersion` | Currently always returns 0 |
 
 ### Extensions
 

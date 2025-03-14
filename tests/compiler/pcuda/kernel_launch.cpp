@@ -14,7 +14,7 @@
 
 template<class T>
 __global__ void copy_kernel(T* in, T* out) {
-  int gid = threadIdx.x + blockIdx.x * gridDim.x;
+  int gid = threadIdx.x + blockIdx.x * blockDim.x;
 
   out[gid] = in[gid];
 }

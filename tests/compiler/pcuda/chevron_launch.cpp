@@ -11,7 +11,7 @@
 #include <pcuda.hpp>
 
 __global__ void kernel(int* in, int* out) {
-  int gid = threadIdx.x + blockIdx.x * gridDim.x;
+  int gid = threadIdx.x + blockIdx.x * blockDim.x;
 
   out[gid] = in[gid];
 }

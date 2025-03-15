@@ -267,8 +267,8 @@ Refer to the CUDA or HIP documentation for more information on these functions.
 |`pcudaStreamWaitEvent` | flags are currently ignored |
 |`pcudaMemcpy` | copy direction is ignored |
 |`pcudaMemcpyAsync` | copy direction is ignored |
-|`pcudaMemset` | copy direction is ignored |
-|`pcudaMemsetAsync` | copy direction is ignored |
+|`pcudaMemset` | |
+|`pcudaMemsetAsync` | |
 |`pcudaEventCreate` | |
 |`pcudaEventCreateWithFlags` | Flags are currently ignored |
 |`pcudaEventDestroy` | |

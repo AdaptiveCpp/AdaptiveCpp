@@ -136,6 +136,9 @@
 #define @ACPP_PCUDA_PREFIX@MemcpyDefault pcudaMemcpyDefault
 #define @ACPP_PCUDA_PREFIX@Memcpy pcudaMemcpy
 #define @ACPP_PCUDA_PREFIX@MemcpyAsync pcudaMemcpyAsync
+#define @ACPP_PCUDA_PREFIX@Memset pcudaMemset
+#define @ACPP_PCUDA_PREFIX@MemsetAsync pcudaMemsetAsync
+
 
 #define @ACPP_PCUDA_PREFIX@Event_t pcudaEvent_t
 #define @ACPP_PCUDA_PREFIX@EventCreate pcudaEventCreate

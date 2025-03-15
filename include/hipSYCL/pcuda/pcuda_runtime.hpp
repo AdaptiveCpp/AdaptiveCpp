@@ -240,6 +240,10 @@ ACPP_PCUDA_API pcudaError_t pcudaMemcpyAsync(void *dst, const void *src,
                                              size_t count, pcudaMemcpyKind kind,
                                              pcudaStream_t stream = 0);
 
+ACPP_PCUDA_API pcudaError_t pcudaMemset(void *ptr, int value, size_t count);
+
+ACPP_PCUDA_API pcudaError_t pcudaMemsetAsync(void *ptr, int value, size_t count,
+                                             pcudaStream_t stream = 0);
 // Event
 
 using pcudaEvent_t = hipsycl::rt::pcuda::event *;

@@ -167,4 +167,24 @@ BOOST_AUTO_TEST_CASE(MemcpyAsync) {
   BOOST_CHECK(pcudaFree(data2) == pcudaSuccess);
 }
 
+BOOST_AUTO_TEST_CASE(Memset) {
+  int* data;
+  int problem_size = 1024;
+  BOOST_CHECK(pcudaMallocManaged(&data, problem_size * sizeof(int)) ==
+              pcudaSuccess);
+  BOOST_CHECK(pcudaMemset(data, 42, problem_size * sizeof(int)) == pcudaSuccess);
+
+  char* char_data = reinterpret_cast<char*>(data);
+  for(int i = 0; i < problem_size * sizeof(int); ++i)
+    BOOST_CHECK(char_data[i] == 42);
+
+  BOOST_CHECK(pcudaMemsetAsync(data, 44, problem_size * sizeof(int), 0) ==
+              pcudaSuccess);
+  BOOST_CHECK(pcudaStreamSynchronize(0) == pcudaSuccess);
+  for(int i = 0; i < problem_size * sizeof(int); ++i)
+    BOOST_CHECK(char_data[i] == 44);
+
+  BOOST_CHECK(pcudaFree(data) == pcudaSuccess);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

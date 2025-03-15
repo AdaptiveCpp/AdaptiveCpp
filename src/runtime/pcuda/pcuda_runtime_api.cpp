@@ -728,6 +728,32 @@ ACPP_PCUDA_API pcudaError_t pcudaMemcpy(void *dst, const void *src,
   return pcudaStreamSynchronize(0);
 }
 
+ACPP_PCUDA_API pcudaError_t pcudaMemsetAsync(void *ptr, int value, size_t count,
+                                             pcudaStream_t stream) {
+  return_if_prior_error();
+
+  auto* queue = queue_or_default_queue(stream);
+  if(!queue)
+    return pcudaErrorNoDevice;
+
+  memset_operation op{ptr, static_cast<unsigned char>(value), count};
+  auto err = queue->submit_memset(op, nullptr);
+
+  if(!err.is_success()) {
+    register_pcuda_error(err, pcudaErrorUnknown);
+  }
+  return pcudaSuccess;
+}
+
+ACPP_PCUDA_API pcudaError_t pcudaMemset(void *ptr, int value, size_t count) {
+  return_if_prior_error();
+  auto err = pcudaMemsetAsync(ptr, value, count, 0);
+  if(err != pcudaSuccess)
+    return err;
+
+  return pcudaStreamSynchronize(0);
+}
+
 ACPP_PCUDA_API pcudaError_t pcudaEventCreate(pcudaEvent_t *event) {
   return pcudaEventCreateWithFlags(event, 0);
 }

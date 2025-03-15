@@ -61,10 +61,10 @@ constexpr inline int __pcuda_vec_alignment() {
   inline name make_##name(T x, T y, T z, T w) { return name{x, y, z, w}; }
 
 #define __PCUDA_DECLARE_VECTOR_TYPES(basetype, prefix)                         \
-  __PCUDA_DECLARE_VECTOR_T1(char, prefix##1)                                   \
-  __PCUDA_DECLARE_VECTOR_T2(char, prefix##2)                                   \
-  __PCUDA_DECLARE_VECTOR_T3(char, prefix##3)                                   \
-  __PCUDA_DECLARE_VECTOR_T4(char, prefix##4)
+  __PCUDA_DECLARE_VECTOR_T1(basetype, prefix##1)                               \
+  __PCUDA_DECLARE_VECTOR_T2(basetype, prefix##2)                               \
+  __PCUDA_DECLARE_VECTOR_T3(basetype, prefix##3)                               \
+  __PCUDA_DECLARE_VECTOR_T4(basetype, prefix##4)
 
 __PCUDA_DECLARE_VECTOR_TYPES(char, char)
 __PCUDA_DECLARE_VECTOR_TYPES(unsigned char, uchar)

@@ -23,13 +23,12 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_equal, enable_unified_shared_memory)
 
-template <class Policy, class Generator>
-void test_equal(Policy&& pol, std::size_t problem_size, Generator gen) {
-  std::vector<int> data(problem_size);
+template <class Policy, class Generator, class BinaryPred>
+void test_equal(Policy&& pol, std::size_t problem_size, Generator gen, BinaryPred p) {
+  std::vector<int> data(problem_size), data2(problem_size);
   for(int i = 0; i < problem_size; ++i)
     data[i] = gen(i);
-  
-  std::vector<int> data2(problem_size);
+
   for(int i = 0; i < problem_size; ++i)
     data2[i] = gen(i);
 
@@ -39,31 +38,42 @@ void test_equal(Policy&& pol, std::size_t problem_size, Generator gen) {
       std::equal(data.begin(), data.end(), data2.begin());
 
   BOOST_CHECK(ret == ret_host);
-  std::cout << "\n testing...\n";
-  std::cout << ret << "\n" << ret_host;
+
+  for(int i = 0; i < problem_size; ++i)
+    data[i] = gen(i);
+
+  for(int i = 0; i < problem_size; ++i)
+    data2[i] = gen(i) * 2;
+
+  auto ret1 =
+      std::equal(pol, data.begin(), data.end(), data2.begin(), p);
+  auto ret1_host =
+      std::equal(data.begin(), data.end(), data2.begin(), p);
+
+  BOOST_CHECK(ret1 == ret1_host);
+  std::cout << "\n testing 1st overload...\n";
+  std::cout << ret1 << "\n" << ret1_host;
   std::cout << "\n end.\n";
 }
 
 
 template<class Policy>
 void empty_tests(Policy&& pol) {
-  test_equal(pol, 0, [](int i){return i;});
+  test_equal(pol, 0, [](int i){return i;},[](int x, int y){return x == y;});
 }
 
 template<class Policy>
 void single_element_tests(Policy&& pol) {
-  test_equal(pol, 1, [](int i){return i;});
-  test_equal(pol, 1, [](int i){return i;});
-  test_equal(pol, 1, [](int i){return i;});
-  test_equal(pol, 1, [](int i){return i;});
+  test_equal(pol, 1, [](int i){return i;},[](int x, int y){return x == y / 2;});
+  test_equal(pol, 1, [](int i){return i;},[](int x, int y){return x < y;});
+  test_equal(pol, 1, [](int i){return i;},[](int x, int y){return x <= y;});
 }
 
 template<class Policy>
 void medium_size_tests(Policy&& pol) {
-  test_equal(pol, 1000, [](int i){return i;});
-  test_equal(pol, 1000, [](int i){return i;});
-  test_equal(pol, 1000, [](int i){return i;});
-  test_equal(pol, 1000, [](int i){return i;});
+  test_equal(pol, 1000, [](int i){return i;},[](int x, int y){return x == y / 2;});
+  test_equal(pol, 1000, [](int i){return i;},[](int x, int y){return x < y;});
+  test_equal(pol, 1000, [](int i){return i;},[](int x, int y){return x <= y;});
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty) {

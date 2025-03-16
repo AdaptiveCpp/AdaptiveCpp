@@ -628,6 +628,28 @@ sycl::event equal(sycl::queue &q,
   });
 }
 
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+sycl::event equal(sycl::queue &q,
+                   ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                   BinaryPred p, detail::early_exit_flag_t* out,
+                   const std::vector<sycl::event>& deps = {}) {
+  std::size_t problem_size = std::distance(first1, last1);
+  if(problem_size == 0)
+    return sycl::event{};
+  auto evt = detail ::early_exit_for_each(q, problem_size, out,
+                                          [=](sycl::id<1> idx) -> bool {
+                                            auto it1 = first1;
+                                            auto it2 = first2;
+                                            std::advance(it1, idx[0]);
+                                            std::advance(it2, idx[0]);
+                                            return !p(*it1, *it2);
+                                          }, deps);
+  // use memcmp to short-circuit sequential implementation
+  return q.single_task(evt, [=](){
+    *out = static_cast<detail::early_exit_flag_t>(!(*out));
+  });
+}
+
 template <class RandomIt, class Compare>
 sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
                  Compare comp = std::less<>{},

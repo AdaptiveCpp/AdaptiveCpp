@@ -301,6 +301,16 @@ sycl::event equal(sycl::queue &q,
                    BinaryPred p, int* out,
                    const std::vector<sycl::event>& deps = {});
 
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt1, class ForwardIt2>
+sycl::event equal(sycl::queue &q,
+                   ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                   ForwardIt2 last2, int* out,
+                   const std::vector<sycl::event>& deps = {});
+
 template <class RandomIt, class Compare>
 sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
                  Compare comp = std::less<>{},

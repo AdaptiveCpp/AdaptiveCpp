@@ -25,34 +25,42 @@ BOOST_FIXTURE_TEST_SUITE(pstl_equal, enable_unified_shared_memory)
 
 template <class Policy, class Generator, class BinaryPred>
 void test_equal(Policy&& pol, std::size_t problem_size, Generator gen, BinaryPred p) {
-  std::vector<int> data(problem_size), data2(problem_size);
+  // std::equal (1)
+  std::vector<int> data(problem_size), data1(problem_size);
   for(int i = 0; i < problem_size; ++i)
     data[i] = gen(i);
 
   for(int i = 0; i < problem_size; ++i)
-    data2[i] = gen(i);
+    data1[i] = gen(i);
 
-  auto ret =
-      std::equal(pol, data.begin(), data.end(), data2.begin());
-  auto ret_host =
-      std::equal(data.begin(), data.end(), data2.begin());
+  auto ret = std::equal(pol, data.begin(), data.end(), data1.begin());
+  auto ret_host = std::equal(data.begin(), data.end(), data1.begin());
 
   BOOST_CHECK(ret == ret_host);
 
-  for(int i = 0; i < problem_size; ++i)
-    data[i] = gen(i);
-
+  // std::equal (3)
+  std::vector<int> data2(problem_size);
   for(int i = 0; i < problem_size; ++i)
     data2[i] = gen(i) * 2;
 
-  auto ret1 =
-      std::equal(pol, data.begin(), data.end(), data2.begin(), p);
-  auto ret1_host =
-      std::equal(data.begin(), data.end(), data2.begin(), p);
+  ret = std::equal(pol, data.begin(), data.end(), data2.begin(), p);
+  ret_host = std::equal(data.begin(), data.end(), data2.begin(), p);
 
-  BOOST_CHECK(ret1 == ret1_host);
-  std::cout << "\n testing 1st overload...\n";
-  std::cout << ret1 << "\n" << ret1_host;
+  BOOST_CHECK(ret == ret_host);
+
+  // std::equal (5)
+  ret = std::equal(pol, data.begin(), data.end(), data1.begin(), data1.end());
+  ret_host = std::equal(data.begin(), data.end(), data1.begin(), data1.end());
+
+  for(int i = problem_size;  i < problem_size * 2; ++i)
+    data1.push_back(gen(i));
+
+  ret = std::equal(pol, data.begin(), data.end(), data1.begin(), data1.end());
+  ret_host = std::equal(data.begin(), data.end(), data1.begin(), data1.end());
+
+  BOOST_CHECK(ret == ret_host);
+  std::cout << "\n testing 2nd overload...\n" << "Problem size: " << data1.size() << "\n";
+  std::cout << ret << ", host: " << ret_host;
   std::cout << "\n end.\n";
 }
 

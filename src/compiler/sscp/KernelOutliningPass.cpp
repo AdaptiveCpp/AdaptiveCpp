@@ -197,7 +197,7 @@ private:
 // This function attempts to fix those issues. In particular, if there is a struct argument,
 // it tries to canonicalize it such that it has the ByVal attribute. This is expected
 // by the AggregateArgumentExpansionPass later on.
-void canonicalizeKernelParameters(llvm::Function* F, llvm::Module& M) {
+void canonicalizeLambdaKernelParameters(llvm::Function* F, llvm::Module& M) {
   // If we have a different number of parameters than 1, we can assume
   // that clang has pre-expanded the struct for us to raw primitive types or data pointers. In that
   // case, there is nothing to do because those types can be used directly inside kernels.
@@ -255,6 +255,110 @@ void canonicalizeKernelParameters(llvm::Function* F, llvm::Module& M) {
   }
 }
 
+
+llvm::Type* estimateFreeKernelPtrTypeFromValue(llvm::Value* V) {
+  if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(V)) {
+    return AI->getAllocatedType();
+  }
+  else if(auto* GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V)){
+    return GEP->getResultElementType();
+  } else if(auto* LI = llvm::dyn_cast<llvm::LoadInst>(V)) {
+    return LI->getType();
+  } else if(auto* GV = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
+    // When GV pointer is passed in - does this really mean
+    // that the user intended to pass the GV by value?
+    // As long as we don't support device globals, the answer is probably yes?
+    return GV->getValueType();
+  }
+  // TODO Are there cases where we need to investigate recursively
+  // backwards through the use-def chain?
+  return nullptr;
+}
+
+llvm::SmallVector<llvm::Type*> getCanonicalizedFreeKernelParamTypes(llvm::Function* F, llvm::Module& M) {
+  llvm::SmallDenseMap<int, llvm::SmallPtrSet<llvm::Type*, 4>> PtrTypeCandidates;
+  llvm::SmallSet<int, 16> UnclearPtrParams;
+  llvm::SmallVector<llvm::Type*> Result(F->getFunctionType()->getNumParams());
+
+  for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+    auto* ArgTy = F->getArg(i)->getType();
+    if(ArgTy->isPointerTy()) {
+      if(F->hasParamAttribute(i, llvm::Attribute::ByRef)) {
+        Result[i] = F->getParamByRefType(i);
+      } else if(F->hasParamAttribute(i, llvm::Attribute::ByVal)) {
+        Result[i] = F->getParamByValType(i);
+      } else {
+        UnclearPtrParams.insert(i);
+        Result[i] = ArgTy;
+      }
+    } else {
+      Result[i] = ArgTy;
+    }
+  }
+
+  for(auto* U : F->users()) {
+    if(auto* CB = llvm::dyn_cast<llvm::CallBase>(U)) {
+      if(CB->getCalledFunction() == F) {
+        for(auto i : UnclearPtrParams) {
+          auto* Arg = CB->getArgOperand(i);
+
+          auto* T = estimateFreeKernelPtrTypeFromValue(Arg);
+          if(T && T->isAggregateType()) {
+            PtrTypeCandidates[i].insert(T);
+          }
+        }
+      }
+    }
+  }
+
+  for(auto i : UnclearPtrParams) {
+    llvm::Type* MaxSizeT = nullptr;
+    std::size_t MaxSize = 0;
+    for(auto* T : PtrTypeCandidates[i]) {
+      std::size_t Size = M.getDataLayout().getTypeSizeInBits(T);
+      if(Size > MaxSize) {
+        MaxSize = Size;
+        MaxSizeT = T;
+      }
+    }
+    if(MaxSizeT) {
+      Result[i] = MaxSizeT;
+    }
+  }
+
+  return Result;
+}
+
+// Canonicalize free kernels. This is slightly different, since here
+// we need to look at callsites of kernels.
+void canonicalizeFreeKernelParameters(llvm::Function* F, llvm::Module& M) {
+  auto KernelArgTypes = getCanonicalizedFreeKernelParamTypes(F, M);
+
+  for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+    assert(i < KernelArgTypes.size());
+    llvm::Type* DeducedType = KernelArgTypes[i];
+    if (F->getArg(i)->getType() != KernelArgTypes[i] && F->getArg(i)->getType()->isPointerTy()) {
+      if(F->hasParamAttribute(i, llvm::Attribute::ByVal))
+        F->removeParamAttr(i, llvm::Attribute::ByVal);
+      if(F->hasParamAttribute(i, llvm::Attribute::ByRef))
+        F->removeParamAttr(i, llvm::Attribute::ByRef);
+      if(DeducedType->isAggregateType())
+        F->addParamAttr(i, llvm::Attribute::getWithByValType(M.getContext(), DeducedType));
+    }
+  }
+}
+
+void attachKernelDim(llvm::Module &M, llvm::Function *F, llvm::Constant *DimVal) {
+
+  llvm::SmallVector<llvm::Metadata *, 4> Operands;
+  Operands.push_back(llvm::ValueAsMetadata::get(F));
+  Operands.push_back(llvm::MDString::get(M.getContext(), SscpKernelDimensionName));
+  Operands.push_back(llvm::ValueAsMetadata::getConstant(DimVal));
+
+  M.getOrInsertNamedMetadata(SscpAnnotationsName)
+      ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+}
+
 }
 
 EntrypointPreparationPass::EntrypointPreparationPass(bool ExportByDefault)
@@ -267,7 +371,7 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
   static constexpr const char* SSCPOutliningMarker = "hipsycl_sscp_outlining";
 
   llvm::SmallSet<std::string, 16> Kernels;
-
+  
 
   llvm::DenseSet<llvm::Function*> MarkedFunctions;
   auto MarkThisFunctionForOutlining = [&](llvm::Function* F) {
@@ -286,6 +390,7 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
     }
   };
 
+  llvm::SmallPtrSet<llvm::Function*, 16> KernelFunctionsWithDimAnnotations;
   utils::findFunctionsWithStringAnnotationsWithArg(M, [&](llvm::Function* F, llvm::StringRef Annotation, llvm::Constant* Argument){
     if(F) {
       if(Annotation.compare(SscpKernelDimensionName) == 0){
@@ -294,19 +399,12 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
         for (auto &U : F->uses()) {
           if (auto *CI = llvm::dyn_cast<llvm::CallInst>(U.getUser())) {
             if (CI->getCalledFunction() == F) {
-
               auto DimVal = llvm::cast<llvm::Constant>(Argument->getOperand(0));
               if (DimVal->getNumOperands() > 0) {
                 DimVal = llvm::cast<llvm::Constant>(DimVal->getOperand(0));
               }
-
-              llvm::SmallVector<llvm::Metadata *, 4> Operands;
-              Operands.push_back(llvm::ValueAsMetadata::get(CI->getFunction()));
-              Operands.push_back(llvm::MDString::get(M.getContext(), SscpKernelDimensionName));
-              Operands.push_back(llvm::ValueAsMetadata::getConstant(DimVal));
-
-              M.getOrInsertNamedMetadata(SscpAnnotationsName)
-                  ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+              attachKernelDim(M, CI->getFunction(), DimVal);
+              KernelFunctionsWithDimAnnotations.insert(CI->getFunction());
             }
           }
         }
@@ -322,6 +420,17 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
       }
     }
   });
+  for(auto KernelName : Kernels) {
+    if(auto* F = M.getFunction(KernelName)) {
+      if(!KernelFunctionsWithDimAnnotations.contains(F)) {
+        // Kernels without dim annotations (e.g. free kernel calls)
+        // need to default to dim = 3
+        attachKernelDim(
+            M, F,
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), llvm::APInt(32, 3)));
+      }
+    }
+  }
 
   if(ExportAll) {
     for(auto& F: M) {
@@ -434,12 +543,43 @@ KernelArgumentCanonicalizationPass::KernelArgumentCanonicalizationPass(
 
 llvm::PreservedAnalyses KernelArgumentCanonicalizationPass::run(llvm::Module &M,
                                                                 llvm::ModuleAnalysisManager &AM) {
+  llvm::SmallPtrSet<llvm::Function*, 16> FreeKernels;
+  utils::findFunctionsWithStringAnnotations(M, [&](llvm::Function *F, llvm::StringRef Annotation) {
+    if (F) {
+      if (Annotation.compare("acpp_free_kernel") == 0) {
+        FreeKernels.insert(F);
+      }
+    }
+  });
   for (const auto &K : KernelNames) {
     if (auto *F = M.getFunction(K)) {
-      canonicalizeKernelParameters(F, M);
+      if(FreeKernels.contains(F))
+        canonicalizeFreeKernelParameters(F, M);
+      else
+        canonicalizeLambdaKernelParameters(F, M);
     }
   }
   return llvm::PreservedAnalyses::none();
+}
+
+llvm::SmallVector<bool>
+KernelArgumentCanonicalizationPass::areFreeKernelFunctionParamsByValue(llvm::Function *FreeKernel) {
+  if(!FreeKernel)
+    return llvm::SmallVector<bool> {};
+
+  llvm::SmallVector<bool> Result;
+  llvm::SmallVector<llvm::Type *> DeducedTypes =
+      getCanonicalizedFreeKernelParamTypes(FreeKernel, *FreeKernel->getParent());
+  
+  for(int i = 0; i < DeducedTypes.size(); ++i) {
+    if(!FreeKernel->getArg(i)->getType()->isPointerTy())
+      Result.push_back(true);
+    else {
+      Result.push_back(FreeKernel->getArg(i)->getType() != DeducedTypes[i]);
+    }
+  }
+
+  return Result;
 }
 }
 }

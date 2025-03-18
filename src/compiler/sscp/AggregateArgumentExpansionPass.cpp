@@ -134,6 +134,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
     } else {
       auto* ArgT = F.getFunctionType()->getParamType(i);
       Info.OriginalByValType = ArgT;
+      Info.TypeAnnotations.push_back(llvm::SmallVector<std::string>{});
     }
 
     ExpansionInfo[i] = Info;

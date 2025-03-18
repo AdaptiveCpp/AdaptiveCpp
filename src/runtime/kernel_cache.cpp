@@ -139,11 +139,27 @@ hcf_kernel_info::hcf_kernel_info(
     }
   }
 
+  if(auto* hsps_node = kernel_node->get_subnode("host-side-parameter-sizes")) {
+    std::size_t num_entries = hsps_node->key_value_pairs.size();
+    for(int i = 0; i < num_entries; ++i) {
+      const std::string *s = hsps_node->get_value(std::to_string(i));
+      if(!s)
+        return;
+      
+      _host_side_parameter_sizes.push_back(std::stoll(*s));
+    }
+  }
+
   _parsing_successful = true;
 }
 
 std::size_t hcf_kernel_info::get_num_parameters() const {
   return _arg_sizes.size();
+}
+
+const std::vector<std::size_t> &
+hcf_kernel_info::get_host_side_parameter_sizes() const {
+  return _host_side_parameter_sizes;
 }
 
 bool hcf_kernel_info::is_valid() const {

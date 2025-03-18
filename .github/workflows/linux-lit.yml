@@ -95,7 +95,7 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   sscp:
-    name: SSCP/Reflection/stdpar, clang ${{ matrix.docker.clang }}, ${{ matrix.docker.os }}
+    name: SSCP/Reflection/stdpar/pcuda, clang ${{ matrix.docker.clang }}, ${{ matrix.docker.os }}
     needs: prep-container
     runs-on: ${{ matrix.docker.os }}
     strategy:
@@ -146,6 +146,12 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-stdpar
           cmake -GNinja -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
           ACPP_VISIBILITY_MASK=ocl LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-stdpar
+      - name: run PCUDA LIT tests (OpenCL)
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-pcuda
+          cd ${GITHUB_WORKSPACE}/build/tests-pcuda
+          cmake -GNinja -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          ACPP_VISIBILITY_MASK=ocl LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-pcuda
       - name: run SSCP LIT tests (OpenMP)
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-sscp  
@@ -158,3 +164,7 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-stdpar
           ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-stdpar
+      - name: run PCUDA LIT tests (OpenMP)
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-pcuda
+          ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ninja check-pcuda

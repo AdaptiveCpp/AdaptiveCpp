@@ -64,12 +64,11 @@ public:
   ocl_hardware_manager* get_hardware_manager() const;
 
   result submit_sscp_kernel_from_code_object(
-      const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string_view kernel_name,
+      hcf_object_id hcf_object, const std::string_view kernel_name,
       const rt::hcf_kernel_info *kernel_info, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const kernel_configuration &config);
+      const kernel_configuration &config) override;
 
 private:
   void register_submitted_op(cl::Event);

@@ -50,7 +50,10 @@ if(WITH_SSCP_COMPILER)
     sscp/HostKernelNameExtractionPass.cpp
     sscp/AggregateArgumentExpansionPass.cpp
     sscp/StdBuiltinRemapperPass.cpp
-    sscp/StdAtomicRemapperPass.cpp)
+    sscp/StdAtomicRemapperPass.cpp
+    sscp/pcuda/FreeKernelCall.cpp
+    sscp/pcuda/StaticLocalMemoryPass.cpp
+    sscp/pcuda/ExternDynamicLocalMemoryPass.cpp)
   add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)
 else()
   set(SSCP_COMPILER "")

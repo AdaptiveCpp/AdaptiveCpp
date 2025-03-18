@@ -1,0 +1,171 @@
+
+/*
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
+ *
+ * Copyright The AdaptiveCpp Contributors
+ *
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
+ */
+// SPDX-License-Identifier: BSD-2-Clause
+
+#ifndef ACPP_PCUDA_@ACPP_PCUDA_CAPITAL_PREFIX@_PREFIXED_RUNTIME_HPP
+#define ACPP_PCUDA_@ACPP_PCUDA_CAPITAL_PREFIX@_PREFIXED_RUNTIME_HPP
+
+#include "../pcuda.hpp"
+
+#define @ACPP_PCUDA_CAPITAL_PREFIX@_KERNEL_NAME(...) PCUDA_KERNEL_NAME(__VA_ARGS__)
+#define @ACPP_PCUDA_CAPITAL_PREFIX@_SYMBOL(...) PCUDA_SYMBOL(__VA_ARGS__)
+#define @ACPP_PCUDA_PREFIX@LaunchKernelGGL(...) pcudaLaunchKernelGGL(__VA_ARGS__)
+
+#define @ACPP_PCUDA_PREFIX@Malloc pcudaMalloc
+
+#define @ACPP_PCUDA_PREFIX@Success pcudaSuccess
+#define @ACPP_PCUDA_PREFIX@ErrorMissingConfiguration pcudaErrorMissingConfiguration
+#define @ACPP_PCUDA_PREFIX@ErrorMemoryAllocation pcudaErrorMemoryAllocation
+#define @ACPP_PCUDA_PREFIX@ErrorInitializationError pcudaErrorInitializationError
+#define @ACPP_PCUDA_PREFIX@ErrorLaunchFailure pcudaErrorLaunchFailure
+#define @ACPP_PCUDA_PREFIX@ErrorPriorLaunchFailure pcudaErrorPriorLaunchFailure
+#define @ACPP_PCUDA_PREFIX@ErrorLaunchTimeout pcudaErrorLaunchTimeout
+#define @ACPP_PCUDA_PREFIX@ErrorLaunchOutOfResources pcudaErrorLaunchOutOfResources
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidDeviceFunction pcudaErrorInvalidDeviceFunction
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidConfiguration pcudaErrorInvalidConfiguration
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidDevice pcudaErrorInvalidDevice
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidValue pcudaErrorInvalidValue
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidPitchValue pcudaErrorInvalidPitchValue
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidSymbol pcudaErrorInvalidSymbol
+#define @ACPP_PCUDA_PREFIX@ErrorMapBufferObjectFailed pcudaErrorMapBufferObjectFailed
+#define @ACPP_PCUDA_PREFIX@ErrorUnmapBufferObjectFailed pcudaErrorUnmapBufferObjectFailed
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidHostPointer pcudaErrorInvalidHostPointer
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidDevicePointer pcudaErrorInvalidDevicePointer
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidTexture pcudaErrorInvalidTexture
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidTextureBinding pcudaErrorInvalidTextureBinding
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidChannelDescriptor pcudaErrorInvalidChannelDescriptor
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidMemcpyDirection pcudaErrorInvalidMemcpyDirection
+#define @ACPP_PCUDA_PREFIX@ErrorAddressOfConstant pcudaErrorAddressOfConstant
+#define @ACPP_PCUDA_PREFIX@ErrorTextureFetchFailed pcudaErrorTextureFetchFailed
+#define @ACPP_PCUDA_PREFIX@ErrorTextureNotBound pcudaErrorTextureNotBound
+#define @ACPP_PCUDA_PREFIX@ErrorSynchronizationError pcudaErrorSynchronizationError
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidFilterSetting pcudaErrorInvalidFilterSetting
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidNormSetting pcudaErrorInvalidNormSetting
+#define @ACPP_PCUDA_PREFIX@ErrorMixedDeviceExecution pcudaErrorMixedDeviceExecution
+#define @ACPP_PCUDA_PREFIX@ErrorCudartUnloading pcudaErrorCudartUnloading
+#define @ACPP_PCUDA_PREFIX@ErrorUnknown pcudaErrorUnknown
+#define @ACPP_PCUDA_PREFIX@ErrorNotYetImplemented pcudaErrorNotYetImplemented
+#define @ACPP_PCUDA_PREFIX@ErrorMemoryValueTooLarge pcudaErrorMemoryValueTooLarge
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidResourceHandle pcudaErrorInvalidResourceHandle
+#define @ACPP_PCUDA_PREFIX@ErrorNotReady pcudaErrorNotReady
+#define @ACPP_PCUDA_PREFIX@ErrorInsufficientDriver pcudaErrorInsufficientDriver
+#define @ACPP_PCUDA_PREFIX@ErrorSetOnActiveProcess pcudaErrorSetOnActiveProcess
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidSurface pcudaErrorInvalidSurface
+#define @ACPP_PCUDA_PREFIX@ErrorNoDevice pcudaErrorNoDevice
+#define @ACPP_PCUDA_PREFIX@ErrorECCUncorrectable pcudaErrorECCUncorrectable
+#define @ACPP_PCUDA_PREFIX@ErrorSharedObjectSymbolNotFound pcudaErrorSharedObjectSymbolNotFound
+#define @ACPP_PCUDA_PREFIX@ErrorSharedObjectInitFailed pcudaErrorSharedObjectInitFailed
+#define @ACPP_PCUDA_PREFIX@ErrorUnsupportedLimit pcudaErrorUnsupportedLimit
+#define @ACPP_PCUDA_PREFIX@ErrorDuplicateVariableName pcudaErrorDuplicateVariableName
+#define @ACPP_PCUDA_PREFIX@ErrorDuplicateTextureName pcudaErrorDuplicateTextureName
+#define @ACPP_PCUDA_PREFIX@ErrorDuplicateSurfaceName pcudaErrorDuplicateSurfaceName
+#define @ACPP_PCUDA_PREFIX@ErrorDevicesUnavailable pcudaErrorDevicesUnavailable
+#define @ACPP_PCUDA_PREFIX@ErrorInvalidKernelImage pcudaErrorInvalidKernelImage
+#define @ACPP_PCUDA_PREFIX@ErrorNoKernelImageForDevice pcudaErrorNoKernelImageForDevice
+#define @ACPP_PCUDA_PREFIX@ErrorIncompatibleDriverContext pcudaErrorIncompatibleDriverContext
+#define @ACPP_PCUDA_PREFIX@ErrorPeerAccessAlreadyEnabled pcudaErrorPeerAccessAlreadyEnabled
+#define @ACPP_PCUDA_PREFIX@ErrorPeerAccessNotEnabled pcudaErrorPeerAccessNotEnabled
+#define @ACPP_PCUDA_PREFIX@ErrorDeviceAlreadyInUse pcudaErrorDeviceAlreadyInUse
+#define @ACPP_PCUDA_PREFIX@ErrorProfilerDisabled pcudaErrorProfilerDisabled
+#define @ACPP_PCUDA_PREFIX@ErrorProfilerNotInitialized pcudaErrorProfilerNotInitialized
+#define @ACPP_PCUDA_PREFIX@ErrorProfilerAlreadyStarted pcudaErrorProfilerAlreadyStarted
+#define @ACPP_PCUDA_PREFIX@ErrorProfilerAlreadyStopped pcudaErrorProfilerAlreadyStopped
+#define @ACPP_PCUDA_PREFIX@ErrorStartupFailure pcudaErrorStartupFailure
+#define @ACPP_PCUDA_PREFIX@ErrorApiFailureBase pcudaErrorApiFailureBase
+
+#define @ACPP_PCUDA_PREFIX@Error pcudaError
+#define @ACPP_PCUDA_PREFIX@Error_t pcudaError_t
+#define @ACPP_PCUDA_PREFIX@Stream_t pcudaStream_t
+
+#define @ACPP_PCUDA_PREFIX@DriverGetVersion pcudaDriverGetVersion
+
+#define @ACPP_PCUDA_PREFIX@GetDeviceCount pcudaGetDeviceCount
+#define @ACPP_PCUDA_PREFIX@GetDevice pcudaGetDevice
+#define @ACPP_PCUDA_PREFIX@SetDevice pcudaSetDevice
+
+// Getters/setters for platforms are pcuda extensions and therefore not aliased
+
+#define @ACPP_PCUDA_PREFIX@GetLastError pcudaGetLastError
+#define @ACPP_PCUDA_PREFIX@PeekAtLastError pcudaPeekAtLastError
+#define @ACPP_PCUDA_PREFIX@GetErrorName pcudaGetErrorName
+#define @ACPP_PCUDA_PREFIX@GetErrorString pcudaGetErrorString
+
+#define @ACPP_PCUDA_PREFIX@DeviceSynchronize pcudaDeviceSynchronize
+#define @ACPP_PCUDA_PREFIX@ThreadSynchronize pcudaThreadSynchronize
+
+#define @ACPP_PCUDA_PREFIX@Malloc pcudaMalloc
+#define @ACPP_PCUDA_PREFIX@MallocHost pcudaMallocHost
+#define @ACPP_PCUDA_PREFIX@HostAlloc pcudaHostAlloc
+
+#define @ACPP_PCUDA_PREFIX@HostAllocDefault pcudaHostAllocDefault
+#define @ACPP_PCUDA_PREFIX@HostAllocMapped pcudaHostAllocMapped
+#define @ACPP_PCUDA_PREFIX@HostAllocPortable pcudaHostAllocPortable
+#define @ACPP_PCUDA_PREFIX@HostAllocWriteCombined pcudaHostAllocWriteCombined
+
+#define @ACPP_PCUDA_PREFIX@MemAttachGlobal pcudaMemAttachGlobal
+#define @ACPP_PCUDA_PREFIX@MemAttachHost pcudaMemAttachHost
+#define @ACPP_PCUDA_PREFIX@MemAttachHost pcudaMemAttachSingle
+#define @ACPP_PCUDA_PREFIX@MallocManaged pcudaMallocManaged
+
+#define @ACPP_PCUDA_PREFIX@Free pcudaFree
+#define @ACPP_PCUDA_PREFIX@FreeHost pcudaFreeHost
+
+#define @ACPP_PCUDA_PREFIX@StreamDefault pcudaStreamDefault
+#define @ACPP_PCUDA_PREFIX@StreamNonBlocking pcudaStreamNonBlocking
+
+#define @ACPP_PCUDA_PREFIX@StreamCreate pcudaStreamCreate
+#define @ACPP_PCUDA_PREFIX@StreamCreateWithFlags pcudaStreamCreateWithFlags
+#define @ACPP_PCUDA_PREFIX@StreamCreateWithPriority pcudaStreamCreateWithPriority
+#define @ACPP_PCUDA_PREFIX@StreamDestroy pcudaStreamDestroy
+#define @ACPP_PCUDA_PREFIX@StreamSynchronize pcudaStreamSynchronize
+#define @ACPP_PCUDA_PREFIX@StreamWaitEvent pcudaStreamWaitEvent
+
+#define @ACPP_PCUDA_PREFIX@MemcpyKind pcudaMemcpyKind
+#define @ACPP_PCUDA_PREFIX@MemcpyHostToHost pcudaMemcpyHostToHost
+#define @ACPP_PCUDA_PREFIX@MemcpyHostToDevice pcudaMemcpyHostToDevice
+#define @ACPP_PCUDA_PREFIX@MemcpyDeviceToHost pcudaMemcpyDeviceToHost
+#define @ACPP_PCUDA_PREFIX@MemcpyDeviceToDevice pcudaMemcpyDeviceToDevice
+#define @ACPP_PCUDA_PREFIX@MemcpyDefault pcudaMemcpyDefault
+#define @ACPP_PCUDA_PREFIX@Memcpy pcudaMemcpy
+#define @ACPP_PCUDA_PREFIX@MemcpyAsync pcudaMemcpyAsync
+#define @ACPP_PCUDA_PREFIX@Memset pcudaMemset
+#define @ACPP_PCUDA_PREFIX@MemsetAsync pcudaMemsetAsync
+
+
+#define @ACPP_PCUDA_PREFIX@Event_t pcudaEvent_t
+#define @ACPP_PCUDA_PREFIX@EventCreate pcudaEventCreate
+#define @ACPP_PCUDA_PREFIX@EventCreateWithFlags pcudaEventCreateWithFlags
+#define @ACPP_PCUDA_PREFIX@EventBlockingSync pcudaEventBlockingSync
+#define @ACPP_PCUDA_PREFIX@EventDefault pcudaEventDefault
+#define @ACPP_PCUDA_PREFIX@EventDisableTiming pcudaEventDisableTiming
+#define @ACPP_PCUDA_PREFIX@EventInterprocess pcudaEventInterprocess
+#define @ACPP_PCUDA_PREFIX@EventRecordDefault pcudaEventRecordDefault
+#define @ACPP_PCUDA_PREFIX@EventRecordExternal pcudaEventRecordExternal
+#define @ACPP_PCUDA_PREFIX@EventWaitDefault pcudaEventWaitDefault
+#define @ACPP_PCUDA_PREFIX@EventWaitExternal pcudaEventWaitExternal
+
+#define @ACPP_PCUDA_PREFIX@EventDestroy pcudaEventDestroy
+#define @ACPP_PCUDA_PREFIX@EventQuery pcudaEventQuery
+#define @ACPP_PCUDA_PREFIX@EventRecord pcudaEventRecord
+#define @ACPP_PCUDA_PREFIX@EventRecordWithFlags pcudaEventRecordWithFlags
+#define @ACPP_PCUDA_PREFIX@EventSynchronize pcudaEventSynchronize
+
+#define @ACPP_PCUDA_PREFIX@ComputeMode pcudaComputeMode
+#define @ACPP_PCUDA_PREFIX@ComputeModeDefault pcudaComputeModeDefault
+#define @ACPP_PCUDA_PREFIX@ComputeModeExclusive pcudaComputeModeExclusive
+#define @ACPP_PCUDA_PREFIX@ComputeModeProhibited pcudaComputeModeProhibited
+#define @ACPP_PCUDA_PREFIX@ComputeModeExclusiveProcess pcudaComputeModeExclusiveProcess
+
+#define @ACPP_PCUDA_PREFIX@DeviceProp pcudaDeviceProp
+#define @ACPP_PCUDA_PREFIX@GetDeviceProperties pcudaGetDeviceProperties
+
+
+#endif

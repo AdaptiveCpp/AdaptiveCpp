@@ -173,4 +173,20 @@ if(WITH_PSTL_TESTS)
   add_sycl_to_target(TARGET pstl_tests)
 endif()
 
+# PCUDA only works with --acpp-targets=generic, so it needs to be optional
+if(WITH_PCUDA_TESTS)
+  add_executable(pcuda_tests 
+    pcuda/pcuda_test_suite.cpp
+    pcuda/device_query.cpp
+    pcuda/memory.cpp
+    pcuda/stream.cpp
+    pcuda/event.cpp
+  )
+
+  target_compile_options(pcuda_tests PRIVATE --acpp-pcuda)
+  target_include_directories(pcuda_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
+  target_link_libraries(pcuda_tests PRIVATE Threads::Threads)
+  add_sycl_to_target(TARGET pcuda_tests)
+endif()
+
 add_subdirectory(compiler)

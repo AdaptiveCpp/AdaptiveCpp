@@ -132,7 +132,18 @@ public:
     
 
     llvm::SmallVector<std::string> Invocation;
+    // Newer ROCm versions don't handle --cuda-gpu-arch well,
+    // while older versions don't handle --offload-arch well.
+    // We do not have a good way to check the ROCm version
+    // in llvm-to-amdgpu currently, *but* we can exploit
+    // that the AdaptiveCpp LLVM version must be <= ROCm LLVM version.
+    // So, by checking for a minimum LLVM version, we also
+    // implicitly check for a minimum ROCm version.
+#if LLVM_VERSION_MAJOR >= 18
+    auto OffloadArchFlag = "--offload-arch="+TargetDevice;
+#else
     auto OffloadArchFlag = "--cuda-gpu-arch="+TargetDevice;
+#endif
     auto RocmPathFlag = "--rocm-path="+std::string{RocmPath};
     auto RocmDeviceLibsFlag = "--rocm-device-lib-path="+DeviceLibsPath;
 

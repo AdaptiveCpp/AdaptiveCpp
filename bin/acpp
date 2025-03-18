@@ -369,7 +369,13 @@ class acpp_config:
   algorithms will be offloaded unconditionally."""),
       'is-export-all' : option("--acpp-export-all", "ACPP_EXPORT_ALL", "default-export-all",
 """  (Experimental) Treat all functions implicitly as SYCL_EXTERNAL. Only supported with generic target.
-  This currently only works with translation units that include the sycl.hpp header.""")
+  This currently only works with translation units that include the sycl.hpp header."""),
+      'pcuda' : option("--acpp-pcuda", "ACPP_PCUDA", "default-pcuda",
+"""  Enable AdaptiveCpp portable CUDA (PCUDA) support as input language.
+  This is *exclusively* supported with --acpp-targets=generic."""),
+      'pcuda-chevron-launch' : option("--acpp-pcuda-chevron-launch", "ACPP_PCUDA_CHEVRON_LAUNCH", "default-pcuda-chevron-launch",
+"""  Enable AdaptiveCpp portable CUDA (PCUDA) support for triple-chevron kernel launch syntax.
+  Note: This is only meant for convenience, and only supported on a best-effort basis!""")
     }
 
 
@@ -745,6 +751,10 @@ class acpp_config:
     return os.path.join(acpp_path, "..")
 
   @property
+  def acpp_binary_path(self):
+    return os.path.dirname(os.path.realpath(__file__))
+
+  @property
   def acpp_plugin_path(self):
     if sys.platform.startswith('win32'):
       return os.path.join(self.acpp_installation_path, "bin", "acpp-clang.dll")
@@ -854,6 +864,21 @@ class acpp_config:
   @property
   def stdpar_prefetch_mode(self):
     return self._retrieve_option("stdpar-prefetch-mode")
+
+  @property
+  def is_pcuda(self):
+    try:
+      return self._is_flag_set("pcuda")
+    except OptionNotSet:
+      return False
+
+  @property
+  def is_pcuda_chevron_launch(self):
+    try:
+      return self._is_flag_set("pcuda-chevron-launch")
+    except OptionNotSet:
+      return False
+
 
   @property
   def save_temps(self):
@@ -1582,7 +1607,7 @@ class llvm_sscp_invocation:
   def get_cxx_flags(self):
     flags = ["-D__ACPP_ENABLE_LLVM_SSCP_TARGET__",
             "-Xclang", "-disable-O0-optnone", "-mllvm", "-acpp-sscp"]
-
+    
     if self._config.is_export_all:
       flags += ["-mllvm","-acpp-sscp-export-all"]
 
@@ -1610,6 +1635,7 @@ class llvm_sscp_invocation:
 
 class compiler:
   def __init__(self, config):
+    self._config = config
     self._user_args = config.forwarded_compiler_arguments
     self._requires_linking = config.contains_linking_stage()
     self._requires_compilation = not config.is_pure_linking_stage()
@@ -1626,7 +1652,9 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    self._is_pcuda = config.is_pcuda
     self._clang_opt_args = config.default_clang_optimization_args
+    self._acpp_pcuda_pp_path = os.path.join(config.acpp_binary_path, "acpp-pcuda-pp")
     try:
       self._clang_path = config.clang_path
     except OptionNotSet:
@@ -1643,6 +1671,8 @@ class compiler:
                       "simultaneously in non-explicit multipass; enabling explicit "
                       "multipass compilation.")
         self._is_explicit_multipass = True
+    if self._is_pcuda and "generic" not in self._targets:
+      raise RuntimeError("PCUDA support requires generic target.")
 
     self._backends = []
     self._multipass_backends = []
@@ -1813,6 +1843,21 @@ class compiler:
     if sys.platform.startswith("win32"):
       args += ["-D_USE_MATH_DEFINES"]
 
+    if self._is_pcuda:
+      args_prologue = [
+        "-isystem", os.path.join(self._acpp_include_path, "hipSYCL", "pcuda"),
+        "-D__ACPP_PCUDA__", 
+        "-mllvm", "-acpp-sscp-pcuda",
+        "-fdeclspec"
+      ]
+      force_cpp_language = False
+      for s in self._config.source_file_arguments:
+        if s.endswith(".cu"):
+          force_cpp_language = True
+      if force_cpp_language:
+        args_prologue += ["-x","c++"]
+      args = args_prologue + args
+
     if self._is_stdpar:
       stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
       args += [
@@ -1888,6 +1933,55 @@ class compiler:
     if not self._is_dry_run:
       multipass_backend.create_code_objects(targets)
 
+
+  # Returns list of modified arguments
+  def _preprocess_pcuda_sources(self, compiler_executable, args, tempdir):
+    source_args = self._config.source_file_arguments
+
+    consume_next = False
+    
+    preprocessor_invocation_args = []
+    for arg in args:
+      if consume_next:
+        preprocessor_invocation_args.append(arg)
+        consume_next = False
+      else:
+        consuming_flags = ["-isystem", "-I", "-D", "-Xclang", "-include"]
+        single_arg_flag_starts = ["-I", "-D", "-std=", "-f"]
+
+        if arg in consuming_flags:
+          preprocessor_invocation_args.append(arg)
+          consume_next = True
+        elif any(arg.startswith(x) for x in single_arg_flag_starts):
+          preprocessor_invocation_args.append(arg)
+    
+    pcuda_pp_app = os.path.join(self._acpp_pcuda_pp_path)
+    file_replacement_map = {}
+
+    for i,s in enumerate(source_args):
+      # Invoke clang -E
+      preprocessed_infile = os.path.join(tempdir, "acpp-preprocessed{}.cpp".format(i))
+      ret_val = run_or_print([self._clang_path, "-E", "-o", preprocessed_infile, "-x", "c++", s]+preprocessor_invocation_args, self._is_dry_run)
+      if ret_val != 0:
+        raise RuntimeError("clang -E invocation failed with error code " + str(ret_val))
+
+      # Run acpp-pcuda-pp
+      outfile = os.path.join(tempdir, "acpp-pcuda-pp-{}.cpp".format(i))
+      ret_val = run_or_print([pcuda_pp_app, preprocessed_infile, outfile], self._is_dry_run)
+      if ret_val != 0:
+        raise RuntimeError("acpp-pcuda-pp invocation failed with error code " + str(ret_val))
+      
+      file_replacement_map[s] = outfile
+
+    result_args = []
+    for arg in args:
+      if arg in file_replacement_map:
+        result_args.append(file_replacement_map[arg])
+      else:
+        result_args.append(arg)
+    
+    return result_args
+
   def _select_compiler(self):
     compiler_executable, compiler_priority = ("", 0)
 
@@ -1947,7 +2041,13 @@ class compiler:
     if self._requires_linking:
       args += ld_flags
 
-    return run_or_print([compiler_executable] + args,
+    if self._is_pcuda and self._config.is_pcuda_chevron_launch:
+      with tempfile.TemporaryDirectory(prefix="adaptivecpp-") as temp_dir:
+        modified_args = self._preprocess_pcuda_sources(compiler_executable, args, temp_dir)
+        return run_or_print([compiler_executable] + modified_args,
+                        self._is_dry_run, self._only_std_flags)
+    else:
+      return run_or_print([compiler_executable] + args,
                         self._is_dry_run, self._only_std_flags)
 
   def run(self):

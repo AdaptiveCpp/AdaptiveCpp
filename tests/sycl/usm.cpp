@@ -169,6 +169,8 @@ BOOST_AUTO_TEST_CASE(in_order_queue) {
 
   BOOST_CHECK(evt3.get_wait_list().size() == 1);
   BOOST_CHECK(evt3.get_wait_list()[0] == evt2);
+
+  q.wait();
 }
 
 BOOST_AUTO_TEST_CASE(allocations_in_kernels) {

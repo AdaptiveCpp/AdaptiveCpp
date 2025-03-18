@@ -11,6 +11,7 @@
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/RegionInfo.h>
@@ -119,7 +120,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
   F->setLinkage(llvm::GlobalValue::LinkOnceAnyLinkage);
   SAA.addSplitter(F);
 
-  return llvm::CallInst::Create(F, "", InsertBefore);
+  return llvm::CallInst::Create(F, "", llvmutils::makeInsertionPoint(InsertBefore));
 }
 
 bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix, int NoInlineDebugLevel) {

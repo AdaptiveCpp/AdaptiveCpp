@@ -51,7 +51,12 @@ inline llvm::Instruction *unfoldConstantExpression(llvm::ConstantExpr *CE,
     }
   }
 
+#if LLVM_VERSION_MAJOR < 20
   llvm::Instruction* NewI = CE->getAsInstruction(InsertionPt);
+#else
+  llvm::Instruction* NewI = CE->getAsInstruction();
+  NewI->insertAfter(InsertionPt->getIterator());
+#endif
   CE->replaceUsesWithIf(NewI, [&](llvm::Use& U){
     return NewUsers.find(U.getUser()) != NewUsers.end();
   });

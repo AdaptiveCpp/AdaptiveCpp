@@ -170,7 +170,7 @@ void rewriteZeroSizeArrayGEPs(llvm::Module& M) {
     PointerOperand = new llvm::BitCastInst(PointerOperand, BitcastTarget, "", GEPInst);
 #endif
     llvm::GetElementPtrInst *NewGEP = llvm::GetElementPtrInst::Create(
-        ReplacementType, PointerOperand, Indices, "", GEPInst);
+        ReplacementType, PointerOperand, Indices, "", llvmutils::makeInsertionPoint(GEPInst));
     if(GEPInst->isInBounds())
       NewGEP->setIsInBounds(true);
     GEPInst->replaceAllUsesWith(NewGEP);

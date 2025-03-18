@@ -11,10 +11,13 @@
 
 #include "hipSYCL/compiler/sscp/pcuda/ExternDynamicLocalMemoryPass.hpp"
 #include "hipSYCL/compiler/utils/ConstantExpressions.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/Instruction.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Instructions.h>
 
@@ -63,7 +66,7 @@ void replaceGVsWithDynamicLocalMemory(llvm::Module &M,
         llvm::Function *F = I->getParent()->getParent();
         if (FunctionToDynamicLocalMemMap.find(F) == FunctionToDynamicLocalMemMap.end()) {
           if (!F->isDeclaration()) {
-            auto *InsertionPt = &(*F->getEntryBlock().getFirstInsertionPt());
+            auto InsertionPt = llvmutils::makeInsertionPoint(&(*F->getEntryBlock().getFirstInsertionPt()));
             llvm::Instruction *BuiltinCall = llvm::CallInst::Create(
                 llvm::FunctionCallee{DynamicLocalMemBuiltin}, "", InsertionPt);
 #if LLVM_VERSION_MAJOR < 17

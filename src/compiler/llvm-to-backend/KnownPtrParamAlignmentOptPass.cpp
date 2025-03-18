@@ -10,6 +10,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/compiler/llvm-to-backend/KnownPtrParamAlignmentOptPass.hpp"
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Instruction.h>
@@ -27,8 +30,11 @@ KnownPtrParamAlignmentOptPass::KnownPtrParamAlignmentOptPass(
 
 llvm::PreservedAnalyses KnownPtrParamAlignmentOptPass::run(llvm::Module &M,
                             llvm::ModuleAnalysisManager &MAM) {
+#if LLVM_VERSION_MAJOR < 20
   llvm::Function *AssumeFunc = llvm::Intrinsic::getDeclaration(&M, llvm::Intrinsic::assume);
-
+#else
+  llvm::Function *AssumeFunc = llvm::Intrinsic::getOrInsertDeclaration(&M, llvm::Intrinsic::assume);
+#endif
   for(auto& Entry : KnownPtrParamAlignments) {
     if(auto* F = M.getFunction(Entry.first)) {
       int NumParams = F->getFunctionType()->getNumParams();
@@ -44,7 +50,7 @@ llvm::PreservedAnalyses KnownPtrParamAlignmentOptPass::run(llvm::Module &M,
                              PtrValue, llvm::ConstantInt::get(
                                            M.getContext(), llvm::APInt(64, AlignmentInfo.second))}};
 
-            llvm::Instruction *InsertionPoint = &(*F->getEntryBlock().getFirstInsertionPt());
+            auto InsertionPoint = llvmutils::makeInsertionPoint(&(*F->getEntryBlock().getFirstInsertionPt()));
             llvm::CallInst::Create(
                 llvm::FunctionCallee{AssumeFunc}, llvm::ArrayRef<llvm::Value *>{True},
                 llvm::ArrayRef<llvm::OperandBundleDef>{AlignBundle}, "", InsertionPoint);

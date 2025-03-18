@@ -9,15 +9,19 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
+#include "hipSYCL/compiler/llvm-to-backend/host/StaticLocalMemoryPass.hpp"
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
-#include <llvm/IR/Constants.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/Casting.h>
 
 #include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/host/StaticLocalMemoryPass.hpp"
 #include "hipSYCL/compiler/utils/ConstantExpressions.hpp"
 
 namespace hipsycl::compiler {
@@ -48,7 +52,7 @@ llvm::Value *prependInternalLocalMemAccessCall(llvm::Module &M, llvm::Type *Targ
   auto Builtin = M.getOrInsertFunction(InternalLocalMemBuiltinName, VoidPtrType);
   assert(Builtin);
 
-  auto *InsertionPt = &(*F->getEntryBlock().getFirstInsertionPt());
+  auto InsertionPt = llvmutils::makeInsertionPoint(&(*F->getEntryBlock().getFirstInsertionPt()));
   llvm::Instruction *BuiltinCall =
       llvm::CallInst::Create(llvm::FunctionCallee{Builtin}, "", InsertionPt);
   // user will expect AS3, so cast back to AS3

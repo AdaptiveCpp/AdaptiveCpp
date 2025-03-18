@@ -602,7 +602,7 @@ void LLVMToBackendTranslator::specializeKernelArgument(const std::string &Kernel
 
           llvm::ReturnInst::Create(M.getContext(), ReturnedValue, BB);
 
-          llvm::Instruction* InsertionPt = &(*F->getEntryBlock().getFirstInsertionPt());
+          auto InsertionPt = llvmutils::makeInsertionPoint(&(*F->getEntryBlock().getFirstInsertionPt()));
           auto* FnCall = llvm::CallInst::Create(llvm::FunctionCallee(GetConstant),
                                   llvm::ArrayRef<llvm::Value *>{}, "", InsertionPt);
           F->getArg(ParamIndex)->replaceNonMetadataUsesWith(FnCall);

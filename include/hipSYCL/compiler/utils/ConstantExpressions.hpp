@@ -13,6 +13,8 @@
 #ifndef ACPP_COMPILER_UTILS_CONSTEXPR_HPP
 #define ACPP_COMPILER_UTILS_CONSTEXPR_HPP
 
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/IR/Instruction.h>
@@ -51,11 +53,11 @@ inline llvm::Instruction *unfoldConstantExpression(llvm::ConstantExpr *CE,
     }
   }
 
-#if LLVM_VERSION_MAJOR < 20
+#if LLVM_VERSION_MAJOR < 19
   llvm::Instruction* NewI = CE->getAsInstruction(InsertionPt);
 #else
   llvm::Instruction* NewI = CE->getAsInstruction();
-  NewI->insertAfter(InsertionPt->getIterator());
+  NewI->insertAfter(llvmutils::makeInsertionPoint(InsertionPt));
 #endif
   CE->replaceUsesWithIf(NewI, [&](llvm::Use& U){
     return NewUsers.find(U.getUser()) != NewUsers.end();

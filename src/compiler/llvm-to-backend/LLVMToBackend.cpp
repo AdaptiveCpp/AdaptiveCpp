@@ -137,7 +137,11 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
                    const std::string &ForcedDataLayout = "",
                    llvm::Linker::Flags Flags = llvm::Linker::Flags::LinkOnlyNeeded) {
   if(!ForcedTriple.empty())
+#if LLVM_VERSION_MAJOR > 20
+    OtherM->setTargetTriple(llvm::Triple(ForcedTriple));
+#else
     OtherM->setTargetTriple(ForcedTriple);
+#endif
   if(!ForcedDataLayout.empty())
     OtherM->setDataLayout(ForcedDataLayout);
 

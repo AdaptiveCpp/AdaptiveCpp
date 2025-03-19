@@ -293,15 +293,15 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
     break;
   case device_uint_property::max_num_work_groups0:
     return static_cast<std::size_t>(
-        std::numeric_limits<size_t>::max());
+        std::numeric_limits<int>::max());
     break;
   case device_uint_property::max_num_work_groups1:
     return static_cast<std::size_t>(
-        std::numeric_limits<size_t>::max());
+        std::numeric_limits<int>::max());
     break;
   case device_uint_property::max_num_work_groups2:
     return static_cast<std::size_t>(
-        std::numeric_limits<size_t>::max());
+        std::numeric_limits<int>::max());
     break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(

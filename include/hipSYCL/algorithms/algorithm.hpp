@@ -577,6 +577,69 @@ sycl::event none_of(sycl::queue &q,
   });
 }
 
+template<class ForwardIt, class UnaryPredicate>
+sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                  ForwardIt first, ForwardIt last, UnaryPredicate p,
+                  // typename std::iterator_traits<ForwardIt>::difference_type,
+                  std::size_t num_counted_elems = 0,
+                  const std::vector<sycl::event> &deps = {}) {
+  // Empty case
+  if (first == last) {
+    if (num_counted_elems)
+      num_counted_elems = 0;
+    return sycl::event{};
+  }
+
+  // Match the return type
+  using ScanT = std::size_t;
+
+  // Generate data elements to run the scan
+  auto generator = [=](auto idx, auto effective_group_id,
+                       auto effective_global_id, auto problem_size) {
+    if(effective_global_id >= problem_size)
+      return ScanT{0};
+
+    ForwardIt it = first;
+    std::advance(it, effective_global_id);
+    if(p(*it))
+      return ScanT{1};
+
+    return ScanT{0};
+  };
+
+  // Process the result of the global scan for a specific work item
+  auto result_processor = [=](auto idx, auto effective_group_id,
+                        auto effective_global_id, auto problem_size,
+                        auto value) {
+    if (effective_global_id < problem_size) {
+      ForwardIt input = first;
+      std::advance(input, effective_global_id);
+
+      bool count_it = false;
+
+      auto input_value = *input;
+      count_it = p(input_value);
+      if(count_it)
+        ++value;
+
+      if (effective_global_id == problem_size - 1 && num_counted_elems) {
+        ScanT inclusive_scan_result = value;
+        if (count_it)
+          ++inclusive_scan_result;
+
+        num_counted_elems = static_cast<std::size_t>(inclusive_scan_result);
+      }
+    }
+  };
+
+  std::size_t problem_size = std::distance(first, last);
+
+  constexpr bool is_inclusive_scan = false;
+  return scanning::generate_scan_process<is_inclusive_scan, ScanT>(
+      q scratch_allocations, problem_size, sycl::plus<>{},
+      ScanT{0}, generator, result_processor, deps);
+}
+
 template <class RandomIt, class Compare>
 sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
                  Compare comp = std::less<>{},

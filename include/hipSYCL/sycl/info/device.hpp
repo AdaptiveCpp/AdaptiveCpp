@@ -83,9 +83,6 @@ namespace device {
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_item_dimensions, detail::u_int);
 
   template<int Dimensions = 3>
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_num_work_groups, range<Dimensions>);
-
-  template<int Dimensions = 3>
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_item_sizes, range<Dimensions>);
 
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_group_size, size_t);
@@ -178,7 +175,16 @@ namespace device {
 };
 
 } // namespace info
-} // namespace sycl
+} // namespace 
+
+namespace khr{
+namespace info{
+namespace device{
+  template<int Dimensions = 3>
+  struct max_num_work_groups { using return_type = sycl::range<Dimensions>; };
+}
+}
+}
 } // namespace hipsycl
 
 #endif

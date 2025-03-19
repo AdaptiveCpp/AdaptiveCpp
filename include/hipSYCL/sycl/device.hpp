@@ -306,7 +306,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, device_type) {
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
 { 
   return get_rt_device()->get_property(
-      rt::device_uint_property::vendor_id); 
+      rt::device_uint_property::vendor_id);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)

@@ -28,3 +28,9 @@
   sycl::class_name::get_info<info::class_name::specialization>() const
 
 #endif
+
+#define HIPSYCL_SPECIALIZE_GET_INFO_EXTENSION(class_name, specialization)      \
+  template<>                                                                   \
+  inline typename info::class_name::specialization::return_type                \
+  sycl::class_name::get_info<khr::info::class_name::specialization>() const
+#endif

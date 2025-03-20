@@ -1,0 +1,181 @@
+name: 'AdaptiveCpp-CI-Docker-Images'
+description: 'Creates docker images containing the AdaptiveCpp CI environment'
+inputs:
+  LLVM_VERSION:
+    required: true
+    default: '18'
+  ROCM_VERSION:
+    required: true
+    default: '5.4.3'
+  CUDA_MAJOR_VERSION:
+    required: true
+    default: '11'
+  CUDA_MINOR_VERSION:
+    required: true
+    default: '0'
+  CUDA_PATCH_VERSION:
+    required: true
+    default: '2'
+  CUDA_DRIVER_VERSION:
+    required: true
+    default: '450.51.05'
+  BASE_TAG:
+    required: true
+    default: 'ubuntu-22.04'
+  GITHUB_TOKEN:
+    required: true
+  
+outputs:
+  docker_image:
+    description: "Docker image id"
+    value: ${{ steps.final-docker-image.outputs.docker_image }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Redact GITHUB_TOKEN
+      shell: bash
+      run: echo "::add-mask::${{ inputs.GITHUB_TOKEN }}"
+    - uses: dorny/paths-filter@v3
+      id: filter-last-push
+      with:
+        base: ${{ github.ref }}
+        filters: |
+          docker:
+            - '.github/workflows/create-ci-docker/**'
+    - name: Make tagged OS
+      id: make-tagged-os
+      shell: bash
+      run: |
+        BASE_OS=${{ inputs.BASE_TAG }}
+        echo "BASE_OS=${BASE_OS//-/:}" >> $GITHUB_OUTPUT
+
+        REPO_OWNER=${{ github.repository_owner }}
+        echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.GITHUB_TOKEN }}
+    - name: Docker metadata
+      uses: docker/metadata-action@v5
+      id: metadata
+      if: inputs.CUDA_MAJOR_VERSION != '' && inputs.ROCM_VERSION != ''
+      with:
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
+        tags: |
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
+          type=sha
+          type=ref,event=branch
+        flavor: |
+          latest=false
+          prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}-
+    - name: Docker metadata no CUDA
+      uses: docker/metadata-action@v5
+      id: metadata-no-cuda
+      if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION != ''
+      with:
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
+        tags: |
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }},prefix=
+          type=sha
+          type=ref,event=branch
+        flavor: |
+          latest=false
+          prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-
+    - name: Docker metadata no ROCm
+      uses: docker/metadata-action@v5
+      id: metadata-no-rocm
+      if: inputs.CUDA_MAJOR_VERSION != '' && inputs.ROCM_VERSION == ''
+      with:
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
+        tags: |
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }},prefix=
+          type=sha
+          type=ref,event=branch
+        flavor: |
+          latest=false
+          prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}-
+    - name: Docker metadata no CUDA no ROCm
+      uses: docker/metadata-action@v5
+      id: metadata-no-cuda-no-rocm
+      if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION == ''
+      with:
+        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
+        tags: |
+          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }},prefix=
+          type=sha
+          type=ref,event=branch
+        flavor: |
+          latest=false
+          prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-
+    
+    - name: Select metadata to use
+      id: select-metadata
+      shell: bash
+      run: |
+        OUTPUT_EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+        if [[ -n "${{ inputs.CUDA_MAJOR_VERSION }}" && -n "${{ inputs.ROCM_VERSION }}" ]]; then
+          TAGS="${{ steps.metadata.outputs.tags }}"
+          VERSION="${{ steps.metadata.outputs.version }}"
+          FALLBACK_TAG="${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}"
+        elif [[ -n "${{ inputs.CUDA_MAJOR_VERSION }}" && -z "${{ inputs.ROCM_VERSION }}" ]]; then
+          TAGS="${{ steps.metadata-no-rocm.outputs.tags }}"
+          VERSION="${{ steps.metadata-no-rocm.outputs.version }}"
+          FALLBACK_TAG="${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}"
+        elif [[ -z "${{ inputs.CUDA_MAJOR_VERSION }}" && -n "${{ inputs.ROCM_VERSION }}" ]]; then
+          TAGS="${{ steps.metadata-no-cuda.outputs.tags }}"
+          VERSION="${{ steps.metadata-no-cuda.outputs.version }}"
+          FALLBACK_TAG="${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}"
+        else
+          TAGS="${{ steps.metadata-no-cuda-no-rocm.outputs.tags }}"
+          VERSION="${{ steps.metadata-no-cuda-no-rocm.outputs.version }}"
+          FALLBACK_TAG="${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}"
+        fi
+        echo "docker_image=${TAGS}" | head -n 1 >> $GITHUB_OUTPUT
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "fallback_tag=ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux:${FALLBACK_TAG}" >> $GITHUB_OUTPUT
+        cat << EOF >> $GITHUB_OUTPUT
+        tags<<${OUTPUT_EOF}
+        ${TAGS}
+        ${OUTPUT_EOF}
+        EOF
+
+    - uses: tyriis/docker-image-tag-exists@v2.1.0
+      id: tag-exists
+      with:
+        registry: ghcr.io
+        repository: ${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
+        tag: ${{ steps.select-metadata.outputs.version }}
+    
+    - name: Final docker_image value
+      id: final-docker-image
+      shell: bash
+      run: |
+        # use fallback if no changes were made to docker
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          echo "docker_image=${{ steps.select-metadata.outputs.fallback_tag }}" >> $GITHUB_OUTPUT
+        else
+          echo "docker_image=${{ steps.select-metadata.outputs.docker_image }}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Build and push Docker images
+      if: (steps.filter-last-push.outputs.docker == 'true' || steps.tag-exists.outputs.tag == 'not found') && github.event_name != 'pull_request'
+      uses: docker/build-push-action@v6
+      id: build
+      with:
+        file: .github/workflows/create-ci-docker/AdaptiveCpp-CI-Linux.dockerfile
+        platforms: linux/amd64
+        push: true
+        tags: ${{ steps.select-metadata.outputs.tags }}
+        build-args: |
+          LLVM_VERSION=${{ inputs.LLVM_VERSION }}
+          ROCM_VERSION=${{ inputs.ROCM_VERSION }}
+          CUDA_MAJOR_VERSION=${{ inputs.CUDA_MAJOR_VERSION }}
+          CUDA_MINOR_VERSION=${{ inputs.CUDA_MINOR_VERSION }}
+          CUDA_PATCH_VERSION=${{ inputs.CUDA_PATCH_VERSION }}
+          CUDA_DRIVER_VERSION=${{ inputs.CUDA_DRIVER_VERSION }}
+          BASE=${{ steps.make-tagged-os.outputs.BASE_OS }}

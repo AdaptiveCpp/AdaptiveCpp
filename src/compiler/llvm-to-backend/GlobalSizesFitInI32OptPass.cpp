@@ -10,6 +10,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/compiler/llvm-to-backend/GlobalSizesFitInI32OptPass.hpp"
 
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Constants.h>
@@ -22,7 +24,11 @@ namespace compiler {
 // inserts llvm.assume calls to assert that x >= RangeMin && x < RangeMax.
 bool insertRangeAssumptionForBuiltinCalls(llvm::Module &M, llvm::StringRef BuiltinName,
                                           long long RangeMin, long long RangeMax, bool MaxIsLessThanEqual) {
+#if LLVM_VERSION_MAJOR < 20
   llvm::Function *AssumeIntrinsic = llvm::Intrinsic::getDeclaration(&M, llvm::Intrinsic::assume);
+#else
+  llvm::Function *AssumeIntrinsic = llvm::Intrinsic::getOrInsertDeclaration(&M, llvm::Intrinsic::assume);
+#endif
   if(!AssumeIntrinsic)
     return false;
 
@@ -34,7 +40,7 @@ bool insertRangeAssumptionForBuiltinCalls(llvm::Module &M, llvm::StringRef Built
 
     for(auto* U : F->users()) {
       if(auto* C = llvm::dyn_cast<llvm::CallInst>(U)) {
-        auto* NextInst = C->getNextNonDebugInstruction();
+        auto NextInst = llvmutils::makeInsertionPoint(C->getNextNonDebugInstruction());
 
         auto *GreaterEqualMin = llvm::ICmpInst::Create(
             llvm::Instruction::OtherOps::ICmp, llvm::ICmpInst::Predicate::ICMP_SGE, C,

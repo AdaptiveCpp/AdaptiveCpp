@@ -19,7 +19,7 @@ namespace sycl {
 
 template <class Tout, class Tin>
 ACPP_UNIVERSAL_TARGET
-Tout bit_cast(Tin x) {
+Tout bit_cast(const Tin& x) {
   Tout result;
   HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, x, result);
   return result;

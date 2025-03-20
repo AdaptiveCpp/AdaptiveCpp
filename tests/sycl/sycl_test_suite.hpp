@@ -17,7 +17,7 @@
 #define BOOST_MPL_CFG_GPU_ENABLED // Required for nvcc
 #include <boost/test/unit_test.hpp>
 #include <boost/mp11/list.hpp>
-#include <boost/mp11/mpl_list.hpp>
+#include <boost/mp11/mpl.hpp>
 
 
 #define SYCL_SIMPLE_SWIZZLES

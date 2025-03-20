@@ -614,7 +614,7 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
            [&](sycl::handler &cgh) {
              cgh.parallel_for<class property_preferred_group_size3>(
                  sycl::range{10,10,10}, [=](sycl::id<3> idx) {
-                   if (idx[0] == 0 && idx[1] == 0) {
+                   if (idx[0] == 0 && idx[1] == 0 && idx[2] == 0) {
 #if defined(DEVICE_MODEL)
                     __acpp_if_target_device(
                      gsize[2] = get_total_group_size();

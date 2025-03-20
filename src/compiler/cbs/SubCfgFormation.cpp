@@ -158,18 +158,22 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
 }
 
 // identify the local size values by the store to it
-void fillStores(llvm::Value *V, int Idx, llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
+void fillStores(llvm::Value *V, int Idx, bool IsIdxBytewise, llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
   if (auto *Store = llvm::dyn_cast<llvm::StoreInst>(V)) {
+#if LLVM_VERSION_MAJOR >= 17
+    if(IsIdxBytewise)
+      Idx /= Store->getAccessType()->getScalarSizeInBits() / 8;
+#endif
     LocalSize[Idx] = Store->getOperand(0);
   } else if (auto *BC = llvm::dyn_cast<llvm::BitCastInst>(V)) {
     for (auto *BCU : BC->users()) {
-      fillStores(BCU, Idx, LocalSize);
+      fillStores(BCU, Idx, IsIdxBytewise, LocalSize);
     }
   } else if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V)) {
     auto *IdxV = GEP->indices().begin() + (GEP->getNumIndices() - 1);
     auto *IdxC = llvm::cast<llvm::ConstantInt>(IdxV);
     for (auto *GU : GEP->users()) {
-      fillStores(GU, IdxC->getSExtValue(), LocalSize);
+      fillStores(GU, IdxC->getSExtValue(), GEP->getSourceElementType()->isIntegerTy(8), LocalSize);
     }
   }
 }
@@ -230,7 +234,7 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
 
   if (!llvm::dyn_cast<llvm::Argument>(LocalSizeArg))
     for (auto *U : LocalSizeArg->users())
-      fillStores(U, 0, LocalSize);
+      fillStores(U, 0, false, LocalSize);
   else
     loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize, false);
 
@@ -1127,6 +1131,16 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
   return true;
 }
 
+template <class Instruction>
+llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, Instruction *I) {
+  return llvm::IRBuilder{BB, I->getIterator()};
+}
+
+template <class iterator>
+llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, iterator I) {
+  return llvm::IRBuilder{BB, I};
+}
+
 // Widens the allocas in the entry block to array allocas.
 // Replace uses of the original alloca with GEP that indexes the new alloca with
 // \a Idx.
@@ -1170,9 +1184,9 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
     Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
     for (auto &SubCfg : SubCfgs) {
-      auto *GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
+      auto GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
 
-      llvm::IRBuilder LoadBuilder{GepIp};
+      llvm::IRBuilder LoadBuilder = createLoadBuilder(SubCfg.getLoadBB(), GepIp);
       auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
           Alloca->getAllocatedType(), Alloca, SubCfg.getContiguousIdx(), I->getName() + "_gep"));
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);

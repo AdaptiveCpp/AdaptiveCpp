@@ -26,48 +26,48 @@ namespace sycl {
 
 #ifndef CL_SYCL_NO_STD_VECTOR
 template<class T, class Alloc = std::allocator<T>>
-using vector_class = std::vector<T, Alloc>;
+using vector_class [[deprecated("Use std::vector instead")]] = std::vector<T, Alloc>;
 #endif
 
 #ifndef CL_SYCL_NO_STD_STRING
-using string_class = std::string;
+using string_class [[deprecated("Use std::string instead")]] = std::string;
 #endif
 
 #ifndef CL_SYCL_NO_STD_FUNCTION
 template<class Func>
-using function_class = std::function<Func>;
+using function_class [[deprecated("Use std::function instead")]] = std::function<Func>;
 #endif
 
 #ifndef CL_SYCL_NO_STD_MUTEX
-using mutex_class = std::mutex;
+using mutex_class [[deprecated("Use std::mutex instead")]] = std::mutex;
 #endif
 
 #ifndef CL_SYCL_NO_STD_UNIQUE_PTR
 template<class T>
-using unique_ptr_class = std::unique_ptr<T>;
+using unique_ptr_class [[deprecated("Use std::unique_ptr instead")]] = std::unique_ptr<T>;
 #endif
 
 #ifndef CL_SYCL_NO_STD_SHARED_PTR
 template<class T>
-using shared_ptr_class = std::shared_ptr<T>;
+using shared_ptr_class [[deprecated("Use std::shared_ptr instead")]] = std::shared_ptr<T>;
 #endif
 
 #ifndef CL_SYCL_NO_STD_WEAK_PTR
 template<class T>
-using weak_ptr_class = std::weak_ptr<T>;
+using weak_ptr_class [[deprecated("Use std::weak_ptr instead")]] = std::weak_ptr<T>;
 #endif
 
 #ifndef CL_SYCL_NO_HASH
 template<class T>
-using hash_class = std::hash<T>;
+using hash_class [[deprecated("Use std::hash instead")]] = std::hash<T>;
 #endif
 
-using exception_ptr_class = std::exception_ptr;
+using exception_ptr_class [[deprecated("Use std::exception_ptr instead")]] = std::exception_ptr;
 
 
-using exception_ptr = exception_ptr_class;
-using exception_list = vector_class<exception_ptr>;
-using async_handler = function_class<void(sycl::exception_list)>;
+using exception_ptr [[deprecated("Use std::exception_ptr instead")]] = exception_ptr_class;
+using exception_list = std::vector<std::exception_ptr>;
+using async_handler = std::function<void(sycl::exception_list)>;
 
 class half;
 

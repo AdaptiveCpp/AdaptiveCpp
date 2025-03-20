@@ -14,6 +14,7 @@
 #include "hipSYCL/compiler/GlobalsPruningPass.hpp"
 #include "hipSYCL/compiler/SMCPCompatPass.hpp"
 #include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
+#include "hipSYCL/compiler/sscp/pcuda/ExternDynamicLocalMemoryPass.hpp"
 
 
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
@@ -29,6 +30,8 @@
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 #include "hipSYCL/compiler/sscp/TargetSeparationPass.hpp"
+#include "hipSYCL/compiler/sscp/pcuda/FreeKernelCall.hpp"
+#include "hipSYCL/compiler/sscp/pcuda/StaticLocalMemoryPass.hpp"
 #endif
 
 #ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
@@ -59,6 +62,11 @@ static llvm::cl::opt<std::string> LLVMSSCPKernelOpts{
     "acpp-sscp-kernel-opts", llvm::cl::init(""),
     llvm::cl::desc{
         "Specify compilation options to use when JIT-compiling AdaptiveCpp SSCP kernels"}};
+
+static llvm::cl::opt<bool> EnablePCuda{
+    "acpp-sscp-pcuda", llvm::cl::init(false),
+    llvm::cl::desc{"Enable AdaptiveCpp PCUDA support in the SSCP compiler"}};
+
 
 static llvm::cl::opt<bool> EnableStdPar{
     "acpp-stdpar", llvm::cl::init(false),
@@ -120,16 +128,29 @@ static llvm::RegisterStandardPasses
   "v" HIPSYCL_STRINGIFY(ACPP_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
       ACPP_VERSION_MINOR) "." HIPSYCL_STRINGIFY(ACPP_VERSION_PATCH)
 
+template <class CallbackF>
+struct LastEPAdapter{
+  LastEPAdapter(CallbackF &&CB) : CB(std::forward<CallbackF>(CB)) {}
+  void operator()(llvm::ModulePassManager &MPM, OptLevel Level, llvm::ThinOrFullLTOPhase) {
+    CB(MPM, Level);
+  }
+  void operator()(llvm::ModulePassManager &MPM, OptLevel Level) {
+    CB(MPM, Level);
+  }
+  CallbackF CB;
+};
+
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {
     LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING,
         [](llvm::PassBuilder &PB) {
           // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
           // really used there anyways..
-          PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, OptLevel) {
+          
+          PB.registerOptimizerLastEPCallback(LastEPAdapter{[&](llvm::ModulePassManager &MPM, OptLevel) {
             MPM.addPass(hipsycl::compiler::SMCPCompatPass{});
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
-          });
+          }});
 #ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
           PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, OptLevel Level) {
@@ -146,11 +167,12 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
               }
             });
           
-            PB.registerOptimizerLastEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
+            
+          PB.registerOptimizerLastEPCallback(LastEPAdapter{[&](llvm::ModulePassManager &MPM, OptLevel) {
               MPM.addPass(SyncElisionInliningPass{});
               MPM.addPass(llvm::AlwaysInlinerPass{});
               MPM.addPass(SyncElisionPass{});
-            });
+            }});
           }
 #endif
 
@@ -158,7 +180,23 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           if(EnableLLVMSSCP){
             PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, OptLevel Level) {
-                  MPM.addPass(TargetSeparationPass{LLVMSSCPKernelOpts});
+                  if(EnablePCuda) {
+                    // Must be run before target separation pass!
+                    MPM.addPass(FreeKernelCallPass{});
+                    // Currently all our backends have AS 3 refer to local AS.
+                    // (or don't care about it).
+                    // If that ever changes, we will need to run this pass at JIT-time.
+                    const unsigned LocalAS = 3;
+                    MPM.addPass(StaticLocalMemoryPass{LocalAS});
+                  }
+                  // Target separation pass also runs the device-side
+                  // ExternDynamicLocalMemoryPass for PCUDA
+                  MPM.addPass(TargetSeparationPass{LLVMSSCPKernelOpts, EnablePCuda});
+                  if(EnablePCuda) {
+                    const unsigned LocalAS = 3;
+                    // Need to handle extern __shared__ declarations on the host side
+                    MPM.addPass(ExternDynamicLocalMemoryPass{LocalAS, false});
+                  }
                 });
           }
 #endif

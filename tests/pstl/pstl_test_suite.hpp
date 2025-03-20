@@ -58,4 +58,45 @@ struct non_trivial_copy {
   int x;
 };
 
+
+static thread_local int move_counter = 0;
+struct non_trivial_move {
+
+  non_trivial_move(){}
+
+  non_trivial_move(int val)
+  : x{val} {}
+
+  non_trivial_move(const non_trivial_move& other)
+  : x{other.x} {}
+
+  non_trivial_move& operator=(const non_trivial_move& other) {
+    x = other.x;
+    return *this;
+  }
+
+  non_trivial_move(non_trivial_move&& other) {
+    x = std::move(other.x);
+    __acpp_if_target_host(++move_counter;)
+  }
+
+  non_trivial_move& operator=(non_trivial_move&& other) {
+    if (this != &other) {
+      x = std::move(other.x);
+      __acpp_if_target_host(++move_counter;)
+    }
+    return *this;
+  }  
+
+  friend bool operator==(const non_trivial_move &a, const non_trivial_move &b) {
+    return a.x == b.x;
+  }
+
+  friend bool operator!=(const non_trivial_move &a, const non_trivial_move &b) {
+    return a.x != b.x;
+  }
+
+  int x;
+};
+
 #endif

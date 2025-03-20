@@ -254,6 +254,34 @@ sycl::event copy_n(sycl::queue &q, ForwardIt1 first, Size count,
   return copy(q, first, last, result, deps);
 }
 
+template <class ForwardIt1, class ForwardIt2>
+sycl::event move(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
+                 ForwardIt2 d_first, const std::vector<sycl::event> &deps = {}) {
+
+  auto size = std::distance(first, last);
+  if (size == 0)
+    return sycl::event{};
+
+  using value_type1 = typename std::iterator_traits<ForwardIt1>::value_type;
+  using value_type2 = typename std::iterator_traits<ForwardIt2>::value_type;
+
+  if (std::is_trivially_copyable_v<value_type1> &&
+      std::is_same_v<value_type1, value_type2> &&
+      util::is_contiguous<ForwardIt1>() && util::is_contiguous<ForwardIt2>() &&
+      detail::should_use_memcpy(q.get_device())) {
+    return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1), deps);
+  } else {
+    return q.parallel_for(sycl::range{size}, deps,
+                          [=](sycl::id<1> id) {
+                            auto input = first;
+                            auto output = d_first;
+                            std::advance(input, id[0]);
+                            std::advance(output, id[0]);
+                            *output = std::move(*input);
+                          });
+  }
+}
+
 template <class ForwardIt, class T>
 sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
                  const T &value, const std::vector<sycl::event> &deps = {}) {

@@ -220,7 +220,7 @@ if(WITH_SSCP_COMPILER)
 
     add_hipsycl_llvm_backend(
       BACKEND host
-      LIBRARY host/LLVMToHost.cpp host/HostKernelWrapperPass.cpp
+      LIBRARY host/LLVMToHost.cpp host/HostKernelWrapperPass.cpp host/StaticLocalMemoryPass.cpp
       TOOL host/LLVMToHostTool.cpp)
 
     target_compile_definitions(llvm-to-host PRIVATE

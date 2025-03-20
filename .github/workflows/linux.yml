@@ -3,117 +3,139 @@ name: Linux build and test
 on: [push, pull_request]
 
 jobs:
-  test-clang-based:
-    name: clang ${{ matrix.clang }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}, ROCm ${{matrix.rocm}}
-    runs-on: ${{ matrix.os }}
+  prep-container:
+    name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}, CUDA ${{matrix.cuda_major_version}}.${{matrix.cuda_minor_version}}.${{matrix.cuda_patch_version}}, ROCm ${{matrix.rocm}}
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: read
+      packages: write
+      actions: read
+    outputs:
+      docker_matrix: ${{ steps.matrix-output.outputs.json }}
     strategy:
       matrix:
-        clang: [15, 16, 17, 18]
+        clang: [15, 16, 17, 18, 19, 20]
         os: [ubuntu-22.04]
-        cuda: [11.0.2]
+        cuda_major_version: [11]
+        cuda_minor_version: [0]
+        cuda_patch_version: [2]
         rocm: [5.4.3]
         include:
           - clang: 17
             os: ubuntu-22.04
-            cuda: 11.0.2
+            cuda_major_version: 11
+            cuda_minor_version: 0
+            cuda_patch_version: 2
             rocm: 5.6.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 20
+      - uses: ./.github/workflows/create-ci-docker
+        id: docker
+        with:
+          LLVM_VERSION: ${{ matrix.clang }}
+          ROCM_VERSION: ${{ matrix.rocm }}
+          CUDA_MAJOR_VERSION: ${{ matrix.cuda_major_version }}
+          CUDA_MINOR_VERSION: ${{ matrix.cuda_minor_version }}
+          CUDA_PATCH_VERSION: ${{ matrix.cuda_patch_version }}
+          BASE_TAG: ${{ matrix.os }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: beacon-biosignals/matrix-output@v1
+        id: matrix-output
+        with:
+          yaml: |
+            name: ${{ matrix.clang }}-${{ matrix.os }}
+            clang: ${{ matrix.clang }}
+            os: ${{ matrix.os }}
+            cuda: ${{matrix.cuda_major_version}}.${{matrix.cuda_minor_version}}.${{matrix.cuda_patch_version}}
+            rocm: ${{matrix.rocm}}
+            image: ${{ steps.docker.outputs.docker_image }}
+
+  test-clang-based:
+    name: clang ${{ matrix.docker.clang }}, ${{ matrix.test_kind }}, CUDA ${{matrix.docker.cuda}}, ROCm ${{matrix.docker.rocm}}, ${{ matrix.docker.os }}
+    runs-on: ${{ matrix.docker.os }}
+    needs: prep-container
+    strategy:
+      matrix:
+        docker: ${{fromJson(needs.prep-container.outputs.docker_matrix)}}
+        test_kind: [omp, sscp, smcp]
+    container:
+      image: ${{ matrix.docker.image }}
+    defaults:
+      run:
+        shell: bash
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: 'recursive'
-    - name: Install OpenCL development files
-      run : |
-        sudo apt-get update
-        sudo apt-get install -y ocl-icd-opencl-dev
-    - name: Install TBB for PSTL tests
-      run : |
-        sudo apt-get install -y libtbb-dev
-    - name: install Level Zero
-      run : |
-        wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero-devel_1.2.3+u18.04_amd64.deb
-        wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero_1.2.3+u18.04_amd64.deb
-        sudo dpkg -i ./level-zero*
-    - name: install CUDA
-      run: |
-        mkdir -p /opt/AdaptiveCpp/cuda
-        wget -q -O cuda.sh http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run
-        sudo sh ./cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/AdaptiveCpp/cuda || true
-        echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/AdaptiveCpp/cuda/version.txt
-    - name: install ROCm
-      run: |
-        [[ ${{matrix.os}} == ubuntu-20.04 ]] && CODENAME=xenial
-        [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy
-        sudo apt-get install -y libnuma-dev cmake unzip
-        wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
-        echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | sudo tee /etc/apt/sources.list.d/rocm.list
-        printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
-        sudo apt-get update
-        sudo apt-get install -y rocm-dev
-    - name: install LLVM
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh ${{matrix.clang}}
-        sudo apt-get install -y libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev
-        if [[ "${{matrix.clang}}" == "16" ]]; then
-          sudo rm -r /usr/lib/clang/16*
-          sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
-        fi
-    - name: install boost (from apt)
-      run: |
-        sudo apt-get install -y libboost-all-dev
+        submodules: 'recursive'    
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{ github.job }}-${{matrix.docker.clang}}-${{matrix.docker.os}}-${{matrix.docker.cuda}}-${{matrix.docker.rocm}}-${{ matrix.test_kind }}
     - name: build AdaptiveCpp
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/AdaptiveCpp/cuda -DROCM_PATH=/opt/rocm ..
-        make -j2 install
-        cp /opt/AdaptiveCpp/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
-        cp /opt/AdaptiveCpp/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
+        cmake -GNinja -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.docker.clang}} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.docker.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.docker.clang}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda -DROCM_PATH=/opt/rocm ..
+        ninja install
+        cp /opt/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
+        cp /opt/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
     - name: build CPU tests
+      if: matrix.test_kind == 'omp'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
-        cmake -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
-        make -j2
+        cmake -GNinja -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+        ninja
     - name: build generic SSCP tests
-      if: matrix.clang >= 14
+      if: matrix.docker.clang >= 14 && matrix.test_kind == 'sscp'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
-        make -j2
+        cmake -GNinja -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON -DWITH_PCUDA_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        ninja
     - name: build CUDA tests
+      if: matrix.test_kind == 'smcp'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        cmake -DACPP_TARGETS="cuda:sm_60" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
-        make -j2
+        cmake -GNinja -DACPP_TARGETS="cuda:sm_60" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.docker.clang}}/lib"
+        ninja
     - name: build ROCm tests
+      if: matrix.test_kind == 'smcp'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        cmake -DACPP_TARGETS="hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
-        make -j2
+        cmake -GNinja -DACPP_TARGETS="hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.docker.clang}}/lib"
+        ninja
     - name: build explicit multipass tests
+      if: matrix.test_kind == 'smcp'
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-emp
         cd ${GITHUB_WORKSPACE}/build/tests-emp
-        cmake -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
-        make -j2
+        cmake -GNinja -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+        ninja
     - name: run CPU tests
+      if: matrix.test_kind == 'omp'
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
     - name: run CPU SSCP tests
-      if: matrix.clang >= 14
+      if: matrix.docker.clang >= 14 && matrix.test_kind == 'sscp'
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
     - name: run PSTL tests on CPU
-      if: matrix.clang >= 14
+      if: matrix.docker.clang >= 14 && matrix.test_kind == 'sscp'
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./pstl_tests
+    - name: run PCUDA tests on CPU
+      if: matrix.docker.clang >= 14 && matrix.test_kind == 'sscp'
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK="omp" LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./pcuda_tests
   test-nvcxx-based:
     name: nvcxx ${{matrix.nvhpc}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}

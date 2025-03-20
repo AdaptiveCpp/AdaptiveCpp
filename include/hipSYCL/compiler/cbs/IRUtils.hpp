@@ -15,6 +15,7 @@
 
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Module.h>
 
 namespace llvm {
@@ -194,30 +195,43 @@ template <class T> T *getValueOneLevel(llvm::Constant *V, unsigned idx = 0) {
   return llvm::dyn_cast<T>(V->getOperand(idx));
 }
 
-template <class Handler>
-void findFunctionsWithStringAnnotationsWithArg(llvm::Module &M, Handler &&f) {
+template <class GlobalType, class Handler>
+void findGlobalWithStringAnnotationsWithArg(llvm::Module &M, Handler &&f) {
   for (auto &I : M.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
       for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
         if (auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get());
             CS && CS->getNumOperands() >= 2)
-          if (auto *F = utils::getValueOneLevel<llvm::Function>(CS->getOperand(0)))
+          if (auto *V = utils::getValueOneLevel<GlobalType>(CS->getOperand(0)))
             if (auto *AnnotationGL =
                     utils::getValueOneLevel<llvm::GlobalVariable>(CS->getOperand(1)))
               if (auto *Initializer =
                       llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())) {
                 llvm::StringRef Annotation = Initializer->getAsCString();
-                f(F, Annotation, CS->getNumOperands() > 3 ? CS->getOperand(4) : nullptr);
+                f(V, Annotation, CS->getNumOperands() > 3 ? CS->getOperand(4) : nullptr);
               }
       }
     }
   }
 }
 
+template <class Handler>
+void findFunctionsWithStringAnnotationsWithArg(llvm::Module &M, Handler &&f) {
+  findGlobalWithStringAnnotationsWithArg<llvm::Function>(M, f);
+}
+
 template <class Handler> void findFunctionsWithStringAnnotations(llvm::Module &M, Handler &&f) {
   findFunctionsWithStringAnnotationsWithArg(M, [&f](llvm::Function *F, llvm::StringRef Annotation,
                                                     llvm::Value *Arg) { f(F, Annotation); });
+}
+
+template <class Handler>
+void findGVsWithStringAnnotations(llvm::Module &M, Handler &&f) {
+  findGlobalWithStringAnnotationsWithArg<llvm::GlobalVariable>(
+      M, [&f](llvm::GlobalVariable *F, llvm::StringRef Annotation, llvm::Value *Arg) {
+        f(F, Annotation);
+      });
 }
 
 } // namespace utils

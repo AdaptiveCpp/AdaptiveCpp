@@ -11,6 +11,7 @@
 #include "hipSYCL/runtime/backend_loader.hpp"
 #include "hipSYCL/runtime/executor.hpp"
 #include "hipSYCL/runtime/omp/omp_backend.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -102,7 +103,8 @@ std::string omp_backend::get_name() const {
 
 std::unique_ptr<backend_executor>
 omp_backend::create_inorder_executor(device_id dev, int priority){
-  return nullptr;
+  std::unique_ptr<inorder_queue> q = make_omp_queue(this, dev);
+  return std::make_unique<inorder_executor>(std::move(q));
 }
 
 }

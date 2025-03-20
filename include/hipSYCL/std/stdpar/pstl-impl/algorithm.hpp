@@ -209,6 +209,29 @@ ForwardIt2 copy_n(hipsycl::stdpar::par_unseq,
       count, ForwardIt2, offloader, fallback, first, count, result);
 }
 
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par_unseq,
+                                          ForwardIt1 first, ForwardIt1 last,
+                                          ForwardIt2 d_first) {
+  auto offloader = [&](auto& queue){
+    ForwardIt2 d_last = d_first;
+    std::advance(d_last, std::distance(first, last));
+    hipsycl::algorithms::move(queue, first, last, d_first);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::move(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+                     d_first);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::move{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), ForwardIt2, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
+}
+
 template<class ForwardIt, class T >
 HIPSYCL_STDPAR_ENTRYPOINT
 void fill(hipsycl::stdpar::par_unseq,
@@ -793,6 +816,29 @@ ForwardIt2 copy_n(hipsycl::stdpar::par,
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::copy_n{},
                                  hipsycl::stdpar::par{}),
       count, ForwardIt2, offloader, fallback, first, count, result);
+}
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(const hipsycl::stdpar::par,
+                                          ForwardIt1 first, ForwardIt1 last,
+                                          ForwardIt2 d_first) {
+  auto offloader = [&](auto& queue){
+    ForwardIt2 d_last = d_first;
+    std::advance(d_last, std::distance(first, last));
+    hipsycl::algorithms::move(queue, first, last, d_first);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::move(hipsycl::stdpar::par_host_fallback, first, last,
+                     d_first);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::move{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first, last), ForwardIt2, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
 
 template<class ForwardIt, class T >

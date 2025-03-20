@@ -384,7 +384,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
             [&](llvm::Instruction *InsertSyncBefore) {
               HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Inserting synchronization in function "
                                 << InsertSyncBefore->getParent()->getParent()->getName() << "\n";
-              llvm::CallInst::Create(SyncF->getFunctionType(), SyncF, "", InsertSyncBefore);
+              llvm::CallInst::Create(SyncF->getFunctionType(), SyncF, "", llvmutils::makeInsertionPoint(InsertSyncBefore));
             });
       }
     }

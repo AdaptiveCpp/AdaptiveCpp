@@ -17,6 +17,8 @@
 
 namespace std {
 
+///////////////////////////// par_unseq policy /////////////////////////////
+
 template <class ForwardIt, class UnaryFunction2>
 HIPSYCL_STDPAR_ENTRYPOINT void for_each(hipsycl::stdpar::par_unseq, ForwardIt first,
                                         ForwardIt last, UnaryFunction2 f);
@@ -54,6 +56,11 @@ template <class ForwardIt1, class Size, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy_n(hipsycl::stdpar::par_unseq,
                                             ForwardIt1 first, Size count,
                                             ForwardIt2 result);
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par_unseq,
+                                          ForwardIt1 first, ForwardIt1 last,
+                                          ForwardIt2 d_first);
 
 template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT void fill(hipsycl::stdpar::par_unseq, ForwardIt first,
@@ -123,6 +130,12 @@ HIPSYCL_STDPAR_ENTRYPOINT
 bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p );
 
+///////////////////////////// par policy /////////////////////////////
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par,
+                                          ForwardIt1 first, ForwardIt1 last,
+                                          ForwardIt2 d_first);
 }
 
 #endif

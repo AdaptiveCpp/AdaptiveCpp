@@ -185,6 +185,10 @@ sycl::event copy_n(sycl::queue &q, ForwardIt1 first, Size count,
                    ForwardIt2 result,
                    const std::vector<sycl::event> &deps = {});
 
+template <class ForwardIt1, class ForwardIt2>
+sycl::event move(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
+                 ForwardIt2 d_first, const std::vector<sycl::event> &deps = {});
+
 template <class ForwardIt, class T>
 sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
                  const T &value, const std::vector<sycl::event> &deps = {});

@@ -33,28 +33,28 @@ namespace detail::sscp_builtins {
 
 // ********************** math builtins *********************
 
-#define HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(name)                        \
-  HIPSYCL_BUILTIN float __acpp_##name(float x) {                            \
+#define HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(name)                     \
+  HIPSYCL_BUILTIN float __acpp_##name(float x) noexcept {                   \
     return __acpp_sscp_##name##_f32(x);                                     \
-  }                                                                            \
-  HIPSYCL_BUILTIN double __acpp_##name(double x) {                          \
+  }                                                                         \
+  HIPSYCL_BUILTIN double __acpp_##name(double x) noexcept {                 \
     return __acpp_sscp_##name##_f64(x);                                     \
   }
 
-#define HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(name)                       \
-  HIPSYCL_BUILTIN float __acpp_##name(float x, float y) {                   \
+#define HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(name)                    \
+  HIPSYCL_BUILTIN float __acpp_##name(float x, float y) noexcept {          \
     return __acpp_sscp_##name##_f32(x, y);                                  \
-  }                                                                            \
-  HIPSYCL_BUILTIN double __acpp_##name(double x, double y) {                \
+  }                                                                         \
+  HIPSYCL_BUILTIN double __acpp_##name(double x, double y) noexcept {       \
     return __acpp_sscp_##name##_f64(x, y);                                  \
   }
 
-#define HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN3(name)                       \
-  HIPSYCL_BUILTIN float __acpp_##name(float x, float y, float z) {          \
-    return __acpp_sscp_##name##_f32(x, y, z);                               \
-  }                                                                            \
-  HIPSYCL_BUILTIN double __acpp_##name(double x, double y, double z) {      \
-    return __acpp_sscp_##name##_f64(x, y, z);                               \
+#define HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN3(name)                        \
+  HIPSYCL_BUILTIN float __acpp_##name(float x, float y, float z) noexcept {     \
+    return __acpp_sscp_##name##_f32(x, y, z);                                   \
+  }                                                                             \
+  HIPSYCL_BUILTIN double __acpp_##name(double x, double y, double z) noexcept { \
+    return __acpp_sscp_##name##_f64(x, y, z);                                   \
   }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(acos)
@@ -89,67 +89,53 @@ HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(fmax)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(fmin)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(fmod)
 
-template<class T>
-HIPSYCL_BUILTIN float __acpp_fract(float x, T* ptr) {
-  float val;
-  float res = __acpp_sscp_fract_f32(x, &val);
-  *ptr = static_cast<T>(val);
-  return res;
+HIPSYCL_BUILTIN float __acpp_fract(float x, float* ptr) noexcept {
+  return __acpp_sscp_fract_f32(x, ptr);
 }
 
-template<class T>
-HIPSYCL_BUILTIN double __acpp_fract(double x, T* ptr) {
-  double val;
-  double res = __acpp_sscp_fract_f64(x, &val);
-  *ptr = static_cast<T>(val);
-  return res;
+HIPSYCL_BUILTIN double __acpp_fract(double x, double* ptr) noexcept {
+  return __acpp_sscp_fract_f64(x, ptr);
 }
 
-template<class IntT>
-HIPSYCL_BUILTIN float __acpp_frexp(float x, IntT* ptr) {
+HIPSYCL_BUILTIN float __acpp_frexp(float x, int* ptr) noexcept {
   __acpp_int32 val;
   float res = __acpp_sscp_frexp_f32(x, &val);
-  *ptr = static_cast<IntT>(val);
+  *ptr = static_cast<int>(val);
   return res;
 }
 
-template<class IntT>
-HIPSYCL_BUILTIN double __acpp_frexp(double x, IntT* ptr) {
+HIPSYCL_BUILTIN double __acpp_frexp(double x, int* ptr) noexcept {
   __acpp_int32 val;
   double res = __acpp_sscp_frexp_f64(x, &val);
-  *ptr = static_cast<IntT>(val);
+  *ptr = static_cast<int>(val);
   return res;
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(ilogb)
 
-template<class IntType>
-HIPSYCL_BUILTIN float __acpp_ldexp(float x, IntType k) noexcept {
+HIPSYCL_BUILTIN float __acpp_ldexp(float x, int k) noexcept {
   return __acpp_sscp_ldexp_f32(x, static_cast<__acpp_int32>(k));
 }
 
-template<class IntType>
-HIPSYCL_BUILTIN double __acpp_ldexp(double x, IntType k) noexcept {
+HIPSYCL_BUILTIN double __acpp_ldexp(double x, int k) noexcept {
   return __acpp_sscp_ldexp_f64(x, static_cast<__acpp_int32>(k));
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(lgamma)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(tgamma)
 
-template<class IntT>
-HIPSYCL_BUILTIN float __acpp_lgamma_r(float x, IntT* ptr) {
+HIPSYCL_BUILTIN float __acpp_lgamma_r(float x, int* ptr) noexcept {
   __acpp_int32 val;
   float res = __acpp_sscp_lgamma_r_f32(x, &val);
-  *ptr = static_cast<IntT>(val);
+  *ptr = static_cast<int>(val);
   return res;
 }
 
-template<class IntT>
-HIPSYCL_BUILTIN double __acpp_lgamma_r(double x, IntT* ptr) {
+HIPSYCL_BUILTIN double __acpp_lgamma_r(double x, int* ptr) noexcept {
   __acpp_int32 val;
   double res = __acpp_sscp_lgamma_r_f64(x, &val);
-  *ptr = static_cast<IntT>(val);
+  *ptr = static_cast<int>(val);
   return res;
 }
 
@@ -177,33 +163,22 @@ HIPSYCL_BUILTIN T __acpp_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-
-template<class FloatT>
-HIPSYCL_BUILTIN float __acpp_modf(float x, FloatT* y) noexcept {
-  float val;
-  float res = __acpp_sscp_modf_f32(x, &val);
-  *y = static_cast<FloatT>(val);
-  return res;
+HIPSYCL_BUILTIN double __acpp_modf(float x, float* y) noexcept {
+  return __acpp_sscp_modf_f32(x, y);
 }
 
-template<class FloatT>
-HIPSYCL_BUILTIN double __acpp_modf(double x, FloatT* y) noexcept {
-  double val;
-  double res = __acpp_sscp_modf_f64(x, &val);
-  *y = static_cast<FloatT>(val);
-  return res;
+HIPSYCL_BUILTIN double __acpp_modf(double x, double* y) noexcept {
+  return __acpp_sscp_modf_f64(x, y);
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(nextafter)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(powr)
 
-template<class IntType>
-HIPSYCL_BUILTIN float __acpp_pown(float x, IntType y) noexcept {
+HIPSYCL_BUILTIN float __acpp_pown(float x, int y) noexcept {
   return __acpp_sscp_pown_f32(x, static_cast<__acpp_int32>(y));
 }
 
-template<class IntType>
-HIPSYCL_BUILTIN double __acpp_pown(double x, IntType y) noexcept {
+HIPSYCL_BUILTIN double __acpp_pown(double x, int y) noexcept {
   return __acpp_sscp_pown_f64(x, static_cast<__acpp_int32>(y));
 }
 
@@ -211,13 +186,11 @@ HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(remainder)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(rint)
 
 
-template<class IntType>
-HIPSYCL_BUILTIN float __acpp_rootn(float x, IntType y) noexcept {
+HIPSYCL_BUILTIN float __acpp_rootn(float x, int y) noexcept {
   return __acpp_sscp_rootn_f32(x, static_cast<__acpp_int32>(y));
 }
 
-template<class IntType>
-HIPSYCL_BUILTIN double __acpp_rootn(double x, IntType y) noexcept {
+HIPSYCL_BUILTIN double __acpp_rootn(double x, int y) noexcept {
   return __acpp_sscp_rootn_f64(x, static_cast<__acpp_int32>(y));
 }
 
@@ -242,20 +215,20 @@ HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(trunc)
 
 // ***************** native math builtins ******************
 
-#define HIPSYCL_DEFINE_SSCP_GENFLOAT_NATIVE_BUILTIN(name)                      \
-  HIPSYCL_BUILTIN float __acpp_native_##name(float x) {                     \
-    return __acpp_sscp_native_##name##_f32(x);                              \
-  }                                                                            \
-  HIPSYCL_BUILTIN double __acpp_native_##name(double x) {                   \
-    return __acpp_sscp_native_##name##_f64(x);                              \
+#define HIPSYCL_DEFINE_SSCP_GENFLOAT_NATIVE_BUILTIN(name)                    \
+  HIPSYCL_BUILTIN float __acpp_native_##name(float x) noexcept {             \
+    return __acpp_sscp_native_##name##_f32(x);                               \
+  }                                                                          \
+  HIPSYCL_BUILTIN double __acpp_native_##name(double x) noexcept {           \
+    return __acpp_sscp_native_##name##_f64(x);                               \
   }
 
-#define HIPSYCL_DEFINE_SSCP_GENFLOAT_NATIVE_BUILTIN2(name)                     \
-  HIPSYCL_BUILTIN float __acpp_native_##name(float x, float y) {            \
-    return __acpp_sscp_native_##name##_f32(x, y);                           \
-  }                                                                            \
-  HIPSYCL_BUILTIN double __acpp_native_##name(double x, double y) {         \
-    return __acpp_sscp_native_##name##_f64(x, y);                           \
+#define HIPSYCL_DEFINE_SSCP_GENFLOAT_NATIVE_BUILTIN2(name)                   \
+  HIPSYCL_BUILTIN float __acpp_native_##name(float x, float y) noexcept {    \
+    return __acpp_sscp_native_##name##_f32(x, y);                            \
+  }                                                                          \
+  HIPSYCL_BUILTIN double __acpp_native_##name(double x, double y) noexcept { \
+    return __acpp_sscp_native_##name##_f64(x, y);                            \
   }
 
 
@@ -536,18 +509,18 @@ HIPSYCL_BUILTIN double __acpp_sign(double x) noexcept {
 template <typename VecType>
 HIPSYCL_BUILTIN VecType 
 __acpp_cross3(const VecType &a, const VecType &b) noexcept {
-  return {a.y() * b.z() - a.z() * b.y(),
-          a.z() * b.x() - a.x() * b.z(),
-          a.x() * b.y() - a.y() * b.x()};
+  return {a[1] * b[2] - a[2] * b[1],
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0]};
 }
 
 template <typename VecType>
 HIPSYCL_BUILTIN VecType 
 __acpp_cross4(const VecType &a, const VecType &b) noexcept {
-  return {a.y() * b.z() - a.z() * b.y(), 
-          a.z() * b.x() - a.x() * b.z(),
-          a.x() * b.y() - a.y() * b.x(),
-          typename VecType::element_type{0}};
+  return {a[1] * b[2] - a[2] * b[1], 
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0],
+          typename VecType::value_type{0}};
 }
 
 // ****************** geometric functions ******************
@@ -558,8 +531,8 @@ HIPSYCL_BUILTIN T __acpp_dot(T a, T b) noexcept {
 }
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_BUILTIN typename T::element_type __acpp_dot(T a, T b) noexcept {
-  typename T::element_type result = 0;
+HIPSYCL_BUILTIN typename T::value_type __acpp_dot(T a, T b) noexcept {
+  typename T::value_type result = 0;
   for (int i = 0; i < a.size(); ++i) {
     result += a[i] * b[i];
   }
@@ -572,7 +545,7 @@ HIPSYCL_BUILTIN T __acpp_length(T a) noexcept {
 }
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_BUILTIN typename T::element_type __acpp_length(T a) noexcept {
+HIPSYCL_BUILTIN typename T::value_type __acpp_length(T a) noexcept {
   auto d = sscp_builtins::__acpp_dot(a, a);
   return sscp_builtins::__acpp_sqrt(d);
 }
@@ -594,7 +567,7 @@ HIPSYCL_BUILTIN T __acpp_fast_length(T a) noexcept {
 }
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_BUILTIN typename T::element_type __acpp_fast_length(T a) noexcept {
+HIPSYCL_BUILTIN typename T::value_type __acpp_fast_length(T a) noexcept {
   auto d = sscp_builtins::__acpp_dot(a, a);
   return sscp_builtins::__acpp_half_sqrt(d);
 }
@@ -612,11 +585,11 @@ HIPSYCL_BUILTIN T __acpp_fast_normalize(T a) noexcept {
 
 // ****************** relational functions ******************
 
-#define HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(name)                         \
-  HIPSYCL_BUILTIN int __acpp_##name(float x) {                              \
+#define HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(name)                      \
+  HIPSYCL_BUILTIN int __acpp_##name(float x) noexcept {                     \
     return __acpp_sscp_##name##_f32(x);                                     \
-  }                                                                            \
-  HIPSYCL_BUILTIN int __acpp_##name(double x) {                             \
+  }                                                                         \
+  HIPSYCL_BUILTIN int __acpp_##name(double x) noexcept {                    \
     return __acpp_sscp_##name##_f64(x);                                     \
   }
 

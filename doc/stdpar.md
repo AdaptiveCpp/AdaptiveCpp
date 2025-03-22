@@ -45,6 +45,8 @@ Offloading is implemented for the following STL algorithms:
 |`any_of` | |
 |`all_of` | |
 |`none_of` | |
+|`count` | |
+|`count_if` | |
 |`merge` | |
 |`sort` | may not scale optimally for large problems |
 |`inclusive_scan` | |

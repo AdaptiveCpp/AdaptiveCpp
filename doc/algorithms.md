@@ -264,6 +264,24 @@ sycl::event none_of(sycl::queue &q,
                    ForwardIt first, ForwardIt last, int* out,
                    UnaryPredicate p, const std::vector<sycl::event>& deps = {});
 
+/// The result of the reduction will be written to out.
+///
+/// out must point to memory that is accessible on the target device.
+template<class ForwardIt, class T>
+sycl::event count(sycl::queue &q, util::allocation_group &scratch_allocations,
+                  ForwardIt first, ForwardIt last,
+                  typename std::iterator_traits<ForwardIt>::difference_type *out,
+                  const T& value, const std::vector<sycl::event> &deps = {});
+
+/// The result of the reduction will be written to out.
+///
+/// out must point to memory that is accessible on the target device.
+template<class ForwardIt, class UnaryPredicate>
+sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                  ForwardIt first, ForwardIt last,
+                  typename std::iterator_traits<ForwardIt>::difference_type *out,
+                  UnaryPredicate p, const std::vector<sycl::event> &deps = {});
+
 template <class RandomIt, class Compare>
 sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
                  Compare comp = std::less<>{},

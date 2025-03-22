@@ -138,6 +138,18 @@ HIPSYCL_STDPAR_ENTRYPOINT
 bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p );
 
+template<class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
+typename std::iterator_traits<ForwardIt>::difference_type
+count( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+       const T& value );
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+typename std::iterator_traits<ForwardIt>::difference_type
+count_if( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+         UnaryPredicate p );
+
 ///////////////////////////// par policy /////////////////////////////
 
 template <class ForwardIt1, class ForwardIt2>

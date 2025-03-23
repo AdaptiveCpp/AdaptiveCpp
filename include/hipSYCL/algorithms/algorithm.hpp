@@ -584,10 +584,11 @@ sycl::event count(sycl::queue &q, util::allocation_group &scratch_allocations,
                   const T& value, const std::vector<sycl::event> &deps = {}) {
 
   using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
 
   return transform_reduce(q, scratch_allocations, first, last, out,
                           DiffT{}, std::plus<>{},
-                          [value](int x) {return (x == value ? 1 : 0);},
+                          [value](ValueT x) {return (x == value ? 1 : 0);},
                           deps);
 }
 
@@ -598,10 +599,11 @@ sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations
                   UnaryPredicate p, const std::vector<sycl::event> &deps = {}) {
 
   using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
 
   return transform_reduce(q, scratch_allocations, first, last, out,
                           DiffT{}, std::plus<>{},
-                          [p](int x) {return p(x) ? 1 : 0;},
+                          [p](ValueT x) {return p(x) ? 1 : 0;},
                           deps);
 }
 

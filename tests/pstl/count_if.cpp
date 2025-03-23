@@ -22,11 +22,11 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_count_if, enable_unified_shared_memory)
 
-template<class Policy, class UnaryPredicate>
+template<class T, class Policy, class UnaryPredicate>
 void test_count_if(Policy&& pol, std::size_t problem_size, UnaryPredicate p) {
-  std::vector<int> data(problem_size);
+  std::vector<T> data(problem_size);
   for(std::size_t i = 0; i < data.size(); ++i)
-    data[i] = static_cast<int>(i);
+    data[i] = static_cast<T>(i);
 
 
   auto reference_result = std::count_if(data.begin(), data.end(), p);
@@ -42,28 +42,29 @@ void test_count_if(Policy&& pol, std::size_t problem_size, UnaryPredicate p) {
     BOOST_CHECK(res == 0);
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_empty) {
-  test_count_if(std::execution::par_unseq, 0, [](auto x) { return x < 15; });
+using types = boost::mp11::mp_list<int>;
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types) {
+  test_count_if<T>(std::execution::par_unseq, 0, [](auto x) { return x < T{15}; });
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
-  test_count_if(std::execution::par_unseq, 1, [](auto x) { return x < 15; });
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types) {
+  test_count_if<T>(std::execution::par_unseq, 1, [](auto x) { return x < T{15}; });
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
-  test_count_if(std::execution::par_unseq, 1000, [](auto x) { return x < 15; });
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types) {
+  test_count_if<T>(std::execution::par_unseq, 1000, [](auto x) { return x < T{15}; });
 }
 
-BOOST_AUTO_TEST_CASE(par_empty) {
-  test_count_if(std::execution::par, 0, [](auto x) { return x < 15; });
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_empty, T, types) {
+  test_count_if<T>(std::execution::par, 0, [](auto x) { return x < T{15}; });
 }
 
-BOOST_AUTO_TEST_CASE(par_single_element) {
-  test_count_if(std::execution::par, 1, [](auto x) { return x < 15; });
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_single_element, T, types) {
+  test_count_if<T>(std::execution::par, 1, [](auto x) { return x < T{15}; });
 }
 
-BOOST_AUTO_TEST_CASE(par_medium_size) {
-  test_count_if(std::execution::par, 1000, [](auto x) { return x < 15; });
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size, T, types) {
+  test_count_if<T>(std::execution::par, 1000, [](auto x) { return x < T{15}; });
 }
 
 BOOST_AUTO_TEST_SUITE_END()

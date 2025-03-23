@@ -22,9 +22,9 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_count, enable_unified_shared_memory)
 
-template<class Policy, class T>
+template<class T, class Policy>
 void test_count(Policy&& pol, std::size_t problem_size, const T& value) {
-  std::vector<int> data(problem_size);
+  std::vector<T> data(problem_size);
   for(std::size_t i = 0; i < data.size(); ++i)
     data[i] = value;
 
@@ -37,28 +37,29 @@ void test_count(Policy&& pol, std::size_t problem_size, const T& value) {
   BOOST_CHECK(res == problem_size);
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_empty) {
-  test_count(std::execution::par_unseq, 0, 15);
+using types = boost::mp11::mp_list<int>;
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types) {
+  test_count<T>(std::execution::par_unseq, 0, T{15});
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
-  test_count(std::execution::par_unseq, 1, 15);
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types) {
+  test_count<T>(std::execution::par_unseq, 1, T{15});
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
-  test_count(std::execution::par_unseq, 1000, 15);
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types) {
+  test_count<T>(std::execution::par_unseq, 1000, T{15});
 }
 
-BOOST_AUTO_TEST_CASE(par_empty) {
-  test_count(std::execution::par, 0, 15);
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_empty, T, types) {
+  test_count<T>(std::execution::par, 0, T{15});
 }
 
-BOOST_AUTO_TEST_CASE(par_single_element) {
-  test_count(std::execution::par, 1, 15);
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_single_element, T, types) {
+  test_count<T>(std::execution::par, 1, T{15});
 }
 
-BOOST_AUTO_TEST_CASE(par_medium_size) {
-  test_count(std::execution::par, 1000, 15);
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size, T, types) {
+  test_count<T>(std::execution::par, 1000, T{15});
 }
 
 BOOST_AUTO_TEST_SUITE_END()

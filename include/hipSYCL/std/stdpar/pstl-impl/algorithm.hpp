@@ -1293,6 +1293,85 @@ bool none_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
+
+template<class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT typename std::iterator_traits<ForwardIt>::difference_type
+count(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
+         const T& value) {
+  auto offloader = [&](auto& queue) {
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+
+    if(std::distance(first, last) == 0)
+      return DiffT{};
+
+    auto  output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::count(queue, reduction_scratch_group, first,
+                               last, out, value);
+    queue.wait();
+    return *out;
+  };
+
+  auto fallback = [&]() {
+    return std::count(hipsycl::stdpar::par_host_fallback, first,
+                         last, value);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::count{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first, last), typename std::iterator_traits<ForwardIt>::difference_type,
+      offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
+}
+
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT typename std::iterator_traits<ForwardIt>::difference_type
+count_if(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
+         UnaryPredicate p) {
+  auto offloader = [&](auto& queue) {
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+
+    if(std::distance(first, last) == 0)
+      return DiffT{};
+
+    auto  output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::count_if(queue, reduction_scratch_group, first,
+                                  last, out, p);
+    queue.wait();
+    return *out;
+  };
+
+  auto fallback = [&]() {
+    return std::count_if(hipsycl::stdpar::par_host_fallback, first,
+                         last, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::count_if{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first, last), typename std::iterator_traits<ForwardIt>::difference_type,
+      offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
+}
+
+
 template <class RandomIt>
 HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par, RandomIt first,
                                         RandomIt last) {

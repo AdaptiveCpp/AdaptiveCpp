@@ -26,13 +26,15 @@ template<class Policy, class T>
 void test_count(Policy&& pol, std::size_t problem_size, const T& value) {
   std::vector<int> data(problem_size);
   for(std::size_t i = 0; i < data.size(); ++i)
-    data[i] = static_cast<int>(i) + 15;
+    data[i] = value;
 
 
   auto reference_result = std::count(data.begin(), data.end(), value);
   auto res = std::count(pol, data.begin(), data.end(), value);
   
   BOOST_CHECK(res == reference_result);
+
+  BOOST_CHECK(res == problem_size);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty) {
@@ -47,16 +49,16 @@ BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
   test_count(std::execution::par_unseq, 1000, 15);
 }
 
-// BOOST_AUTO_TEST_CASE(par_empty) {
-//   test_count(std::execution::par, 0, 5);
-// }
+BOOST_AUTO_TEST_CASE(par_empty) {
+  test_count(std::execution::par, 0, 15);
+}
 
-// BOOST_AUTO_TEST_CASE(par_single_element) {
-//   test_count(std::execution::par, 1, 5);
-// }
+BOOST_AUTO_TEST_CASE(par_single_element) {
+  test_count(std::execution::par, 1, 15);
+}
 
-// BOOST_AUTO_TEST_CASE(par_medium_size) {
-//   test_count(std::execution::par, 1000, 5);
-// }
+BOOST_AUTO_TEST_CASE(par_medium_size) {
+  test_count(std::execution::par, 1000, 15);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

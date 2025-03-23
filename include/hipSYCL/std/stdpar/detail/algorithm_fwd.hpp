@@ -165,6 +165,18 @@ template<class BidirIt, class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par,
                                                   BidirIt first, BidirIt last,
                                                   ForwardIt d_first);
+
+template<class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
+typename std::iterator_traits<ForwardIt>::difference_type
+count( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
+       const T& value );
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+typename std::iterator_traits<ForwardIt>::difference_type
+count_if( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
+         UnaryPredicate p );
 }
 
 #endif

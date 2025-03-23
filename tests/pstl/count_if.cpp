@@ -33,6 +33,13 @@ void test_count_if(Policy&& pol, std::size_t problem_size, UnaryPredicate p) {
   auto res = std::count_if(pol, data.begin(), data.end(), p);
   
   BOOST_CHECK(res == reference_result);
+
+  if (problem_size == 1000)
+    BOOST_CHECK(res == 15);
+  else if (problem_size == 1)
+    BOOST_CHECK(res == 1);
+  else if (problem_size == 0)
+    BOOST_CHECK(res == 0);
 }
 
 BOOST_AUTO_TEST_CASE(par_unseq_empty) {
@@ -47,16 +54,16 @@ BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
   test_count_if(std::execution::par_unseq, 1000, [](auto x) { return x < 15; });
 }
 
-// BOOST_AUTO_TEST_CASE(par_empty) {
-//   test_count_if(std::execution::par, 0, 5);
-// }
+BOOST_AUTO_TEST_CASE(par_empty) {
+  test_count_if(std::execution::par, 0, [](auto x) { return x < 15; });
+}
 
-// BOOST_AUTO_TEST_CASE(par_single_element) {
-//   test_count_if(std::execution::par, 1, 5);
-// }
+BOOST_AUTO_TEST_CASE(par_single_element) {
+  test_count_if(std::execution::par, 1, [](auto x) { return x < 15; });
+}
 
-// BOOST_AUTO_TEST_CASE(par_medium_size) {
-//   test_count_if(std::execution::par, 1000, 5);
-// }
+BOOST_AUTO_TEST_CASE(par_medium_size) {
+  test_count_if(std::execution::par, 1000, [](auto x) { return x < 15; });
+}
 
 BOOST_AUTO_TEST_SUITE_END()

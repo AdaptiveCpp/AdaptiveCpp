@@ -107,11 +107,12 @@ template<class BidirIt, class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq,
                                                   BidirIt first, BidirIt last,
                                                   ForwardIt d_first);
-/*
+
 template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(hipsycl::stdpar::par_unseq, ForwardIt first,
                                          ForwardIt last, const T &value);
 
+/*
 template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(hipsycl::stdpar::par_unseq,
                                             ForwardIt first, ForwardIt last,

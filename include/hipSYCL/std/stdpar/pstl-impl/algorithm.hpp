@@ -449,11 +449,47 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
 
-/*
 template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(const hipsycl::stdpar::par_unseq, ForwardIt first,
-                                         ForwardIt last, const T &value);
+                                         ForwardIt last, const T &value) {
+  auto offloader = [&](auto& queue) {
+    if(std::distance(first, last) == 0)
+      return last;
 
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    std::size_t *out = output_scratch_group.obtain<std::size_t>(1);
+    hipsycl::algorithms::find(queue, reduction_scratch_group, first,
+                              last, value, out);
+
+    queue.wait();
+
+    ForwardIt found_at = first;
+    std::advance(found_at, *out);
+    return found_at;
+  };
+
+  auto fallback =[&]() {
+    return std::find(hipsycl::stdpar::par_unseq_host_fallback, first,
+                     last, value);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), ForwardIt, offloader, fallback,
+      first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
+}
+
+/*
 template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(const hipsycl::stdpar::par_unseq,
                                             ForwardIt first, ForwardIt last,

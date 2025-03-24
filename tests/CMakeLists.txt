@@ -154,6 +154,7 @@ if(WITH_PSTL_TESTS)
     pstl/exclusive_scan.cpp
     pstl/fill.cpp
     pstl/fill_n.cpp
+    pstl/find.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
     pstl/generate.cpp

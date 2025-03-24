@@ -26,6 +26,7 @@
 #include "merge/merge.hpp"
 #include "scan/scan.hpp"
 #include "util/traits.hpp"
+#include "hipSYCL/algorithms/numeric.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/sort/bitonic_sort.hpp"
@@ -445,6 +446,32 @@ sycl::event reverse_copy(sycl::queue &q, BidirIt first,
                         });
 }
 
+template <class ForwardIt, class T>
+sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, const T &value,
+                 std::size_t *out, const std::vector<sycl::event> &deps = {}) {
+  if(first == last)
+    return sycl::event{};
+
+  std::size_t problem_size = std::distance(first, last);
+
+  auto transform = [first, value, problem_size] (ForwardIt input) {
+    return (*input == value ? std::distance(first, input) : problem_size);
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<std::size_t>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       static_cast<std::size_t>(0),
+                                       problem_size, kernel, reduce, deps);
+}
+
 // Need transform_reduce functionality for find etc, so forward
 // declare here.
 /*template <class ForwardIt, class T, class BinaryReductionOp,
@@ -463,14 +490,6 @@ sycl::event
 transform_reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
                  ForwardIt first, ForwardIt last, T* out, T init,
                  BinaryReductionOp reduce, UnaryTransformOp transform);
-
-template <class ForwardIt, class T>
-sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
-                 typename std::iterator_traits<ForwardIt>::difference_type* out, const T &value) {
-  using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
-  
-  return transform_reduce(q, scratch_allocations, first, last, out, std::distance(first, last), sycl::minimum<difference_type>{},)
-}
 
 template <class ForwardIt, class UnaryPredicate>
 sycl::event find_if(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,

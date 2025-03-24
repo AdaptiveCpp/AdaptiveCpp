@@ -1,0 +1,54 @@
+/*
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
+ *
+ * Copyright The AdaptiveCpp Contributors
+ *
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
+ */
+// SPDX-License-Identifier: BSD-2-Clause
+
+#include <numeric>
+#include <execution>
+#include <utility>
+#include <vector>
+
+#include <boost/test/unit_test.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/mpl.hpp>
+
+#include "pstl_test_suite.hpp"
+
+BOOST_FIXTURE_TEST_SUITE(pstl_find, enable_unified_shared_memory)
+
+template<class T, class Policy>
+void test_find(Policy&& pol, std::size_t problem_size, const T& value) {
+  std::vector<T> data(problem_size);
+  for(std::size_t i = 0; i < data.size(); ++i)
+    data[i] = static_cast<T>(i);
+
+
+  auto reference_result = std::find(data.begin(), data.end(), value);
+  auto res = std::find(pol, data.begin(), data.end(), value);
+  
+  // BOOST_CHECK(res == reference_result);
+  std::cout << "\n" << *reference_result << ", " << *res << "\n";
+
+//   BOOST_CHECK(res == problem_size);
+}
+
+using types = boost::mp11::mp_list<int>;
+// BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types) {
+  // test_find<T>(std::execution::par_unseq, 0, T{15});
+// }
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types) {
+  test_find<T>(std::execution::par_unseq, 1, T{15});
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types) {
+  test_find<T>(std::execution::par_unseq, 20, T{15});
+}
+
+BOOST_AUTO_TEST_SUITE_END()

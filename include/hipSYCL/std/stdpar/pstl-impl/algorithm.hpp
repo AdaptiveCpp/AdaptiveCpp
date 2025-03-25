@@ -466,7 +466,8 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(const hipsycl::stdpar::par_unseq, Forwa
             .make_scratch_group<
                 hipsycl::algorithms::util::allocation_type::device>();
 
-    std::size_t *out = output_scratch_group.obtain<std::size_t>(1);
+    using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
     hipsycl::algorithms::find(queue, reduction_scratch_group, first,
                               last, value, out);
 

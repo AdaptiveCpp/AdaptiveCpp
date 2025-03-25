@@ -449,11 +449,13 @@ sycl::event reverse_copy(sycl::queue &q, BidirIt first,
 template <class ForwardIt, class T>
 sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations,
                  ForwardIt first, ForwardIt last, const T &value,
-                 std::size_t *out, const std::vector<sycl::event> &deps = {}) {
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {}) {
   if(first == last)
     return sycl::event{};
 
-  std::size_t problem_size = std::distance(first, last);
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  DiffT problem_size = std::distance(first, last);
 
   auto transform = [first, value, problem_size] (ForwardIt input) {
     return (*input == value ? std::distance(first, input) : problem_size);
@@ -465,10 +467,9 @@ sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations,
     reducer.combine(transform(input));
   };
 
-  auto reduce = sycl::minimum<std::size_t>{};
+  auto reduce = sycl::minimum<DiffT>{};
 
-  return detail::transform_reduce_impl(q, scratch_allocations, out,
-                                       static_cast<std::size_t>(0),
+  return detail::transform_reduce_impl(q, scratch_allocations, out, DiffT{},
                                        problem_size, kernel, reduce, deps);
 }
 

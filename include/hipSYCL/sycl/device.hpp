@@ -315,7 +315,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
       rt::device_uint_property::max_compute_units);
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO_EXTENSION(device, max_num_work_groups<1>)
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_num_work_groups<1>)
 {
   std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
       rt::device_uint_property::max_num_work_groups0));

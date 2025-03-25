@@ -22,25 +22,43 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_find, enable_unified_shared_memory)
 
+template <typename T> void printDemangledType(T &&var) {
+  /*
+   * Call as: printDemangledType(H.col(i));
+   */
+  const char *mangledName = typeid(var).name();
+  int status = 0;
+  char *demangledName = abi::__cxa_demangle(mangledName, NULL, NULL, &status);
+  if (status == 0) {
+    std::cout << "Type: " << demangledName << '\n';
+  } else {
+    std::cout << "Failed to demangle name: " << mangledName << '\n';
+  }
+  free(demangledName); // Free the memory allocated by abi::__cxa_demangle
+}
+
 template<class T, class Policy>
 void test_find(Policy&& pol, std::size_t problem_size, const T& value) {
   std::vector<T> data(problem_size);
   for(std::size_t i = 0; i < data.size(); ++i)
-    data[i] = static_cast<T>(i);
+    data[i] = static_cast<T>(i+1);
 
 
   auto reference_result = std::find(data.begin(), data.end(), value);
   auto res = std::find(pol, data.begin(), data.end(), value);
   
-  // BOOST_CHECK(res == reference_result);
-  std::cout << "\n" << *reference_result << ", " << *res << "\n";
+  printDemangledType(reference_result);
+  printDemangledType(res);
+  std::cout << "distance: " << std::distance(data.begin(), reference_result) << ", "
+            << std::distance(data.begin(), res) << "\n";
+  std::cout << "values: " << *reference_result << ", " << *res << "\n";
 
 //   BOOST_CHECK(res == problem_size);
 }
 
 using types = boost::mp11::mp_list<int>;
 // BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types) {
-  // test_find<T>(std::execution::par_unseq, 0, T{15});
+//   test_find<T>(std::execution::par_unseq, 0, T{15});
 // }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types) {

@@ -155,6 +155,8 @@ if(WITH_PSTL_TESTS)
     pstl/fill.cpp
     pstl/fill_n.cpp
     pstl/find.cpp
+    pstl/find_if.cpp
+    pstl/find_if_not.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
     pstl/generate.cpp

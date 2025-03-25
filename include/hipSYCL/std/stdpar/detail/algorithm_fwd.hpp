@@ -112,7 +112,6 @@ template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(hipsycl::stdpar::par_unseq, ForwardIt first,
                                          ForwardIt last, const T &value);
 
-/*
 template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(hipsycl::stdpar::par_unseq,
                                             ForwardIt first, ForwardIt last,
@@ -121,7 +120,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(hipsycl::stdpar::par_unseq,
 template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(hipsycl::stdpar::par_unseq,
                                                 ForwardIt first, ForwardIt last,
-                                                UnaryPredicate q); */
+                                                UnaryPredicate p);
 
 
 template<class ForwardIt, class UnaryPredicate>
@@ -180,4 +179,17 @@ count_if( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
 }
 
+template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(hipsycl::stdpar::par, ForwardIt first,
+                                         ForwardIt last, const T &value);
+
+template <class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(hipsycl::stdpar::par,
+                                            ForwardIt first, ForwardIt last,
+                                            UnaryPredicate p);
+
+template <class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(hipsycl::stdpar::par,
+                                            ForwardIt first, ForwardIt last,
+                                            UnaryPredicate p);
 #endif

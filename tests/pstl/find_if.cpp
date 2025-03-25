@@ -20,68 +20,68 @@
 
 #include "pstl_test_suite.hpp"
 
-BOOST_FIXTURE_TEST_SUITE(pstl_find, enable_unified_shared_memory)
+BOOST_FIXTURE_TEST_SUITE(pstl_find_if, enable_unified_shared_memory)
 
 
-template<class T, class Policy, class Generator>
-void test_find(Policy&& pol, Generator&& gen, std::size_t problem_size, const T& value) {
+template<class T, class Policy, class Generator, class UnaryPredicate>
+void test_find_if(Policy&& pol, Generator&& gen, std::size_t problem_size, UnaryPredicate p) {
   std::vector<T> data(problem_size);
   for(std::size_t i = 0; i < data.size(); ++i)
     data[i] = gen(i);
 
-  auto reference_result = std::find(data.begin(), data.end(), value);
-  auto res = std::find(pol, data.begin(), data.end(), value);
+  auto reference_result = std::find_if(data.begin(), data.end(), p);
+  auto res = std::find_if(pol, data.begin(), data.end(), p);
 
   BOOST_CHECK(res == reference_result);
 }
 
 using types = boost::mp11::mp_list<int>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types) {
-  test_find<T>(std::execution::par_unseq, [](int i){return i;}, 0, T{42});
+  test_find_if<T>(std::execution::par_unseq, [](int i){return i;}, 0, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element_match, T, types) {
-  test_find<T>(std::execution::par_unseq, [](int i){return 42;}, 1, T{42});
+  test_find_if<T>(std::execution::par_unseq, [](int i){return 42;}, 1, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types) {
-  test_find<T>(std::execution::par_unseq, [](int i){return i;}, 1, T{42});
+  test_find_if<T>(std::execution::par_unseq, [](int i){return i;}, 1, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size_match, T, types) {
-  test_find<T>(std::execution::par_unseq, [](int i){return i;}, 1000, T{42});
+  test_find_if<T>(std::execution::par_unseq, [](int i){return i;}, 1000, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size_multiple, T, types) {
-  test_find<T>(std::execution::par_unseq, [](int i){return 42;}, 1000, T{42});
+  test_find_if<T>(std::execution::par_unseq, [](int i){return 42;}, 1000, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types) {
-  test_find<T>(std::execution::par_unseq, [](int i){return i;}, 1000, T{4020});
+  test_find_if<T>(std::execution::par_unseq, [](int i){return i;}, 1000, [](T x){ return x == 4020;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_empty, T, types) {
-  test_find<T>(std::execution::par, [](int i){return i;}, 0, T{42});
+  test_find_if<T>(std::execution::par, [](int i){return i;}, 0, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_single_element_match, T, types) {
-  test_find<T>(std::execution::par, [](int i){return 42;}, 1, T{42});
+  test_find_if<T>(std::execution::par, [](int i){return 42;}, 1, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_single_element, T, types) {
-  test_find<T>(std::execution::par, [](int i){return i;}, 1, T{42});
+  test_find_if<T>(std::execution::par, [](int i){return i;}, 1, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size_match, T, types) {
-  test_find<T>(std::execution::par, [](int i){return i;}, 1000, T{42});
+  test_find_if<T>(std::execution::par, [](int i){return i;}, 1000, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size_multiple, T, types) {
-  test_find<T>(std::execution::par, [](int i){return 42;}, 1000, T{42});
+  test_find_if<T>(std::execution::par, [](int i){return 42;}, 1000, [](T x){ return x == 42;});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size, T, types) {
-  test_find<T>(std::execution::par, [](int i){return i;}, 1000, T{4020});
+  test_find_if<T>(std::execution::par, [](int i){return i;}, 1000, [](T x){ return x == 4020;});
 }
 
 BOOST_AUTO_TEST_SUITE_END()

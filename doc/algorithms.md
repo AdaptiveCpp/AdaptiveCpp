@@ -206,6 +206,18 @@ template <class ForwardIt, class Size, class Generator>
 sycl::event generate_n(sycl::queue &q, ForwardIt first, Size count, Generator g,
                        const std::vector<sycl::event> &deps = {});
 
+template <class ForwardIt1, class ForwardIt2, class T>
+sycl::event remove_copy(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+                    const T &value, std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
+sycl::event remove_copy_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+                    UnaryPredicate p, std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {});
+
 template <class ForwardIt, class T>
 sycl::event replace(sycl::queue &q, ForwardIt first, ForwardIt last,
                     const T &old_value, const T &new_value,

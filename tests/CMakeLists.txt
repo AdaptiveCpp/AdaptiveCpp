@@ -164,6 +164,8 @@ if(WITH_PSTL_TESTS)
     pstl/move.cpp
     pstl/none_of.cpp
     pstl/reduce.cpp
+    pstl/remove_copy.cpp
+    pstl/remove_copy_if.cpp
     pstl/replace.cpp
     pstl/replace_if.cpp
     pstl/replace_copy.cpp

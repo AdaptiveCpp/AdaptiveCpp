@@ -1,0 +1,12 @@
+name: "Unlock Lock"
+description: "Releases the lock file."
+inputs:
+  lock_file:
+    description: "Lock file path"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        rm -f ${{ inputs.lock_file }}
+      shell: bash

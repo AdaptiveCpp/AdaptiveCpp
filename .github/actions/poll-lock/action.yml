@@ -1,0 +1,22 @@
+name: "Poll for Lock"
+description: "Polls until the lock file is available and acquires it."
+inputs:
+  lock_file:
+    description: "Lock file path"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        while true; do
+          if [ ! -f "${{ inputs.lock_file }}" ]; then
+            echo "Lock file not found, acquiring lock..."
+            touch ${{ inputs.lock_file }}
+            chmod 666 ${{ inputs.lock_file }}
+            break
+          else
+            echo "Lock file exists. Waiting..."
+            sleep 10
+          fi
+        done
+      shell: bash

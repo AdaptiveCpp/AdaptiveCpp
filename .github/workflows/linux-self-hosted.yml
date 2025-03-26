@@ -1,6 +1,10 @@
 name: Self-hosted CI
 
 on: [push, pull_request]
+
+env:
+  LOCK_FILE: ~/.ci_lock
+
 jobs:
   test-gpu-nvidia:
     if: github.repository_id == '140986400'
@@ -110,6 +114,10 @@ jobs:
         cuda: ['11.0'] # Just to be able to build the backend for explicit multipass
     steps:
     - uses: actions/checkout@v4
+    - name: Poll for lock
+      uses: ./.github/actions/poll-lock
+      with:
+        lock_file: ${{ env.LOCK_FILE }}
     - name: clear JIT cache
       run: |
         rm -rf ~/.acpp
@@ -160,6 +168,11 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="omp;hip" ./pcuda_tests
+    - name: Unlock Lock
+      if: always()
+      uses: ./.github/actions/unlock
+      with:
+        lock_file: ${{ env.LOCK_FILE }}
   test-gpu-intel:
     if: github.repository_id == '140986400'
     name: Intel with clang ${{ matrix.clang_version }}
@@ -169,6 +182,10 @@ jobs:
         clang_version: ['18']
     steps:
     - uses: actions/checkout@v4
+    - name: Poll for lock
+      uses: ./.github/actions/poll-lock
+      with:
+        lock_file: ${{ env.LOCK_FILE }}
     - name: clear JIT cache
       run: |
         rm -rf ~/.acpp
@@ -199,3 +216,8 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pcuda_tests
+    - name: Unlock Lock
+      if: always()
+      uses: ./.github/actions/unlock
+      with:
+        lock_file: ${{ env.LOCK_FILE }}

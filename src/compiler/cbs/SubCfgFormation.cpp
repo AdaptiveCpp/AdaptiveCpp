@@ -158,10 +158,11 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
 }
 
 // identify the local size values by the store to it
-void fillStores(llvm::Value *V, int Idx, bool IsIdxBytewise, llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
+void fillStores(llvm::Value *V, int Idx, bool IsIdxBytewise,
+                llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
   if (auto *Store = llvm::dyn_cast<llvm::StoreInst>(V)) {
 #if LLVM_VERSION_MAJOR >= 17
-    if(IsIdxBytewise)
+    if (IsIdxBytewise)
       Idx /= Store->getAccessType()->getScalarSizeInBits() / 8;
 #endif
     LocalSize[Idx] = Store->getOperand(0);
@@ -1079,24 +1080,58 @@ void purgeLifetime(SubCFG &Cfg) {
     I->eraseFromParent();
 }
 
+// look through geps and bitcasts to find the alloca
+llvm::AllocaInst *getAllocaFromGEP(llvm::Value *V) {
+  if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V))
+    return getAllocaFromGEP(GEP->getPointerOperand());
+  if (auto *BC = llvm::dyn_cast<llvm::BitCastInst>(V))
+    return getAllocaFromGEP(BC->getOperand(0));
+  if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(V))
+    return AI;
+  return nullptr;
+}
+
 // fills \a Hull with all transitive users of \a Alloca
-void fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruction *> &Hull) {
+// returns true, if address is captured by a function
+bool fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruction *> &Hull) {
   llvm::SmallVector<llvm::Instruction *, 8> WL;
-  std::transform(Alloca->user_begin(), Alloca->user_end(), std::back_inserter(WL),
-                 [](auto *U) { return llvm::cast<llvm::Instruction>(U); });
+  WL.push_back(Alloca);
+
   llvm::SmallPtrSet<llvm::Instruction *, 32> AlreadySeen;
   while (!WL.empty()) {
     auto *I = WL.pop_back_val();
     AlreadySeen.insert(I);
-    Hull.push_back(I);
-    for (auto *U : I->users()) {
-      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
-        if (!AlreadySeen.contains(UI))
-          if (UI->mayReadOrWriteMemory() || UI->getType()->isPointerTy())
+    if(!I->getParent()->isEntryBlock())
+      Hull.push_back(I);
+
+    for (auto &U : I->uses()) {
+      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U.getUser())) {
+        if (!AlreadySeen.contains(UI)) {
+          if (auto SI = llvm::dyn_cast<llvm::StoreInst>(I)) {
+            if (SI->getPointerOperand()) {
+              if (auto *StoredToAlloca = getAllocaFromGEP(SI->getPointerOperand());
+                  StoredToAlloca && AlreadySeen.insert(StoredToAlloca).second) {
+                HIPSYCL_DEBUG_INFO << "[SubCFG] Found alloca " << *StoredToAlloca
+                                   << " in store: " << *SI << "\n";
+                WL.push_back(StoredToAlloca);
+              }
+            }
+          } else if (UI->mayReadOrWriteMemory() || UI->getType()->isPointerTy())
             WL.push_back(UI);
+          if (auto CI = llvm::dyn_cast<llvm::CallBase>(UI)) {
+            auto OperandNo = CI->getArgOperandNo(&U);
+            if (!CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::NoCapture) &&
+                !CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::StructRet)) {
+              HIPSYCL_DEBUG_INFO << "[SubCFG] Found function call that captures " << *I << ": "
+                                 << *CI << " OperandNo: " << OperandNo << "\n";
+              return true;
+            }
+          }
+        }
       }
     }
   }
+  return false;
 }
 
 // checks if all uses of an alloca are in just a single subcfg (doesn't have to be arrayified!)
@@ -1105,7 +1140,8 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
   llvm::SmallPtrSet<llvm::BasicBlock *, 16> UserBlocks;
   {
     llvm::SmallVector<llvm::Instruction *, 32> Users;
-    fillUserHull(Alloca, Users);
+    if (fillUserHull(Alloca, Users))
+      return false; // alloca use captured by function.. unclear what the function may do with it.
     utils::PtrSetWrapper<decltype(UserBlocks)> Wrapper{UserBlocks};
     std::transform(Users.begin(), Users.end(), std::inserter(Wrapper, UserBlocks.end()),
                    [](auto *I) { return I->getParent(); });
@@ -1136,8 +1172,7 @@ llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, Instruction *I) {
   return llvm::IRBuilder{BB, I->getIterator()};
 }
 
-template <class iterator>
-llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, iterator I) {
+template <class iterator> llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, iterator I) {
   return llvm::IRBuilder{BB, I};
 }
 
@@ -1291,8 +1326,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, BaseInstAllocaMap, InstContReplicaMap, SubCFGs,
                                   F.getEntryBlock().getTerminator(), ReqdArrayElements, VecInfo);
 
-  llvm::BasicBlock *NewExit =
-      llvm::BasicBlock::Create(F.getContext(), "cbs.exit", &F);
+  llvm::BasicBlock *NewExit = llvm::BasicBlock::Create(F.getContext(), "cbs.exit", &F);
   llvm::IRBuilder<> ExitBuilder(NewExit);
   ExitBuilder.CreateRetVoid();
 
@@ -1306,8 +1340,8 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   llvm::BasicBlock *WhileHeader = nullptr;
   WhileHeader =
-      generateWhileSwitchAround(&F.getEntryBlock(), F.getEntryBlock().getSingleSuccessor(),
-                                NewExit, LastBarrierIdStorage, SubCFGs);
+      generateWhileSwitchAround(&F.getEntryBlock(), F.getEntryBlock().getSingleSuccessor(), NewExit,
+                                LastBarrierIdStorage, SubCFGs);
 
   llvm::removeUnreachableBlocks(F);
 

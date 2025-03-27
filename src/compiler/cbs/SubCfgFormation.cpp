@@ -1101,25 +1101,25 @@ bool fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruct
   while (!WL.empty()) {
     auto *I = WL.pop_back_val();
     AlreadySeen.insert(I);
-    if(!I->getParent()->isEntryBlock())
+    if (!I->getParent()->isEntryBlock())
       Hull.push_back(I);
 
     for (auto &U : I->uses()) {
       if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U.getUser())) {
         if (!AlreadySeen.contains(UI)) {
-          if (auto SI = llvm::dyn_cast<llvm::StoreInst>(I)) {
-            if (SI->getPointerOperand()) {
-              if (auto *StoredToAlloca = getAllocaFromGEP(SI->getPointerOperand());
-                  StoredToAlloca && AlreadySeen.insert(StoredToAlloca).second) {
-                HIPSYCL_DEBUG_INFO << "[SubCFG] Found alloca " << *StoredToAlloca
-                                   << " in store: " << *SI << "\n";
-                WL.push_back(StoredToAlloca);
-              }
+          if (auto SI = llvm::dyn_cast<llvm::StoreInst>(UI)) {
+            if (auto *StoredToAlloca = getAllocaFromGEP(SI->getPointerOperand());
+                StoredToAlloca && AlreadySeen.insert(StoredToAlloca).second) {
+              HIPSYCL_DEBUG_INFO << "[SubCFG] Found alloca " << *StoredToAlloca
+                                 << " in store: " << *SI << "\n";
+              WL.push_back(StoredToAlloca);
+              continue;
             }
-          } else if (UI->mayReadOrWriteMemory() || UI->getType()->isPointerTy())
+          }
+          if (UI->mayReadOrWriteMemory() || UI->getType()->isPointerTy())
             WL.push_back(UI);
           if (auto CI = llvm::dyn_cast<llvm::CallBase>(UI)) {
-            auto OperandNo = CI->getArgOperandNo(&U);
+            auto OperandNo = U.getOperandNo();
             if (!CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::NoCapture) &&
                 !CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::StructRet)) {
               HIPSYCL_DEBUG_INFO << "[SubCFG] Found function call that captures " << *I << ": "

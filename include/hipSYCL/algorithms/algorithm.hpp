@@ -359,131 +359,20 @@ sycl::event remove_copy(sycl::queue &q, util::allocation_group &scratch_allocati
                     ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
                     const T &value, std::size_t *num_elements_copied = nullptr,
                     const std::vector<sycl::event> &deps = {}) {
-  if(first == last) {
-    if(num_elements_copied)
-      *num_elements_copied = 0;
-    return sycl::event{};
-  }
-
-  // TODO: We could optimize by switching between 32/64 bit types
-  // depending on problem size
-  using ScanT = std::size_t;
-
-  auto generator = [=](auto idx, auto effective_group_id,
-                       auto effective_global_id, auto problem_size) {
-    if(effective_global_id >= problem_size)
-      return ScanT{0};
-
-    ForwardIt1 it = first;
-    std::advance(it, effective_global_id);
-    if(!(*it == value))
-      return ScanT{1};
-
-    return ScanT{0};
-  };
-
-  auto result_processor = [=](auto idx, auto effective_group_id,
-                       auto effective_global_id, auto problem_size,
-                       auto step) {
-    if (effective_global_id < problem_size) {
-      ForwardIt2 output = d_first;
-      ForwardIt1 input = first;
-      std::advance(input, effective_global_id);
-      std::advance(output, step);
-
-      bool needs_copy = false;
-
-      if(effective_global_id < problem_size) {
-        auto input_value = *input;
-        needs_copy = !(input_value == value);
-        if(needs_copy)
-          *output = *input;
-      }
-
-      if (effective_global_id == problem_size - 1 && num_elements_copied) {
-        ScanT inclusive_scan_result = step;
-        // We did an exclusive scan, so if the last element also was copied,
-        // we need to add that.
-        if(needs_copy)
-          ++inclusive_scan_result;
-
-        *num_elements_copied = static_cast<std::size_t>(inclusive_scan_result);
-      }
-    }
-  };
-
-  std::size_t problem_size = std::distance(first, last);
-
-  constexpr bool is_inclusive_scan = false;
-  return scanning::generate_scan_process<is_inclusive_scan, ScanT>(
-      q, scratch_allocations, problem_size, sycl::plus<>{},
-      ScanT{0}, generator, result_processor, deps);
+    auto pred = [value](auto x){return !(x == value);};
+    return copy_if(q, scratch_allocations, first, last, d_first, pred,
+                   num_elements_copied, deps);
 }
+
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
 sycl::event remove_copy_if(sycl::queue &q, util::allocation_group &scratch_allocations,
                     ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
                     UnaryPredicate p, std::size_t *num_elements_copied = nullptr,
                     const std::vector<sycl::event> &deps = {}) {
-  if(first == last) {
-    if(num_elements_copied)
-      *num_elements_copied = 0;
-    return sycl::event{};
-  }
-
-  // TODO: We could optimize by switching between 32/64 bit types
-  // depending on problem size
-  using ScanT = std::size_t;
-
-  auto generator = [=](auto idx, auto effective_group_id,
-                       auto effective_global_id, auto problem_size) {
-    if(effective_global_id >= problem_size)
-      return ScanT{0};
-
-    ForwardIt1 it = first;
-    std::advance(it, effective_global_id);
-    if(!p(*it))
-      return ScanT{1};
-
-    return ScanT{0};
-  };
-
-  auto result_processor = [=](auto idx, auto effective_group_id,
-                       auto effective_global_id, auto problem_size,
-                       auto step) {
-    if (effective_global_id < problem_size) {
-      ForwardIt2 output = d_first;
-      ForwardIt1 input = first;
-      std::advance(input, effective_global_id);
-      std::advance(output, step);
-
-      bool needs_copy = false;
-
-      if(effective_global_id < problem_size) {
-        auto input_value = *input;
-        needs_copy = (!p(input_value));
-        if(needs_copy)
-          *output = *input;
-      }
-
-      if (effective_global_id == problem_size - 1 && num_elements_copied) {
-        ScanT inclusive_scan_result = step;
-        // We did an exclusive scan, so if the last element also was copied,
-        // we need to add that.
-        if(needs_copy)
-          ++inclusive_scan_result;
-
-        *num_elements_copied = static_cast<std::size_t>(inclusive_scan_result);
-      }
-    }
-  };
-
-  std::size_t problem_size = std::distance(first, last);
-
-  constexpr bool is_inclusive_scan = false;
-  return scanning::generate_scan_process<is_inclusive_scan, ScanT>(
-      q, scratch_allocations, problem_size, sycl::plus<>{},
-      ScanT{0}, generator, result_processor, deps);
+    auto pred = [p](auto x){return !p(x);};
+    return copy_if(q, scratch_allocations, first, last, d_first, pred,
+                   num_elements_copied, deps);
 }
 
 template <class ForwardIt, class T>

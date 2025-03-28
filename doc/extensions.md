@@ -752,3 +752,21 @@ The following 'finalizers' are supported:
 * `cl::sycl::vendor::hipsycl::synchronization::local_mem_fence` - same as `mem_fence<access::fence_space::local_space>`
 * `cl::sycl::vendor::hipsycl::synchronization::global_mem_fence` - same as `mem_fence<access::fence_space::global_space>`
 * `cl::sycl::vendor::hipsycl::synchronization::global_and_local_mem_fence` - same as `mem_fence<access::fence_space::global_and_local>`
+
+### `ACPP_EXT_TARGET_NUMA_NODE_PROPERTY`
+This extension allows a user to specify a set of NUMA nodes on which to allocate memory.
+This can be done by using the `AdaptiveCpp_target_numa_node` property on USM allocation functions.
+This extension is aonly available when using the OpenMP backend. Using this property with any other backend will have no effects.
+
+Example:
+```
+  sycl::queue q(sycl::cpu_selector_v);
+
+  int *p = sycl::malloc_device<int>(
+      n, q,
+      sycl::property_list{
+          sycl::property::usm::AdaptiveCpp_target_numa_node{{0,1,2,3}}});
+
+  sycl::free(p, q);
+
+```

@@ -114,6 +114,17 @@ add_executable(sycl_tests
 # Also test instant submission mode
 target_compile_definitions(sycl_tests PRIVATE -DACPP_ALLOW_INSTANT_SUBMISSION=1)
 target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
+
+#Check if numa is available
+find_path( NUMA_INCLUDE_DIR NAMES numa.h)
+find_library( NUMA_LIBRARY NAMES numa)
+
+if( NUMA_INCLUDE_DIR AND NUMA_LIBRARY)
+  target_compile_definitions(sycl_tests PRIVATE -DLIB_NUMA_AVAILABLE)
+  target_link_libraries(sycl_tests PRIVATE ${NUMA_LIBRARY})
+  target_include_directories(sycl_tests PRIVATE ${NUMA_INCLUDE_DIR})
+endif()
+
 add_sycl_to_target(TARGET sycl_tests)
 
 add_executable(rt_tests 

@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cassert>
 #include <exception>
+#include <vector>
 
 #include "context.hpp"
 #include "device.hpp"
@@ -35,14 +36,45 @@ namespace sycl {
 // Wrapper namespace to declare all usm properties
 namespace property::usm {
 
+class AdaptiveCpp_target_numa_node : public detail::usm_property
+{
+public:
+    AdaptiveCpp_target_numa_node(const std::vector<size_t>& numa_nodes={})
+    : _numa_nodes{numa_nodes} {}
+
+    const std::vector<size_t> get_numa_nodes() const {
+      return _numa_nodes;
+    }
+private:
+  const std::vector<size_t> _numa_nodes;
+};
+
 }
+
+namespace {
+
+  rt::allocation_hints
+    create_hints_from_proplist(const property_list &propList ) {
+    rt::allocation_hints hints {};
+
+    if(propList.has_property<property::usm::AdaptiveCpp_target_numa_node>()) {
+
+        hints.AdaptiveCpp_target_numa_node.emplace(
+            propList.get_property<property::usm::AdaptiveCpp_target_numa_node>()
+                .get_numa_nodes());
+
+    }// AdaptiveCpp_target_numa_node
+
+    return hints;
+  }
+} //namespace
 
 // Explicit USM
 
 inline void *malloc_device(size_t num_bytes, const device &dev,
                            const context &ctx,
                            const property_list &propList = {}) {
-  rt::allocation_hints hints{};
+  rt::allocation_hints hints = create_hints_from_proplist(propList);
   return rt::allocate_device(detail::select_device_allocator(dev), 0,
                              num_bytes, hints);
 }
@@ -68,7 +100,7 @@ T* malloc_device(std::size_t count, const queue &q,
 inline void *aligned_alloc_device(std::size_t alignment, std::size_t num_bytes,
                                   const device &dev, const context &ctx,
                                   const property_list &propList = {}) {
-  rt::allocation_hints hints{};
+  rt::allocation_hints hints = create_hints_from_proplist(propList);
   return rt::allocate_device(detail::select_device_allocator(dev), alignment,
                              num_bytes, hints);
 }
@@ -100,7 +132,7 @@ T *aligned_alloc_device(std::size_t alignment, std::size_t count,
 
 inline void *malloc_host(std::size_t num_bytes, const context &ctx,
                          const property_list &propList = {}) {
-  rt::allocation_hints hints{};
+  rt::allocation_hints hints = create_hints_from_proplist(propList);
   return rt::allocate_host(detail::select_usm_allocator(ctx), 0, num_bytes,
                            hints);
 }
@@ -123,7 +155,7 @@ template <typename T> T *malloc_host(std::size_t count, const queue &q,
 inline void *malloc_shared(std::size_t num_bytes, const device &dev,
                            const context &ctx,
                            const property_list &propList = {}) {
-  rt::allocation_hints hints{};
+  rt::allocation_hints hints = create_hints_from_proplist(propList);
   return rt::allocate_shared(detail::select_usm_allocator(ctx, dev), num_bytes,
                              hints);
 }
@@ -148,7 +180,7 @@ template <typename T> T *malloc_shared(std::size_t count, const queue &q,
 inline void *aligned_alloc_host(std::size_t alignment, std::size_t num_bytes,
                                 const context &ctx,
                                 const property_list &propList = {}) {
-  rt::allocation_hints hints{};
+  rt::allocation_hints hints = create_hints_from_proplist(propList);
   return rt::allocate_host(detail::select_usm_allocator(ctx), alignment,
                            num_bytes, hints);
 }
@@ -178,7 +210,7 @@ T *aligned_alloc_host(std::size_t alignment, std::size_t count,
 inline void *aligned_alloc_shared(std::size_t alignment, std::size_t num_bytes,
                                   const device &dev, const context &ctx,
                                   const property_list &propList = {}) {
-  rt::allocation_hints hints{};
+  rt::allocation_hints hints = create_hints_from_proplist(propList);
   return rt::allocate_shared(detail::select_usm_allocator(ctx, dev), num_bytes,
                              hints);
 }

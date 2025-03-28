@@ -324,6 +324,17 @@ if(WITH_CPU_BACKEND)
       set(hipSYCL_OpenMP_CXX_LIBRARIES ${hipSYCL_OpenMP_CXX_LIBRARIES} PARENT_SCOPE)
     endif()
   
+  find_path( NUMA_INCLUDE_DIR NAMES numa.h)
+  find_library( NUMA_LIBRARY NAMES numa)
+
+  if(NOT NUMA_INCLUDE_DIR OR NOT NUMA_LIBRARY)
+    message(WARNING "Could not find NUMA")
+  else()
+    target_compile_definitions(rt-backend-omp PRIVATE -DLIB_NUMA_AVAILABLE)
+    target_link_libraries(rt-backend-omp PRIVATE ${NUMA_LIBRARY})
+    target_include_directories(rt-backend-omp PRIVATE ${NUMA_INCLUDE_DIR})
+  endif()
+
   list(LENGTH OpenMP_CXX_LIBRARIES OpenMP_CXX_LIBRARIES_LENGTH)
   if(WIN32 AND ${OpenMP_CXX_LIBRARIES_LENGTH} EQUAL 0)
     # FindOpenMP does a bad job here, finding any library.. so add some more hints..

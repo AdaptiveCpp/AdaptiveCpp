@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <vector>
 #include <cstring>
+#include <optional>
 
 #include "device_id.hpp"
 #include "util.hpp"
@@ -221,7 +222,7 @@ HIPSYCL_RT_HINTS_MAP_GETTER(instant_execution,
                             _instant_execution);
 
 struct allocation_hints {
-
+  std::optional<const std::vector<size_t>> AdaptiveCpp_target_numa_node;
 };
 
 }

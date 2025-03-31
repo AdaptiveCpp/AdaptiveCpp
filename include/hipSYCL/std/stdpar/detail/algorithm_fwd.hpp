@@ -122,6 +122,27 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(hipsycl::stdpar::par_unseq,
                                                 ForwardIt first, ForwardIt last,
                                                 UnaryPredicate p);
 
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par_unseq,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last);
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par_unseq,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last,
+                                            BinaryPredicate p);
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last);
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last,
+                                            BinaryPredicate p);
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
@@ -177,7 +198,6 @@ HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
-}
 
 template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(hipsycl::stdpar::par, ForwardIt first,
@@ -192,4 +212,28 @@ template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(hipsycl::stdpar::par,
                                             ForwardIt first, ForwardIt last,
                                             UnaryPredicate p);
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last);
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last,
+                                            BinaryPredicate p);
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last);
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par,
+                                            ForwardIt1 first, ForwardIt1 last,
+                                            ForwardIt2 s_first, ForwardIt2 s_last,
+                                            BinaryPredicate p);
+
+}
 #endif

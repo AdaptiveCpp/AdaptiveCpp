@@ -157,6 +157,8 @@ if(WITH_PSTL_TESTS)
     pstl/find.cpp
     pstl/find_if.cpp
     pstl/find_if_not.cpp
+    pstl/find_end.cpp
+    pstl/find_first_of.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
     pstl/generate.cpp

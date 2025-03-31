@@ -582,6 +582,204 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par_unseq
 }
 
 
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+  if (std::distance(first, last) < std::distance(s_first, s_last))
+    return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_end(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, out);
+
+    queue.wait();
+
+    ForwardIt1 found_at = first;
+    if (*out != std::numeric_limits<DiffT>::min()) {
+      std::advance(found_at, *out);
+      return found_at;
+    }
+
+    return last;
+  };
+
+  auto fallback = [&]() {
+    return std::find_end(hipsycl::stdpar::par_unseq_host_fallback,
+                              first, last, s_first, s_last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
+                               hipsycl::stdpar::par_unseq{}),
+    std::distance(first, last), ForwardIt1, offloader, fallback,
+    first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
+}
+
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last, BinaryPredicate p) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+    if (std::distance(first, last) < std::distance(s_first, s_last))
+    return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_end(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, p, out);
+
+    queue.wait();
+
+    ForwardIt1 found_at = first;
+    if (*out != std::numeric_limits<DiffT>::min()) {
+      std::advance(found_at, *out);
+      return found_at;
+    }
+
+    return last;
+  };
+
+  auto fallback = [&]() {
+    return std::find_end(hipsycl::stdpar::par_unseq_host_fallback,
+                              first, last, s_first, s_last, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
+                               hipsycl::stdpar::par_unseq{}),
+    std::distance(first, last), ForwardIt1, offloader, fallback,
+    first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
+}
+
+
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_first_of(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, out);
+
+    queue.wait();
+
+
+    ForwardIt1 found_at = first;
+    std::advance(found_at, *out);
+    return found_at;
+  };
+
+  auto fallback = [&]() {
+    return std::find_first_of(hipsycl::stdpar::par_unseq_host_fallback,
+                              first, last, s_first, s_last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(
+      hipsycl::stdpar::algorithm_category::find_first_of{},
+      hipsycl::stdpar::par_unseq{}),
+    std::distance(first, last), ForwardIt1, offloader,
+    fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
+    s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
+}
+
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last, BinaryPredicate p) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_first_of(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, p, out);
+
+    queue.wait();
+
+
+    ForwardIt1 found_at = first;
+    std::advance(found_at, *out);
+    return found_at;
+  };
+
+  auto fallback = [&]() {
+    return std::find_first_of(hipsycl::stdpar::par_unseq_host_fallback,
+                              first, last, s_first, s_last, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(
+      hipsycl::stdpar::algorithm_category::find_first_of{},
+      hipsycl::stdpar::par_unseq{}),
+    std::distance(first, last), ForwardIt1, offloader,
+    fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
+    s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
+}
+
+
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
@@ -1426,6 +1624,202 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par,
                                  hipsycl::stdpar::par{}),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
+}
+
+
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_end(hipsycl::stdpar::par, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+  if (std::distance(first, last) < std::distance(s_first, s_last))
+    return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_end(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, out);
+
+    queue.wait();
+
+    ForwardIt1 found_at = first;
+    if (*out != std::numeric_limits<DiffT>::min()) {
+      std::advance(found_at, *out);
+      return found_at;
+    }
+
+    return last;
+  };
+
+  auto fallback = [&]() {
+    return std::find_end(hipsycl::stdpar::par_host_fallback,
+                              first, last, s_first, s_last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
+                               hipsycl::stdpar::par{}),
+    std::distance(first, last), ForwardIt1, offloader, fallback,
+    first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
+}
+
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_end(hipsycl::stdpar::par, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last, BinaryPredicate p) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+    if (std::distance(first, last) < std::distance(s_first, s_last))
+    return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_end(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, p, out);
+
+    queue.wait();
+
+    ForwardIt1 found_at = first;
+    if (*out != std::numeric_limits<DiffT>::min()) {
+      std::advance(found_at, *out);
+      return found_at;
+    }
+
+    return last;
+  };
+
+  auto fallback = [&]() {
+    return std::find_end(hipsycl::stdpar::par_host_fallback,
+                              first, last, s_first, s_last, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
+                               hipsycl::stdpar::par{}),
+    std::distance(first, last), ForwardIt1, offloader, fallback,
+    first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
+}
+
+
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_first_of(hipsycl::stdpar::par, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_first_of(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, out);
+
+    queue.wait();
+
+    ForwardIt1 found_at = first;
+    std::advance(found_at, *out);
+    return found_at;
+  };
+
+  auto fallback = [&]() {
+    return std::find_first_of(hipsycl::stdpar::par_host_fallback,
+                              first, last, s_first, s_last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(
+      hipsycl::stdpar::algorithm_category::find_first_of{},
+      hipsycl::stdpar::par{}),
+    std::distance(first, last), ForwardIt1, offloader,
+    fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
+    s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
+}
+
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt1 find_first_of(hipsycl::stdpar::par, ForwardIt1 first,
+                         ForwardIt1 last, ForwardIt2 s_first,
+                         ForwardIt2 s_last, BinaryPredicate p) {
+  auto offloader = [&](auto &queue) {
+    if(first == last || s_first == s_last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::find_first_of(queue, reduction_scratch_group, first,
+                              last, s_first, s_last, p, out);
+
+    queue.wait();
+
+    ForwardIt1 found_at = first;
+    std::advance(found_at, *out);
+    return found_at;
+  };
+
+  auto fallback = [&]() {
+    return std::find_first_of(hipsycl::stdpar::par_host_fallback,
+                              first, last, s_first, s_last, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(
+      hipsycl::stdpar::algorithm_category::find_first_of{},
+      hipsycl::stdpar::par{}),
+    std::distance(first, last), ForwardIt1, offloader,
+    fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
+    s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
 }
 
 

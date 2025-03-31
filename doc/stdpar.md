@@ -45,6 +45,8 @@ Offloading is implemented for the following STL algorithms:
 |`find` | |
 |`find_if` | |
 |`find_if_not` | |
+|`find_end` | both overloads |
+|`find_first_of` | both overloads |
 |`any_of` | |
 |`all_of` | |
 |`none_of` | |

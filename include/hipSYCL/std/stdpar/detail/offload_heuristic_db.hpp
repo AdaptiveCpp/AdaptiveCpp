@@ -50,6 +50,8 @@ struct reverse_copy {};
 struct find {};
 struct find_if {};
 struct find_if_not {};
+struct find_end {};
+struct find_first_of {};
 struct all_of {};
 struct any_of {};
 struct none_of {};

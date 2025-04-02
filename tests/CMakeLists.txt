@@ -159,6 +159,8 @@ if(WITH_PSTL_TESTS)
     pstl/generate.cpp
     pstl/generate_n.cpp
     pstl/inclusive_scan.cpp
+    pstl/is_sorted_until.cpp
+    pstl/is_sorted.cpp
     pstl/memory.cpp
     pstl/merge.cpp
     pstl/move.cpp

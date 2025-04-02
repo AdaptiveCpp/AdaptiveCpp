@@ -683,6 +683,159 @@ HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq, RandomIt first,
 }
 
 
+template<class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt first,
+                                         ForwardIt last) {
+  auto offloader = [&](auto &queue){
+    if(first == last || std::distance(first, last) == 1)
+      return true;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto *output = output_scratch_group
+                      .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+    hipsycl::algorithms::is_sorted(queue, first, last, output);
+    queue.wait();
+    return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted(hipsycl::stdpar::par_unseq_host_fallback, first, last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
+                               hipsycl::stdpar::par_unseq{}),
+    std::distance(first, last), bool, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
+}
+
+
+template<class ForwardIt, class Compare>
+HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt first,
+                                         ForwardIt last, Compare comp) {
+  auto offloader = [&](auto &queue){
+    if(first == last || std::distance(first, last) == 1)
+      return true;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto *output = output_scratch_group
+                      .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+    hipsycl::algorithms::is_sorted(queue, first, last, output, comp);
+    queue.wait();
+    return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+                          comp);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
+                               hipsycl::stdpar::par_unseq{}),
+    std::distance(first, last), bool, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
+}
+
+
+template<class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
+                          ForwardIt last) {
+  auto offloader = [&](auto &queue){
+    if (first == last || std::distance(first, last) == 1)
+      return last;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::is_sorted_until(queue, reduction_scratch_group, first,
+                                         last, out);
+
+    queue.wait();
+
+    if (*out == std::distance(first, last))
+      return last;
+
+    ForwardIt sorted_until = std::next(first, *out + 1);
+    return sorted_until;
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted_until(hipsycl::stdpar::par_unseq_host_fallback,
+                                first, last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
+                               hipsycl::stdpar::par_unseq()),
+    std::distance(first, last), ForwardIt, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
+}
+
+
+template<class ForwardIt, class Compare>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
+                          ForwardIt last, Compare comp) {
+  auto offloader = [&](auto &queue){
+    if (first == last || std::distance(first, last) == 1)
+      return last;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::is_sorted_until(queue, reduction_scratch_group, first,
+                                         last, out, comp);
+
+    queue.wait();
+
+    if (*out == std::distance(first, last))
+      return last;
+
+    ForwardIt sorted_until = std::next(first, *out + 1);
+    return sorted_until;
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted_until(hipsycl::stdpar::par_unseq_host_fallback,
+                                first, last, comp);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
+                               hipsycl::stdpar::par_unseq()),
+    std::distance(first, last), ForwardIt, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
+}
+
+
 template<class ForwardIt1, class ForwardIt2,
          class ForwardIt3, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
@@ -1410,6 +1563,157 @@ HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par, RandomIt first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
 
+template<class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par, ForwardIt first,
+                                         ForwardIt last) {
+  auto offloader = [&](auto &queue){
+    if(first == last || std::distance(first, last) == 1)
+      return true;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto *output = output_scratch_group
+                      .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+    hipsycl::algorithms::is_sorted(queue, first, last, output);
+    queue.wait();
+    return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted(hipsycl::stdpar::par_host_fallback, first, last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
+                               hipsycl::stdpar::par{}),
+    std::distance(first, last), bool, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
+}
+
+
+template<class ForwardIt, class Compare>
+HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par, ForwardIt first,
+                                         ForwardIt last, Compare comp) {
+  auto offloader = [&](auto &queue){
+    if(first == last || std::distance(first, last) == 1)
+      return true;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto *output = output_scratch_group
+                      .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+    hipsycl::algorithms::is_sorted(queue, first, last, output, comp);
+    queue.wait();
+    return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted(hipsycl::stdpar::par_host_fallback, first, last,
+                          comp);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
+                               hipsycl::stdpar::par{}),
+    std::distance(first, last), bool, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
+}
+
+
+template<class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt is_sorted_until(hipsycl::stdpar::par, ForwardIt first,
+                          ForwardIt last) {
+  auto offloader = [&](auto &queue){
+    if (first == last || std::distance(first, last) == 1)
+      return last;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::is_sorted_until(queue, reduction_scratch_group, first,
+                                         last, out);
+
+    queue.wait();
+
+    if (*out == std::distance(first, last))
+      return last;
+
+    ForwardIt sorted_until = std::next(first, *out + 1);
+    return sorted_until;
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted_until(hipsycl::stdpar::par_host_fallback,
+                                first, last);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
+                               hipsycl::stdpar::par()),
+    std::distance(first, last), ForwardIt, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
+}
+
+
+template<class ForwardIt, class Compare>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt is_sorted_until(hipsycl::stdpar::par, ForwardIt first,
+                          ForwardIt last, Compare comp) {
+  auto offloader = [&](auto &queue){
+    if (first == last || std::distance(first, last) == 1)
+      return last;
+
+    auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+    auto reduction_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::device>();
+
+    using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+    DiffT *out = output_scratch_group.obtain<DiffT>(1);
+    hipsycl::algorithms::is_sorted_until(queue, reduction_scratch_group, first,
+                                         last, out, comp);
+
+    queue.wait();
+
+    if (*out == std::distance(first, last))
+      return last;
+
+    ForwardIt sorted_until = std::next(first, *out + 1);
+    return sorted_until;
+  };
+
+  auto fallback = [&]() {
+    return std::is_sorted_until(hipsycl::stdpar::par_host_fallback,
+                                first, last, comp);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+    hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
+                               hipsycl::stdpar::par()),
+    std::distance(first, last), ForwardIt, offloader, fallback, first,
+    HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
+}
 
 
 template<class ForwardIt1, class ForwardIt2,

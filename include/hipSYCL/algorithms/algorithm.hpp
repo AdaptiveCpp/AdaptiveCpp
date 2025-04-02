@@ -26,6 +26,7 @@
 #include "merge/merge.hpp"
 #include "scan/scan.hpp"
 #include "util/traits.hpp"
+#include "hipSYCL/algorithms/numeric.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/sort/bitonic_sort.hpp"
@@ -616,6 +617,123 @@ sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
     return sycl::event{};
 
   return sorting::bitonic_sort(q, first, last, comp, deps);
+}
+
+template <class ForwardIt>
+sycl::event is_sorted(sycl::queue &q, ForwardIt first, ForwardIt last,
+                      detail::early_exit_flag_t* out,
+                      const std::vector<sycl::event>& deps = {}) {
+  std::size_t problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  auto evt = detail::early_exit_for_each(q, problem_size, out,
+                                     [=](sycl::id<1> idx) -> bool {
+                                       auto it = first;
+                                       std::advance(it, idx[0]);
+                                       if(it != last-1) {
+                                        auto next = std::next(it, 1);
+#if __cplusplus < 202002L
+                                        return (*next < *it);
+#else
+                                        return std::less{}(*next, *it);
+#endif
+                                       }
+                                       return false;
+                                     }, deps);
+  return q.single_task(evt, [=](){
+    *out = static_cast<detail::early_exit_flag_t>(!(*out));
+  });
+}
+
+template <class ForwardIt, class Compare>
+sycl::event is_sorted(sycl::queue &q, ForwardIt first, ForwardIt last,
+                      detail::early_exit_flag_t* out,
+                      Compare comp,
+                      const std::vector<sycl::event>& deps = {}) {
+  std::size_t problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  auto evt = detail::early_exit_for_each(q, problem_size, out,
+                                     [=](sycl::id<1> idx) -> bool {
+                                       auto it = std::next(first, idx[0]);
+                                       if(it != last-1) {
+                                        auto next = std::next(it, 1);
+                                        return comp(*next, *it);
+                                       }
+                                       return false;
+                                     }, deps);
+  return q.single_task(evt, [=](){
+    *out = static_cast<detail::early_exit_flag_t>(!(*out));
+  });
+}
+
+template<class ForwardIt>
+sycl::event is_sorted_until(sycl::queue &q, util::allocation_group &scratch_allocations,
+                            ForwardIt first, ForwardIt last,
+                            typename std::iterator_traits<ForwardIt>::difference_type *out,
+                            const std::vector<sycl::event>& deps = {}) {
+  if(first == last)
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [=] (ForwardIt input) {
+    auto next = std::next(input, 1);
+#if __cplusplus < 202002L
+      if((*next < *input))
+#else
+      if(std::less{}(*next, *input))
+#endif
+        return std::distance(first, input);
+
+    return problem_size;
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+template<class ForwardIt, class Compare>
+sycl::event is_sorted_until(sycl::queue &q, util::allocation_group &scratch_allocations,
+                            ForwardIt first, ForwardIt last,
+                            typename std::iterator_traits<ForwardIt>::difference_type *out,
+                            Compare comp,
+                            const std::vector<sycl::event>& deps = {}) {
+  if(first == last)
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [=] (ForwardIt input) {
+    auto next = std::next(input, 1);
+      if(comp(*next, *input))
+        return std::distance(first, input);
+
+    return problem_size;
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
 }
 
 template< class ForwardIt1, class ForwardIt2,

@@ -287,6 +287,38 @@ sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
                  Compare comp = std::less<>{},
                  const std::vector<sycl::event>& deps = {});
 
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt>
+sycl::event is_sorted(sycl::queue &q, ForwardIt first, ForwardIt last,
+                      detail::early_exit_flag_t* out,
+                      const std::vector<sycl::event>& deps = {});
+
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt, class Compare>
+sycl::event is_sorted(sycl::queue &q, ForwardIt first, ForwardIt last,
+                      detail::early_exit_flag_t* out,
+                      Compare comp,
+                      const std::vector<sycl::event>& deps = {});
+
+template<class ForwardIt>
+sycl::event is_sorted_until(sycl::queue &q, util::allocation_group &scratch_allocations,
+                            ForwardIt first, ForwardIt last,
+                            typename std::iterator_traits<ForwardIt>::difference_type *out,
+                            const std::vector<sycl::event>& deps = {});
+
+template<class ForwardIt, class Compare>
+sycl::event is_sorted_until(sycl::queue &q, util::allocation_group &scratch_allocations,
+                            ForwardIt first, ForwardIt last,
+                            typename std::iterator_traits<ForwardIt>::difference_type *out,
+                            Compare comp,
+                            const std::vector<sycl::event>& deps = {});
+
 template< class ForwardIt1, class ForwardIt2,
           class ForwardIt3, class Compare >
 sycl::event merge(sycl::queue& q,

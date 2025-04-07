@@ -296,6 +296,15 @@ sycl::event merge(sycl::queue& q,
                   ForwardIt3 d_first, Compare comp = std::less<>{},
                   const std::vector<sycl::event>& deps = {});
 
+template <class ForwardIt>
+sycl::event shift_left(sycl::queue &q, ForwardIt first, ForwardIt last,
+                    typename std::iterator_traits<ForwardIt>::difference_type n,
+                    const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt>
+sycl::event shift_right(sycl::queue &q, ForwardIt first, ForwardIt last,
+                    typename std::iterator_traits<ForwardIt>::difference_type n,
+                    const std::vector<sycl::event> &deps = {});
 }
 
 

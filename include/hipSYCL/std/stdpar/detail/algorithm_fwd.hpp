@@ -150,6 +150,17 @@ typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
 
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_left(hipsycl::stdpar::par_unseq,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
+
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_right(hipsycl::stdpar::par_unseq,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
 ///////////////////////////// par policy /////////////////////////////
 
 template <class ForwardIt1, class ForwardIt2>
@@ -177,6 +188,18 @@ HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
+
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_left(hipsycl::stdpar::par,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
+
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_right(hipsycl::stdpar::par,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
 }
 
 #endif

@@ -648,6 +648,52 @@ sycl::event merge(sycl::queue& q,
                                               comp, 128, deps);
 }
 
+#if __cplusplus >= 202002L
+template <class ForwardIt>
+sycl::event shift_left(sycl::queue &q,
+                    ForwardIt first, ForwardIt last,
+                    typename std::iterator_traits<ForwardIt>::difference_type n,
+                    const std::vector<sycl::event> &deps = {}) {
+  auto problem_size = std::distance(first, last);
+  if(n == 0 || n >= problem_size)
+    return sycl::event{};
+
+  return q.parallel_for(sycl::range{problem_size}, deps,
+                        [=](sycl::id<1> id){
+                          auto input = first;
+                          auto output = first;
+                          std::advance(input, id[0]);
+                          if (id[0] < problem_size - n) {
+                            std::advance(output, id[0] - n);
+                            *output = *input;
+                          }
+                        });
+}
+#endif
+
+#if __cplusplus >= 202002L
+template <class ForwardIt>
+sycl::event shift_right(sycl::queue &q,
+                    ForwardIt first, ForwardIt last,
+                    typename std::iterator_traits<ForwardIt>::difference_type n,
+                    const std::vector<sycl::event> &deps = {}) {
+  auto problem_size = std::distance(first, last);
+  if(n == 0 || n >= problem_size)
+    return sycl::event{};
+
+  return q.parallel_for(sycl::range{problem_size}, deps,
+                        [=](sycl::id<1> id){
+                          auto input = first;
+                          auto output = first;
+                          std::advance(input, id[0]);
+                          if (id[0] < problem_size - n) {
+                            std::advance(output, id[0] + n);
+                            *output = *input;
+                          }
+                        });
+}
+#endif
+
 }
 
 #endif

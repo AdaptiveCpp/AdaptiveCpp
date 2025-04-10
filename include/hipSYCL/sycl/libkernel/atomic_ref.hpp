@@ -223,31 +223,31 @@ public:
   template <class Integral = T,
             std::enable_if_t<std::is_integral_v<Integral>, int> = 0>
   Integral operator+=(Integral op) const noexcept {
-    return fetch_add(op);
+    return fetch_add(op) + op;
   }
 
   template <class Integral = T,
             std::enable_if_t<std::is_integral_v<Integral>, int> = 0>
   Integral operator-=(Integral op) const noexcept {
-    return fetch_sub(op);
+    return fetch_sub(op) - op;
   }
 
   template <class Integral = T,
             std::enable_if_t<std::is_integral_v<Integral>, int> = 0>
   Integral operator&=(Integral op) const noexcept {
-    return fetch_and(op);
+    return fetch_and(op) & op;
   }
 
   template <class Integral = T,
             std::enable_if_t<std::is_integral_v<Integral>, int> = 0>
   Integral operator|=(Integral op) const noexcept {
-    return fetch_or(op);
+    return fetch_or(op) | op;
   }
 
   template <class Integral = T,
             std::enable_if_t<std::is_integral_v<Integral>, int> = 0>
   Integral operator^=(Integral op) const noexcept {
-    return fetch_xor(op);
+    return fetch_xor(op) ^ op;
   }
 
   template <class Floating = T,
@@ -289,13 +289,13 @@ public:
   template <class Floating = T,
             std::enable_if_t<std::is_floating_point_v<Floating>, int> = 0>
   Floating operator+=(Floating op) const noexcept {
-    return fetch_add(op);
+    return fetch_add(op) + op;
   }
 
   template <class Floating = T,
             std::enable_if_t<std::is_floating_point_v<Floating>, int> = 0>
   Floating operator-=(Floating op) const noexcept {
-    return fetch_sub(op);
+    return fetch_sub(op) - op;
   }
 
 private:
@@ -447,11 +447,11 @@ public:
   }
 
   T* operator+=(difference_type x) const noexcept {
-    return fetch_add(x);
+    return fetch_add(x) + x;
   }
 
   T* operator-=(difference_type x) const noexcept {
-    return fetch_sub(x);
+    return fetch_sub(x) - x;
   }
 private:
   std::intptr_t* _ptr;

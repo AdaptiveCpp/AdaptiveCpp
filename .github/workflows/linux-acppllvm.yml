@@ -105,7 +105,7 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -GNinja -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/AdaptiveCpp/tests  -DLLVM_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/llvm
+        cmake -GNinja -DACPP_TARGETS="generic" -DWITH_PSTL_TESTS=ON -DWITH_PCUDA_TESTS=ON -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/AdaptiveCpp/tests  -DLLVM_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/llvm
         ninja -j2
     - name: build CUDA tests
       if: ${{ matrix.docker.cuda_or_rocm == 'cuda' }}
@@ -129,3 +129,7 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ./sycl_tests
+    - name: run PCUDA tests on CPU
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ./pcuda_tests

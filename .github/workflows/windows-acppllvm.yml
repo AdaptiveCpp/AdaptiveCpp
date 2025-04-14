@@ -149,7 +149,8 @@ jobs:
           "$env:GITHUB_WORKSPACE/AdaptiveCpp/tests" `
           -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
           -DBoost_COMPILER="clangw18" `
-          -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw18\\\"'
+          -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw18\\\"' `
+          -DWITH_PCUDA_TESTS=ON
 
         ninja -j2
     - name: run SSCP CPU tests
@@ -157,6 +158,11 @@ jobs:
         cd $env:GITHUB_WORKSPACE/build/tests-sscp
         $env:ACPP_DEBUG_LEVEL=3
         .\sycl_tests.exe
+    - name: run SSCP PCUDA CPU tests
+      run: |
+        cd $env:GITHUB_WORKSPACE/build/tests-sscp
+        $env:ACPP_DEBUG_LEVEL=3
+        .\pcuda_tests.exe
     - uses: actions/upload-artifact@v4
       if: github.event_name == 'push'
       with:

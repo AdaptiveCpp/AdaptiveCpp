@@ -1233,6 +1233,8 @@ class acpp_config:
     if opt_level > 1:
       if not has_fast_math and not has_ffp_contract:
         opt_args.append("-ffp-contract=fast")
+      if not has_fast_math:
+        opt_args.append("-fno-math-errno")
 
     return opt_args
 

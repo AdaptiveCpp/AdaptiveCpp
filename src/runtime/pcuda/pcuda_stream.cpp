@@ -83,6 +83,10 @@ inorder_queue* stream::get_queue(pcudaStream_t s) {
   return static_cast<pcuda::stream*>(s)->get_queue();
 }
 
+std::shared_ptr<inorder_executor> stream::get_executor() const {
+  return _executor;
+}
+
 pcudaError_t stream::wait_all(rt::device_id dev) {
   std::vector<pcuda::stream> streams_to_wait;
   {

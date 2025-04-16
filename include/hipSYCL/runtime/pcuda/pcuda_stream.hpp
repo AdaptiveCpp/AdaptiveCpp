@@ -31,6 +31,8 @@ public:
   static pcudaError_t wait_all(device_id dev);
   inorder_queue* get_queue() const;
   static inorder_queue* get_queue(pcudaStream_t stream);
+
+  std::shared_ptr<inorder_executor> get_executor() const;
 private:
   std::shared_ptr<inorder_executor> _executor;
 };

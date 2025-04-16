@@ -33,6 +33,11 @@ thread_local_state& pcuda_application::tls_state() {
   return *tls_state_ptr;
 }
 
+pcuda_application &pcuda_application::get() {
+  static pcuda_application app;
+  return app;
+}
+
 pcuda_runtime &pcuda_application::pcuda_rt() { return _pcuda_rt; }
 const pcuda_runtime &pcuda_application::pcuda_rt() const { return _pcuda_rt; }
 

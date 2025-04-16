@@ -79,6 +79,7 @@
 #include "buffer_explicit_behavior.hpp"
 #include "specialized.hpp"
 #include "jit.hpp"
+#include "pcuda_interop.hpp"
 #include "detail/namespace_compat.hpp"
 
 // Support SYCL_EXTERNAL for SSCP - we cannot have SYCL_EXTERNAL if accelerated CPU

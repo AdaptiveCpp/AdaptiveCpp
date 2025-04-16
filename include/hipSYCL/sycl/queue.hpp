@@ -110,6 +110,13 @@ struct AdaptiveCpp_priority : public detail::queue_property {
   int priority;
 };
 
+struct AdaptiveCpp_inorder_executor : public detail::queue_property {
+  AdaptiveCpp_inorder_executor(const std::shared_ptr<rt::inorder_executor>& exec)
+  : executor{exec} {}
+
+  std::shared_ptr<rt::inorder_executor> executor;
+};
+
 struct AdaptiveCpp_retargetable : public detail::queue_property {};
 
 // backwards compatibility
@@ -1149,12 +1156,18 @@ private:
       rt::device_id rt_dev = detail::extract_rt_device(this->get_device());
       // Dedicated executor may not be supported by all backends,
       // so this might return nullptr.
-      _impl->dedicated_inorder_executor =
-          _impl->requires_runtime.get()
-              ->backends()
-              .get(rt_dev.get_backend())
-              ->create_inorder_executor(rt_dev, priority);
-      
+      if(this->has_property<property::queue::AdaptiveCpp_inorder_executor>()) {
+        _impl->dedicated_inorder_executor =
+            this->get_property<property::queue::AdaptiveCpp_inorder_executor>()
+                .executor;
+      } else {
+        _impl->dedicated_inorder_executor =
+            _impl->requires_runtime.get()
+                ->backends()
+                .get(rt_dev.get_backend())
+                ->create_inorder_executor(rt_dev, priority);
+      }
+
       if(_impl->dedicated_inorder_executor) {
         _impl->default_hints.set_hint(
             rt::hints::prefer_executor{_impl->dedicated_inorder_executor});

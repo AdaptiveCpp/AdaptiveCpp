@@ -46,10 +46,7 @@ private:
 
 class pcuda_application {
 public:
-  static pcuda_application& get() {
-    static pcuda_application app;
-    return app;
-  }
+  static pcuda_application& get();
 
   pcuda_runtime& pcuda_rt();
   const pcuda_runtime& pcuda_rt() const;

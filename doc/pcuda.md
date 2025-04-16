@@ -359,7 +359,40 @@ q.parallel_for(range, [=](auto idx){
 
 ```
 
+Inside PCUDA code, a SYCL `nd_item` object for interoperability with SYCL code can be obtained as follows:
+
+```c++
+#include <pcuda.hpp>
+#include <sycl/sycl.hpp>
+
+void my_sycl_kernel_code(sycl::nd_item<1> item) {
+  ...
+}
+
+
+...
+
+pcudaParallelFor(num_blocks, block_size, [=](){
+  sycl::nd_item<1> idx = sycl::AdaptiveCpp_pcuda::this_nd_item<1>();
+  my_sycl_kernel_code(idx);
+});
+
+```
+
 ## Interoperability with SYCL for runtime objects
 
-TBD
+### Queue
+
+A `sycl::queue` object can be obtained from a PCUDA stream as follows:
+
+```c++
+pcudaStream_t stream = ...
+sycl::queue q = sycl::AdaptiveCpp_pcuda::make_queue(stream);
+```
+
+**Note:** 
+1. During the lifetime of the queue, the underlying backend queue is shared between the PCUDA stream and the SYCL queue. The underlying backend queue will be freed once *both* PCUDA stream and SYCL queue are no longer alive.
+2. The queue returned from `make_queue` will always be an in-order queue. However, SYCL may queue up work to perform batched submission in certain cases. This can cause SYCL work dispatched before PCUDA work to be executed *after* PCUDA work even if both submit to the same underlying queue. To avoid this, use the AdaptiveCpp instant submission mode in SYCL (see [here](macros.md)) and avoid using the buffer-accessor data management model.
+3. You can get a SYCL queue for the PCUDA default stream for the current PCUDA device using `make_queue(0)`.
+
 

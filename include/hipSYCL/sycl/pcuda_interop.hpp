@@ -11,6 +11,11 @@
 #ifndef HIPSYCL_PCUDA_INTEROP_HPP
 #define HIPSYCL_PCUDA_INTEROP_HPP
 
+#include "libkernel/backend.hpp"
+
+#if !ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA &&                                  \
+    !ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP
+
 #include <cassert>
 
 #include "libkernel/nd_item.hpp"
@@ -57,4 +62,5 @@ inline sycl::queue make_queue(rt::pcuda::stream* stream) {
 }
 }
 
+#endif
 #endif

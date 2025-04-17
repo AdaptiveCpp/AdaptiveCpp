@@ -112,7 +112,7 @@
 
 #define @ACPP_PCUDA_PREFIX@MemAttachGlobal pcudaMemAttachGlobal
 #define @ACPP_PCUDA_PREFIX@MemAttachHost pcudaMemAttachHost
-#define @ACPP_PCUDA_PREFIX@MemAttachHost pcudaMemAttachSingle
+#define @ACPP_PCUDA_PREFIX@MemAttachSingle pcudaMemAttachSingle
 #define @ACPP_PCUDA_PREFIX@MallocManaged pcudaMallocManaged
 
 #define @ACPP_PCUDA_PREFIX@Free pcudaFree

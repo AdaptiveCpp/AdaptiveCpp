@@ -6,6 +6,12 @@
 
 Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows support with CPU and CUDA backends is experimental, see [Using AdaptiveCpp on Windows](https://github.com/OpenSYCL/OpenSYCL/wiki/Using-AdaptiveCpp-on-Windows).
 
+## Installation as a package
+
+The following package managers have AdaptiveCpp available:
+* The Arch Linux AUR has a package under the name [adaptivecpp](https://aur.archlinux.org/packages/adaptivecpp).
+* A Homebrew distribution for MacOS is available under the name [adaptivecpp](https://formulae.brew.sh/formula/adaptivecpp#default).
+
 ## Installation from source (Linux)
 
 ### Software dependencies

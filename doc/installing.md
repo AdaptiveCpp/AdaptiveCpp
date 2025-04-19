@@ -173,7 +173,9 @@ You can use it just, as you would normally: using the CMake integration or using
 
 ## Installation from source (Mac)
 
-On Mac, only the CPU backends are supported. The required steps are analogous to Linux, however you may require `LLVM_DIR` to be set to the location of the `cmake` files LLVM ships with. For instance, with a `Homebrew` installation of LLVM 20.1.2, `LLVM_DIR=/opt/homebrew/Cellar/llvm/20.1.2/lib/cmake/llvm`.
+On Mac, only the CPU backends are supported. The required steps are analogous to Linux, however, there are caveats:
+* You may require `LLVM_DIR` to be set to the directory which contains the `cmake` files that LLVM ships with. For instance, with a `Homebrew` installation of LLVM 20.1.2, `LLVM_DIR=/opt/homebrew/Cellar/llvm/20.1.2/lib/cmake/llvm`.
+* You may require `OpenCL_LIBRARY` to be set to the path of a newer version of the OpenCL library than Apple distributes. For instance, `OpenCL_LIBRARY=${OpenCL_INSTALL_PREFIX}/lib/libOpenCL.dylib`.
 
 ## Installation from source (Windows)
 

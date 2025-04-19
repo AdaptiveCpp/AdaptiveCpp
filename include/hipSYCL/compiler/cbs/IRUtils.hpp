@@ -89,7 +89,7 @@ void replaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm:
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,
                           llvm::Function &F);
 
-bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA);
+bool isBarrier(const llvm::BasicBlock::const_iterator I, const SplitterAnnotationInfo &SAA);
 bool blockHasBarrier(const llvm::BasicBlock *BB,
                      const hipsycl::compiler::SplitterAnnotationInfo &SAA);
 bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
@@ -158,7 +158,7 @@ llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instru
                                       llvm::Value *Idx, llvm::Value *NumValues,
                                       llvm::MDTuple *MDAlloca = nullptr);
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
-                               llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix = "");
+                               llvm::BasicBlock::iterator InsertBefore, const llvm::Twine &NamePrefix = "");
 
 llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst);
 
@@ -179,7 +179,7 @@ template <class UserType, class Func> bool allOfUsers(llvm::Value *V, Func &&L) 
 }
 
 /// dbg handling
-void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore);
+void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::BasicBlock::iterator InsertBefore);
 void dropDebugLocation(llvm::Instruction &I);
 void dropDebugLocation(llvm::BasicBlock *BB);
 

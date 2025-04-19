@@ -72,7 +72,7 @@ bool removeBarrierCalls(llvm::Function &F, SplitterAnnotationInfo &SAA) {
 
   for (auto &BB : F) {
     for (auto &I : BB) {
-      if (utils::isBarrier(&I, SAA)) {
+      if (utils::isBarrier(I.getIterator(), SAA)) {
         BarriersToRemove.insert(&I);
       }
     }

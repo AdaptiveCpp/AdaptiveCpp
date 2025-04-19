@@ -55,7 +55,7 @@ llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llv
   return LI.getLoopFor(B);
 }
 
-bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA) {
+bool isBarrier(const llvm::BasicBlock::const_iterator I, const SplitterAnnotationInfo &SAA) {
   if (const auto *CI = llvm::dyn_cast<llvm::CallInst>(I))
     return CI->getCalledFunction() && SAA.isSplitterFunc(CI->getCalledFunction());
   return false;
@@ -63,14 +63,14 @@ bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA) {
 
 bool blockHasBarrier(const llvm::BasicBlock *BB,
                      const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  return std::any_of(BB->begin(), BB->end(), [&SAA](const auto &I) { return isBarrier(&I, SAA); });
+  return std::any_of(BB->begin(), BB->end(), [&SAA](const auto &I) { return isBarrier(I.getIterator(), SAA); });
 }
 
 // Returns true in case the given basic block starts with a barrier,
 // that is, contains a branch instruction after possible PHI nodes.
 bool startsWithBarrier(const llvm::BasicBlock *BB,
                        const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  return isBarrier(BB->getFirstNonPHI(), SAA);
+  return isBarrier(BB->getFirstNonPHIIt(), SAA);
 }
 
 // Returns true in case the given basic block ends with a barrier,
@@ -79,7 +79,7 @@ bool endsWithBarrier(const llvm::BasicBlock *BB,
                      const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   const llvm::Instruction *T = BB->getTerminator();
   assert(T);
-  return BB->size() > 1 && T->getPrevNode() && isBarrier(T->getPrevNode(), SAA);
+  return BB->size() > 1 && T->getPrevNode() && isBarrier(T->getPrevNode()->getIterator(), SAA);
 }
 
 bool hasOnlyBarrier(const llvm::BasicBlock *BB,
@@ -110,7 +110,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
   llvm::Module *M = InsertBefore->getParent()->getParent()->getParent();
 
   if (InsertBefore != &InsertBefore->getParent()->front() &&
-      isBarrier(InsertBefore->getPrevNode(), SAA))
+      isBarrier(InsertBefore->getPrevNode()->getIterator(), SAA))
     return llvm::cast<llvm::CallInst>(InsertBefore->getPrevNode());
   llvm::Function *F = llvm::cast<llvm::Function>(
       M->getOrInsertFunction(BarrierIntrinsicName, llvm::Type::getVoidTy(M->getContext()))
@@ -420,7 +420,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
 // At \a InsertionPoint, a store is added that stores the \a ToArrayify
 // value to the alloca element at \a Idx.
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
-                                llvm::Instruction *InsertionPoint, llvm::Value *Idx,
+                                llvm::BasicBlock::iterator InsertionPoint, llvm::Value *Idx,
                                 llvm::Value *NumElements, llvm::MDTuple *MDAlloca) {
   assert(Idx && "Valid WI-Index required");
 
@@ -435,7 +435,7 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
     Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
   Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
-  llvm::IRBuilder WriteBuilder{InsertionPoint};
+  llvm::IRBuilder WriteBuilder{&*InsertionPoint};
   llvm::Value *StoreTarget = Alloca;
   if (NumElements) {
     auto *GEP = llvm::cast<llvm::GetElementPtrInst>(WriteBuilder.CreateInBoundsGEP(
@@ -451,9 +451,9 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify,
                                       llvm::Value *Idx, llvm::Value *NumElements,
                                       llvm::MDTuple *MDAlloca) {
-  llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
+  llvm::BasicBlock::iterator InsertionPoint = ++ToArrayify->getIterator();
   if (llvm::isa<llvm::PHINode>(ToArrayify))
-    InsertionPoint = ToArrayify->getParent()->getFirstNonPHI();
+    InsertionPoint = ToArrayify->getParent()->getFirstNonPHIIt();
 
   return arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
 }
@@ -461,11 +461,11 @@ llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instru
 // load from the \a Alloca at \a Idx, if array alloca, otherwise just load the
 // alloca value
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
-                               llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix) {
+                               llvm::BasicBlock::iterator InsertBefore, const llvm::Twine &NamePrefix) {
   assert(Idx && "Valid WI-Index required");
   auto *MDAlloca = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified);
 
-  llvm::IRBuilder LoadBuilder{InsertBefore};
+  llvm::IRBuilder LoadBuilder{&*InsertBefore};
   llvm::Value *LoadFrom = Alloca;
   if (Alloca->isArrayAllocation()) {
     auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
@@ -491,7 +491,7 @@ llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
 }
 
 // bring along the llvm.dbg.value intrinsics when cloning values
-void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
+void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::BasicBlock::iterator InsertBefore) {
   llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
   llvm::findDbgValues(DbgValues, From);
   if (!DbgValues.empty()) {

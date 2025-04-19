@@ -61,7 +61,7 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
     Builder.SetInsertPoint(IncomingBB->getTerminator());
     Builder.CreateStore(V, Alloca);
   }
-  Builder.SetInsertPoint(Phi->getParent()->getFirstNonPHI());
+  Builder.SetInsertPoint(Phi->getParent()->getFirstNonPHIIt());
 
   llvm::Instruction *LoadedValue = Builder.CreateLoad(Alloca->getAllocatedType(), Alloca);
   Phi->replaceAllUsesWith(LoadedValue);

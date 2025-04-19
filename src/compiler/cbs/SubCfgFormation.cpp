@@ -794,9 +794,9 @@ void SubCFG::loadMultiSubCfgValues(
             VMap[InstAllocaPair.first] = NewGEP;
             continue;
           }
-        auto *IP = LoadTerm;
+        auto IP = LoadTerm->getIterator();
         if (!InstAllocaPair.second->isArrayAllocation())
-          IP = UniformLoadTerm;
+          IP = UniformLoadTerm->getIterator();
         HIPSYCL_DEBUG_INFO << "[SubCFG] Load from Alloca " << *InstAllocaPair.second << " in "
                            << IP->getParent()->getName() << "\n";
         auto *Load = utils::loadFromAlloca(InstAllocaPair.second, NewContIdx, IP,
@@ -831,7 +831,7 @@ void SubCFG::loadUniformAndRecalcContValues(
 
   // load uniform values from allocas
   for (auto &InstAllocaPair : BaseInstAllocaMap) {
-    auto *IP = UniformLoadTerm;
+    auto IP = UniformLoadTerm->getIterator();
     HIPSYCL_DEBUG_INFO << "[SubCFG] Load base value from Alloca " << *InstAllocaPair.second
                        << " in " << IP->getParent()->getName() << "\n";
     auto *Load = utils::loadFromAlloca(InstAllocaPair.second, NewContIdx, IP,
@@ -1006,9 +1006,9 @@ void SubCFG::fixSingleSubCfgValues(
           }
 #else
           // doesn't happen if we keep the PHIs
-          auto *NewIP = LoadIP;
+          auto NewIP = LoadIP->getIterator();
           if (!Alloca->isArrayAllocation()) {
-            NewIP = UniLoadIP;
+            NewIP = UniLoadIP->getIterator();
             Idx = llvm::ConstantInt::get(ContIdx_->getType(), 0);
           }
 #endif

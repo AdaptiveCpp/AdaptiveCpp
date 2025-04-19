@@ -126,7 +126,7 @@ bool canonicalizeBarriers(llvm::Function &F, SplitterAnnotationInfo &SAA) {
 
   for (auto &BB : F)
     for (auto &I : BB)
-      if (utils::isBarrier(&I, SAA))
+      if (utils::isBarrier(I.getIterator(), SAA))
         Barriers.insert(&I);
 
   // Finally add all the split points, now that we are done with the

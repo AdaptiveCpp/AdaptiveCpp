@@ -296,6 +296,34 @@ sycl::event merge(sycl::queue& q,
                   ForwardIt3 d_first, Compare comp = std::less<>{},
                   const std::vector<sycl::event>& deps = {});
 
+template <class ForwardIt>
+sycl::event min_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
+
+template <class ForwardIt, class Compare>
+sycl::event min_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last, Compare comp,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
+
+template <class ForwardIt>
+sycl::event max_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
+
+template <class ForwardIt, class Compare>
+sycl::event max_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last, Compare comp,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
+
 }
 
 

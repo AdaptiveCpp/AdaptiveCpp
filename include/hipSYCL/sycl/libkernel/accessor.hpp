@@ -2382,7 +2382,7 @@ public:
     };
   }
 
-  template <typename T = dataT, std::enable_if<std::is_same_v<T, dataT> && !std::is_const_v<T>, bool> = false>
+  template <typename T = dataT, std::enable_if_t<std::is_same_v<T, dataT> && !std::is_const_v<T>, bool> = false>
   operator local_accessor<const T, dimensions>() const {
     return local_accessor<const T, dimensions>{_addr, _num_elements};
   }

@@ -57,6 +57,8 @@ struct count{};
 struct count_if{};
 struct sort {};
 struct merge {};
+struct min_element {};
+struct max_element {};
 struct inclusive_scan {};
 struct exclusive_scan {};
 struct transform_inclusive_scan {};

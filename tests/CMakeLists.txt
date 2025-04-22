@@ -161,6 +161,8 @@ if(WITH_PSTL_TESTS)
     pstl/inclusive_scan.cpp
     pstl/memory.cpp
     pstl/merge.cpp
+    pstl/min_element.cpp
+    pstl/max_element.cpp
     pstl/move.cpp
     pstl/none_of.cpp
     pstl/reduce.cpp

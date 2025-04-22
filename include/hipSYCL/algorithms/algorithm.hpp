@@ -26,6 +26,7 @@
 #include "merge/merge.hpp"
 #include "scan/scan.hpp"
 #include "util/traits.hpp"
+#include "hipSYCL/algorithms/numeric.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/sort/bitonic_sort.hpp"
@@ -605,6 +606,174 @@ sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations
                           DiffT{}, std::plus<>{},
                           [p](ValueT x) {return p(x) ? 1 : 0;},
                           deps);
+}
+
+template <class ForwardIt>
+sycl::event
+min_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MinPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MinPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [first] (MinPair a, MinPair b) {
+    if (!(a.second < b.second) && !(b.second < a.second)) {
+      if (std::distance(first, a.first) < std::distance(first, b.first))
+        return a;
+      else
+        return b;
+    }
+#if __cplusplus < 202002L
+    else if (a.second < b.second)
+#else
+    else if (std::less{}(a.second, b.second))
+#endif
+      return a;
+    else
+      return b;
+  };
+
+  MinPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt, class Compare>
+sycl::event
+min_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last, Compare comp,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MinPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MinPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [comp, first] (MinPair a, MinPair b) {
+    if (!comp(a.second, b.second) && !comp(b.second, a.second)) {
+      if (std::distance(first, a.first) < std::distance(first, b.first))
+        return a;
+      else
+        return b;
+    }
+    else if (comp(a.second, b.second))
+      return a;
+    else
+      return b;
+  };
+
+  MinPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt>
+sycl::event
+max_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MaxPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MaxPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [first] (MaxPair a, MaxPair b) {
+    if (!(a.second < b.second) && !(b.second < a.second)) {
+      if (std::distance(first, a.first) < std::distance(first, b.first))
+        return a;
+      else
+       return b;
+    }
+#if __cplusplus < 202002L
+    else if (a.second < b.second)
+#else
+    else if (std::less{}(a.second, b.second))
+#endif
+      return b;
+    else
+      return a;
+  };
+
+  MaxPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt, class Compare>
+sycl::event
+max_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last, Compare comp,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MaxPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MaxPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [comp, first] (MaxPair a, MaxPair b) {
+    if(!comp(a.second, b.second) && !comp(b.second, a.second)) {
+      if (std::distance(first, a.first) < std::distance(first, b.first))
+        return a;
+      else
+        return b;
+    }
+    else if (comp(a.second, b.second))
+        return b;
+    else
+      return a;
+  };
+
+  MaxPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
 }
 
 template <class RandomIt, class Compare>

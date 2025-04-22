@@ -175,7 +175,6 @@ namespace device {
 };
 
 } // namespace info
-} // namespace 
 
 namespace khr{
 namespace info{
@@ -185,6 +184,7 @@ namespace device{
 }
 }
 }
+} // namespace sycl
 } // namespace hipsycl
 
 #endif

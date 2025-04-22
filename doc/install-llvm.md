@@ -4,6 +4,8 @@ Certain backends/compilation flows require LLVM. This is because AdaptiveCpp nee
 
 Generally, we recommend the latest officially released clang/LLVM versions, but older versions might also work depending on the compilation flow (see the table from the main installation instructions).
 
+**AdaptiveCpp does not support unreleased or development versions of LLVM.**
+
 Usually, the clang/LLVM versions provided in Linux distribution repositories are sufficient, if they are recent enough. 
 *In this case, AdaptiveCpp might automatically detect and configure your LLVM installation without additional cmake arguments required.* **We therefore recommend to make your life easy: Check your distribution's LLVM version against the AdaptiveCpp requirements and if they match, use it**.
 

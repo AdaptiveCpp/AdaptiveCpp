@@ -364,6 +364,50 @@ sycl::event remove_copy(sycl::queue &q, util::allocation_group &scratch_allocati
                    num_elements_copied, deps);
 }
 
+template <class ForwardIt, class T>
+sycl::event remove(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, const T &value,
+                   std::size_t *num_elements_copied = nullptr,
+                   const std::vector<sycl::event> &deps = {}) {
+  if(first == last) {
+    if(num_elements_copied)
+      *num_elements_copied = 0;
+    return sycl::event{};
+  }
+
+  T* device_buffer = scratch_allocations.obtain<T>(std::distance(first, last));
+
+  auto pred = [value](auto x){ return !(x == value); };
+  auto evt = copy_if(q, scratch_allocations, first, last, device_buffer, pred,
+          num_elements_copied, deps);
+
+  evt.wait();
+  return copy_n(q, &(*device_buffer), *num_elements_copied, first,
+                deps);
+}
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event remove_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, UnaryPredicate pred,
+                   std::size_t *num_elements_copied = nullptr,
+                   const std::vector<sycl::event> &deps = {}) {
+  if(first == last) {
+    if(num_elements_copied)
+      *num_elements_copied = 0;
+    return sycl::event{};
+  }
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  ValueT* device_buffer = scratch_allocations.obtain<ValueT>(std::distance(first, last));
+
+  auto op = [pred](auto x){ return !pred(x); };
+  auto evt = copy_if(q, scratch_allocations, first, last, device_buffer, op,
+          num_elements_copied, deps);
+
+  evt.wait();
+  return copy_n(q, &(*device_buffer), *num_elements_copied, first,
+                deps);
+}
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
 sycl::event remove_copy_if(sycl::queue &q, util::allocation_group &scratch_allocations,

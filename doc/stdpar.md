@@ -36,6 +36,8 @@ Offloading is implemented for the following STL algorithms:
 |`generate_n` | |
 |`remove_copy` | |
 |`remove_copy_if` | |
+|`remove` | |
+|`remove_if` | |
 |`replace` | |
 |`replace_if` | |
 |`replace_copy` | |

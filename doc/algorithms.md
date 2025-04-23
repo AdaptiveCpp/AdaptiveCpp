@@ -219,6 +219,18 @@ sycl::event remove_copy_if(sycl::queue &q, util::allocation_group &scratch_alloc
                     const std::vector<sycl::event> &deps = {});
 
 template <class ForwardIt, class T>
+sycl::event remove(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, const T &value,
+                   std::size_t *num_elements_copied = nullptr,
+                   const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event remove_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                     ForwardIt first, ForwardIt last, UnaryPredicate p,
+                     std::size_t *num_elements_copied = nullptr,
+                     const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class T>
 sycl::event replace(sycl::queue &q, ForwardIt first, ForwardIt last,
                     const T &old_value, const T &new_value,
                     const std::vector<sycl::event> &deps = {});

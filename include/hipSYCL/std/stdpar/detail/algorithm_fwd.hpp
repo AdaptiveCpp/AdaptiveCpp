@@ -90,6 +90,16 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 remove_copy_if(hipsycl::stdpar::par_unseq,
                                                  ForwardIt2 d_first, UnaryPredicate p);
 
 template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove(hipsycl::stdpar::par_unseq,
+                                           ForwardIt first, ForwardIt last,
+                                           const T &value);
+
+template <class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove_if(hipsycl::stdpar::par_unseq,
+                                           ForwardIt first, ForwardIt last,
+                                           UnaryPredicate p);
+
+template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT void replace(hipsycl::stdpar::par_unseq, ForwardIt first,
                                        ForwardIt last, const T &old_value,
                                        const T &new_value);
@@ -187,6 +197,7 @@ HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
+
 template <class ForwardIt1, class ForwardIt2, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 remove_copy(hipsycl::stdpar::par,
                                                  ForwardIt1 first, ForwardIt1 last,
@@ -197,6 +208,15 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 remove_copy_if(hipsycl::stdpar::par,
                                                  ForwardIt1 first, ForwardIt1 last,
                                                  ForwardIt2 d_first, UnaryPredicate p);
 
+template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove(hipsycl::stdpar::par,
+                                           ForwardIt first, ForwardIt last,
+                                           const T &value);
+
+template <class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove_if(hipsycl::stdpar::par,
+                                           ForwardIt first, ForwardIt last,
+                                           UnaryPredicate p);
 }
 
 #endif

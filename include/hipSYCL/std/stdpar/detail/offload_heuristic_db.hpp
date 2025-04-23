@@ -43,6 +43,8 @@ struct generate {};
 struct generate_n {};
 struct remove_copy {};
 struct remove_copy_if {};
+struct remove {};
+struct remove_if {};
 struct replace {};
 struct replace_if {};
 struct replace_copy {};

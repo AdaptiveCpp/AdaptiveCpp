@@ -2287,7 +2287,7 @@ public:
   ACPP_KERNEL_TARGET
   size_t get_count() const
   {
-    return _num_elements.size();
+    return static_cast<sycl::range<dimensions>>(_num_elements).size();
   }
 
   ACPP_KERNEL_TARGET
@@ -2299,7 +2299,7 @@ public:
   ACPP_KERNEL_TARGET
   size_t size() const noexcept
   {
-    return _num_elements.size();
+    return static_cast<sycl::range<dimensions>>(_num_elements).size();
   }
 
   size_type max_size() const noexcept

@@ -1,0 +1,12 @@
+prefix=/home/jakob/projects/AdaptiveCpp/installation/lib/hipSYCL/ext/llvm-spirv
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: LLVMSPIRVLib
+Description: LLVM/SPIR-V bi-directional translator
+Version: 18.1.0.0
+URL: https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+
+Libs: -L${libdir} -lLLVMSPIRVLib
+Cflags: -I${includedir}

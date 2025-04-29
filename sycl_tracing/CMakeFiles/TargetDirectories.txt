@@ -1,0 +1,6 @@
+/home/jakob/projects/AdaptiveCpp/sycl_tracing/CMakeFiles/tracer_lib.dir
+/home/jakob/projects/AdaptiveCpp/sycl_tracing/CMakeFiles/mem_leak.dir
+/home/jakob/projects/AdaptiveCpp/sycl_tracing/CMakeFiles/event_leak.dir
+/home/jakob/projects/AdaptiveCpp/sycl_tracing/CMakeFiles/first_trial.dir
+/home/jakob/projects/AdaptiveCpp/sycl_tracing/CMakeFiles/edit_cache.dir
+/home/jakob/projects/AdaptiveCpp/sycl_tracing/CMakeFiles/rebuild_cache.dir

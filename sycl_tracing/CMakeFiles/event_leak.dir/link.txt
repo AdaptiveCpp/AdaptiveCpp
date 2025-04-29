@@ -1,0 +1,1 @@
+acpp -fPIC -DDEBUGMODE -g -shared -Wl,-soname,libevent_leak.so -o libevent_leak.so CMakeFiles/event_leak.dir/event_leak_lib.cc.o  -lboost_stacktrace_addr2line -ldl -lbacktrace 

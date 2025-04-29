@@ -1,0 +1,8 @@
+prefix=/home/jakob/projects/AdaptiveCpp/installation
+includedir=${prefix}/include
+
+Name: OpenCL-CLHPP
+Description: OpenCL API C++ bindings
+Requires: OpenCL-Headers
+Version: 3.0
+Cflags: -I${includedir}

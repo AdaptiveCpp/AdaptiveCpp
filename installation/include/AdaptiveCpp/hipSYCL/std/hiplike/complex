@@ -1,0 +1,29 @@
+/*
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
+ *
+ * Copyright The AdaptiveCpp Contributors
+ *
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
+ */
+// SPDX-License-Identifier: BSD-2-Clause
+
+#if defined(__clang__) && (defined(__CUDACC__) || defined(__HIP__))
+
+#if defined(_WIN32) && __clang_major__ < 12
+#include <cmath>
+
+namespace std {
+  __device__
+  inline bool signbit(long double v) { return signbit(static_cast<double>(v)); }
+}
+#endif
+
+#pragma push_macro("__failed_assertion")
+#define __failed_assertion __cuda_failed_assertion
+#include_next <complex>
+#pragma pop_macro("__failed_assertion")
+#else
+#include_next <complex>
+#endif

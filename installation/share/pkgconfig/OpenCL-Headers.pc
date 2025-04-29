@@ -1,0 +1,7 @@
+prefix=/home/jakob/projects/AdaptiveCpp/installation
+includedir=${prefix}/include
+
+Name: OpenCL-Headers
+Description: Khronos OpenCL Headers
+Version: 3.0
+Cflags: -I${includedir}

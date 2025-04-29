@@ -1,0 +1,10 @@
+#if defined(__clang__) && (defined(__CUDACC__) || defined(__HIP__))
+#if defined(_WIN32)
+namespace std {
+  __attribute__((device)) __attribute__((host))
+  long double fma(long double, long double, long double);
+}
+#endif
+#endif
+
+#include_next <cmath>

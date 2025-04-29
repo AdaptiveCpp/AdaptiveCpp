@@ -1,0 +1,171 @@
+
+/*
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
+ *
+ * Copyright The AdaptiveCpp Contributors
+ *
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
+ */
+// SPDX-License-Identifier: BSD-2-Clause
+
+#ifndef ACPP_PCUDA_CUDA_PREFIXED_RUNTIME_HPP
+#define ACPP_PCUDA_CUDA_PREFIXED_RUNTIME_HPP
+
+#include "../pcuda.hpp"
+
+#define CUDA_KERNEL_NAME(...) PCUDA_KERNEL_NAME(__VA_ARGS__)
+#define CUDA_SYMBOL(...) PCUDA_SYMBOL(__VA_ARGS__)
+#define hipLaunchKernelGGL(...) pcudaLaunchKernelGGL(__VA_ARGS__)
+
+#define hipMalloc pcudaMalloc
+
+#define hipSuccess pcudaSuccess
+#define hipErrorMissingConfiguration pcudaErrorMissingConfiguration
+#define hipErrorMemoryAllocation pcudaErrorMemoryAllocation
+#define hipErrorInitializationError pcudaErrorInitializationError
+#define hipErrorLaunchFailure pcudaErrorLaunchFailure
+#define hipErrorPriorLaunchFailure pcudaErrorPriorLaunchFailure
+#define hipErrorLaunchTimeout pcudaErrorLaunchTimeout
+#define hipErrorLaunchOutOfResources pcudaErrorLaunchOutOfResources
+#define hipErrorInvalidDeviceFunction pcudaErrorInvalidDeviceFunction
+#define hipErrorInvalidConfiguration pcudaErrorInvalidConfiguration
+#define hipErrorInvalidDevice pcudaErrorInvalidDevice
+#define hipErrorInvalidValue pcudaErrorInvalidValue
+#define hipErrorInvalidPitchValue pcudaErrorInvalidPitchValue
+#define hipErrorInvalidSymbol pcudaErrorInvalidSymbol
+#define hipErrorMapBufferObjectFailed pcudaErrorMapBufferObjectFailed
+#define hipErrorUnmapBufferObjectFailed pcudaErrorUnmapBufferObjectFailed
+#define hipErrorInvalidHostPointer pcudaErrorInvalidHostPointer
+#define hipErrorInvalidDevicePointer pcudaErrorInvalidDevicePointer
+#define hipErrorInvalidTexture pcudaErrorInvalidTexture
+#define hipErrorInvalidTextureBinding pcudaErrorInvalidTextureBinding
+#define hipErrorInvalidChannelDescriptor pcudaErrorInvalidChannelDescriptor
+#define hipErrorInvalidMemcpyDirection pcudaErrorInvalidMemcpyDirection
+#define hipErrorAddressOfConstant pcudaErrorAddressOfConstant
+#define hipErrorTextureFetchFailed pcudaErrorTextureFetchFailed
+#define hipErrorTextureNotBound pcudaErrorTextureNotBound
+#define hipErrorSynchronizationError pcudaErrorSynchronizationError
+#define hipErrorInvalidFilterSetting pcudaErrorInvalidFilterSetting
+#define hipErrorInvalidNormSetting pcudaErrorInvalidNormSetting
+#define hipErrorMixedDeviceExecution pcudaErrorMixedDeviceExecution
+#define hipErrorCudartUnloading pcudaErrorCudartUnloading
+#define hipErrorUnknown pcudaErrorUnknown
+#define hipErrorNotYetImplemented pcudaErrorNotYetImplemented
+#define hipErrorMemoryValueTooLarge pcudaErrorMemoryValueTooLarge
+#define hipErrorInvalidResourceHandle pcudaErrorInvalidResourceHandle
+#define hipErrorNotReady pcudaErrorNotReady
+#define hipErrorInsufficientDriver pcudaErrorInsufficientDriver
+#define hipErrorSetOnActiveProcess pcudaErrorSetOnActiveProcess
+#define hipErrorInvalidSurface pcudaErrorInvalidSurface
+#define hipErrorNoDevice pcudaErrorNoDevice
+#define hipErrorECCUncorrectable pcudaErrorECCUncorrectable
+#define hipErrorSharedObjectSymbolNotFound pcudaErrorSharedObjectSymbolNotFound
+#define hipErrorSharedObjectInitFailed pcudaErrorSharedObjectInitFailed
+#define hipErrorUnsupportedLimit pcudaErrorUnsupportedLimit
+#define hipErrorDuplicateVariableName pcudaErrorDuplicateVariableName
+#define hipErrorDuplicateTextureName pcudaErrorDuplicateTextureName
+#define hipErrorDuplicateSurfaceName pcudaErrorDuplicateSurfaceName
+#define hipErrorDevicesUnavailable pcudaErrorDevicesUnavailable
+#define hipErrorInvalidKernelImage pcudaErrorInvalidKernelImage
+#define hipErrorNoKernelImageForDevice pcudaErrorNoKernelImageForDevice
+#define hipErrorIncompatibleDriverContext pcudaErrorIncompatibleDriverContext
+#define hipErrorPeerAccessAlreadyEnabled pcudaErrorPeerAccessAlreadyEnabled
+#define hipErrorPeerAccessNotEnabled pcudaErrorPeerAccessNotEnabled
+#define hipErrorDeviceAlreadyInUse pcudaErrorDeviceAlreadyInUse
+#define hipErrorProfilerDisabled pcudaErrorProfilerDisabled
+#define hipErrorProfilerNotInitialized pcudaErrorProfilerNotInitialized
+#define hipErrorProfilerAlreadyStarted pcudaErrorProfilerAlreadyStarted
+#define hipErrorProfilerAlreadyStopped pcudaErrorProfilerAlreadyStopped
+#define hipErrorStartupFailure pcudaErrorStartupFailure
+#define hipErrorApiFailureBase pcudaErrorApiFailureBase
+
+#define hipError pcudaError
+#define hipError_t pcudaError_t
+#define hipStream_t pcudaStream_t
+
+#define hipDriverGetVersion pcudaDriverGetVersion
+
+#define hipGetDeviceCount pcudaGetDeviceCount
+#define hipGetDevice pcudaGetDevice
+#define hipSetDevice pcudaSetDevice
+
+// Getters/setters for platforms are pcuda extensions and therefore not aliased
+
+#define hipGetLastError pcudaGetLastError
+#define hipPeekAtLastError pcudaPeekAtLastError
+#define hipGetErrorName pcudaGetErrorName
+#define hipGetErrorString pcudaGetErrorString
+
+#define hipDeviceSynchronize pcudaDeviceSynchronize
+#define hipThreadSynchronize pcudaThreadSynchronize
+
+#define hipMalloc pcudaMalloc
+#define hipMallocHost pcudaMallocHost
+#define hipHostAlloc pcudaHostAlloc
+
+#define hipHostAllocDefault pcudaHostAllocDefault
+#define hipHostAllocMapped pcudaHostAllocMapped
+#define hipHostAllocPortable pcudaHostAllocPortable
+#define hipHostAllocWriteCombined pcudaHostAllocWriteCombined
+
+#define hipMemAttachGlobal pcudaMemAttachGlobal
+#define hipMemAttachHost pcudaMemAttachHost
+#define hipMemAttachSingle pcudaMemAttachSingle
+#define hipMallocManaged pcudaMallocManaged
+
+#define hipFree pcudaFree
+#define hipFreeHost pcudaFreeHost
+
+#define hipStreamDefault pcudaStreamDefault
+#define hipStreamNonBlocking pcudaStreamNonBlocking
+
+#define hipStreamCreate pcudaStreamCreate
+#define hipStreamCreateWithFlags pcudaStreamCreateWithFlags
+#define hipStreamCreateWithPriority pcudaStreamCreateWithPriority
+#define hipStreamDestroy pcudaStreamDestroy
+#define hipStreamSynchronize pcudaStreamSynchronize
+#define hipStreamWaitEvent pcudaStreamWaitEvent
+
+#define hipMemcpyKind pcudaMemcpyKind
+#define hipMemcpyHostToHost pcudaMemcpyHostToHost
+#define hipMemcpyHostToDevice pcudaMemcpyHostToDevice
+#define hipMemcpyDeviceToHost pcudaMemcpyDeviceToHost
+#define hipMemcpyDeviceToDevice pcudaMemcpyDeviceToDevice
+#define hipMemcpyDefault pcudaMemcpyDefault
+#define hipMemcpy pcudaMemcpy
+#define hipMemcpyAsync pcudaMemcpyAsync
+#define hipMemset pcudaMemset
+#define hipMemsetAsync pcudaMemsetAsync
+
+
+#define hipEvent_t pcudaEvent_t
+#define hipEventCreate pcudaEventCreate
+#define hipEventCreateWithFlags pcudaEventCreateWithFlags
+#define hipEventBlockingSync pcudaEventBlockingSync
+#define hipEventDefault pcudaEventDefault
+#define hipEventDisableTiming pcudaEventDisableTiming
+#define hipEventInterprocess pcudaEventInterprocess
+#define hipEventRecordDefault pcudaEventRecordDefault
+#define hipEventRecordExternal pcudaEventRecordExternal
+#define hipEventWaitDefault pcudaEventWaitDefault
+#define hipEventWaitExternal pcudaEventWaitExternal
+
+#define hipEventDestroy pcudaEventDestroy
+#define hipEventQuery pcudaEventQuery
+#define hipEventRecord pcudaEventRecord
+#define hipEventRecordWithFlags pcudaEventRecordWithFlags
+#define hipEventSynchronize pcudaEventSynchronize
+
+#define hipComputeMode pcudaComputeMode
+#define hipComputeModeDefault pcudaComputeModeDefault
+#define hipComputeModeExclusive pcudaComputeModeExclusive
+#define hipComputeModeProhibited pcudaComputeModeProhibited
+#define hipComputeModeExclusiveProcess pcudaComputeModeExclusiveProcess
+
+#define hipDeviceProp pcudaDeviceProp
+#define hipGetDeviceProperties pcudaGetDeviceProperties
+
+
+#endif

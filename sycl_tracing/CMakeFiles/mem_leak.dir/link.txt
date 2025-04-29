@@ -1,0 +1,1 @@
+acpp -fPIC -DDEBUGMODE -g -shared -Wl,-soname,libmem_leak.so -o libmem_leak.so CMakeFiles/mem_leak.dir/mem_leak_lib.cc.o  -lboost_stacktrace_addr2line -ldl -lbacktrace 

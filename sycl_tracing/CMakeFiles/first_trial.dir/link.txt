@@ -1,0 +1,1 @@
+acpp -DDEBUGMODE -g -no-pie CMakeFiles/first_trial.dir/first_trial.cc.o -o first_trial  -lboost_stacktrace_addr2line -ldl -lbacktrace 

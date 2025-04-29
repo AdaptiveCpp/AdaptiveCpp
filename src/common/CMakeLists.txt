@@ -4,6 +4,7 @@ add_library(acpp-common SHARED
     appdb.cpp
     dylib_loader.cpp
     settings.cpp
+    tracer_utils.cpp
   )
 
 target_include_directories(acpp-common

@@ -1,8 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <iostream>
-#include <map>
 #include <unordered_map>
 
 namespace Tracer_utils {
@@ -13,22 +11,23 @@ enum class start_end { START = 0, END = 1 };
 
 enum class tracer_type {
   SUBMIT = 0,
-  PARALLEL_FOR = 1,
-  PARALLEL_REDUCE = 2,
-  SINGLE_TASK = 3,
-  MEMCPY = 4,
-  WAIT = 5,
+  SUBMIT_SECONDARY = 1,
+  PARALLEL_FOR = 2,
+  PARALLEL_FOR_WORK_GROUP = 3,
+  SINGLE_TASK = 4,
+  MEMCPY = 5,
+  WAIT = 6,
 };
 
 extern std::unordered_map<tracer_type, std::string> tracer_type_map;
 
-extern std::map<tracer_type, std::size_t> Tracer_map;
+extern std::unordered_map<tracer_type, std::size_t> Tracer_map;
 
-extern std::map<tracer_type, double> Tracer_time;
+extern std::unordered_map<tracer_type, double> Tracer_time;
 
 extern void (*tracer_func)(tracer_type, start_end);
 
-static void initialize_tracer(void (*func)(tracer_type, start_end));
+void initialize_tracer(void (*func)(tracer_type, start_end));
 
-static void tracer_function(char *function_name, start_end state);
+void tracer_function(char *function_name, start_end state);
 }; // namespace Tracer_utils

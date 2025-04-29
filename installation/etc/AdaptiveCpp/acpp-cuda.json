@@ -1,0 +1,6 @@
+{
+  "default-nvcxx"     : "NVCXX_COMPILER-NOTFOUND",
+  "default-cuda-path" : "/usr/local/cuda",
+  "default-cuda-link-line" : "-Wl,-rpath=$ACPP_CUDA_LIB_PATH -L$ACPP_CUDA_LIB_PATH -lcudart",
+  "default-cuda-cxx-flags" : "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $ACPP_PATH/include/AdaptiveCpp/hipSYCL/std/hiplike"
+}

@@ -281,7 +281,19 @@ HIPSYCL_BUILTIN double __acpp_atomic_fetch_add(double *addr, double x,
   return __acpp_sscp_atomic_fetch_add_f64(S, order, scope, addr, x);
 }
 
+template <access::address_space S>
+HIPSYCL_BUILTIN float __acpp_unsafe_atomic_fetch_add(float *addr, float x,
+                                                 memory_order order,
+                                                 memory_scope scope) noexcept {
+  return __acpp_sscp_unsafe_atomic_fetch_add_f32(S, order, scope, addr, x);
+}
 
+template <access::address_space S>
+HIPSYCL_BUILTIN double __acpp_unsafe_atomic_fetch_add(double *addr, double x,
+                                                  memory_order order,
+                                                  memory_scope scope) noexcept {
+  return __acpp_sscp_unsafe_atomic_fetch_add_f64(S, order, scope, addr, x);
+}
 
 
 template <access::address_space S, class T>

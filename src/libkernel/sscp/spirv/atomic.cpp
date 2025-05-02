@@ -495,6 +495,17 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
   ADDRESS_SPACE_SWITCH(as, ptr, RETURN_ATOMIC_FADD);
 }
 
+HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_unsafe_atomic_fetch_add_f32(
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+    __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
+    return  __acpp_sscp_atomic_fetch_add_f32(as, order, scope, ptr, x);
+}
+
+HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_unsafe_atomic_fetch_add_f64(
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+    __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
+    return  __acpp_sscp_atomic_fetch_add_f64(as, order, scope, ptr, x);
+}
 
 #define RETURN_ATOMIC_ISUB(ptr)                                                \
   return __spirv_AtomicISub(ptr, get_spirv_scope(scope),                       \

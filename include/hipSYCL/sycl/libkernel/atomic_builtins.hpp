@@ -11,8 +11,9 @@
 #ifndef HIPSYCL_ATOMIC_BUILTINS_HPP
 #define HIPSYCL_ATOMIC_BUILTINS_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/detail/builtin_dispatch.hpp"
+#include "backend.hpp"
+#include "memory.hpp"
+#include "detail/builtin_dispatch.hpp"
 
 #if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/atomic_builtins.hpp"
@@ -100,6 +101,14 @@ template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __acpp_atomic_fetch_add(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_atomic_fetch_add<S>, addr, x, order,
+                                  scope);
+}
+
+template <access::address_space S, class T>
+HIPSYCL_BUILTIN T __acpp_unsafe_atomic_fetch_add(T *addr, T x, memory_order order,
+                                             memory_scope scope) noexcept {
+   //TODO it would be better do some reflection here I think.
+   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_unsafe_atomic_fetch_add<S>, addr, x, order,
                                   scope);
 }
 

@@ -269,7 +269,21 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
-  
+
+
+  std::string BuiltinBitcodeFileAtomicGfx90a;
+  if (TargetDevice.find("gfx90a") != std::string::npos){
+    BuiltinBitcodeFileAtomicGfx90a = common::filesystem::join_path(common::filesystem::get_install_directory(),
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-atomic-gfx90a-full.bc"});
+  } else {
+    BuiltinBitcodeFileAtomicGfx90a = common::filesystem::join_path(common::filesystem::get_install_directory(),
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-atomic-gfx90a_fallback-full.bc"});
+  }
+
+
+  if(!this->linkBitcodeFile(M, BuiltinBitcodeFileAtomicGfx90a))
+    return false;
+
   AddressSpaceInferencePass ASIPass {ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
   

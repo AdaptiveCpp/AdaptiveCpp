@@ -45,4 +45,9 @@ void initialize_tracers_from_env() {
   }
 }
 
+void finalize_tracing() {
+  for (auto func : tracer_state.finalize)
+    func();
+}
+
 } // namespace Tracer_utils

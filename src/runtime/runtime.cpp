@@ -20,17 +20,12 @@ runtime::runtime() : _dag_manager{this} {
                      << std::endl;
 
   Tracer_utils::initialize_tracers_from_env();
-
-  //  for (int i = 0; i < Tracer_utils::size; i++) {
-  //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::PARALLEL_FOR,
-  //                                        Tracer_utils::START);
-  //  }
-
-  // std::cout << "Hello from hipSYCL!" << std::endl;
 }
 
 runtime::~runtime() {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********" << std::endl;
+
+  Tracer_utils::finalize_tracing();
 }
 
 } // namespace rt

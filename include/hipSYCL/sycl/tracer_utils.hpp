@@ -33,6 +33,7 @@ struct tracer_funcs {
   std::vector<tracer_function_t> memcpy;
   std::vector<tracer_function_t> wait;
   std::vector<tracer_function_t> memset;
+  std::vector<void (*)()> finalize;
 };
 
 typedef void (*tracer_functs_initialize_t)(tracer_funcs &);
@@ -40,6 +41,8 @@ typedef void (*tracer_functs_initialize_t)(tracer_funcs &);
 extern tracer_funcs tracer_state;
 
 void initialize_tracers_from_env();
+
+void finalize_tracing();
 
 extern void (*tracer_func)(tracer_type, start_end);
 

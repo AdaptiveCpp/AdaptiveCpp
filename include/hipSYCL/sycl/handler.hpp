@@ -276,17 +276,14 @@ public:
   template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc) {
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](
-          Tracer_utils::tracer_type::SINGLE_TASK,
-          Tracer_utils::start_end::START);
+    for (auto func : Tracer_utils::tracer_state.single_task)
+      func(Tracer_utils::start_end::START);
 
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
         sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](
-          Tracer_utils::tracer_type::SINGLE_TASK, Tracer_utils::start_end::END);
+    for (auto func : Tracer_utils::tracer_state.single_task)
+      func(Tracer_utils::start_end::END);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -376,10 +373,8 @@ public:
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &...redu_kernel) {
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](
-          Tracer_utils::tracer_type::PARALLEL_FOR,
-          Tracer_utils::start_end::START);
+    for (auto func : Tracer_utils::tracer_state.parallel_for)
+      func(Tracer_utils::start_end::START);
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
@@ -390,10 +385,8 @@ public:
 
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](
-          Tracer_utils::tracer_type::PARALLEL_FOR,
-          Tracer_utils::start_end::END);
+    for (auto func : Tracer_utils::tracer_state.parallel_for)
+      func(Tracer_utils::start_end::END);
   }
 
   // Hierarchical kernel dispatch API
@@ -417,10 +410,8 @@ public:
                                range<dimensions> workGroupSize,
                                const ReductionsAndKernel &...redu_kernel) {
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](
-          Tracer_utils::tracer_type::PARALLEL_FOR_WORK_GROUP,
-          Tracer_utils::start_end::START);
+    for (auto func : Tracer_utils::tracer_state.parallel_for_work_group)
+      func(Tracer_utils::start_end::START);
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
       this->submit_kernel<KernelName,
@@ -430,10 +421,8 @@ public:
     };
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](
-          Tracer_utils::tracer_type::PARALLEL_FOR_WORK_GROUP,
-          Tracer_utils::start_end::END);
+    for (auto func : Tracer_utils::tracer_state.parallel_for_work_group)
+      func(Tracer_utils::start_end::END);
   }
 
   // Scoped parallelism API
@@ -578,9 +567,8 @@ public:
 
   void memcpy(void *dest, const void *src, std::size_t num_bytes) {
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMCPY,
-                                          Tracer_utils::start_end::START);
+    for (auto func : Tracer_utils::tracer_state.memcpy)
+      func(Tracer_utils::start_end::START);
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -627,9 +615,8 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMCPY,
-                                          Tracer_utils::start_end::END);
+    for (auto func : Tracer_utils::tracer_state.memcpy)
+      func(Tracer_utils::start_end::END);
   }
 
   template <typename T> void copy(const T *src, T *dest, std::size_t count) {
@@ -660,9 +647,9 @@ public:
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
-                                          Tracer_utils::start_end::START);
+    //  for (int i = 0; i < Tracer_utils::size; i++)
+    //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
+    //                                        Tracer_utils::start_end::START);
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -676,9 +663,9 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    for (int i = 0; i < Tracer_utils::size; i++)
-      Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
-                                          Tracer_utils::start_end::END);
+    //  for (int i = 0; i < Tracer_utils::size; i++)
+    //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
+    //                                        Tracer_utils::start_end::END);
   }
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {

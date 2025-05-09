@@ -3,14 +3,15 @@
 #include <chrono>
 #include <dlfcn.h>
 #include <unordered_map>
+#include <vector>
 
 namespace Tracer_utils {
 
 using time_point = std::chrono::high_resolution_clock::time_point;
 
-enum start_end { START = 0, END = 1 };
+enum class start_end { START = 0, END = 1 };
 
-enum tracer_type {
+enum class tracer_type {
   SUBMIT = 0,
   SUBMIT_SECONDARY = 1,
   PARALLEL_FOR = 2,
@@ -21,18 +22,24 @@ enum tracer_type {
   MEMSET = 7,
 };
 
-typedef void (*tracer_func_t)(tracer_type, start_end);
+typedef void (*tracer_function_t)(start_end);
 
-extern int size;
-extern tracer_func_t *tracer_funcs_array;
+struct tracer_funcs {
+  std::vector<tracer_function_t> submit;
+  std::vector<tracer_function_t> submit_secondary;
+  std::vector<tracer_function_t> parallel_for;
+  std::vector<tracer_function_t> parallel_for_work_group;
+  std::vector<tracer_function_t> single_task;
+  std::vector<tracer_function_t> memcpy;
+  std::vector<tracer_function_t> wait;
+  std::vector<tracer_function_t> memset;
+};
+
+typedef void (*tracer_functs_initialize_t)(tracer_funcs &);
+
+extern tracer_funcs tracer_state;
 
 void initialize_tracers_from_env();
-
-// extern std::unordered_map<tracer_type, std::string> tracer_type_map;
-//
-// extern std::unordered_map<tracer_type, std::size_t> Tracer_map;
-//
-// extern std::unordered_map<tracer_type, double> Tracer_time;
 
 extern void (*tracer_func)(tracer_type, start_end);
 

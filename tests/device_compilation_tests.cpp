@@ -171,6 +171,21 @@ struct KernelFunctor {
   AccessorT acc;
 };
 
+BOOST_AUTO_TEST_CASE(submit_zero_work_items) {
+  cl::sycl::queue q;
+  const std::size_t N = 1024;
+
+  auto d_y = static_cast<int *>(cl::sycl::malloc_device(sizeof(int) * N, q));
+
+  q.parallel_for<>(
+    cl::sycl::range<1>(static_cast<std::size_t>(0)),
+    [=](cl::sycl::id<1> idx) {
+      d_y[idx] = static_cast<int>(idx);
+    }
+  ).wait_and_throw();
+  cl::sycl::free(d_y, q);
+}
+
 // It's allowed to omit the name if the functor is globally visible
 BOOST_AUTO_TEST_CASE(omit_kernel_name) {
   cl::sycl::queue queue;

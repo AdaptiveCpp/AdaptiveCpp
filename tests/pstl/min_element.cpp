@@ -30,39 +30,15 @@ void test_min_element(Policy&& pol, std::size_t size, Generator&& gen,
   for(std::size_t i = 0; i < data.size(); ++i)
     data[i] = gen(i);
 
-  std::cout << "--------------------\n Input:  ";
-  for (const auto &x: data)
-    std::cout << x << " ";
-  std::cout << "\n";
-
   auto reference_result = std::min_element(data.begin(), data.end());
   auto res = std::min_element(pol, data.begin(), data.end());
-
-  std::cout << "\n Original Host:    ";
-  std::cout << std::distance(data.begin(), reference_result) << ", Device: " << std::distance(data.begin(), res);
-  std::cout << "\n";
 
   BOOST_CHECK(res == reference_result);
 
   reference_result = std::min_element(data.begin(), data.end(), comp);
   res = std::min_element(pol, data.begin(), data.end(), comp);
 
-  std::cout << "\n Comp::less Host:  ";
-  std::cout << std::distance(data.begin(), reference_result) << ", Device: " << std::distance(data.begin(), res);
-  std::cout << "\n";
-
   BOOST_CHECK(res == reference_result);
-
-  auto cmp = std::less_equal<>{};
-  reference_result = std::min_element(data.begin(), data.end(), cmp);
-  res = std::min_element(pol, data.begin(), data.end(), cmp);
-
-  std::cout << "\n Comp::less_equal: ";
-  std::cout << std::distance(data.begin(), reference_result) << ", Device: " << std::distance(data.begin(), res);
-  std::cout << "\n";
-
-  BOOST_CHECK(res == reference_result);
-
 }
 
 template<class Policy>

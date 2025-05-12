@@ -56,6 +56,9 @@
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
+//FIXME: Remove later
+#include <iostream>
+
 #ifndef ACPP_FORCE_INSTANT_SUBMISSION
 #define ACPP_FORCE_INSTANT_SUBMISSION 0
 #endif
@@ -300,6 +303,7 @@ public:
   }
 
 
+  // NOTE: Could be related to issue (ATA - DEBUG)
   template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
@@ -322,19 +326,27 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
+  // NOTE: Look into the functions parallel_for and try to figure out
+  // which ones get called for the test script (ATA - DEBUG)
   template <typename KernelName = __acpp_unnamed_kernel,
-            typename... ReductionsAndKernel>
+  typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
 
-    auto invoker = [&](auto&& kernel, auto&&... reductions){
-      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+    if(numWorkItems == 0) {
+      // std::cout << "[DEBUG] numWorkItems is equal to 0!" << std::endl;
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
+    }
+    else {
+      auto invoker = [&](auto&& kernel, auto&&... reductions){
+        this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           sycl::id<1>{}, numWorkItems,
           get_preferred_group_size<1>(),
           kernel, reductions...);
-    };
+      };
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,

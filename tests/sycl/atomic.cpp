@@ -124,6 +124,28 @@ void atomic_device_reduction_test(AtomicOp op, Verifier v,
   }
 }
 
+BOOST_AUTO_TEST_CASE(fetch_add_unsigned_int) {
+    unsigned int data = 0u;
+
+    ::sycl::atomic_ref<unsigned int,
+                       ::sycl::memory_order::relaxed,
+                       ::sycl::memory_scope::device,
+                       ::sycl::access::address_space::global_space>
+    ref(data);
+
+    ref.fetch_add(1);
+    BOOST_TEST(data  == 1u);
+
+    ref.fetch_add(5);
+    BOOST_TEST(data  == 6u);
+
+    ref.fetch_add(10);
+    BOOST_TEST_CONTEXT("Checking result for fetch_add() on unsigned integers: "
+        << 16u << " (expected) == " << data << " (received)") {
+      BOOST_CHECK(data == 16u);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(fetch_op) {
 
   auto fetch_add = [](auto& atomic, auto x) {

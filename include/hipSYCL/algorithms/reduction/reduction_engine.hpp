@@ -19,7 +19,6 @@
 
 #include "hipSYCL/common/small_vector.hpp"
 
-#include "hipSYCL/algorithms/reduction/threading_model/cache_line.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
 
@@ -33,9 +32,6 @@
 #include "wg_model/configured_reduction_descriptor.hpp"
 #include "wg_model/reduction_stage.hpp"
 
-#include "threading_model/thread_horizontal_reducer.hpp"
-#include "threading_model/configured_reduction_descriptor.hpp"
-#include "threading_model/reduction_stage.hpp"
 
 
 namespace hipsycl::algorithms::reduction {
@@ -72,18 +68,6 @@ auto configure_descriptor(
       global_size};
 }
 
-template <class ReductionDescriptor>
-auto configure_descriptor(
-    const ReductionDescriptor &descriptor,
-    const threading_model::reduction_stage_data &data_plan,
-    std::size_t global_size) {
-  using value_type = typename ReductionDescriptor::value_type;
-
-  return threading_model::configured_reduction_descriptor<ReductionDescriptor>{
-      descriptor, data_plan.is_data_initialized,
-      static_cast<threading_model::cache_line_aligned<value_type> *>(
-          data_plan.scratch_data)};
-}
 
 template<class F, typename... Args>
 static void enumerate_pack(F&& handler, Args&&... args) {
@@ -389,232 +373,6 @@ public:
   }
 };
 
-template<class ThreadInfoQuery>
-class threading_reduction_engine {
-  
-  util::allocation_group* _scratch_allocations;
-  ThreadInfoQuery _thread_query;
-
-  using horizontal_reducer_type =
-      threading_model::thread_horizontal_reducer<ThreadInfoQuery>;
-  using reduction_stage_type =
-      threading_model::reduction_stage;
-
-  template <class Kernel, typename... ConfiguredReductionDescriptors>
-  static auto
-  wrap_main_kernel(const Kernel &k, const horizontal_reducer_type &group_reducer,
-                   const ConfiguredReductionDescriptors &...descriptors) {
-
-    auto with_unpacked_pack_by_value = [](auto f, auto... args) { f(args...); };
-
-    auto wrapped_k = [=](auto... direct_kernel_args) {
-      with_unpacked_pack_by_value(
-          [=](auto... wi_reducers) {
-            k(direct_kernel_args..., wi_reducers...);
-            auto wi_index = detail::get_first(direct_kernel_args...);
-            (group_reducer.finalize(wi_index, descriptors, wi_reducers), ...);
-          },
-          group_reducer.generate_wi_reducer(descriptors)...);
-    };
-
-    return wrapped_k;
-  }
-
-  template <class Kernel, class PlanType, typename... ReductionDescriptors>
-  auto make_main_reducing_kernel(Kernel main_kernel,
-                                 const PlanType &reduction_plan,
-                                 ReductionDescriptors... descriptors) {
-    assert(reduction_plan.size() > 0);
-
-    // In the threading model, both stages share the same
-    // scratch data, so we only need to initialize it for the first stage.
-    detail::enumerate_pack(
-        [&](std::size_t reduction_index, const auto &descriptor) {
-          
-          using descriptor_type = std::decay_t<decltype(descriptor)>;
-          using value_type = typename descriptor_type::value_type;
-
-          auto *init =
-              reduction_plan[0].data_plan[reduction_index].is_data_initialized;
-          auto *scratch = static_cast<threading_model::cache_line_aligned<value_type> *>(
-              reduction_plan[0].data_plan[reduction_index].scratch_data);
-
-          if (init) {
-            for (int j = 0; j < _thread_query.get_max_num_threads(); ++j)
-              init[j].value = false;
-          }
-          if constexpr (std::decay_t<
-                            decltype(descriptor)>::has_known_identity()) {
-            for (int j = 0; j < _thread_query.get_max_num_threads(); ++j)
-              scratch[j].value = descriptor.get_operator().get_identity();
-          }
-        },
-        descriptors...);
-
-    auto query = _thread_query;
-    return detail::with_configured_descriptors(
-        [=](auto... configured_descriptors) {
-          threading_model::thread_horizontal_reducer<ThreadInfoQuery>
-              horizontal_reducer{query};
-
-          return wrap_main_kernel(main_kernel, horizontal_reducer,
-                                          configured_descriptors...);
-        },
-        reduction_plan[0], descriptors...);
-  }
-
-  template <class KernelLauncher, class PlanType,
-            typename... ReductionDescriptors>
-  void run_additional_kernels(KernelLauncher single_task_kernel_launcher,
-                              const PlanType &reduction_plan,
-                              ReductionDescriptors... descriptors) {
-    assert(reduction_plan.size() == 2);
-
-    auto query = _thread_query;
-
-    auto gather_kernel = [=](auto... configured_descriptors){
-      int my_id = query.get_my_thread_id();
-      // Also check against my_id == 0 in case a user attempts
-      // to use threading model in offloaded parallel-for context
-      // with custom ThreadInfoQuery and KernelLauncher.
-      if(my_id == 0 || query.get_num_threads() == 1) {
-        const int num_entries = query.get_max_num_threads();
-        auto process_descriptor = [=](const auto& configured_descriptor) {
-
-          using descriptor_type = std::decay_t<decltype(configured_descriptor)>;
-          typename descriptor_type::value_type current{};
-          auto *scratch = configured_descriptor.get_scratch();
-          auto *init_stage = configured_descriptor.get_initialization_state();
-
-          bool is_initialized = false;
-          
-          if constexpr(descriptor_type::has_known_identity())
-            current = configured_descriptor.get_operator().get_identity();
-
-          for(int i = 0; i < num_entries; ++i) {
-            if constexpr(descriptor_type::has_known_identity()) {
-              current = configured_descriptor.get_operator()(current,
-                                                             scratch[i].value);
-            } else {
-              if (init_stage[i].value) {
-                current = configured_descriptor.get_operator()(
-                    current, scratch[i].value);
-                is_initialized = true;
-              }
-            }
-          }
-
-          detail::set_reduction_result(configured_descriptor, current,
-                                       is_initialized);
-        };
-
-        (process_descriptor(configured_descriptors), ...);
-      }
-    };
-
-    auto kernel = detail::with_configured_descriptors(
-        [=](auto... configured_descriptors) {
-          return [=](auto... kernel_args) {
-            gather_kernel(configured_descriptors...);
-          };
-        },
-        reduction_plan[1], descriptors...);
-
-    // TODO: For compatibility, we could also allow nd-range-style
-    // kernel launchers as we require in the wg-model.
-    single_task_kernel_launcher(kernel);
-  }
-
-public:
-  threading_reduction_engine(const ThreadInfoQuery &thread_query,
-                             util::allocation_group *scratch_allocation_group)
-      : _thread_query{thread_query}, _scratch_allocations{
-                                         scratch_allocation_group} {}
-
-  template <typename... ReductionDescriptors>
-  reduction_plan<reduction_stage_type, ReductionDescriptors...>
-  create_plan(std::size_t global_size,
-              ReductionDescriptors... descriptors) const {
-
-    std::size_t max_threads =
-        static_cast<std::size_t>(_thread_query.get_max_num_threads());
-
-    reduction_stage_type primary_stage{global_size};
-    reduction_stage_type secondary_stage{max_threads};
-
-    primary_stage.data_plan.resize(sizeof...(descriptors));
-    secondary_stage.data_plan.resize(sizeof...(descriptors));
-
-    detail::enumerate_pack(
-        [&](std::size_t reduction_index, const auto &descriptor) {
-          bool has_known_identity = descriptor.has_known_identity();
-
-          using value_type =
-              typename std::decay_t<decltype(descriptor)>::value_type;
-          using aligned_value_type =
-              threading_model::cache_line_aligned<value_type>;
-          aligned_value_type *scratch_data =
-              _scratch_allocations->obtain<aligned_value_type>(max_threads);
-
-          primary_stage.data_plan[reduction_index].scratch_data = scratch_data;
-          secondary_stage.data_plan[reduction_index].scratch_data =
-              scratch_data;
-
-          using aligned_initialization_flag =
-              threading_model::cache_line_aligned<initialization_flag_t>;
-          aligned_initialization_flag *is_initialized = nullptr;
-
-          if (!has_known_identity) {
-            is_initialized =
-                _scratch_allocations->obtain<aligned_initialization_flag>(
-                    max_threads);
-          }
-
-          primary_stage.data_plan[reduction_index].is_data_initialized =
-              is_initialized;
-          secondary_stage.data_plan[reduction_index].is_data_initialized =
-              is_initialized;
-        },
-        descriptors...);
-
-    reduction_plan<reduction_stage_type, ReductionDescriptors...> result_plan{
-        descriptors...};
-    result_plan.push_back(primary_stage);
-    result_plan.push_back(secondary_stage);
-
-    return result_plan;
-  }
-
-  /// Note: This also initializes scratch memory, and therefore
-  /// calling it multiple times before the reduction completes may be incorrect.
-  template <class Kernel, class PlanType, typename... ReductionDescriptors>
-  auto make_main_reducing_kernel(Kernel main_kernel,
-                                 const PlanType &reduction_plan) {
-    assert(reduction_plan.size() > 0);
-
-    return std::apply(
-        [&](const auto&... descriptors) {
-          return this->make_main_reducing_kernel(main_kernel, reduction_plan,
-                                                 descriptors...);
-        },
-        reduction_plan.get_descriptors());
-  }
-
-  template <class KernelLauncher, class PlanType,
-            typename... ReductionDescriptors>
-  void run_additional_kernels(KernelLauncher kernel_launcher,
-                              const PlanType &reduction_plan) {
-
-    std::apply(
-        [&](const auto&... descriptors) {
-          this->run_additional_kernels(kernel_launcher, reduction_plan,
-                                       descriptors...);
-        },
-        reduction_plan.get_descriptors());
-  }
-
-  
-};
 
 }
 

@@ -58,7 +58,7 @@ AdaptiveCpp is a portable platform supporting multiple backends that might poten
 
 Because devices from different vendors in general do not know how to talk to each other, in general data transfers are only possible within devices of one platform (and the host).
 
-Consequently, in-order to not break existing CUDA/HIP applications that rely on `cuda/hipGetDevice` and `cuda/hipSetDevice` and assume that all devices accessible in this way are interoperable, AdaptiveCpp PCUDA enumerates every platform and backend independently.
+Consequently, in order to not break existing CUDA/HIP applications that rely on `cuda/hipGetDevice` and `cuda/hipSetDevice` and assume that all devices accessible in this way are interoperable, AdaptiveCpp PCUDA enumerates every platform and backend independently.
 
 This means that the `GetDevice`/`SetDevice` functions always operate on devices of the current platform.
 
@@ -88,7 +88,7 @@ Utilizing devices from other platforms or backends requires the PCUDA extensions
 ### __host__, __device__ and __global__ attributes
 
 As in SYCL or stdpar, AdaptiveCpp mostly figures out by itself which functions need to be compiled for device and which for host.
-The `__host__` attribute is available, but meaningless in PCUDA. The `__device__` attribute is only needed on device functions that are invoked from other translation units.
+The `__host__` and `__device__` attributes are available, but are mostly meaningless in PCUDA. If device functions need to be invoked that are defined in other translation units, compile the code with `--acpp-export-all`.
 
 `__host__` and `__device__` functions can otherwise call each other arbitrarily. (This is a necessary requirement for interoperability with SYCL device code, where functions don't have any attributes at all, and are therefore "host" in CUDA logic).
 
@@ -112,7 +112,7 @@ Functions with `__global__` attribute are compiled as kernels. Unlike other CUDA
 __global__ void copy(int* in, int* out, int num_elements) {...}
 
 __global__ void kernel(int* in, int* out, int num_elements) {
-  // This not dynamic parallelism; the semantics are the same as if
+  // This is not dynamic parallelism; the semantics of the call are the same as if
   // `copy` did not have the `__global__` attribute!
   copy(in, out, num_elements);
 }
@@ -190,7 +190,7 @@ void invoke_kernel() {
 
 AdaptiveCpp supports the traditional CUDA triple chevron kernel launch syntax only for convenience and compatibility reasons on a best effort basis. It needs to be explicitly activated using `--acpp-pcuda-chevron-launch`. It is discouraged for new code investments.
 
-This feature is currently implemented using a preprocessing step. While the expectation is that the implementation works well for actual CUDA/HIP code, the additional preprocessing step can affect compiler diagnostics for macro expansions negatively. This mode is therefore not recommended for code bases under active development.
+This feature is currently implemented using a preprocessing step. While the expectation is that the implementation works well for actual CUDA/HIP code, the additional preprocessing step can negatively affect compiler diagnostics for macro expansions. This mode is therefore not recommended for code bases under active development.
 
 Note that this kernel invocation mode currently requires that the kernel is invoked from the same translation unit where the `__global__` function is defined.
 

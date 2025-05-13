@@ -381,7 +381,7 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB,
   // in case code references all dimensions, we need to set the remaining dimensions to 0
   for (size_t D = Dim; D < 3; ++D) {
     auto ID = mergeGVLoadsInEntry(F, LocalIdGlobalNames[D]);
-    ID->replaceAllUsesWith(Builder.getIntN(Idx->getType()->getIntegerBitWidth(), 0));
+    ID->replaceAllUsesWith(llvm::Constant::getNullValue(ID->getType()));
     ID->eraseFromParent();
   }
 
@@ -1440,7 +1440,7 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
     if (auto *Load =
             llvm::cast_or_null<llvm::LoadInst>(mergeGVLoadsInEntry(F, LocalIdGlobalNames[D]))) {
       if (D >= Dim)
-        Load->replaceAllUsesWith(llvm::ConstantInt::get(Load->getType(), 0));
+        Load->replaceAllUsesWith(llvm::Constant::getNullValue(Load->getType()));
       Load->eraseFromParent();
     }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG())

@@ -69,6 +69,17 @@ private:
     std::string CUDAPath = HIPSYCL_CUDA_PATH;
     std::vector<std::string> SubDir {"nvvm", "libdevice"};
     std::string BitcodeDir = common::filesystem::join_path(CUDAPath, SubDir);
+    // When CUDA is installed via system packages in /usr, the nvvm/libdevice structure
+    // will be under /usr/lib/cuda. Generalize this by checking first if the currently assumed
+    // BitcodeDir exists, and if not, trying under CUDAPath/lib/cuda/SubDir
+    if(!common::filesystem::exists(BitcodeDir)) {
+      std::vector<std::string> libCuda { "lib", "cuda" };
+      BitcodeDir = common::filesystem::join_path(CUDAPath, libCuda, SubDir);
+      // if this doesn't exist either, just give up
+      if(!common::filesystem::exists(BitcodeDir)) {
+        return false;
+      }
+    }
 
     std::error_code EC;
     auto Files = common::filesystem::list_regular_files(BitcodeDir, EC);

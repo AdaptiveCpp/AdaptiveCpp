@@ -308,18 +308,23 @@ public:
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-            typename... ReductionsAndKernel, int dimensions>
+  typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
 
-    auto invoker = [&](auto&& kernel, auto&&... reductions){
-      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+    if(numWorkItems.size() == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
+
+    else {
+      auto invoker = [&](auto&& kernel, auto&&... reductions){
+        this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           sycl::id<dimensions>{}, numWorkItems,
           get_preferred_group_size<dimensions>(),
           kernel, reductions...);
-    };
+      };
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -327,9 +332,9 @@ public:
   void parallel_for(range<1> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
 
-    if(numWorkItems == 0) {
+    if(numWorkItems == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
-    }
+
     else {
       auto invoker = [&](auto&& kernel, auto&&... reductions){
         this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
@@ -343,33 +348,35 @@ public:
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-            typename... ReductionsAndKernel, int dimensions>
+  typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
-    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
-      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+
+      auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+        this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           workItemOffset, numWorkItems,
           get_preferred_group_size<dimensions>(),
           kernel, reductions...);
-    };
+      };
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-            typename... ReductionsAndKernel>
+  typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     id<1> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
-    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
-      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+
+      auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+        this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           workItemOffset, numWorkItems,
           get_preferred_group_size<1>(),
           kernel, reductions...);
-    };
+      };
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,

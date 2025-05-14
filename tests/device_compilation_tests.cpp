@@ -183,6 +183,20 @@ BOOST_AUTO_TEST_CASE(submit_zero_work_items) {
       d_y[idx] = static_cast<int>(idx);
     }
   ).wait_and_throw();
+
+
+  q.parallel_for<>(
+    cl::sycl::range<2>(static_cast<std::size_t>(0), static_cast<std::size_t>(0)),
+    [=](cl::sycl::id<2> idx) {
+    }
+  ).wait_and_throw();
+
+  q.parallel_for<>(
+    cl::sycl::range<3>(static_cast<std::size_t>(0), static_cast<std::size_t>(0), static_cast<std::size_t>(0)),
+    [=](cl::sycl::id<3> idx) {
+    }
+  ).wait_and_throw();
+
   cl::sycl::free(d_y, q);
 }
 

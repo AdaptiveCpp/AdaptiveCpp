@@ -86,6 +86,10 @@ std::string join_path(const std::string& base, const std::string& extra) {
   return (fs::path(base) / extra).string();
 }
 
+std::string join_path(const std::string& base, const char* extra) {
+  return join_path(base, std::string(extra));
+}
+
 std::string
 join_path(const std::string &base,
           const std::vector<std::string> &additional_components) {

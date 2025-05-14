@@ -27,6 +27,7 @@ namespace filesystem {
 ACPP_COMMON_EXPORT std::string get_install_directory();
 
 ACPP_COMMON_EXPORT std::string join_path(const std::string& base, const std::string& extra);
+ACPP_COMMON_EXPORT std::string join_path(const std::string& base, const char* extra);
 
 ACPP_COMMON_EXPORT bool exists(const std::string& path);
 
@@ -35,6 +36,14 @@ ACPP_COMMON_EXPORT std::string absolute(const std::string& path);
 ACPP_COMMON_EXPORT std::string
 join_path(const std::string &base,
           const std::vector<std::string> &additional_components);
+
+/// Variadic form of join_path, concatenates any number of strings or vectors of strings
+template<typename T, typename... Ts>
+std::string
+join_path(const std::string& base, const T& next_component,
+  const Ts& ...other_components) {
+  return join_path(join_path(base, next_component), other_components...);
+}
 
 ACPP_COMMON_EXPORT std::vector<std::string> list_regular_files(const std::string &directory,
                                             std::error_code &EC);

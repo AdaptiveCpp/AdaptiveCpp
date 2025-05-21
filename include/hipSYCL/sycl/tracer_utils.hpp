@@ -1,9 +1,11 @@
-#pragma once
+// #pragma once
 
 #include <chrono>
 #include <dlfcn.h>
-#include <unordered_map>
 #include <vector>
+
+#ifndef TRACER_UTILS_H
+#define TRACER_UTILS_H
 
 namespace Tracer_utils {
 
@@ -51,3 +53,5 @@ void initialize_tracer(void (*func)(tracer_type, start_end));
 void tracer_function(char *function_name, start_end state);
 
 }; // namespace Tracer_utils
+
+#endif // TRACER_UTILS_H

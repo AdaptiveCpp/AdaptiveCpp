@@ -40,6 +40,7 @@
 #include <system_error>
 #include <vector>
 #include <sstream>
+#include <fstream>
 
 #ifdef ACPP_HIPRTC_LINK
 #define __HIP_PLATFORM_AMD__
@@ -371,6 +372,46 @@ bool LLVMToAmdgpuTranslator::applyBuildFlag(const std::string &Flag) {
 
 bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::string &Output) {
 #ifdef ACPP_HIPRTC_LINK
+  llvm::SmallVector<char> InputFile;
+  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-amdgpu", "bc", InputFile, llvm::sys::fs::OF_None)){
+    this->registerError("LLVMToAmdgpu: Could not create temp input file" + E.message());
+    return false;
+  }
+  llvm::StringRef InputFileName = InputFile.data();
+
+  llvm::SmallVector<char> OptOutputFile;
+  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-amdgpu-opt", "bc", OptOutputFile, llvm::sys::fs::OF_None)){
+    this->registerError("LLVMToAmdgpu: Could not create temp file" + E.message());
+    return false;
+  }
+  llvm::StringRef OptOutputFileName = OptOutputFile.data();
+
+  AtScopeExit RemoveInputFile([&](){auto Err = llvm::sys::fs::remove(InputFileName);});
+  AtScopeExit RemoveOptOutputFile([&](){auto Err = llvm::sys::fs::remove(OptOutputFileName);});
+
+  {
+    std::ofstream bcfile{InputFileName.str(), std::ios::out | std::ios::binary | std::ios::trunc};
+    bcfile.write(Bitcode.data(), Bitcode.size());
+  }
+  const std::string OptPath = getOptPath();
+  int OptR =
+      llvm::sys::ExecuteAndWait(OptPath, {OptPath, "-O3", InputFileName, "-o", OptOutputFileName});
+  if(OptR != 0) {
+    this->registerError("LLVMToAmdgpu: opt invocation failed with exit code " +
+                        std::to_string(OptR));
+    return false;
+  }
+  std::string OptOutput;
+  {
+    auto Buff = llvm::MemoryBuffer::getFile(OptOutputFileName);
+    if (std::error_code ec = Buff.getError()) {
+      this->registerError("LLVMToAmdgpu: Could not read temp file " + OptOutputFileName.str() +
+                          ec.message());
+      return false;
+    }
+    OptOutput = (*Buff)->getBuffer().str();
+  }
+
   // Currently hipRTC link does not take into account options anyway.
   // It just compiles for the currently active HIP device.
   std::vector<hiprtcJIT_option> options {};
@@ -385,8 +426,8 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
   }
 
 
-  void* Data = static_cast<void*>(const_cast<char*>(Bitcode.data()));
-  err = hiprtcLinkAddData(LS, HIPRTC_JIT_INPUT_LLVM_BITCODE, Data, Bitcode.size(),
+  void* Data = static_cast<void*>(const_cast<char*>(OptOutput.data()));
+  err = hiprtcLinkAddData(LS, HIPRTC_JIT_INPUT_LLVM_BITCODE, Data, OptOutput.size(),
                           "hipSYCL SSCP Bitcode", 0, 0, 0);
 
   auto addBitcodeFile = [&](const std::string &BCFileName) -> bool {

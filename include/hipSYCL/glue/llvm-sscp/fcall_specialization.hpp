@@ -31,6 +31,16 @@ struct fcall_specialized_config {
 using fcall_config_kernel_property_t =
     __acpp_sscp_emit_param_type_annotation_fcall_specialized_config<
         const fcall_specialized_config *>;
+
+// Hides the fcall specialization ptr as an integer. This can be beneficial
+// for the adaptivity engine, which inspects pointers with dedicated logic.
+// TODO: Maybe we should have a generic mechanism to exclude certain parameters
+// from adaptivity analyses?
+inline auto
+hide_fcall_specialization_pointer(fcall_config_kernel_property_t config) {
+  return __acpp_sscp_emit_param_type_annotation_fcall_specialized_config<
+      std::intptr_t>{reinterpret_cast<std::intptr_t>(config.value)};
+}
 }
 
 #endif

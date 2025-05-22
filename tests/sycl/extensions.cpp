@@ -1357,5 +1357,23 @@ BOOST_AUTO_TEST_CASE(khr_default_context) {
   BOOST_CHECK(sycl::context{} != q1.get_context());
 }
 #endif
+#ifdef SYCL_KHR_QUEUE_EMPTY_QUERY
+BOOST_AUTO_TEST_CASE(khr_queue_empty) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::queue in_order_q{sycl::property::queue::in_order{}};
+
+  BOOST_CHECK(q.khr_empty());
+  BOOST_CHECK(in_order_q.khr_empty());
+
+  q.single_task([](){});
+  in_order_q.single_task([](){});
+  q.wait();
+  in_order_q.wait();
+
+  BOOST_CHECK(q.khr_empty());
+  BOOST_CHECK(in_order_q.khr_empty());
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

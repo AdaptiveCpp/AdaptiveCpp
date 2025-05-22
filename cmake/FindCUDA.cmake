@@ -59,4 +59,4 @@ else()
 endif()
 
 # Restore the cmake module path that contains our modules
-set(CMAKE_MODULE_PATH OLD_CMAKE_MODULE_PATH)
+set(CMAKE_MODULE_PATH ${OLD_CMAKE_MODULE_PATH})

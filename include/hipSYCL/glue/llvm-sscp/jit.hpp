@@ -257,6 +257,12 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                            << std::endl;
         translator->setNoAliasKernelParam(translator->getKernels().front(), i);
       }
+      if(config.has_kernel_param_flag(i, rt::kernel_param_flag::noalias_if_no_indirect_access)) {
+        HIPSYCL_DEBUG_INFO << "jit: Setting argument " << i
+                           << " to noalias-if-no-indirect-access " << std::endl;
+        translator->setNoAliasIfNoIndirectAccessKernelParam(
+            translator->getKernels().front(), i);
+      }
     }
     for(const auto& entry : config.known_alignments()) {
       HIPSYCL_DEBUG_INFO << "jit: Setting argument " << entry.first

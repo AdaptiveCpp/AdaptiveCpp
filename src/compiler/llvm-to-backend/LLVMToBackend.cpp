@@ -21,6 +21,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
+#include "hipSYCL/compiler/utils/IndirectAccess.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 #include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
@@ -442,6 +443,27 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
       return false;
     }
 
+    // After optimizations, we can check for indirect access effectively.
+    // But we need to handle noalias-if-no-indirect-access before
+    // dead argument elimination, since parameter index won't be correct
+    // anymore afterwards!
+    for(auto& P : NoAliasIfNoIndirectAccessParameters) {
+      auto* F = M.getFunction(P.first);
+      if(F && utils::IsFunctionFreeOfIndirectAccess(F)) {
+        for (int i : P.second) {
+          HIPSYCL_DEBUG_INFO << "LLVMToBackend: Attaching noalias attribute to parameter " << i
+                              << " of kernel " << P.first << "\n";
+          if (i < F->getFunctionType()->getNumParams())
+            if (!F->hasParamAttribute(i, llvm::Attribute::AttrKind::NoAlias))
+              F->addParamAttr(i, llvm::Attribute::AttrKind::NoAlias);
+        }
+      } else {
+        HIPSYCL_DEBUG_INFO << "LLVMToBackend: Cannot prove that kernel " << P.first
+                           << " does not perform indirect access; not attaching noalias attribute"
+                           << "\n";
+      }
+    }
+
     for(const auto& Entry : FunctionsForDeadArgumentElimination) {
       if(auto* F = M.getFunction(Entry.first)) {
         if(isKernelAfterFlavoring(*F)) {
@@ -695,6 +717,11 @@ void LLVMToBackendTranslator::specializeFunctionCalls(
 
 void LLVMToBackendTranslator::setNoAliasKernelParam(const std::string &KernelName, int ParamIndex) {
   NoAliasParameters[KernelName].push_back(ParamIndex);
+}
+
+void LLVMToBackendTranslator::setNoAliasIfNoIndirectAccessKernelParam(const std::string &KernelName,
+                                                                      int ParamIndex) {
+  NoAliasIfNoIndirectAccessParameters[KernelName].push_back(ParamIndex);
 }
 
 void LLVMToBackendTranslator::provideExternalSymbolResolver(ExternalSymbolResolver Resolver) {

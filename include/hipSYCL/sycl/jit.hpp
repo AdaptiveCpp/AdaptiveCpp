@@ -224,7 +224,13 @@ public:
     if(!_is_ready)
       prepare_for_submission();
 
-    glue::sscp::fcall_config_kernel_property_t prop{&_config};
+    // Avoid the the fcall specialization pointer from being
+    // taken into account as a pointer during adaptivity analysis.
+    // This can reduce unnecessary JIT e.g. if the fcall pointer
+    // changes alignment
+    auto prop = glue::sscp::hide_fcall_specialization_pointer(
+        glue::sscp::fcall_config_kernel_property_t{&_config});
+    
     return [prop, k](auto&&... args){
       k(decltype(args)(args)...);
     };
@@ -254,7 +260,7 @@ private:
       common::stable_running_hash hash;
       hash(entry.first.data(), entry.first.size());
       for(const auto& s : entry.second)
-        hash(entry.second.data(), entry.second.size());
+        hash(s.data(), s.size());
       _config.unique_hash ^= hash.get_current_hash();
     }
   }

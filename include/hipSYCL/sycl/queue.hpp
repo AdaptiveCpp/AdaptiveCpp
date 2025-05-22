@@ -511,6 +511,40 @@ public:
   friend bool operator!=(const queue& lhs, const queue& rhs)
   { return !(lhs == rhs); }
 
+  bool khr_empty() const {
+    // Need flush-sync in case there are any non-instant nodes
+    _impl->requires_runtime.get()->dag().flush_sync();
+    if(is_in_order()) {
+      if(!_impl->needs_in_order_emulation) {
+        rt::inorder_executor* executor = AdaptiveCpp_inorder_executor();
+        assert(executor);
+
+        rt::inorder_queue_status status;
+        if(executor->get_queue()->query_status(status).is_success()) {
+          return status.is_complete();
+        }
+        return false;
+      } else {
+        rt::dag_node_ptr most_recent_event = nullptr;
+        {
+          std::lock_guard<std::mutex> lock{_impl->lock};
+          most_recent_event = _impl->previous_submission;
+        }
+        if(!most_recent_event)
+          return true;
+        return most_recent_event->is_complete();
+      }
+    } else {
+      auto nodes =
+          _impl->requires_runtime.get()->dag().get_group(_impl->node_group_id);
+      for(auto node : nodes){
+        if(!node->is_complete())
+          return false;
+      }
+      return true;
+    }
+  }
+
   std::vector<event> get_wait_list() {
     if(is_in_order()) {
       if(_impl->needs_in_order_emulation) {

@@ -684,6 +684,7 @@ set(ACPP_CORE_CONFIG_FILE "{
   \"plugin-linked-into-llvm\" : \"${LLVM_ADAPTIVECPP_LINK_INTO_TOOLS}\",
   \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
+  \"plugin-with-sscp-compiler\" : \"${WITH_SSCP_COMPILER}\",
   \"default-clang\"     : \"${CLANG_INSTALLED_PATH}\",
   \"default-targets\"  : \"${DEFAULT_TARGETS}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",

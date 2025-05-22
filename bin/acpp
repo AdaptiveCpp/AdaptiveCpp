@@ -684,6 +684,13 @@ class acpp_config:
     return self._interpret_flag(self._config_db.get("plugin-with-cpu-acceleration"))
 
   @property
+  def has_plugin_sscp_compiler(self):
+    if not self._config_db.contains_key("plugin-with-sscp-compiler"):
+      raise OptionNotSet("Could not retrieve plugin SSCP compiler capability from config file")
+    return self._interpret_flag(self._config_db.get("plugin-with-sscp-compiler"))
+
+
+  @property
   def runtime_backends(self):
     backend_path = os.path.join(self.acpp_installation_path, "lib", "hipSYCL")
     content = os.listdir(backend_path)
@@ -1607,6 +1614,8 @@ class llvm_sscp_invocation:
 
     if len(targets) != 0:
       raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")
+    if not config.has_plugin_sscp_compiler:
+      raise RuntimeError("AdaptiveCpp was built without support for generic target.")
 
     self._clang_path = config.clang_path
 

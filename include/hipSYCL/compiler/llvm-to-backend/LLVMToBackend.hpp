@@ -57,6 +57,7 @@ public:
   virtual ~LLVMToBackendTranslator() {}
 
   void setNoAliasKernelParam(const std::string& KernelName, int ParamIndex);
+  void setNoAliasIfNoIndirectAccessKernelParam(const std::string &KernelName, int ParamIndex);
   void specializeKernelArgument(const std::string &KernelName, int ParamIndex,
                                 const void *ValueBuffer);
   void specializeFunctionCalls(const std::string &FuncName,
@@ -243,6 +244,7 @@ private:
 
   std::vector<std::pair<std::string, std::vector<int>*>> FunctionsForDeadArgumentElimination;
   std::unordered_map<std::string, std::vector<int>> NoAliasParameters;
+  std::unordered_map<std::string, std::vector<int>> NoAliasIfNoIndirectAccessParameters;
 
   // map from kernel name to list of (param index, alignment)
   std::unordered_map<std::string, std::vector<std::pair<int, int>>> KnownPtrParamAlignments;

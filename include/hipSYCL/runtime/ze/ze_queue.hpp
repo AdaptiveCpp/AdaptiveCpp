@@ -53,6 +53,7 @@ public:
   virtual result submit_external_wait_for(const dag_node_ptr& node) override;
 
   virtual result wait() override;
+  virtual result flush() override;
 
   virtual device_id get_device() const override;
   /// Return native type if supported, nullptr otherwise

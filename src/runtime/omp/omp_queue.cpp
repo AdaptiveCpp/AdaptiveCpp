@@ -631,6 +631,10 @@ device_id omp_queue::get_device() const {
 
 void *omp_queue::get_native_type() const { return nullptr; }
 
+result omp_queue::flush() {
+  return make_success();
+}
+
 result omp_sscp_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,

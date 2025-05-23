@@ -746,6 +746,10 @@ result cuda_queue::query_status(inorder_queue_status &status) {
   return make_success();
 }
 
+result cuda_queue::flush() {
+  return make_success();
+}
+
 result cuda_multipass_code_object_invoker::submit_kernel(
     const kernel_operation& op,
     hcf_object_id hcf_object,

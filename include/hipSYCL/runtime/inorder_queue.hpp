@@ -58,6 +58,7 @@ public:
   virtual result submit_external_wait_for(const dag_node_ptr& node) = 0;
 
   virtual result wait() = 0;
+  virtual result flush() = 0;
 
   virtual device_id get_device() const = 0;
   /// Return native type if supported, nullptr otherwise

@@ -721,6 +721,10 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 #endif
 }
 
+result hip_queue::flush() {
+  return make_success();
+}
+
 hip_multipass_code_object_invoker::hip_multipass_code_object_invoker(
     hip_queue *q)
     : _queue{q} {}

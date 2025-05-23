@@ -407,6 +407,16 @@ result ocl_queue::wait() {
   return make_success();
 }
 
+result ocl_queue::flush() {
+  cl_int err = _queue.flush();
+  if(err != CL_SUCCESS) {
+    return make_error(__acpp_here(),
+                      error_info{"ocl_queue: Couldn't finish queue",
+                                 error_code{"CL", err}});
+  }
+  return make_success();
+}
+
 device_id ocl_queue::get_device() const {
   return _hw_manager->get_device_id(_device_index);
 }

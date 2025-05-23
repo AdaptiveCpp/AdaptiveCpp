@@ -395,6 +395,10 @@ device_id ze_queue::get_device() const {
   return _hw_manager->get_device_id(_device_index);
 }
 
+result ze_queue::flush() {
+  return make_success();
+}
+
 void* ze_queue::get_native_type() const {
   return static_cast<void*>(_command_list);
 }

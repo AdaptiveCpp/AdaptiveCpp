@@ -151,6 +151,22 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
   AtScopeExit RemoveInputFile([&](){auto Err = llvm::sys::fs::remove(InputFileName);});
 
+  llvm::SmallVector<char> OptOutputFile;
+  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-host-opt", "bc", OptOutputFile, llvm::sys::fs::OF_None)){
+    this->registerError("LLVMToHost: Could not create temp file" + E.message());
+    return false;
+  }
+  llvm::StringRef OptOutputFileName = OptOutputFile.data();
+  AtScopeExit RemoveOptOutputFile([&](){auto Err = llvm::sys::fs::remove(OptOutputFileName);});
+
+  llvm::SmallVector<char> LlcOutputFile;
+  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-host-llc", "o", LlcOutputFile, llvm::sys::fs::OF_None)){
+    this->registerError("LLVMToHost: Could not create temp file" + E.message());
+    return false;
+  }
+  llvm::StringRef LlcOutputFileName = LlcOutputFile.data();
+  AtScopeExit RemoveLlcOutputFile([&](){auto Err = llvm::sys::fs::remove(LlcOutputFileName);});
+
   llvm::SmallVector<char> OutputFile;
   if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-host", ACPP_SHARED_LIBRARY_EXTENSION, OutputFile, llvm::sys::fs::OF_None)){
     this->registerError("LLVMToHost: Could not create temp input file" + E.message());
@@ -169,39 +185,90 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while flushing" << InputStream.error().message() << '\n'; }
   }
 
-  const std::string ClangPath = getClangPath();
-  const std::string CpuFlag = ACPP_HOST_CPU_FLAG;
-  
-  llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath,
+  const std::string OptPath = getOptPath();
+  const std::string LLCPath = getLLCPath();
+  const std::string LLDPath = getLLDPath();
+
+  const std::string CpuFlag = ACPP_LLC_HOST_CPU_FLAG;
+
+
+  llvm::SmallVector<llvm::StringRef, 16> OptInvocation{OptPath,
                                                     "-O3",
-                                                    CpuFlag,
-                                                    "-x",
-                                                    "ir",
-                                                    "-shared",
-                                                    "-Wno-pass-failed",
-                                                    #ifndef _WIN32
-                                                    "-fPIC",
-                                                    #endif
                                                     "-o",
-                                                    OutputFileName,
+                                                    OptOutputFileName,
                                                     InputFileName,
                                                     };
-  const llvm::StringRef AdditionalFlags = ACPP_ADDITIONAL_CPU_FLAGS;
-  AdditionalFlags.split(Invocation, ' ');
 
-  {
-    std::string ArgString;
-    for (const auto &S : Invocation) {
-      ArgString += S;
-      ArgString += " ";
+  llvm::SmallVector<llvm::StringRef, 16> LlcInvocation{LLCPath,
+                                                    "-O3",
+                                                    CpuFlag,
+                                                    "-filetype=obj",
+                                                    #ifndef _WIN32
+                                                    "--relocation-model=pic",
+                                                    #endif
+                                                    "-o",
+                                                    LlcOutputFileName,
+                                                    OptOutputFileName,
+                                                    };
+
+
+  
+  llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
+                                                    "-shared",
+                                                    "-o",
+                                                    OutputFileName,
+                                                    LlcOutputFileName,
+                                                    };
+  
+  const llvm::StringRef AdditionalLlcFlags = ACPP_LLC_ADDITIONAL_FLAGS;
+  const llvm::StringRef AdditionalOptFlags = ACPP_OPT_ADDITIONAL_FLAGS;
+  AdditionalLlcFlags.split(LlcInvocation, ' ', -1, false);
+  AdditionalOptFlags.split(OptInvocation, ' ', -1, false);
+
+  auto getInvocationAsString = [](const auto& I) {
+    std::string S;
+    for(const auto& Arg : I) {
+      S += Arg;
+      S += " ";
     }
-    HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << ArgString << "\n";
+    return S;
+  };
+
+
+  llvm::SmallVector<std::optional<llvm::StringRef>> Redirects;
+  if(hipsycl::common::output_stream::get().get_debug_level() < 3) {
+    // This suppresses vectorization failure warnings, which are unavoidable
+    // for some code patterns. Unfortunately, --no-warn and similar seem to be
+    // insufficient.
+    // When an empty redirect is used, then LLVM redirects output to /dev/null
+    // (or similar)
+    static const char EmptyRedirect [] = "";
+
+    for(int i = 0; i < 3; ++i)
+      Redirects.push_back(llvm::StringRef{EmptyRedirect});
   }
 
-  int R = llvm::sys::ExecuteAndWait(ClangPath, Invocation);
+  HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(OptInvocation) << "\n";
+  int R = llvm::sys::ExecuteAndWait(OptPath, OptInvocation, std::nullopt, Redirects);
 
   if (R != 0) {
-    this->registerError("LLVMToHost: clang invocation failed with exit code " + std::to_string(R));
+    this->registerError("LLVMToHost: opt invocation failed with exit code " + std::to_string(R));
+    return false;
+  }
+
+  HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LlcInvocation) << "\n";
+  R = llvm::sys::ExecuteAndWait(LLCPath, LlcInvocation, std::nullopt, Redirects);
+
+  if (R != 0) {
+    this->registerError("LLVMToHost: llc invocation failed with exit code " + std::to_string(R));
+    return false;
+  }
+
+  HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
+  R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, std::nullopt, Redirects);
+
+  if (R != 0) {
+    this->registerError("LLVMToHost: lld invocation failed with exit code " + std::to_string(R));
     return false;
   }
 

@@ -39,6 +39,12 @@ void test_min_element(Policy&& pol, std::size_t size, Generator&& gen,
   res = std::min_element(pol, data.begin(), data.end(), comp);
 
   BOOST_CHECK(res == reference_result);
+
+  auto cmp = std::less_equal<>{};
+  reference_result = std::min_element(data.begin(), data.end(), cmp);
+  res = std::min_element(pol, data.begin(), data.end(), cmp);
+
+  BOOST_CHECK(res == reference_result);
 }
 
 template<class Policy>

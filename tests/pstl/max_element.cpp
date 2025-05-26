@@ -39,6 +39,12 @@ void test_max_element(Policy&& pol, std::size_t size, Generator&& gen,
   res = std::max_element(pol, data.begin(), data.end(), comp);
 
   BOOST_CHECK(res == reference_result);
+
+  auto cmp = std::less_equal<>{};
+  reference_result = std::max_element(data.begin(), data.end(), cmp);
+  res = std::max_element(pol, data.begin(), data.end(), cmp);
+
+  BOOST_CHECK(res == reference_result);
 }
 
 template<class Policy>

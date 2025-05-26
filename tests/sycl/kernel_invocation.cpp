@@ -56,22 +56,49 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
   ).wait_and_throw();
 
   // Checking for event & dependency handling
-  auto e = q.submit([&](cl::sycl::handler &cgh) {
-    cgh.parallel_for<class Empty2D>(
+  auto e1D = q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for(
+      cl::sycl::range<1>(0),
+      [](cl::sycl::id<1>){
+      }
+    );
+  });
+
+  e1D.wait_and_throw();
+
+  auto e2D = q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for(
       cl::sycl::range<2>(0,0),
       [](cl::sycl::id<2>){
       }
     );
   });
 
-  e.wait_and_throw();
+  e2D.wait_and_throw();
 
-  auto status = e.get_info<cl::sycl::info::event::command_execution_status>();
-  BOOST_CHECK(status == cl::sycl::info::event_command_status::complete);
+  auto e3D = q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for(
+      cl::sycl::range<3>(0,0,0),
+      [](cl::sycl::id<3>){
+      }
+    );
+  });
 
-  auto deps = e.get_wait_list();
-  BOOST_CHECK(deps.empty());
+  e3D.wait_and_throw();
 
+  auto status1D = e1D.get_info<cl::sycl::info::event::command_execution_status>();
+  auto status2D = e2D.get_info<cl::sycl::info::event::command_execution_status>();
+  auto status3D = e3D.get_info<cl::sycl::info::event::command_execution_status>();
+  BOOST_CHECK(status1D == cl::sycl::info::event_command_status::complete);
+  BOOST_CHECK(status2D == cl::sycl::info::event_command_status::complete);
+  BOOST_CHECK(status3D == cl::sycl::info::event_command_status::complete);
+
+  auto deps1D = e1D.get_wait_list();
+  auto deps2D = e2D.get_wait_list();
+  auto deps3D = e3D.get_wait_list();
+  BOOST_CHECK(deps1D.empty());
+  BOOST_CHECK(deps2D.empty());
+  BOOST_CHECK(deps3D.empty());
 }
 
 BOOST_AUTO_TEST_CASE(basic_parallel_for) {

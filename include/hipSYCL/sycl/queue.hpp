@@ -356,7 +356,7 @@ public:
           // Flush DAG for non-submitted events. Note that this does not affect
           // instant nodes, as they immediately assume the submitted state.
           if(!most_recent_event->is_submitted())
-            _impl->requires_runtime.get()->dag().flush_sync();
+            _impl->requires_runtime.get()->dag().flush_and_gc();
           
           most_recent_event->wait();
         }
@@ -366,7 +366,7 @@ public:
         // Need to ensure everything is submitted before waiting on the stream
         // in case we have non-instant operations
         if(_impl->has_non_instant_operations.load(std::memory_order_relaxed))
-          _impl->requires_runtime.get()->dag().flush_sync();
+          _impl->requires_runtime.get()->dag().flush_and_gc();
         
         auto err = exec->wait();
         if(!err.is_success()) {
@@ -375,7 +375,7 @@ public:
         }
       }
     } else {
-      _impl->requires_runtime.get()->dag().flush_sync();
+      _impl->requires_runtime.get()->dag().flush_and_gc();
       _impl->requires_runtime.get()->dag().wait(_impl->node_group_id);
     }
   }
@@ -473,7 +473,7 @@ public:
 
       event evt = submit(prop_list, cgf);
       // Flush so that we see any errors during submission
-      _impl->requires_runtime.get()->dag().flush_sync();
+      _impl->requires_runtime.get()->dag().flush_and_gc();
 
       size_t num_errors_end =
           rt::application::errors().num_errors();
@@ -511,6 +511,40 @@ public:
   friend bool operator!=(const queue& lhs, const queue& rhs)
   { return !(lhs == rhs); }
 
+  bool khr_empty() const {
+    // Need flush-sync in case there are any non-instant nodes
+    _impl->requires_runtime.get()->dag().flush_and_gc();
+    if(is_in_order()) {
+      if(!_impl->needs_in_order_emulation) {
+        rt::inorder_executor* executor = AdaptiveCpp_inorder_executor();
+        assert(executor);
+
+        rt::inorder_queue_status status;
+        if(executor->get_queue()->query_status(status).is_success()) {
+          return status.is_complete();
+        }
+        return false;
+      } else {
+        rt::dag_node_ptr most_recent_event = nullptr;
+        {
+          std::lock_guard<std::mutex> lock{_impl->lock};
+          most_recent_event = _impl->previous_submission;
+        }
+        if(!most_recent_event)
+          return true;
+        return most_recent_event->is_complete();
+      }
+    } else {
+      auto nodes =
+          _impl->requires_runtime.get()->dag().get_group(_impl->node_group_id);
+      for(auto node : nodes){
+        if(!node->is_complete())
+          return false;
+      }
+      return true;
+    }
+  }
+
   std::vector<event> get_wait_list() {
     if(is_in_order()) {
       if(_impl->needs_in_order_emulation) {
@@ -534,7 +568,7 @@ public:
     } else {
       // for non-in-order queues we need to ask the runtime for
       // all nodes of this node group
-      _impl->requires_runtime.get()->dag().flush_sync();
+      _impl->requires_runtime.get()->dag().flush_and_gc();
       auto nodes =
           _impl->requires_runtime.get()->dag().get_group(_impl->node_group_id);
       std::vector<event> evts;
@@ -1073,13 +1107,6 @@ private:
         _impl->previous_submission = node;
       } else if(cgh.contains_non_instant_nodes()) {
         _impl->has_non_instant_operations.store(true, std::memory_order_relaxed);
-        // If we have instant submission enabled, non-emulated in-order queue
-        // but non-instant tasks, we need to flush the dag, otherwise future instant
-        // tasks might not wait on the tasks that have been cached in the dag
-        // builder.
-#if ACPP_ALLOW_INSTANT_SUBMISSION
-        _impl->requires_runtime.get()->dag().flush_sync();
-#endif
       }
     }
 

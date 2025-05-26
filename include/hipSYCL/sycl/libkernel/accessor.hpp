@@ -1482,7 +1482,7 @@ private:
           enforce_bind_to_host);
       
       HIPSYCL_DEBUG_INFO << "accessor [host]: forcing DAG flush for host access..." << std::endl;
-      rt->dag().flush_sync();
+      rt->dag().flush_and_gc();
     }
     if(rt::application::errors().num_errors() == 0){
       HIPSYCL_DEBUG_INFO << "accessor [host]: Waiting for completion of host access..." << std::endl;

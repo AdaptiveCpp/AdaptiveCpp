@@ -259,7 +259,7 @@ struct buffer_impl
                   "but not marked as submitted, performing emergency DAG flush."
                 << std::endl;
 
-            requires_runtime.get()->dag().flush_sync();
+            requires_runtime.get()->dag().flush_and_gc();
           }
           assert(user_ptr->is_submitted());
           user_ptr->wait();

@@ -442,6 +442,10 @@ std::string hip_hardware_context::get_profile() const {
   return "FULL_PROFILE";
 }
 
+std::size_t hip_hardware_context::get_wavefront_size() const {
+  return _properties->warpSize;
+}
+
 
 }
 }

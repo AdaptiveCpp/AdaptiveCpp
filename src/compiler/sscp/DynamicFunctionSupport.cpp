@@ -82,7 +82,14 @@ llvm::PreservedAnalyses HostSideDynamicFunctionHandlerPass::run(llvm::Module &M,
       if (F->isDeclaration()) {
         F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
         auto BB = llvm::BasicBlock::Create(M.getContext(), "entry", F);
-        new llvm::UnreachableInst(M.getContext(), BB);
+        // It seems that LLVM handles functions that only have unreachable inst differently
+        // if there address is taken - we can no longer get unique function pointer
+        // addresses for those, which breaks reflection. So try to generate a trivial function
+        // instead.
+        if(F->getReturnType()->isVoidTy())
+          llvm::ReturnInst::Create(M.getContext(), BB);
+        else
+          llvm::ReturnInst::Create(M.getContext(), llvm::UndefValue::get(F->getReturnType()), BB);
       }
     }
   }

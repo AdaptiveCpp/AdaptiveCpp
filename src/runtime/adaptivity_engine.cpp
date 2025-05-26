@@ -324,7 +324,8 @@ kernel_adaptivity_engine::finalize_binary_configuration(
                 HIPSYCL_DEBUG_INFO << "adaptivity_engine: Inferred noalias "
                                       "pointer semantics for kernel argument "
                                   << i << std::endl;
-                config.set_kernel_param_flag(i, kernel_param_flag::noalias);
+                config.set_kernel_param_flag(
+                    i, kernel_param_flag::noalias_if_no_indirect_access);
               }
             }
             ++alloc_index;

@@ -619,6 +619,8 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
   _config.set_build_option(kernel_build_option::amdgpu_target_device,
                           target_arch_name);
+  _config.set_build_option(kernel_build_option::desired_subgroup_size,
+                          ctx->get_wavefront_size());
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;

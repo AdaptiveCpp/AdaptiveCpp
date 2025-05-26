@@ -233,19 +233,7 @@ if(WITH_CUDA_BACKEND)
     message(SEND_ERROR "CUDA was not found")
   endif()
 endif()
-if(WITH_ROCM_BACKEND)
-  if(NOT ROCM_FOUND)
-    #  message(SEND_ERROR "hipcc was not found")
 
-    # User has requested ROCm, but we could not find hipcc.
-    # this is not necessarily a reason to abort,
-    # since we only need libhip_hcc, the HIP includes,
-    # and the ROCm device headers. It could be that we
-    # are faced with a minimal/incomplete ROCm installation
-    # that could still be enough for us.
-    # Let's assume the user knows what he/she is doing.
-  endif()
-endif()
 
 if(WITH_OPENCL_BACKEND)
   if(NOT OpenCL_FOUND)
@@ -474,6 +462,18 @@ if(BUILD_CLANG_PLUGIN)
   endif()
 endif()
 
+if(WITH_ROCM_BACKEND)
+  find_path(ROCM_DEVICE_LIBS_PATH ockl.bc HINTS
+      ${ROCM_PATH}/amdgcn/bitcode
+      DOC "Path to ROCm bitcode libraries. Typically, $ROCM_PATH/amdgcn/bitcode")
+
+  if(ROCM_DEVICE_LIBS_PATH)
+    message(STATUS "Found ROCm bitcode library path: ${ROCM_DEVICE_LIBS_PATH}")
+  else()
+    message(SEND_ERROR "ROCm device library path not found; please provide the path containing the ROCm bitcode libraries (e.g. ockl.bc) manually using -DROCM_DEVICE_LIBS_PATH")
+  endif()
+endif()
+
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
@@ -684,6 +684,7 @@ set(ACPP_CORE_CONFIG_FILE "{
   \"plugin-linked-into-llvm\" : \"${LLVM_ADAPTIVECPP_LINK_INTO_TOOLS}\",
   \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
+  \"plugin-with-sscp-compiler\" : \"${WITH_SSCP_COMPILER}\",
   \"default-clang\"     : \"${CLANG_INSTALLED_PATH}\",
   \"default-targets\"  : \"${DEFAULT_TARGETS}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",

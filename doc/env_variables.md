@@ -14,7 +14,6 @@
     * `system`: Makes default selector behave like a system selector from the `ACPP_EXT_MULTI_DEVICE_QUEUE` extension
 * `ACPP_HCF_DUMP_DIRECTORY`: If set, hipSYCL will dump all embedded HCF data files in this directory. HCF is hipSYCL's container format that is used by all compilation flows that are fully controlled by hipSYCL to store kernel code.
 * `ACPP_PERSISTENT_RUNTIME`: If set to 1, hipSYCL will use a persistent runtime that will continue to live even if no SYCL objects are currently in use in the application. This can be helpful if the application consists of multiple distinct phases in which SYCL is used, and multiple launches of the runtime occur.
-* `ACPP_RT_MAX_CACHED_NODES`: Maximum number of nodes that the runtime buffers before flushing work.
 * `ACPP_SSCP_FAILED_IR_DUMP_DIRECTORY`: If non-empty, hipSYCL will dump the IR of code that fails SSCP JIT into this directory.
 * `ACPP_RT_GC_TRIGGER_BATCH_SIZE`: Number of nodes in flight that trigger a garbage collection job to be spawned
 * `ACPP_RT_OCL_NO_SHARED_CONTEXT`: If set to `1`, instructs the OpenCL backend to not attempt to construct a shared context across devices within a platform. This can be necessary on OpenCL implementations that do not support this. Note that if shared contexts are unavailable, support for data transfers between devices might be limited as the devices can no longer directly talk to each other.

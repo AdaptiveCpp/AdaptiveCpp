@@ -60,7 +60,7 @@ public:
   {
     if(this->_node){
       if(!this->_node->is_submitted())
-        _requires_runtime.get()->dag().flush_sync();
+        _requires_runtime.get()->dag().flush_and_gc();
       
       assert(this->_node->is_submitted());
       this->_node->wait();
@@ -80,7 +80,7 @@ public:
           flush = true;
 
     if(flush)
-      requires_runtime.get()->dag().flush_sync();
+      requires_runtime.get()->dag().flush_and_gc();
 
     for(const event& evt: eventList){
       const_cast<event&>(evt).wait();
@@ -129,7 +129,7 @@ public:
     // but the user thread waits for the instrumentation results
     // and so cannot submit more work.
     if(!this->_node->is_submitted())
-      _requires_runtime.get()->dag().flush_sync();
+      _requires_runtime.get()->dag().flush_and_gc();
 
     rt::execution_hints& hints = _node->get_execution_hints();
     // The regular SYCL API will always result in full profiling requested,

@@ -181,27 +181,25 @@ if(WITH_SSCP_COMPILER)
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
     set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/llvm-spirv)
 
-    include(FetchContent)
-    FetchContent_Declare(LLVMSpirvTranslator
-      GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+    ExternalProject_Add(LLVMSpirvTranslator
+      GIT_REPOSITORY https://github.com/AdaptiveCpp/SPIRV-LLVM-Translator
       GIT_TAG origin/${LLVMSPIRV_BRANCH}
       GIT_SHALLOW ON
+      GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
+      BUILD_ALWAYS OFF
+      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
+      CMAKE_ARGS
+        -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
+        -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
+      CMAKE_CACHE_ARGS
+        -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
+        -DLLVM_DIR:PATH=${LLVM_DIR}
+        -DCMAKE_INSTALL_PREFIX:PATH=${LLVMSPIRV_INSTALLDIR}
+        -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}
+      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
     )
 
-    FetchContent_GetProperties(LLVMSpirvTranslator)
-    if(NOT LLVMSpirvTranslator_POPULATED)
-      FetchContent_Populate(LLVMSpirvTranslator)
-      find_program(PATCH_COMMAND NAMES patch)
-      if(NOT PATCH_COMMAND)
-        message(SEND_ERROR "The 'patch' command was not found. Install 'patch' or disable all backends that rely on SPIR-V code generation.")
-      endif()
-      execute_process(COMMAND ${PATCH_COMMAND} -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch ${llvmspirvtranslator_SOURCE_DIR}/lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch)
-      execute_process(COMMAND ${CMAKE_COMMAND} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DLLVM_SPIRV_BUILD_EXTERNAL=ON -DLLVM_DIR=${LLVM_DIR} -DCMAKE_INSTALL_PREFIX=${LLVMSPIRV_INSTALLDIR} -DCMAKE_BUILD_TYPE=Release -S ${llvmspirvtranslator_SOURCE_DIR} -B ${llvmspirvtranslator_BINARY_DIR})
-    endif()
-    
-    add_custom_target(llvm-spirv-translator ALL COMMAND ${CMAKE_COMMAND} --build ${llvmspirvtranslator_BINARY_DIR} --config Release)
-    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --install ${llvmspirvtranslator_BINARY_DIR})")
-
+    add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
     target_compile_definitions(llvm-to-spirv PRIVATE
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
     
@@ -225,7 +223,8 @@ if(WITH_SSCP_COMPILER)
       TOOL amdgpu/LLVMToAmdgpuTool.cpp)
 
     target_compile_definitions(llvm-to-amdgpu PRIVATE
-      -DACPP_ROCM_PATH="${ROCM_PATH}")
+      -DACPP_ROCM_PATH="${ROCM_PATH}"
+      -DACPP_ROCM_DEVICE_LIBS_PATH="${ROCM_DEVICE_LIBS_PATH}")
     
     find_program(HIPCC_PATH hipcc HINTS ${ROCM_PATH}/bin)
     if(HIPCC_PATH)

@@ -22,11 +22,10 @@ public:
       {"known-group-size-y", kernel_build_option::known_group_size_y},
       {"known-group-size-z", kernel_build_option::known_group_size_z},
       {"known-local-mem-size", kernel_build_option::known_local_mem_size},
+      {"desired-subgroup-size", kernel_build_option::desired_subgroup_size},
       {"ptx-version", kernel_build_option::ptx_version},
       {"ptx-target-device", kernel_build_option::ptx_target_device},
       {"amdgpu-target-device", kernel_build_option::amdgpu_target_device},
-      {"rocm-device-libs-path", kernel_build_option::amdgpu_rocm_device_libs_path},
-      {"rocm-path", kernel_build_option::amdgpu_rocm_path},
       {"spirv-dynamic-local-mem-allocation-size", kernel_build_option::spirv_dynamic_local_mem_allocation_size}
     };
 

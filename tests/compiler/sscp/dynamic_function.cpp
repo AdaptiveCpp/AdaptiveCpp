@@ -26,6 +26,10 @@ void execute_operations_with_definition(int* data, sycl::item<1> idx) {
 
 void execute_operations_without_definition(int* data, sycl::item<1> idx);
 
+// Checks that we can distinguish two undefined dynamic functions in the same
+// TU
+void execute_operations_without_definition2(int* data, sycl::item<1> idx);
+
 
 int main() {
   sycl::queue q = get_queue();
@@ -52,6 +56,20 @@ int main() {
     dyn_function_config.define(&execute_operations_without_definition, &myfunction1);
     q.parallel_for(sycl::range{1}, dyn_function_config.apply([=](sycl::item<1> idx){
       execute_operations_without_definition(data, idx);
+    }));
+
+    q.wait();
+    // CHECK: 1
+    std::cout << *data << std::endl;
+  }
+
+  {
+    *data = 0;
+  
+    sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
+    dyn_function_config.define(&execute_operations_without_definition2, &myfunction1);
+    q.parallel_for(sycl::range{1}, dyn_function_config.apply([=](sycl::item<1> idx){
+      execute_operations_without_definition2(data, idx);
     }));
 
     q.wait();

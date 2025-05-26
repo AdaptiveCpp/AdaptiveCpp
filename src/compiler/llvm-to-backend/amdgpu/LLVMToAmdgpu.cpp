@@ -129,98 +129,124 @@ bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::s
 
 
 class RocmDeviceLibs {
-public:
+private:
+  static std::string extractISAAsString(const std::string &TargetDevice) {
+    std::string Result = TargetDevice;
+    // First remove the subtarget in strings like gfxABC:xnack-:sramecc-
+    // So, find first : and throw away the stuff afterwards to obtain gfxABC
+    auto ColonPos = Result.find(":");
+    if(ColonPos != std::string::npos)
+      Result = Result.substr(0, ColonPos);
 
-  static bool determineRequiredDeviceLibs(const std::string& RocmPath,
-                                          const std::string& DeviceLibsPath,
-                                          const std::string& TargetDevice,
-                                          std::vector<std::string>& BitcodeFiles,
-                                          bool IsFastMath = false,
-                                          int ForceCodeObjectModel = -1) {
-    
+    // Remove gfx prefix
+    if(Result.find("gfx") != 0)
+      return "";
+    return Result.substr(3);
+  }
 
-    llvm::SmallVector<std::string> Invocation;
-    // Newer ROCm versions don't handle --cuda-gpu-arch well,
-    // while older versions don't handle --offload-arch well.
-    // We do not have a good way to check the ROCm version
-    // in llvm-to-amdgpu currently, *but* we can exploit
-    // that the AdaptiveCpp LLVM version must be <= ROCm LLVM version.
-    // So, by checking for a minimum LLVM version, we also
-    // implicitly check for a minimum ROCm version.
-#if LLVM_VERSION_MAJOR >= 18
-    auto OffloadArchFlag = "--offload-arch="+TargetDevice;
-#else
-    auto OffloadArchFlag = "--cuda-gpu-arch="+TargetDevice;
-#endif
-    auto RocmPathFlag = "--rocm-path="+std::string{RocmPath};
-    auto RocmDeviceLibsFlag = "--rocm-device-lib-path="+DeviceLibsPath;
-
-    std::string ClangPath = getRocmClang(RocmPath);
-    
-    HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking " << ClangPath
-                       << " to determine ROCm device library list\n";
-
-    Invocation = {ClangPath, "-x", "ir",
-      "--cuda-device-only", "-O3",
-      OffloadArchFlag,
-      "-nogpuinc",
-      "/dev/null",
-      "--hip-link",
-      "-###"
-    };
-    if(IsFastMath) {
-      Invocation.push_back("-ffast-math");
-      Invocation.push_back("-fno-hip-fp32-correctly-rounded-divide-sqrt");
+  static int extractABIVersion(const std::string& ABIVersionLib) {
+    std::string Result = ABIVersionLib;
+    if(Result.find("oclc_abi_version_") != 0)
+      return -1;
+    else {
+      Result = Result.substr(std::string{"oclc_abi_version_"}.length());
+      auto DotPos = Result.find(".");
+      if(DotPos == std::string::npos)
+        return -1;
+      
+      Result = Result.substr(0, DotPos);
+      return std::stoi(Result);
     }
-    
-    if(!llvmutils::ends_with(llvm::StringRef{ClangPath}, "hipcc")) {
-      // Normally we try to use hipcc. However, when that fails,
-      // we may have fallen back to clang. In that case we may
-      // have to additionally set --rocm-path and --rocm-device-lib-path.
-      //
-      // When using hipcc, this is generally not needed as hipcc already
-      // knows how ROCm is configured. It might also have been specially
-      // tweaked by non-standard ROCm pacakges to find ROCm in unusual places.
-      //
-      // So we should not use --rocm-path and --rock-device-lib-path unless
-      // we really have to.
-      Invocation.push_back(RocmPathFlag);
-      Invocation.push_back(RocmDeviceLibsFlag);
+  }
 
-      if (!llvm::sys::fs::exists(common::filesystem::join_path(DeviceLibsPath, "ockl.bc"))) {
-        HIPSYCL_DEBUG_WARNING
-            << "LLVMToAmdgpu: Configured ROCm device bitcode library path " << DeviceLibsPath
-            << " does not seem to contain key ROCm bitcode libraries such as ockl.bc. It is "
-               "possible that builtin bitcode linking is incomplete.\n";
+  static std::string getDefaultABIVersionLib(const std::string& DeviceLibDir) {
+    std::error_code EC;
+    std::vector<std::string> Files = common::filesystem::list_regular_files(DeviceLibDir, EC);
+    if(EC)
+      return "";
+    
+    std::vector<int> AvailableCodeObjectModels;
+    for(const auto& F : Files) {
+      int ABI = extractABIVersion(F);
+      if(ABI > 0) {
+        AvailableCodeObjectModels.push_back(ABI);
       }
     }
+    if(AvailableCodeObjectModels.empty())
+      return "";
+
+    return "oclc_abi_version_" +
+           std::to_string(*std::max_element(AvailableCodeObjectModels.begin(),
+                                            AvailableCodeObjectModels.end())) +
+           ".bc";
+  }
+
+public:
+
+  static std::string getDeviceLibDirectory() {
+    static std::string Path;
+    if(!Path.empty())
+      return Path;
     
-    std::string Output;
-    if(!getCommandOutput(ClangPath, Invocation, Output))
+    std::string RedistPackagePath = getRedistPackageBitcodePath("amdgcn");
+    if (common::filesystem::exists(common::filesystem::join_path(RedistPackagePath, "ockl.bc")))
+      Path = RedistPackagePath;
+    else Path = ACPP_ROCM_DEVICE_LIBS_PATH;
+
+    return Path;
+  }
+
+  static bool determineRequiredDeviceLibs(const std::string& TargetDevice,
+                                          std::vector<std::string>& BitcodeFiles,
+                                          bool IsFastMath = false,
+                                          int WavefrontSize = 64,
+                                          int ForceCodeObjectModel = -1) {
+
+    if(WavefrontSize != 64 && WavefrontSize != 32)
       return false;
 
-    std::stringstream sstr{Output};
-    std::string CurrentComponent;
-    
-    bool ConsumeNext = false;
-    while(sstr) {
-      sstr >> CurrentComponent;
-      if(ConsumeNext) {
-        ConsumeNext = false;
-        if(CurrentComponent.find('\"') == 0)
-          CurrentComponent = CurrentComponent.substr(1);
-        if(CurrentComponent.find('\"') != std::string::npos)
-          CurrentComponent = CurrentComponent.substr(0, CurrentComponent.size() - 1);
+    std::string DeviceLibPath = getDeviceLibDirectory();
+    std::string ISA = extractISAAsString(TargetDevice);
+    if(ISA.empty())
+      return false;
 
-        auto OclcABIPos = CurrentComponent.find("oclc_abi_version");
-        if(ForceCodeObjectModel > 0 &&  (OclcABIPos != std::string::npos)) {
-          CurrentComponent.erase(OclcABIPos);
-          CurrentComponent += "oclc_abi_version_" + std::to_string(ForceCodeObjectModel)+".bc";
-        }
-        
-        BitcodeFiles.push_back(CurrentComponent);
-      } else if(CurrentComponent == "\"-mlink-builtin-bitcode\"")
-        ConsumeNext = true;
+    std::vector<std::string> NeededBitcodeLibs = {
+      "hip.bc",
+      "ockl.bc",
+      "ocml.bc",
+      "oclc_isa_version_"+ISA+".bc"
+    };
+
+    if(WavefrontSize == 64) {
+      NeededBitcodeLibs.push_back("oclc_wavefrontsize64_on.bc");
+    } else {
+      NeededBitcodeLibs.push_back("oclc_wavefrontsize64_off.bc");
+    }
+
+    // abi version
+    if(ForceCodeObjectModel != -1) {
+      NeededBitcodeLibs.push_back("oclc_abi_version_" + std::to_string(ForceCodeObjectModel) +
+                                  ".bc");
+    } else {
+      NeededBitcodeLibs.push_back(getDefaultABIVersionLib(DeviceLibPath));
+    }
+
+    if(IsFastMath) {
+      NeededBitcodeLibs.push_back("oclc_correctly_rounded_sqrt_off.bc");
+      NeededBitcodeLibs.push_back("oclc_daz_opt_on.bc");
+      NeededBitcodeLibs.push_back("oclc_finite_only_on.bc");
+      NeededBitcodeLibs.push_back("oclc_unsafe_math_on.bc");
+    } else {
+      NeededBitcodeLibs.push_back("oclc_correctly_rounded_sqrt_on.bc");
+      NeededBitcodeLibs.push_back("oclc_daz_opt_off.bc");
+      NeededBitcodeLibs.push_back("oclc_finite_only_off.bc");
+      NeededBitcodeLibs.push_back("oclc_unsafe_math_off.bc");
+    }
+
+    BitcodeFiles.clear();
+    for(const auto& L : NeededBitcodeLibs) {
+      std::string FullPath = common::filesystem::join_path(DeviceLibPath, L);
+      BitcodeFiles.push_back(FullPath);
     }
 
     return true;
@@ -229,10 +255,7 @@ public:
 
 LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{static_cast<int>(sycl::AdaptiveCpp_jit::compiler_backend::amdgpu), KN, KN},
-      KernelNames{KN} {
-  RocmDeviceLibsPath = common::filesystem::join_path(RocmPath,
-                                                     std::vector<std::string>{"amdgcn", "bitcode"});
-}
+      KernelNames{KN} {}
 
 bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
@@ -307,8 +330,14 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   return true;
 }
 
+bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
+                                                      std::string &Out) {
+  if(getWavefrontSize() != 32 && getWavefrontSize() != 64) {
+    this->registerError("LLVMToAmdgpu: Invalid wavefront size was requested: " +
+                        std::to_string(getWavefrontSize()));
+    return false;
+  }
 
-bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) {
 #ifdef ACPP_HIPRTC_LINK
   HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking hipRTC...\n";
 
@@ -325,12 +354,6 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
 bool LLVMToAmdgpuTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if(Option == "amdgpu-target-device") {
     TargetDevice = Value;
-    return true;
-  } else if (Option == "rocm-device-libs-path") {
-    RocmDeviceLibsPath = Value;
-    return true; 
-  } else if (Option == "rocm-path") {
-    RocmPath = Value;
     return true;
   }
 
@@ -363,10 +386,9 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
                           "hipSYCL SSCP Bitcode", 0, 0, 0);
 
   auto addBitcodeFile = [&](const std::string &BCFileName) -> bool {
-    std::string Path = common::filesystem::join_path(RocmDeviceLibsPath, BCFileName);
-    auto ReadResult = llvm::MemoryBuffer::getFile(Path, false);
+    auto ReadResult = llvm::MemoryBuffer::getFile(BCFileName, false);
     if(auto Err = ReadResult.getError()) {
-      this->registerError("LLVMToAmdgpu: Could not open file: " + Path);
+      this->registerError("LLVMToAmdgpu: Could not open file: " + BCFileName);
       return false;
     }
 
@@ -378,8 +400,8 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
   };
 
   std::vector<std::string> DeviceLibs;
-  RocmDeviceLibs::determineRequiredDeviceLibs(RocmPath, RocmDeviceLibsPath, TargetDevice,
-                                              DeviceLibs, IsFastMath, CodeObjectModelVersion);
+  RocmDeviceLibs::determineRequiredDeviceLibs(TargetDevice, DeviceLibs, IsFastMath, getWavefrontSize(),
+                                              CodeObjectModelVersion);
   for(const auto& Lib : DeviceLibs) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Linking with bitcode file: " << Lib << "\n";
     addBitcodeFile(Lib);
@@ -419,22 +441,21 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::string& Out) {
   
   auto addBitcodeFile = [&](const std::string &BCFileName) -> bool {
-    std::string Path = common::filesystem::join_path(RocmDeviceLibsPath, BCFileName);
-    auto ReadResult = llvm::MemoryBuffer::getFile(Path, false);
+    auto ReadResult = llvm::MemoryBuffer::getFile(BCFileName, false);
     if(auto Err = ReadResult.getError()) {
-      this->registerError("LLVMToAmdgpu: Could not open file: " + Path);
+      this->registerError("LLVMToAmdgpu: Could not open file: " + BCFileName);
       return false;
     }
 
     llvm::StringRef BC = ReadResult->get()->getBuffer();
-    this->linkBitcodeFile(FlavoredModule, Path, "", "", false);
+    this->linkBitcodeFile(FlavoredModule, BCFileName, "", "", false);
 
     return true;
   };
 
   std::vector<std::string> DeviceLibs;
-  RocmDeviceLibs::determineRequiredDeviceLibs(RocmPath, RocmDeviceLibsPath, TargetDevice,
-                                              DeviceLibs);
+  RocmDeviceLibs::determineRequiredDeviceLibs(TargetDevice, DeviceLibs, IsFastMath,
+                                              getWavefrontSize(), CodeObjectModelVersion);
   for(const auto& BC : DeviceLibs)
     addBitcodeFile(BC);
 
@@ -566,6 +587,13 @@ void LLVMToAmdgpuTranslator::removeKernelProperties(llvm::Function* F) {
   }
   if(F->hasFnAttribute("amdgpu-flat-work-group-size"))
     F->removeFnAttr("amdgpu-flat-work-group-size");
+}
+
+int LLVMToAmdgpuTranslator::getWavefrontSize() const {
+  if(DesiredSubgroupSize > 0) {
+    return DesiredSubgroupSize;
+  }
+  return 64;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

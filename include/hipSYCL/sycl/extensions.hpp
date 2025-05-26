@@ -81,5 +81,6 @@
 // KHR extensions
 
 #define SYCL_KHR_DEFAULT_CONTEXT 1
+#define SYCL_KHR_QUEUE_EMPTY_QUERY 1
 
 #endif

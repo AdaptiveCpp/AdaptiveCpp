@@ -14,7 +14,7 @@
 #include "libkernel/backend.hpp"
 
 #if !ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA &&                                  \
-    !ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP
+    !ACPP_LIBKERNEL_COMPILER_SUPPORTS_HIP && defined(__ACPP_PCUDA__)
 
 #include <cassert>
 

@@ -47,13 +47,12 @@ enum class kernel_build_option : int {
   known_group_size_y,
   known_group_size_z,
   known_local_mem_size,
+  desired_subgroup_size,
 
   ptx_version,
   ptx_target_device,
 
   amdgpu_target_device,
-  amdgpu_rocm_device_libs_path,
-  amdgpu_rocm_path,
 
   spirv_dynamic_local_mem_allocation_size
 };
@@ -72,7 +71,8 @@ enum class kernel_build_flag : int {
 enum class kernel_param_flag : int {
   // these values are used as bit masks and should
   // always have a value of a power of 2
-  noalias = 1
+  noalias = 1,
+  noalias_if_no_indirect_access = 2
 };
 
 

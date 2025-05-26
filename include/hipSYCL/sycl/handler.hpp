@@ -338,14 +338,19 @@ public:
                     id<dimensions> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
 
+    if(numWorkItems == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
+
+    else {
       auto invoker = [&](auto&& kernel, auto&& ... reductions) {
         this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           workItemOffset, numWorkItems,
           get_preferred_group_size<dimensions>(),
           kernel, reductions...);
       };
+    }
 
-      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -354,25 +359,29 @@ public:
                     id<1> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
 
+    if(numWorkItems == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
+
+    else {
       auto invoker = [&](auto&& kernel, auto&& ... reductions) {
         this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           workItemOffset, numWorkItems,
           get_preferred_group_size<1>(),
           kernel, reductions...);
       };
-
-      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-            typename... ReductionsAndKernel, int dimensions>
+  typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
     auto invoker = [&](auto&& kernel, auto&& ... reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
-          executionRange.get_offset(), executionRange.get_global_range(),
-          executionRange.get_local_range(),
-          kernel, reductions...);
+        executionRange.get_offset(), executionRange.get_global_range(),
+        executionRange.get_local_range(),
+        kernel, reductions...);
     };
 
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);

@@ -27,6 +27,53 @@ BOOST_AUTO_TEST_CASE(basic_single_task) {
   BOOST_TEST(acc[0] == 321);
 }
 
+BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
+  cl::sycl::queue q;
+  const std::size_t N = 1024;
+
+  auto d_y = static_cast<int *>(cl::sycl::malloc_device(sizeof(int) * N, q));
+
+  // 1D check
+    q.parallel_for(
+      cl::sycl::range<1>(0),
+      [=](cl::sycl::id<1> idx) {
+        d_y[idx] = static_cast<int>(idx);
+      }
+    ).wait_and_throw();
+
+  // 2D check
+  q.parallel_for(
+    cl::sycl::range<2>(0,0),
+    [=](cl::sycl::id<2> idx) {
+    }
+  ).wait_and_throw();
+
+  // 3D check
+  q.parallel_for(
+    cl::sycl::range<3>(0,0,0),
+    [=](cl::sycl::id<3> idx) {
+    }
+  ).wait_and_throw();
+
+  // Checking for event & dependency handling
+  auto e = q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for<class Empty2D>(
+      cl::sycl::range<2>(0,0),
+      [](cl::sycl::id<2>){
+      }
+    );
+  });
+
+  e.wait_and_throw();
+
+  auto status = e.get_info<cl::sycl::info::event::command_execution_status>();
+  BOOST_CHECK(status == cl::sycl::info::event_command_status::complete);
+
+  auto deps = e.get_wait_list();
+  BOOST_CHECK(deps.empty());
+
+}
+
 BOOST_AUTO_TEST_CASE(basic_parallel_for) {
   constexpr size_t num_threads = 128;
   cl::sycl::queue queue;

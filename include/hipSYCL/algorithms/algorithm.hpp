@@ -680,8 +680,19 @@ min_element(sycl::queue &q, util::allocation_group &scratch_allocations,
       else
         return b;
     }
-    else if (comp(a.second, b.second))
-      return a;
+    else if (comp(a.second, b.second)) {
+      // Align behaviour to libstdc++ when using `std::less_equal` by
+      // additionally testing equivalence of two elements. If positive,
+      // returns the element which is farther away from first.
+      if(comp(a.second, b.second) && comp(b.second, a.second)) {
+        if (std::distance(first, a.first) < std::distance(first, b.first))
+          return b;
+        else
+          return a;
+      }
+      else
+        return a;
+    }
     else
       return b;
   };
@@ -764,8 +775,19 @@ max_element(sycl::queue &q, util::allocation_group &scratch_allocations,
       else
         return b;
     }
-    else if (comp(a.second, b.second))
+    else if (comp(a.second, b.second)) {
+      // Align behaviour to libstdc++ when using `std::less_equal` by
+      // additionally testing equivalence of two elements. If positive,
+      // returns the element which is farther away from first.
+      if(comp(a.second, b.second) && comp(b.second, a.second)) {
+        if (std::distance(first, a.first) < std::distance(first, b.first))
+          return b;
+        else
+          return a;
+      }
+      else
         return b;
+    }
     else
       return a;
   };

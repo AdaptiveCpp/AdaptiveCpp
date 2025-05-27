@@ -353,7 +353,7 @@ public:
                     id<dimensions> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
 
-    if(numWorkItems == 0)
+    if(numWorkItems.size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
     else {
@@ -385,6 +385,7 @@ public:
           kernel, reductions...);
       };
     }
+
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 

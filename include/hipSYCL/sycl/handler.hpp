@@ -348,9 +348,9 @@ public:
           get_preferred_group_size<dimensions>(),
           kernel, reductions...);
       };
-    }
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -369,9 +369,9 @@ public:
           get_preferred_group_size<1>(),
           kernel, reductions...);
       };
-    }
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,

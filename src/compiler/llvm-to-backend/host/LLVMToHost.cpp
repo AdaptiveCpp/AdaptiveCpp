@@ -160,7 +160,12 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   AtScopeExit RemoveOptOutputFile([&](){auto Err = llvm::sys::fs::remove(OptOutputFileName);});
 
   llvm::SmallVector<char> LlcOutputFile;
-  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-host-llc", "o", LlcOutputFile, llvm::sys::fs::OF_None)){
+#ifndef _WIN32
+  std::string ObjectFileEnding = "o";
+#else
+  std::string ObjectFileEnding = "obj";
+#endif
+  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-host-llc", ObjectFileEnding, LlcOutputFile, llvm::sys::fs::OF_None)){
     this->registerError("LLVMToHost: Could not create temp file" + E.message());
     return false;
   }

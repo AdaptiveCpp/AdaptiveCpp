@@ -60,6 +60,9 @@ jobs:
         echo "CXX=clang++" >> $GITHUB_ENV
         echo "PATH=${GITHUB_WORKSPACE}/install/bin:$PATH" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+    - name: print debug
+      run: |
+        clang++ -fuse-ld=lld -shared /dev/null -v
     - name: build CPU tests
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cpu

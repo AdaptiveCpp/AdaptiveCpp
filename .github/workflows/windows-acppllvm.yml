@@ -122,6 +122,11 @@ jobs:
 
         dir $env:GITHUB_WORKSPACE\install\
         dir $env:GITHUB_WORKSPACE\install\bin
+    - name: print debug
+      shell: powershell
+      run: |
+        echo "" > out.obj
+        "$env:GITHUB_WORKSPACE\install\bin\clang.exe" -fuse-ld=lld -shared out.obj -v
     - name: build CPU tests
       shell: powershell
       run: |

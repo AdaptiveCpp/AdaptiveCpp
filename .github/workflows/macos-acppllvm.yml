@@ -75,7 +75,7 @@ jobs:
     - name: run SSCP CPU tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ./sycl_tests
+        ACPP_DEBUG_LEVEL=3 LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ./sycl_tests
     - name: run CPU tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cpu

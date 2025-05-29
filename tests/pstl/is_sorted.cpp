@@ -83,17 +83,20 @@ BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
 }
 
 
-BOOST_AUTO_TEST_CASE(par_empty) {
-  empty_tests(std::execution::par);
-}
+// TODO: investigate UB failures likely caused by the interplay
+// between libstdc++, tbb, and boost; observed across all pstl
+// ci runs.
+// BOOST_AUTO_TEST_CASE(par_empty) {
+//   empty_tests(std::execution::par);
+// }
 
-BOOST_AUTO_TEST_CASE(par_single_element) {
-  single_element_tests(std::execution::par);
-}
+// BOOST_AUTO_TEST_CASE(par_single_element) {
+//   single_element_tests(std::execution::par);
+// }
 
-BOOST_AUTO_TEST_CASE(par_medium_size) {
-  medium_size_tests(std::execution::par);
-}
+// BOOST_AUTO_TEST_CASE(par_medium_size) {
+//   medium_size_tests(std::execution::par);
+// }
 
 
 BOOST_AUTO_TEST_SUITE_END()

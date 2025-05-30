@@ -479,11 +479,6 @@ if(WITH_CUDA_BACKEND)
   find_path(CUDA_DEVICE_LIBS_PATH libdevice.10.bc HINTS
       ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice
       DOC "Path containing the CUDA bitcode libraries. Typically, $CUDA_PATH/nvvm/libdevice")
-  
-  if(NOT CUDA_DEVICE_LIBS_PATH AND CUDA_TOOLKIT_ROOT_DIR STREQUAL "/usr")
-    find_path(CUDA_DEVICE_LIBS_PATH libdevice.10.bc HINTS
-      /usr/lib/cuda/nvvm/libdevice)
-  endif()
 
   if(CUDA_DEVICE_LIBS_PATH)
     message(STATUS "Found CUDA bitcode library path: ${CUDA_DEVICE_LIBS_PATH}")

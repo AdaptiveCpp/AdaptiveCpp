@@ -19,10 +19,9 @@ namespace hipsycl::rt::support {
   }
 }
 
-//avoid cpp name mangling
-extern "C" void __acpp_reflection_associate_function_pointer(const void*, const char*);
+
 // Compiler will generate calls to this function to register functions
-void __acpp_reflection_associate_function_pointer(const void *func_ptr,
+extern "C" void __acpp_reflection_associate_function_pointer(const void *func_ptr,
                                            const char *func_name) {
   hipsycl::rt::support::symbol_information::get()
       .register_function_symbol(func_ptr, func_name);

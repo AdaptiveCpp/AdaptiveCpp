@@ -57,6 +57,14 @@
 namespace hipsycl {
 namespace compiler {
 
+#if LLVM_VERSION_MAJOR >= 16
+#define NULLOPT std::nullopt
+#define OPTIONAL std::optional
+#else
+#define NULLOPT llvm::None
+#define OPTIONAL llvm::Optional
+#endif
+
 LLVMToHostTranslator::LLVMToHostTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{static_cast<int>(sycl::AdaptiveCpp_jit::compiler_backend::host), KN, KN},
       KernelNames{KN} {}
@@ -217,14 +225,38 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     };
 
 
-  
+#ifdef __APPLE__
+  llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
+                                                    "-dynamic",
+                                                    "-dylib",
+                                                    "-undefined", "dynamic_lookup",
+#ifdef __arm64__
+                                                    "-arch","arm64",
+#else
+                                                    "-arch", "x86_64",
+#endif                                              // TODO Figure out platform version programmatically
+                                                    "-platform_version","macos", "14.0.0", "14.0.0",
+                                                    "-mllvm", "-enable-linkonceodr-outlining",
+                                                    "-o",
+                                                    OutputFileName,
+                                                    LlcOutputFileName,
+                                                    };
+#elif defined(_WIN32)
+  std::string LldOutputFlag = "/out:"+OutputFileName.str();
+  llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
+                                                    "/dll",
+                                                    "/force:unresolved",
+                                                    LldOutputFlag,
+                                                    LlcOutputFileName
+                                                    };
+#else
   llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
                                                     "-shared",
                                                     "-o",
                                                     OutputFileName,
                                                     LlcOutputFileName,
                                                     };
-  
+#endif
   const llvm::StringRef AdditionalLlcFlags = ACPP_LLC_ADDITIONAL_FLAGS;
   const llvm::StringRef AdditionalOptFlags = ACPP_OPT_ADDITIONAL_FLAGS;
   AdditionalLlcFlags.split(LlcInvocation, ' ', -1, false);
@@ -240,7 +272,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   };
 
 
-  llvm::SmallVector<std::optional<llvm::StringRef>> Redirects;
+  llvm::SmallVector<OPTIONAL<llvm::StringRef>> Redirects;
   if(hipsycl::common::output_stream::get().get_debug_level() < 3) {
     // This suppresses vectorization failure warnings, which are unavoidable
     // for some code patterns. Unfortunately, --no-warn and similar seem to be
@@ -254,7 +286,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   }
 
   HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(OptInvocation) << "\n";
-  int R = llvm::sys::ExecuteAndWait(OptPath, OptInvocation, std::nullopt, Redirects);
+  int R = llvm::sys::ExecuteAndWait(OptPath, OptInvocation, NULLOPT, Redirects);
 
   if (R != 0) {
     this->registerError("LLVMToHost: opt invocation failed with exit code " + std::to_string(R));
@@ -262,7 +294,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   }
 
   HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LlcInvocation) << "\n";
-  R = llvm::sys::ExecuteAndWait(LLCPath, LlcInvocation, std::nullopt, Redirects);
+  R = llvm::sys::ExecuteAndWait(LLCPath, LlcInvocation, NULLOPT, Redirects);
 
   if (R != 0) {
     this->registerError("LLVMToHost: llc invocation failed with exit code " + std::to_string(R));
@@ -270,7 +302,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   }
 
   HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
-  R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, std::nullopt, Redirects);
+  R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, NULLOPT, Redirects);
 
   if (R != 0) {
     this->registerError("LLVMToHost: lld invocation failed with exit code " + std::to_string(R));

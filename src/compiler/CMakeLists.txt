@@ -12,8 +12,8 @@ else()
   add_compile_definitions(ACPP_LLVM_COMPONENT)
 endif()
 
-if(NOT HIPSYCL_DEBUG_LEVEL)
-  set(HIPSYCL_DEBUG_LEVEL 2 CACHE INTEGER)
+if(NOT DEFINED HIPSYCL_DEBUG_LEVEL)
+  message(FATAL_ERROR "HIPSYCL_DEBUG_LEVEL was not defined by the top-level CMakeLists.txt.")
 endif()
 
 if(NOT ACPP_LLVM_COMPONENT)

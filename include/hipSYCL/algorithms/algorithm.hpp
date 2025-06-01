@@ -630,6 +630,9 @@ min_element(sycl::queue &q, util::allocation_group &scratch_allocations,
   };
 
   auto reduce = [first] (MinPair a, MinPair b) {
+    // Preserve strict total order over two equivalent
+    // pointers, i.e. return the element that appears
+    // in the sequence nearest to first.
     if (!(a.second < b.second) && !(b.second < a.second)) {
       if (std::distance(first, a.first) < std::distance(first, b.first))
         return a;
@@ -674,27 +677,21 @@ min_element(sycl::queue &q, util::allocation_group &scratch_allocations,
   };
 
   auto reduce = [comp, first] (MinPair a, MinPair b) {
-    if (!comp(a.second, b.second) && !comp(b.second, a.second)) {
-      if (std::distance(first, a.first) < std::distance(first, b.first))
+    // Comp used for associative containers must always
+    // return false for equal values. (Effective STL, Item 21)
+    // In cases where it does not (for eg. std::less_equal),
+    // implementation aligns behaviour to libstdc++, returning
+    // the element furthest from first.
+    if (std::distance(first, a.first) < std::distance(first, b.first))
+      if (comp(b.second, a.second) == false)
         return a;
       else
         return b;
-    }
-    else if (comp(a.second, b.second)) {
-      // Align behaviour to libstdc++ when using `std::less_equal` by
-      // additionally testing equivalence of two elements. If positive,
-      // returns the element which is farther away from first.
-      if(comp(a.second, b.second) && comp(b.second, a.second)) {
-        if (std::distance(first, a.first) < std::distance(first, b.first))
-          return b;
-        else
-          return a;
-      }
+    else
+      if (comp(a.second, b.second) == false)
+        return b;
       else
         return a;
-    }
-    else
-      return b;
   };
 
   MinPair init = std::make_pair(first, *first);
@@ -725,6 +722,9 @@ max_element(sycl::queue &q, util::allocation_group &scratch_allocations,
   };
 
   auto reduce = [first] (MaxPair a, MaxPair b) {
+    // Preserve strict total order over two equivalent
+    // pointers, i.e. return the element that appears
+    // in the sequence nearest to first.
     if (!(a.second < b.second) && !(b.second < a.second)) {
       if (std::distance(first, a.first) < std::distance(first, b.first))
         return a;
@@ -769,27 +769,21 @@ max_element(sycl::queue &q, util::allocation_group &scratch_allocations,
   };
 
   auto reduce = [comp, first] (MaxPair a, MaxPair b) {
-    if(!comp(a.second, b.second) && !comp(b.second, a.second)) {
-      if (std::distance(first, a.first) < std::distance(first, b.first))
+    // Comp used for associative containers must always
+    // return false for equal values. (Effective STL, Item 21)
+    // In cases where it does not (for eg. std::less_equal),
+    // implementation aligns behaviour to libstdc++, returning
+    // the element furthest from first.
+    if (std::distance(first, a.first) < std::distance(first, b.first))
+      if(comp(a.second, b.second) == false)
         return a;
       else
         return b;
-    }
-    else if (comp(a.second, b.second)) {
-      // Align behaviour to libstdc++ when using `std::less_equal` by
-      // additionally testing equivalence of two elements. If positive,
-      // returns the element which is farther away from first.
-      if(comp(a.second, b.second) && comp(b.second, a.second)) {
-        if (std::distance(first, a.first) < std::distance(first, b.first))
-          return b;
-        else
-          return a;
-      }
-      else
-        return b;
-    }
     else
-      return a;
+      if(comp(b.second, a.second) == false)
+        return b;
+      else
+        return a;
   };
 
   MaxPair init = std::make_pair(first, *first);

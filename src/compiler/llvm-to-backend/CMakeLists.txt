@@ -213,7 +213,8 @@ if(WITH_SSCP_COMPILER)
       TOOL ptx/LLVMToPtxTool.cpp)
 
     target_compile_definitions(llvm-to-ptx PRIVATE
-      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}")
+      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
+      -DACPP_CUDA_DEVICE_LIBS_PATH="${CUDA_DEVICE_LIBS_PATH}")
   endif()
 
   if(WITH_LLVM_TO_AMDGPU_AMDHSA)

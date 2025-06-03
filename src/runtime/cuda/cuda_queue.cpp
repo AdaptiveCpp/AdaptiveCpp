@@ -56,7 +56,7 @@ namespace {
 
 
 unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
-  // Our bitcide libraries need at least ptx +60
+  // Our bitcode libraries need at least ptx +60
   unsigned ptx_version = 60;
   
   // for each sm, stores minimum ptx version required
@@ -88,11 +88,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
     ptx_target = sm_min_ptx_version.back()[0];
   } else {
     for(const auto& entry : sm_min_ptx_version) {
-      if(entry[0] == sm_version) {
-        ptx_version = entry[1];
-        ptx_target = entry[0];
-        break;
-      } else if(entry[0] >= sm_version) {
+      if(entry[0] >= sm_version) {
         ptx_version = entry[1];
         ptx_target = entry[0];
         break;

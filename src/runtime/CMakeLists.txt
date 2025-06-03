@@ -8,11 +8,13 @@ set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")
 set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
 
 
-list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
-find_package(Filesystem REQUIRED "${ACPP_FILESYSTEM_SEARCH_OPTIONS}")
-set(CXX_FILESYSTEM_HEADER "${CXX_FILESYSTEM_HEADER}" PARENT_SCOPE)
-set(CXX_FILESYSTEM_NAMESPACE "${CXX_FILESYSTEM_NAMESPACE}" PARENT_SCOPE)
-list(REMOVE_AT CMAKE_MODULE_PATH 0)
+if(NOT COMPILE_FOR_MICROCONTROLLERS)
+  list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
+  find_package(Filesystem REQUIRED "${ACPP_FILESYSTEM_SEARCH_OPTIONS}")
+  set(CXX_FILESYSTEM_HEADER "${CXX_FILESYSTEM_HEADER}" PARENT_SCOPE)
+  set(CXX_FILESYSTEM_NAMESPACE "${CXX_FILESYSTEM_NAMESPACE}" PARENT_SCOPE)
+  list(REMOVE_AT CMAKE_MODULE_PATH 0)
+endif()
 
 set(HIPSYCL_RT_EXTRA_CXX_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
 set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
@@ -86,7 +88,9 @@ if(WIN32)
     set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
   endif()
 else()
-  target_link_libraries(acpp-rt PRIVATE dl std::filesystem)
+  if(NOT COMPILE_FOR_MICROCONTROLLERS)
+    target_link_libraries(acpp-rt PRIVATE dl std::filesystem)
+  endif()
 
   # ensure actual output and expected are equivalent
   set_target_properties(acpp-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
@@ -316,7 +320,20 @@ if(WITH_CPU_BACKEND)
       endif()
     endif()
 
-    find_package(OpenMP REQUIRED)
+    if(NOT COMPILE_FOR_MICROCONTROLLERS)
+      find_package(OpenMP REQUIRED)
+    else()
+      # Set OpenMP flags manually
+      set(OpenMP_CXX_FLAGS "-fopenmp")
+      set(OpenMP_CXX_LIB_NAMES "gomp")
+
+      # Create a custom target for OpenMP::OpenMP_CXX
+      add_library(OpenMP::OpenMP_CXX INTERFACE IMPORTED)
+      set_target_properties(OpenMP::OpenMP_CXX PROPERTIES
+              INTERFACE_COMPILE_OPTIONS "${OpenMP_CXX_FLAGS}"
+              INTERFACE_LINK_LIBRARIES "${OpenMP_gomp_LIBRARY}"
+      )
+    endif()
     
     target_include_directories(rt-backend-omp PRIVATE
       ${HIPSYCL_SOURCE_DIR}/include 

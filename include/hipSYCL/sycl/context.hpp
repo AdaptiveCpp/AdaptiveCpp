@@ -146,7 +146,7 @@ public:
                 << std::endl;
           }
           
-          last_platform = rt::platform_id{b, platform_index};
+          last_platform = rt::platform_id{b, static_cast<int>(platform_index)};
           found_device_platform = true;
         }
       }

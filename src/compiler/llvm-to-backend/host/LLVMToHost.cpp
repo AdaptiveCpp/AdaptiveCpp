@@ -301,7 +301,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     return false;
   }
 
-  HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
+  std::cout << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
   R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, NULLOPT, Redirects);
 
   if (R != 0) {

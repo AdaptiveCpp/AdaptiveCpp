@@ -75,7 +75,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
        {100, 88},
        {101, 88},
        {103, 88},
-       {120, 87},
+       {120, 88},
        {121, 88}};
 
   if(sm_version < sm_min_ptx_version.front()[0]) {

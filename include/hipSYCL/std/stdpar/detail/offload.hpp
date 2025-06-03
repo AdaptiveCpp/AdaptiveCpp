@@ -136,7 +136,8 @@ inline prefetch_mode get_prefetch_mode() noexcept {
 #else
   auto determine_prefetch_mode = [&]() -> prefetch_mode {
     std::string prefetch_mode_string;
-    if(rt::try_get_environment_variable("stdpar_prefetch_mode", prefetch_mode_string)) {
+    if (common::settings::try_retrieve_settings_variable(
+            "stdpar_prefetch_mode", prefetch_mode_string)) {
       if(prefetch_mode_string == "auto") {
         return prefetch_mode::automatic;
       } else if(prefetch_mode_string == "always") {
@@ -251,10 +252,12 @@ using host_malloc_unordered_pair_map =
 class offload_heuristic_config {
 public:
   offload_heuristic_config() {
-    if(!rt::try_get_environment_variable("stdpar_ohc_min_ops", _min_ops_per_offload_decision)) {
+    if (!common::settings::try_retrieve_settings_variable(
+            "stdpar_ohc_min_ops", _min_ops_per_offload_decision)) {
       _min_ops_per_offload_decision = 128;
     }
-    if(!rt::try_get_environment_variable("stdpar_ohc_min_time", _min_time_per_offload_decision)) {
+    if (!common::settings::try_retrieve_settings_variable(
+            "stdpar_ohc_min_time", _min_time_per_offload_decision)) {
       _min_time_per_offload_decision = 1;
     }
     // Convert from seconds to ns
@@ -366,16 +369,16 @@ private:
 
   static bool is_host_sampling_run_requested(){
     bool is_requested = false;
-    if (rt::try_get_environment_variable("stdpar_host_sampling",
-                                          is_requested))
+    if (common::settings::try_retrieve_settings_variable("stdpar_host_sampling",
+                                                         is_requested))
       return is_requested;
     return false;
   }
 
   static bool is_offload_sampling_run_requested(){
     bool is_requested = false;
-    if (rt::try_get_environment_variable("stdpar_offload_sampling",
-                                          is_requested))
+    if (common::settings::try_retrieve_settings_variable(
+            "stdpar_offload_sampling", is_requested))
       return is_requested;
     return false;
   }

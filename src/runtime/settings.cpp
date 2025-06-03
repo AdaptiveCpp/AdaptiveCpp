@@ -9,11 +9,13 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/string_utils.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 
 #include <string>
+#include <fstream>
 
 namespace hipsycl {
 namespace rt {

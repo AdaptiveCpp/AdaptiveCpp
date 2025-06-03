@@ -14,7 +14,7 @@
 #include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/common/debug.hpp"
 
-#include "hipSYCL/runtime/settings.hpp"
+#include "hipSYCL/common/settings.hpp"
 
 #include <fstream>
 #include <memory>
@@ -80,6 +80,40 @@ std::string get_install_directory() {
   if(paths.empty() || !fs::is_directory(paths.back()))
     return fs::path{HIPSYCL_INSTALL_PREFIX}.string();
   return paths.back().string();
+}
+
+
+std::string get_this_executable_path(std::string* filename,
+                                    std::string* directory) {
+  auto get_path = []() -> std::string{
+#ifndef _WIN32
+    char result[PATH_MAX];
+    ssize_t num_read = readlink("/proc/self/exe", result, PATH_MAX);
+    if (num_read >= 0 && num_read <= PATH_MAX - 1) {
+      result[num_read] = '\0';
+      return std::string{result};
+    }
+    return std::string{};
+#else
+    std::vector<char> path_buff;
+    DWORD copied = 0;
+    do {
+      path_buff.resize(path_buff.size() + MAX_PATH);
+      copied = GetModuleFileNameA(0, path_buff.data(), path_buff.size());
+    } while (copied >= path_buff.size());
+
+    path_buff.resize(copied);
+
+    return std::string{path_buff.begin(), path_buff.end()};
+#endif
+  };
+
+  std::string path = get_path();
+  if(filename)
+    *filename = path.empty() ? "" : fs::path{path}.filename().string();
+  if(directory)
+    *directory = path.empty() ? "" : fs::path{path}.parent_path().string();
+  return path;
 }
 
 std::string join_path(const std::string& base, const std::string& extra) {
@@ -185,7 +219,7 @@ persistent_storage::persistent_storage() {
     return false;
   };
 
-  if(!rt::try_get_environment_variable("appdb_dir", _base_dir)) {
+  if(!settings::try_retrieve_settings_variable("appdb_dir", _base_dir)) {
     std::string home, subdirectory;
     if (get_home(home, subdirectory)) {
       _base_dir = (fs::path{home} / subdirectory).string();
@@ -194,18 +228,7 @@ persistent_storage::persistent_storage() {
     }
   }
 
-  auto get_app_path = []() -> std::string{
-
-    char result[PATH_MAX];
-    ssize_t num_read = readlink("/proc/self/exe", result, PATH_MAX);
-    if(num_read >= 0 && num_read <= PATH_MAX - 1) {
-      result[num_read] = '\0';
-      return std::string{result};
-    }
-    return std::string{};
-  };
-
-  std::string app_path = get_app_path();
+  std::string app_path = get_this_executable_path();
   _this_app_dir = generate_app_dir(app_path);
   
 #else

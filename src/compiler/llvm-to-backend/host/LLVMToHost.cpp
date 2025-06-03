@@ -54,6 +54,26 @@
 #include <system_error>
 #include <vector>
 
+#ifdef __APPLE__
+
+#include <sys/sysctl.h>
+
+namespace {
+
+std::string get_macos_version() {
+  char    buff [64] = "";
+  std::size_t buff_size = sizeof(buff);
+
+  if (sysctlbyname("kern.osproductversion", buff, &buff_size, nullptr, 0) != 0) {
+    return {};
+  }
+  return std::string{buff};
+}
+
+}
+
+#endif
+
 namespace hipsycl {
 namespace compiler {
 
@@ -226,6 +246,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
 
 #ifdef __APPLE__
+  std::string os_version = get_macos_version();
   llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
                                                     "-dynamic",
                                                     "-dylib",
@@ -235,7 +256,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 #else
                                                     "-arch", "x86_64",
 #endif                                              // TODO Figure out platform version programmatically
-                                                    "-platform_version","macos", "14.0.0", "14.0.0",
+                                                    "-platform_version","macos", os_version, os_version,
                                                     "-mllvm", "-enable-linkonceodr-outlining",
                                                     "-o",
                                                     OutputFileName,

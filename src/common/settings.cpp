@@ -14,7 +14,6 @@
 
 #include <string>
 #include <fstream>
-#include <algorithm>
 
 namespace hipsycl {
 namespace common::settings {
@@ -45,21 +44,6 @@ void trim(std::string& str) {
   str.erase(str.find_last_not_of("\t\n\v\f\r ") + 1);
 }
 
-}
-
-namespace detail {
-std::string
-generate_configuration_identifier(const std::string &name,
-                                  bool legacy_prefix) {
-  std::string capitalized_name = name;
-
-  std::transform(capitalized_name.begin(), capitalized_name.end(),
-                 capitalized_name.begin(), ::toupper);
-  if(legacy_prefix)
-    return "HIPSYCL_"+capitalized_name;
-  else
-    return "ACPP_"+capitalized_name;
-}
 }
 
 void settings_config_file::load_file(const std::string& filename) {

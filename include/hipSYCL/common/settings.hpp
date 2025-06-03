@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include <unordered_map>
 
 #include "export.hpp"
@@ -26,9 +27,20 @@ namespace common::settings {
 
 
 namespace detail {
-ACPP_COMMON_EXPORT std::string
+
+inline std::string
 generate_configuration_identifier(const std::string &name,
-                                  bool legacy_prefix = false);
+                                  bool legacy_prefix = false) {
+  std::string capitalized_name = name;
+
+  std::transform(capitalized_name.begin(), capitalized_name.end(),
+                 capitalized_name.begin(), ::toupper);
+  if(legacy_prefix)
+    return "HIPSYCL_"+capitalized_name;
+  else
+    return "ACPP_"+capitalized_name;
+}
+
 }
 
 class ACPP_COMMON_EXPORT settings_config_file {

@@ -491,16 +491,27 @@ public:
       }
 
       if (!submission_failed) {
+        for (auto func : Tracer_utils::tracer_state.submit_secondary)
+          func(Tracer_utils::start_end::END);
         return evt;
       } else {
-        return secondaryQueue.submit(prop_list, cgf);
+
+        auto evt = secondaryQueue.submit(prop_list, cgf);
+
+        for (auto func : Tracer_utils::tracer_state.submit_secondary)
+          func(Tracer_utils::start_end::END);
+
+        return evt;
       }
     } catch (exception &) {
-      return secondaryQueue.submit(prop_list, cgf);
-    }
 
-    for (auto func : Tracer_utils::tracer_state.submit_secondary)
-      func(Tracer_utils::start_end::END);
+      auto evt = secondaryQueue.submit(prop_list, cgf);
+
+      for (auto func : Tracer_utils::tracer_state.submit_secondary)
+        func(Tracer_utils::start_end::END);
+
+      return evt;
+    }
   }
 
   friend bool operator==(const queue &lhs, const queue &rhs) {

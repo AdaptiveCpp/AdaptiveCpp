@@ -35,6 +35,8 @@ struct tracer_funcs {
   std::vector<tracer_function_t> memcpy;
   std::vector<tracer_function_t> wait;
   std::vector<tracer_function_t> memset;
+  std::vector<tracer_function_t> fill;
+  std::vector<tracer_function_t> copy;
   std::vector<void (*)()> finalize;
 };
 

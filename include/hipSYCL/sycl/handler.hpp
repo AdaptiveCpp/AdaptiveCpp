@@ -459,26 +459,53 @@ public:
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
-  void copy(accessor<T, dim, mode, tgt, variant> src, std::shared_ptr<T> dest) {
+  void copy(accessor<T, dim, mode, tgt, variant> src,
+            shared_ptr_class<T> dest) {
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::START);
+
     copy_ptr(src, dest);
+
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
-  void copy(std::shared_ptr<T> src, accessor<T, dim, mode, tgt, variant> dest) {
+  void copy(shared_ptr_class<T> src,
+            accessor<T, dim, mode, tgt, variant> dest) {
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::START);
+
     copy_ptr(src, dest);
+
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src, T *dest) {
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::START);
+
     copy_ptr(src, dest);
+
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(const T *src, accessor<T, dim, mode, tgt, variant> dest) {
+
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::START);
+
     copy_ptr(src, dest);
+
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::END);
   }
 
   template <typename T, int dim, access::mode srcMode, access::mode dstMode,
@@ -486,6 +513,10 @@ public:
             accessor_variant VariantSrc, accessor_variant VariantDest>
   void copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
             accessor<T, dim, dstMode, destTgt, VariantDest> dest) {
+
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::START);
+
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
 
@@ -524,6 +555,9 @@ public:
         create_task(std::move(explicit_copy), _execution_hints);
 
     _command_group_nodes.push_back(node);
+
+    for (auto func : Tracer_utils::tracer_state.copy)
+      func(Tracer_utils::start_end::END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -552,6 +586,9 @@ public:
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
+    for (auto func : Tracer_utils::tracer_state.fill)
+      func(Tracer_utils::start_end::START);
+
     static_assert(mode != access::mode::read,
                   "Filling read-only accessors is not allowed.");
     static_assert(tgt != access::target::host_image,
@@ -561,6 +598,9 @@ public:
                         rt::kernel_type::basic_parallel_for>(
         sycl::id<dim>{}, get_range(dest), get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
+
+    for (auto func : Tracer_utils::tracer_state.fill)
+      func(Tracer_utils::start_end::END);
   }
 
   // ------ USM functions ------
@@ -625,6 +665,9 @@ public:
   }
 
   template <class T> void fill(void *ptr, const T &pattern, std::size_t count) {
+
+    for (auto func : Tracer_utils::tracer_state.fill)
+      func(Tracer_utils::start_end::START);
     // For special cases we can map this to a potentially more low-level memset
     if (sizeof(T) == 1) {
       unsigned char val = *reinterpret_cast<const unsigned char *>(&pattern);
@@ -643,6 +686,9 @@ public:
           sycl::id<1>{}, sycl::range<1>{count}, get_preferred_group_size<1>(),
           detail::kernels::fill_kernel_usm{typed_ptr, pattern});
     }
+
+    for (auto func : Tracer_utils::tracer_state.fill)
+      func(Tracer_utils::start_end::END);
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
@@ -650,6 +696,9 @@ public:
     //  for (int i = 0; i < Tracer_utils::size; i++)
     //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
     //                                        Tracer_utils::start_end::START);
+    //
+    for (auto func : Tracer_utils::tracer_state.memset)
+      func(Tracer_utils::start_end::START);
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -662,6 +711,9 @@ public:
     rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
 
     _command_group_nodes.push_back(node);
+
+    for (auto func : Tracer_utils::tracer_state.memset)
+      func(Tracer_utils::start_end::END);
 
     //  for (int i = 0; i < Tracer_utils::size; i++)
     //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,

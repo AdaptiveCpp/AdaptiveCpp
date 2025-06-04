@@ -12,8 +12,8 @@ else()
   add_compile_definitions(ACPP_LLVM_COMPONENT)
 endif()
 
-if(NOT DEFINED HIPSYCL_DEBUG_LEVEL)
-  message(FATAL_ERROR "HIPSYCL_DEBUG_LEVEL was not defined by the top-level CMakeLists.txt.")
+if(NOT HIPSYCL_DEBUG_LEVEL)
+  set(HIPSYCL_DEBUG_LEVEL 2 CACHE INTEGER)
 endif()
 
 if(NOT ACPP_LLVM_COMPONENT)
@@ -126,6 +126,21 @@ else()
   set(REFLECTION_BUILTINS "")
 endif()
 
+if(WITH_REFLECTION_BUILTINS)
+  set(REFLECTION_BUILTINS
+    reflection/IntrospectStructPass.cpp
+    reflection/FunctionNameExtractionPass.cpp)
+  add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
+else()
+  set(REFLECTION_BUILTINS "")
+endif()
+
+
+set(DEVICE_EXCEPTIONS
+  reflection/ExceptionToAssertionPass.cpp)
+add_definitions(-DHIPSYCL_WITH_DEVICE_EXCEPTIONS)
+
+
 set(COMPILER_LIBRARY_SOURCES
   AdaptiveCppLlvmPasses.cpp
   GlobalsPruningPass.cpp
@@ -133,6 +148,7 @@ set(COMPILER_LIBRARY_SOURCES
   ${SSCP_COMPILER}
   ${STDPAR_COMPILER}
   ${REFLECTION_BUILTINS}
+  ${DEVICE_EXCEPTIONS}
 )
 
 if(NOT ACPP_LLVM_COMPONENT)

@@ -37,6 +37,11 @@
 #include "hipSYCL/compiler/reflection/FunctionNameExtractionPass.hpp"
 #endif
 
+#ifdef HIPSYCL_WITH_DEVICE_EXCEPTIONS
+#include "hipSYCL/compiler/reflection/ExceptionToAssertionPass.hpp"
+// #include "hipSYCL/compiler/reflection/FunctionNameExtractionPass.hpp"
+#endif
+
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -161,6 +166,13 @@ return {
                   MPM.addPass(IntrospectStructPass{});
                   MPM.addPass(FunctionNameExtractionPass{});
                 });
+#endif
+
+#ifdef HIPSYCL_WITH_DEVICE_EXCEPTIONS
+          PB.registerPipelineStartEPCallback(
+            [&](llvm::ModulePassManager &MPM, OptLevel Level) {
+              MPM.addPass(ExceptionToAssertionPass{});
+            });
 #endif
 
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER

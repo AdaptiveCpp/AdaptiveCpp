@@ -126,7 +126,7 @@ jobs:
       shell: powershell
       run: |
         echo "" > out.obj
-        $env:GITHUB_WORKSPACE\install\bin\clang.exe -shared out.obj -v
+        $env:GITHUB_WORKSPACE\install\bin\clang.exe `-shared out.obj -v
     - name: build CPU tests
       shell: powershell
       run: |

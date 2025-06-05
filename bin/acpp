@@ -154,6 +154,40 @@ ACPP_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_i
     with open(filename, 'w') as f:
       f.write(str(self))
 
+class deployment_db:
+  def __init__(self, config_file_dirs):
+    self._data = {}
+    for d in [os.path.join(x, "deploy") for x in config_file_dirs]:
+      files = os.listdir(d)
+      for f in files:
+        if f.lower().endswith(".json") and f.startswith("acpp-deployment-manifest-"):
+          component = f.replace("acpp-deployment-manifest-","").replace(".json","").lower()
+          self._data[component] = {}
+          with open(os.path.join(d, f), 'r') as manifest_file:
+            data = json.load(manifest_file)
+            for entry in data:
+              if entry != "" and not entry.endswith("-NOTFOUND"):
+                self._data[component][entry] = data[entry]
+
+  def deployment_manifest(self, component):
+    lower_component = component.lower()
+    if not lower_component in self._data:
+      raise RuntimeError("Deployment component '"+component+"' is unvailable.")
+    return self._data[component]
+
+class deployment_engine:
+  def __init__(self, ddb):
+    self._deployment_db = ddb
+  
+  def _deploy(self, origin, target):
+    pass
+
+  def deploy_component(self, component):
+    manifest = self._deployment_db.deployment_manifest(component)
+    
+    for f in manifest:
+      self._deploy(f, manifest[f])
+
 class config_db:
   # Scans the provided directory for json files
   def __init__(self, config_file_dirs):

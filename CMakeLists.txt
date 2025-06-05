@@ -734,7 +734,7 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
 }
 ")
 
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-core-deployment-manifest.json ${ACPP_CORE_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json ${ACPP_CORE_DEPLOYMENT_MANIFEST})
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -808,7 +808,7 @@ if(WITH_ROCM_BACKEND)
   install(FILES ${ACPP_BINARY_ROOT}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 endif()
 
-install(FILES ${ACPP_BINARY_ROOT}/acpp-core-deployment-manifest.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)

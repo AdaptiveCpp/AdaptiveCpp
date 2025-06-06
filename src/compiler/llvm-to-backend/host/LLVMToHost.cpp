@@ -266,7 +266,9 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   std::string LldOutputFlag = "/out:"+OutputFileName.str();
   llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
                                                     "/dll",
-                                                    "/force:unresolved",
+                                                    "/noimplib",
+                                                    "/defaultlib:libcmt",
+                                                    "/defaultlib:oldnames",
                                                     LldOutputFlag,
                                                     LlcOutputFileName
                                                     };

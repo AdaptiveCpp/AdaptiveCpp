@@ -127,6 +127,7 @@ jobs:
       run: |
         cd "$env:GITHUB_WORKSPACE\install\bin\"
         echo "" > out.obj
+        ls "D:\\a\\AdaptiveCpp\\AdaptiveCpp\\install\\lib\\clang\\18\\lib\\windows"
         .\clang.exe `-fuse-ld=lld `-shared out.obj `-v
     - name: build CPU tests
       shell: powershell

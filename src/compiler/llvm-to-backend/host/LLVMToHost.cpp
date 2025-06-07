@@ -324,7 +324,6 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     return false;
   }
 
-  std::cout << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
   R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, NULLOPT, Redirects);
 
   if (R != 0) {

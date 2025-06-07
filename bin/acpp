@@ -176,8 +176,8 @@ class deployment_db:
     return self._data[component]
 
 class deployment_engine:
-  def __init__(self, ddb):
-    self._deployment_db = ddb
+  def __init__(self, deployment_db):
+    self._deployment_db = deployment_db
   
   def _deploy(self, origin, target):
     pass
@@ -452,6 +452,7 @@ class acpp_config:
     elif os.path.exists(global_config_dir):
       config_file_directories.append(global_config_dir)
     self._config_db = config_db(config_file_directories)
+    self._deployment_db = deployment_db(config_file_directories)
 
 
     self._common_compiler_args = self._get_std_compiler_args()
@@ -1003,6 +1004,10 @@ class acpp_config:
   @property
   def config_db(self):
     return self._config_db
+  
+  @property
+  def deployment_db(self)
+    return self._deployment_db
 
   def is_pure_linking_stage(self):
     return len(self.source_file_arguments) == 0

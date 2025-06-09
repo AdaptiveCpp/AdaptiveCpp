@@ -673,6 +673,190 @@ sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations
                           deps);
 }
 
+template <class ForwardIt>
+sycl::event
+min_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MinPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MinPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [first] (MinPair a, MinPair b) {
+    // Preserve strict total order over two equivalent
+    // pointers, i.e. return the element that appears
+    // in the sequence nearest to first.
+    if (!(a.second < b.second) && !(b.second < a.second)) {
+      if (std::distance(first, a.first) < std::distance(first, b.first))
+        return a;
+      else
+        return b;
+    }
+#if __cplusplus < 202002L
+    else if (a.second < b.second)
+#else
+    else if (std::less{}(a.second, b.second))
+#endif
+      return a;
+    else
+      return b;
+  };
+
+  MinPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt, class Compare>
+sycl::event
+min_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last, Compare comp,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MinPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MinPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [comp, first] (MinPair a, MinPair b) {
+    // Comp used for associative containers must always
+    // return false for equal values. (Effective STL, Item 21)
+    // In cases where it does not (for eg. std::less_equal),
+    // implementation aligns behaviour to libstdc++, returning
+    // the element furthest from first.
+    if (std::distance(first, a.first) < std::distance(first, b.first))
+      if (comp(b.second, a.second) == false)
+        return a;
+      else
+        return b;
+    else
+      if (comp(a.second, b.second) == false)
+        return b;
+      else
+        return a;
+  };
+
+  MinPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt>
+sycl::event
+max_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MaxPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MaxPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [first] (MaxPair a, MaxPair b) {
+    // Preserve strict total order over two equivalent
+    // pointers, i.e. return the element that appears
+    // in the sequence nearest to first.
+    if (!(a.second < b.second) && !(b.second < a.second)) {
+      if (std::distance(first, a.first) < std::distance(first, b.first))
+        return a;
+      else
+       return b;
+    }
+#if __cplusplus < 202002L
+    else if (a.second < b.second)
+#else
+    else if (std::less{}(a.second, b.second))
+#endif
+      return b;
+    else
+      return a;
+  };
+
+  MaxPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt, class Compare>
+sycl::event
+max_element(sycl::queue &q, util::allocation_group &scratch_allocations,
+            ForwardIt first, ForwardIt last, Compare comp,
+            std::pair<ForwardIt, typename
+            std::iterator_traits<ForwardIt>::value_type> *out,
+            const std::vector<sycl::event> &deps= {}) {
+  auto problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  using MaxPair = std::pair<ForwardIt, ValueT>;
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    MaxPair p = std::make_pair(input, *input);
+    reducer.combine(p);
+  };
+
+  auto reduce = [comp, first] (MaxPair a, MaxPair b) {
+    // Comp used for associative containers must always
+    // return false for equal values. (Effective STL, Item 21)
+    // In cases where it does not (for eg. std::less_equal),
+    // implementation aligns behaviour to libstdc++, returning
+    // the element furthest from first.
+    if (std::distance(first, a.first) < std::distance(first, b.first))
+      if(comp(a.second, b.second) == false)
+        return a;
+      else
+        return b;
+    else
+      if(comp(b.second, a.second) == false)
+        return b;
+      else
+        return a;
+  };
+
+  MaxPair init = std::make_pair(first, *first);
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out, init,
+                                       problem_size, kernel, reduce, deps);
+}
+
 template <class RandomIt, class Compare>
 sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
                  Compare comp = std::less<>{},

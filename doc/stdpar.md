@@ -52,6 +52,8 @@ Offloading is implemented for the following STL algorithms:
 |`count` | |
 |`count_if` | |
 |`merge` | |
+|`shift_left` | |
+|`shift_right` | |
 |`sort` | may not scale optimally for large problems |
 |`is_sorted_until` | both overloads |
 |`is_sorted` | both overloads |

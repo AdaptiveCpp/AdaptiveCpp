@@ -1070,6 +1070,61 @@ ForwardIt3 merge(hipsycl::stdpar::par_unseq,
       first2, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), d_first);
 }
 
+#if __cplusplus >= 202002L
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_left(hipsycl::stdpar::par_unseq,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n){
+  auto offloader = [&](auto &queue) {
+    if(n == 0 || n >= std::distance(first, last))
+      return first;
+
+    ForwardIt d_first = first;
+    std::advance(d_first, std::distance(first, last) - n);
+    hipsycl::algorithms::shift_left(queue, first, last, n);
+    return d_first;
+  };
+
+  auto fallback = [&]() {
+    return std::shift_left(hipsycl::stdpar::par_unseq_host_fallback, first, last, n);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::shift_left{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), ForwardIt, offloader, fallback,
+      first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), n);
+}
+#endif
+
+#if __cplusplus >= 202002L
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_right(hipsycl::stdpar::par_unseq,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n){
+  auto offloader = [&](auto &queue) {
+    if(n == 0 || n >= std::distance(first, last))
+      return last;
+
+    ForwardIt d_last = first;
+    std::advance(d_last, n);
+    hipsycl::algorithms::shift_right(queue, first, last, n);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::shift_right(hipsycl::stdpar::par_unseq_host_fallback, first, last, n);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::shift_right{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), ForwardIt, offloader, fallback,
+      first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), n);
+}
+#endif
 
 template<class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
@@ -2482,6 +2537,63 @@ HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
 
+
+#if __cplusplus >= 202002L
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_left(hipsycl::stdpar::par,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n){
+  auto offloader = [&](auto &queue) {
+    if(n == 0 || n >= std::distance(first, last))
+      return first;
+
+    ForwardIt d_first = first;
+    std::advance(d_first, std::distance(first, last) - n);
+    hipsycl::algorithms::shift_left(queue, first, last, n);
+    return d_first;
+  };
+
+  auto fallback = [&]() {
+    return std::shift_left(hipsycl::stdpar::par_host_fallback, first, last, n);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::shift_left{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first, last), ForwardIt, offloader, fallback,
+      first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), n);
+}
+#endif
+
+
+#if __cplusplus >= 202002L
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_right(hipsycl::stdpar::par,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n){
+  auto offloader = [&](auto &queue) {
+    if(n == 0 || n >= std::distance(first, last))
+      return last;
+
+    ForwardIt d_last = first;
+    std::advance(d_last, n);
+    hipsycl::algorithms::shift_right(queue, first, last, n);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::shift_right(hipsycl::stdpar::par_host_fallback, first, last, n);
+  };
+
+  HIPSYCL_STDPAR_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::shift_right{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first, last), ForwardIt, offloader, fallback,
+      first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), n);
+}
+#endif
 
 }
 

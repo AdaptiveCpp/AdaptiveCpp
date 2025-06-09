@@ -165,6 +165,7 @@ if(WITH_PSTL_TESTS)
     pstl/merge.cpp
     pstl/min_element.cpp
     pstl/max_element.cpp
+    pstl/mismatch.cpp
     pstl/move.cpp
     pstl/none_of.cpp
     pstl/reduce.cpp

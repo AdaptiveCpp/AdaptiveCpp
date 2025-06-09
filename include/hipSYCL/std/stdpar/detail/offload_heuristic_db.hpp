@@ -59,6 +59,7 @@ struct any_of {};
 struct none_of {};
 struct count{};
 struct count_if{};
+struct mismatch{};
 struct sort {};
 struct is_sorted {};
 struct is_sorted_until {};

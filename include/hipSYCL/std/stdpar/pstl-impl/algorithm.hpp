@@ -997,6 +997,89 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), p);
 }
 
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt2 unique_copy(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+                          ForwardIt1 last, ForwardIt2 d_first,
+                          BinaryPredicate pred) {
+  auto offloader = [&](auto& queue){
+    if(first == last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+    auto device_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+    std::size_t *num_elements_copied =
+        output_scratch_group.obtain<std::size_t>(1);
+
+    hipsycl::algorithms::unique_copy(queue, device_scratch_group,
+                                     first, last, d_first, pred,
+                                     num_elements_copied);
+    queue.wait();
+
+    ForwardIt2 d_last = d_first;
+    std::advance(d_last, *num_elements_copied);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::unique_copy(hipsycl::stdpar::par_unseq_host_fallback,
+                            first, last, d_first, pred);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::unique_copy{},
+          hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), ForwardIt2, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, pred);
+}
+
+
+template <class ForwardIt, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt unique(hipsycl::stdpar::par_unseq, ForwardIt first,
+                          ForwardIt last, BinaryPredicate pred) {
+  auto offloader = [&](auto& queue){
+    if(first == last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+    auto device_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+    std::size_t *num_elements_copied =
+        output_scratch_group.obtain<std::size_t>(1);
+
+    hipsycl::algorithms::unique(queue, device_scratch_group, first,
+                                last, pred, num_elements_copied);
+    queue.wait();
+
+    ForwardIt d_last = std::next(first, *num_elements_copied);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::unique(hipsycl::stdpar::par_unseq_host_fallback,
+                       first, last, pred);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::unique{},
+          hipsycl::stdpar::par_unseq{}),
+      std::distance(first, last), ForwardIt, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), pred);
+}
 
 template <class RandomIt>
 HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq, RandomIt first,
@@ -2971,6 +3054,91 @@ ForwardIt shift_right(hipsycl::stdpar::par,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), n);
 }
 #endif
+
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt2 unique_copy(hipsycl::stdpar::par, ForwardIt1 first,
+                          ForwardIt1 last, ForwardIt2 d_first,
+                          BinaryPredicate pred) {
+  auto offloader = [&](auto& queue){
+    if(first == last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+    auto device_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+    std::size_t *num_elements_copied =
+        output_scratch_group.obtain<std::size_t>(1);
+
+    hipsycl::algorithms::unique_copy(queue, device_scratch_group,
+                                     first, last, d_first, pred,
+                                     num_elements_copied);
+    queue.wait();
+
+    ForwardIt2 d_last = d_first;
+    std::advance(d_last, *num_elements_copied);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::unique_copy(hipsycl::stdpar::par_host_fallback,
+                            first, last, d_first, pred);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::unique_copy{},
+          hipsycl::stdpar::par{}),
+      std::distance(first, last), ForwardIt2, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, pred);
+}
+
+
+template <class ForwardIt, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt unique(hipsycl::stdpar::par, ForwardIt first,
+                          ForwardIt last, BinaryPredicate pred) {
+  auto offloader = [&](auto& queue){
+    if(first == last)
+      return last;
+
+    auto output_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::host>();
+    auto device_scratch_group =
+        hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+            .make_scratch_group<
+                hipsycl::algorithms::util::allocation_type::device>();
+    std::size_t *num_elements_copied =
+        output_scratch_group.obtain<std::size_t>(1);
+
+    hipsycl::algorithms::unique(queue, device_scratch_group, first,
+                                last, pred, num_elements_copied);
+    queue.wait();
+
+    ForwardIt d_last = std::next(first, *num_elements_copied);
+    return d_last;
+  };
+
+  auto fallback = [&]() {
+    return std::unique(hipsycl::stdpar::par_host_fallback, first,
+                       last, pred);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(
+          hipsycl::stdpar::algorithm_category::unique{},
+          hipsycl::stdpar::par{}),
+      std::distance(first, last), ForwardIt, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), pred);
+}
 
 }
 

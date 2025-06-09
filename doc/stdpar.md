@@ -60,6 +60,8 @@ Offloading is implemented for the following STL algorithms:
 |`is_sorted` | both overloads |
 |`min_element` | |
 |`max_element` | |
+|`unique_copy` | |
+|`unique` | |
 |`inclusive_scan` | |
 |`exclusive_scan` | |
 |`transform_inclusive_scan` | |

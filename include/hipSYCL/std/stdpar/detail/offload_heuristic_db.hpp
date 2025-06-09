@@ -66,6 +66,8 @@ struct is_sorted_until {};
 struct merge {};
 struct min_element {};
 struct max_element {};
+struct unique_copy {};
+struct unique {};
 struct inclusive_scan {};
 struct exclusive_scan {};
 struct transform_inclusive_scan {};

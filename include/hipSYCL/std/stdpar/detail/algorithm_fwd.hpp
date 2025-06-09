@@ -245,6 +245,17 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2, ForwardIt2 last2,
                                     BinaryPredicate p);
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt2 unique_copy( hipsycl::stdpar::par_unseq, ForwardIt1 first,
+                        ForwardIt1 last, ForwardIt2 d_first,
+                        BinaryPredicate pred );
+
+template <class ForwardIt, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt unique( hipsycl::stdpar::par_unseq, ForwardIt first,
+                          ForwardIt last, BinaryPredicate pred );
 ///////////////////////////// par policy /////////////////////////////
 
 template <class ForwardIt1, class ForwardIt2>
@@ -366,6 +377,17 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2, ForwardIt2 last2,
                                     BinaryPredicate p);
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt2 unique_copy( hipsycl::stdpar::par, ForwardIt1 first,
+                        ForwardIt1 last, ForwardIt2 d_first,
+                        BinaryPredicate pred );
+
+template <class ForwardIt, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt unique( hipsycl::stdpar::par, ForwardIt first,
+                  ForwardIt last, BinaryPredicate pred );
 }
 
 #endif

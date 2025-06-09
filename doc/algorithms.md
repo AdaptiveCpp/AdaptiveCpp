@@ -420,6 +420,19 @@ template <class ForwardIt>
 sycl::event shift_right(sycl::queue &q, ForwardIt first, ForwardIt last,
                     typename std::iterator_traits<ForwardIt>::difference_type n,
                     const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate = std::equal_to<>>
+sycl::event unique_copy(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+                    BinaryPredicate p = {},
+                    std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class BinaryPredicate = std::equal_to<>>
+sycl::event unique(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt first, ForwardIt last, BinaryPredicate p = {},
+                    std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {});
 }
 
 

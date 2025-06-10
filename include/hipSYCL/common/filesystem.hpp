@@ -11,6 +11,7 @@
 #ifndef HIPSYCL_COMMON_FILESYSTEM_HPP
 #define HIPSYCL_COMMON_FILESYSTEM_HPP
 
+#include <optional>
 #include <string>
 #include <vector>
 #include <memory>
@@ -25,6 +26,12 @@ namespace common {
 namespace filesystem {
 
 ACPP_COMMON_EXPORT std::string get_install_directory();
+// returns path to running program.
+// if filename/directory are not null, stores the filename and 
+// containing directory in them.
+ACPP_COMMON_EXPORT std::string
+get_this_executable_path(std::string* filename = nullptr,
+                         std::string* directory = nullptr);
 
 ACPP_COMMON_EXPORT std::string join_path(const std::string& base, const std::string& extra);
 

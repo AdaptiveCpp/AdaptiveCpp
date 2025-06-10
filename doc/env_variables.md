@@ -76,3 +76,22 @@ If `ACPP_S2_DUMP_IR_FILTER` filter is non-empty, AdaptiveCpp will only dump IR i
 Note that this can still lead to multiple JIT compilation dumps, e.g. if AdaptiveCpp generates multiple specialized kernels based on runtime information for one C++ kernel.
 
 
+## Configuration files
+
+All environment variables for the runtime (not JIT compiler) can also be set in a configuration file. This configuration file must be placed in the same directory as your program.
+
+1. First, AdaptiveCpp will attempt to read `acpp-config.cfg`.
+2. Next, it reads `acpp-config-<app-name>.cfg`, where `app-name` is the full filename of your program (including file extension if you are on a platform that uses an extension for programs). If some variable was already set from `acpp-config.cfg`, it will be overwritten.
+
+This allows users to specify a global behavior for all programs located in a directory, and special-case the behavior for individual programs using `acpp-config-<app-name>.cfg` files.
+
+When there are conflicting environment variables and entries in the config file, environment variables take precedence.
+
+The content of the configuration file is comprised of `<environment-variable>=<value>` entries, one per line.
+
+Example:
+```
+ACPP_DEBUG_LEVEL=0
+ACPP_ADAPTIVITY_LEVEL=2
+```
+

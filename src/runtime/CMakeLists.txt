@@ -240,28 +240,19 @@ if(WITH_OPENCL_BACKEND)
   FetchContent_Declare(ocl-headers
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-Headers
     GIT_TAG 265df85aec478d14a5c5880d7bb92d7dd52714ef
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
   )
-  FetchContent_GetProperties(ocl-headers)
-  if(NOT ocl-headers_POPULATED)
-    FetchContent_Populate(ocl-headers)
-    add_subdirectory(${ocl-headers_SOURCE_DIR} ${ocl-headers_BINARY_DIR} EXCLUDE_FROM_ALL)
-  endif()
+  
+  FetchContent_MakeAvailable(ocl-headers)
+  
   add_library(ocl-headers INTERFACE)
   target_include_directories(ocl-headers INTERFACE ${ocl-headers_SOURCE_DIR})
   
   FetchContent_Declare(ocl-cxx-headers
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-CLHPP
     GIT_TAG 67d100e70612341707725b6648ccca4c10b0dc31
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
   )
-  FetchContent_GetProperties(ocl-cxx-headers)
-  if(NOT ocl-cxx-headers_POPULATED)
-    FetchContent_Populate(ocl-cxx-headers)
-    add_subdirectory(${ocl-cxx-headers_SOURCE_DIR} ${ocl-cxx-headers_BINARY_DIR} EXCLUDE_FROM_ALL)
-  endif()
+  FetchContent_MakeAvailable(ocl-cxx-headers)
+  
   add_library(ocl-cxx-headers INTERFACE)
   target_include_directories(ocl-cxx-headers INTERFACE ${ocl-cxx-headers_SOURCE_DIR}/include)
 

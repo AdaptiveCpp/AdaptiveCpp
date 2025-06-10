@@ -196,8 +196,17 @@ if(WITH_SSCP_COMPILER)
         -DLLVM_DIR:PATH=${LLVM_DIR}
         -DCMAKE_INSTALL_PREFIX:PATH=${LLVMSPIRV_INSTALLDIR}
         -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}
-      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
+      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
+      INSTALL_COMMAND ""
     )
+
+    add_custom_target(InstallLLVMSpirvTranslator
+      COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv --target install
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
+    )
+
+    #install(TARGETS InstallLLVMSpirvTranslator)
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target InstallLLVMSpirvTranslator)")
 
     add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
     target_compile_definitions(llvm-to-spirv PRIVATE
@@ -213,7 +222,8 @@ if(WITH_SSCP_COMPILER)
       TOOL ptx/LLVMToPtxTool.cpp)
 
     target_compile_definitions(llvm-to-ptx PRIVATE
-      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}")
+      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
+      -DACPP_CUDA_DEVICE_LIBS_PATH="${CUDA_DEVICE_LIBS_PATH}")
   endif()
 
   if(WITH_LLVM_TO_AMDGPU_AMDHSA)

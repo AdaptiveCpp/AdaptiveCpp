@@ -11,21 +11,30 @@
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/sycl/tracer_utils.hpp"
+#include "hipSYCL/sycl/tracer_utils_internal.hpp"
 
 namespace hipsycl {
 namespace rt {
+
+std::atomic<int> runtime::counter = 0;
 
 runtime::runtime() : _dag_manager{this} {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
                      << std::endl;
 
-  Tracer_utils::initialize_tracers_from_env();
+  if (counter.load() == 0)
+    Tracer_utils::initialize_tracers_from_env();
+
+  counter.fetch_add(1);
 }
 
 runtime::~runtime() {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********" << std::endl;
 
-  Tracer_utils::finalize_tracing();
+  counter.fetch_add(-1);
+
+  if (counter.load() == 0)
+    Tracer_utils::finalize_tracing();
 }
 
 } // namespace rt

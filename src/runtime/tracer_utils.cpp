@@ -1,53 +1,46 @@
-#include <chrono>
 #include <dlfcn.h>
-#include <iostream>
-#include <list>
-#include <sstream>
-#include <unordered_map>
 
 #include "hipSYCL/sycl/tracer_utils.hpp"
+#include "hipSYCL/sycl/tracer_utils_internal.hpp"
 
-namespace Tracer_utils {
-using time_point = std::chrono::high_resolution_clock::time_point;
+extern "C" void initialize_tracer(void (*func)(tracer_start_end),
+                                  tracer_type type, void *tracer_state) {
 
-tracer_funcs tracer_state;
+  auto &state = *((Tracer_utils::tracer_funcs *)tracer_state);
 
-void initialize_tracers_from_env() {
-
-  std::list<void *> so_libraries;
-
-  if (const char *env_p = std::getenv("SYCL_TOOL_LIBRARY")) {
-    std::string path(env_p);
-    std::istringstream path_stream(path);
-
-    for (std::string single_lib; std::getline(path_stream, single_lib, ':');) {
-      // std::cout << "Library: " << single_lib << std::endl;
-
-      void *so_lib = dlopen(single_lib.c_str(), RTLD_NOW | RTLD_LOCAL);
-
-      if (so_lib) {
-        // std::cout << "found library" << std::endl;
-        so_libraries.push_back(so_lib);
-        tracer_functs_initialize_t tracer_func_initializer =
-            (tracer_functs_initialize_t)dlsym(
-                so_lib,
-                "_Z23tracer_func_initializerRN12Tracer_utils12tracer_funcsE");
-        if (tracer_func_initializer) {
-          tracer_func_initializer(tracer_state);
-        } else {
-          std::cerr << "Could not find "
-                       "void tracer_func_initializer(start_end) in "
-                       "library "
-                    << single_lib << std::endl;
-        }
-      }
-    }
+  switch (type) {
+  case SUBMIT:
+    state.submit.push_back(func);
+    break;
+  case SUBMIT_SECONDARY:
+    state.submit_secondary.push_back(func);
+    break;
+  case PARALLEL_FOR:
+    state.parallel_for.push_back(func);
+    break;
+  case PARALLEL_FOR_WORK_GROUP:
+    state.parallel_for_work_group.push_back(func);
+    break;
+  case SINGLE_TASK:
+    state.single_task.push_back(func);
+    break;
+  case MEMCPY:
+    state.memcpy.push_back(func);
+    break;
+  case WAIT:
+    state.wait.push_back(func);
+    break;
+  case MEMSET:
+    state.memset.push_back(func);
+    break;
+  case FILL:
+    state.fill.push_back(func);
+    break;
+  case COPY:
+    state.copy.push_back(func);
+    break;
+  case FINALIZE:
+    state.finalize.insert(state.finalize.begin(), func);
+    break;
   }
-}
-
-void finalize_tracing() {
-  for (auto func : tracer_state.finalize)
-    func();
-}
-
-} // namespace Tracer_utils
+};

@@ -244,6 +244,14 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     OptOutputFileName,
                                                     };
 
+  if(IsFastMath) {
+    LlcInvocation.push_back("--enable-unsafe-fp-math");
+    LlcInvocation.push_back("--enable-no-infs-fp-math");
+    LlcInvocation.push_back("--enable-no-nans-fp-math");
+    LlcInvocation.push_back("--enable-no-signed-zeros-fp-math");
+    LlcInvocation.push_back("--enable-no-trapping-fp-math");
+  }
+
 
 #ifdef __APPLE__
   std::string os_version = get_macos_version();

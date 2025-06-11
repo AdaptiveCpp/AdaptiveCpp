@@ -267,6 +267,9 @@ hip_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_work_group_range2:
     return _properties->maxGridSize[2];
     break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
+    break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(_properties->maxThreadsDim[0]) *
                                     _properties->maxGridSize[0];

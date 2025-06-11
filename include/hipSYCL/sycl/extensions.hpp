@@ -81,10 +81,7 @@
 // KHR extensions
 
 #define SYCL_KHR_DEFAULT_CONTEXT 1
-<<<<<<< HEAD
 #define SYCL_KHR_QUEUE_EMPTY_QUERY 1
-=======
->>>>>>> f445ad0abd3a614a564dc099dde7a13879ca7a7c
-#define SYCL_KHR_MAX_NUM_WORK_GROUPS 1
+#define SYCL_KHR_MAX_WORK_GROUP_QUERY 1
 
 #endif

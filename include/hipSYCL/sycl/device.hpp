@@ -315,19 +315,19 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
       rt::device_uint_property::max_compute_units);
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_num_work_groups<1>)
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<1>)
 {
   std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups0));
+      rt::device_uint_property::max_work_group_range0));
   return range<1>{size0};
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_num_work_groups<2>)
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<2>)
 {
   std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups0));
+      rt::device_uint_property::max_work_group_range0));
   std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups1));
+      rt::device_uint_property::max_work_group_range1));
   if (get_rt_device()->get_property(
       rt::device_uint_property::needs_dimension_flip))
     return range<2>{size1, size0};
@@ -335,14 +335,14 @@ HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_num_work_groups<2>)
     return range<2>{size0, size1};
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_num_work_groups<3>)
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<3>)
 {
   std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups0));
+      rt::device_uint_property::max_work_group_range0));
   std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups1));
+      rt::device_uint_property::max_work_group_range1));
   std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_num_work_groups2));
+      rt::device_uint_property::max_work_group_range2));
   if (get_rt_device()->get_property(
       rt::device_uint_property::needs_dimension_flip))
     return range<3>{size2, size1, size0};

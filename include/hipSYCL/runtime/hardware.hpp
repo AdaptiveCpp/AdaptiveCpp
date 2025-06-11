@@ -44,6 +44,7 @@ enum class device_uint_property {
   max_work_group_range0,
   max_work_group_range1,
   max_work_group_range2,
+  max_work_group_range_size,
   max_global_size0,
   max_global_size1,
   max_global_size2,

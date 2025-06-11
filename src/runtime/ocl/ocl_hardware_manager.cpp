@@ -303,6 +303,9 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
     return static_cast<std::size_t>(
         std::numeric_limits<int>::max());
     break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
+    break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(
         info_query<CL_DEVICE_MAX_WORK_ITEM_SIZES, std::vector<std::size_t>>(

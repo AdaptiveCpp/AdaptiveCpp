@@ -350,6 +350,12 @@ HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<3>)
     return range<3>{size0, size1, size2};
 }
 
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range_size)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range_size);
+}
+
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 { return 3; }
 

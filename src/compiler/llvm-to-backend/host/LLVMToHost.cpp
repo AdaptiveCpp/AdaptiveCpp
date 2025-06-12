@@ -222,7 +222,8 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   const std::string LLCPath = getLLCPath();
   const std::string LLDPath = getLLDPath();
 
-  const std::string CpuFlag = ACPP_LLC_HOST_CPU_FLAG;
+  const std::string LlcCpuFlag = ACPP_LLC_HOST_CPU_FLAG;
+  const std::string OptCpuFlag = ACPP_OPT_HOST_CPU_FLAG;
 
 
   llvm::SmallVector<llvm::StringRef, 16> OptInvocation{OptPath,
@@ -232,9 +233,11 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     InputFileName,
                                                     };
 
+  if(!OptCpuFlag.empty())
+    OptInvocation.push_back(OptCpuFlag);
+
   llvm::SmallVector<llvm::StringRef, 16> LlcInvocation{LLCPath,
                                                     "-O3",
-                                                    CpuFlag,
                                                     "-filetype=obj",
                                                     #ifndef _WIN32
                                                     "--relocation-model=pic",
@@ -243,6 +246,9 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     LlcOutputFileName,
                                                     OptOutputFileName,
                                                     };
+
+  if(!LlcCpuFlag.empty())
+    LlcInvocation.push_back(LlcCpuFlag);
 
   if(IsFastMath) {
     LlcInvocation.push_back("--enable-unsafe-fp-math");

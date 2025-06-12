@@ -301,6 +301,18 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_compute_units:
     return _props.numSlices * _props.numSubslicesPerSlice * _props.numEUsPerSubslice;
     break;
+  case device_uint_property::max_work_group_range0:
+    return _compute_props.maxGroupSizeX;
+    break;
+  case device_uint_property::max_work_group_range1:
+    return _compute_props.maxGroupSizeY;
+    break;
+  case device_uint_property::max_work_group_range2:
+    return _compute_props.maxGroupSizeZ;
+    break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
+    break;
   case device_uint_property::max_global_size0:
     return _compute_props.maxGroupSizeX * _compute_props.maxGroupCountX;
     break;

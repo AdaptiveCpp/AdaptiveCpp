@@ -20,6 +20,7 @@
 #include <CL/opencl.hpp>
 #include <cstddef>
 #include <array>
+// #include <limits>
 #include <optional>
 
 
@@ -289,6 +290,21 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
   case device_uint_property::max_compute_units:
     return static_cast<std::size_t>(
         info_query<CL_DEVICE_MAX_COMPUTE_UNITS, cl_uint>(_dev));
+    break;
+  case device_uint_property::max_work_group_range0:
+    return static_cast<std::size_t>(
+        std::numeric_limits<int>::max());
+    break;
+  case device_uint_property::max_work_group_range1:
+    return static_cast<std::size_t>(
+        std::numeric_limits<int>::max());
+    break;
+  case device_uint_property::max_work_group_range2:
+    return static_cast<std::size_t>(
+        std::numeric_limits<int>::max());
+    break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(

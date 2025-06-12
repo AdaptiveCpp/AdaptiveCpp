@@ -16,6 +16,8 @@
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/info/device.hpp"
 #include "hipSYCL/sycl/jit.hpp"
+#include "hipSYCL/sycl/libkernel/atomic_builtins.hpp"
+#include "hipSYCL/sycl/libkernel/group_functions.hpp"
 #include <cstddef>
 
 
@@ -119,6 +121,7 @@ private:
 
 class abortable_data_streamer {
 public:
+  
   abortable_data_streamer(const sycl::device &dev, std::size_t problem_size,
                 std::size_t group_size)
       : _problem_size{problem_size}, _group_size{group_size} {
@@ -147,15 +150,51 @@ public:
   // as possible.
   // 
   // F is a callable of signature bool(sycl::id<1>).
-  template <class F>
+  //
+  // flag must have been initialized with a value that converts to "false".
+  // It will be set to true, if an early exit happened.
+  template <class F, class Early_exit_flag_type>
   static void run(std::size_t problem_size, sycl::nd_item<1> idx,
-                  F &&f) noexcept {
+                  Early_exit_flag_type *flag, F &&f) noexcept {
 
+    std::size_t gid = idx.get_global_id(0);
+    const int group_size = idx.get_local_range(0);
+    const std::size_t num_groups = (problem_size + group_size - 1) / group_size;
+    const int lid = idx.get_local_id(0);
+    const std::size_t group_id = idx.get_group(0);
 
-    const std::size_t gid = idx.get_global_id(0);
-    for (std::size_t i = gid; i < problem_size; i += idx.get_global_range(0)) {
-      if(f(sycl::id<1>{i}))
+    for (std::size_t i = group_id; i < num_groups;
+         i += idx.get_group_range(0)) {
+      // abort group if flag is set
+      bool exit_signal_received = false;
+      if(lid == 0) {
+        // group leader obtains value and broadcasts to group
+        Early_exit_flag_type exit_flag = sycl::detail::__acpp_atomic_load<
+            sycl::access::address_space::global_space>(
+            flag, sycl::memory_order_relaxed, sycl::memory_scope_device);
+        exit_signal_received = static_cast<bool>(exit_flag);
+      }
+      exit_signal_received =
+          sycl::group_broadcast(idx.get_group(), exit_signal_received);
+      
+      if(exit_signal_received)
         return;
+    
+      bool should_exit = false;
+      
+      if(gid < problem_size)
+        should_exit = f(sycl::id<1>{gid});
+
+      if(sycl::any_of_group(idx.get_group(), should_exit)) {
+        if(idx.get_local_id(0) == 0) {
+          sycl::detail::__acpp_atomic_store<
+              sycl::access::address_space::global_space>(
+              flag, 1, sycl::memory_order_relaxed, sycl::memory_scope_device);
+        }
+        return;
+      }
+      
+      gid += idx.get_global_range(0);
     }
   };
 

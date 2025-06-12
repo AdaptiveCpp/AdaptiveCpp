@@ -48,7 +48,7 @@ ACPP_COMMON_EXPORT std::vector<std::string> list_regular_files(const std::string
 ACPP_COMMON_EXPORT std::vector<std::string> list_regular_files(const std::string &directory,
                                             const std::string &extension,
                                             std::error_code &EC);
-
+ACPP_COMMON_EXPORT std::string filename(const std::string& path);
 /// Writes data atomically to filename
 ACPP_COMMON_EXPORT bool atomic_write(const std::string& filename, const std::string& data);
 

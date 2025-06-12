@@ -179,7 +179,8 @@ public:
       return;
 
     for(int i = 0; i < work_per_item; ++i) {
-      std::size_t effective_gid = gid + i * dispatched_range;
+      std::size_t effective_gid =
+          get_effective_gid(gid, i, work_per_item, dispatched_range);
       if(effective_gid < problem_size) {
         has_exited = has_exited || f(sycl::id<1>{effective_gid});
       }
@@ -194,6 +195,47 @@ public:
   }
 
 private:
+  static std::size_t get_effective_gid(std::size_t gid, std::size_t batch_id,
+                                std::size_t work_per_item,
+                                std::size_t dispatched_range) {
+    std::size_t result = 0;
+    __acpp_if_target_sscp(
+        namespace jit = sycl::AdaptiveCpp_jit; jit::compile_if_else(
+            jit::reflect<jit::reflection_query::compiler_backend>() ==
+                jit::compiler_backend::host,
+            [&]() {
+              result = get_effective_gid_host(gid, batch_id, work_per_item,
+                                              dispatched_range);
+            },
+            [&]() {
+              result = get_effective_gid_device(gid, batch_id, work_per_item,
+                                                dispatched_range);
+            });
+
+        return result;
+    );
+    __acpp_if_target_device(
+      result = get_effective_gid_device(gid, batch_id, work_per_item, dispatched_range);
+    );
+    __acpp_if_target_host(
+      result = get_effective_gid_host(gid, batch_id, work_per_item, dispatched_range);
+    );
+
+    return result;
+  }
+
+  static std::size_t get_effective_gid_device(std::size_t gid, std::size_t batch_id,
+                                       std::size_t work_per_item,
+                                       std::size_t dispatched_range) {
+    return gid + batch_id * dispatched_range;
+  }
+
+  static std::size_t get_effective_gid_host(std::size_t gid, std::size_t batch_id,
+                                     std::size_t work_per_item,
+                                     std::size_t dispatched_range) {
+    return gid * work_per_item + batch_id;
+  }
+
   std::size_t _num_groups;
   std::size_t _problem_size;
   std::size_t _group_size;

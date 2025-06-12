@@ -130,7 +130,7 @@ public:
 
     std::size_t desired_num_groups = 0;
     desired_num_groups =
-        dev.get_info<sycl::info::device::max_compute_units>() * 4;
+        dev.get_info<sycl::info::device::max_compute_units>() * 8;
 
     _num_groups = std::min(default_num_groups, desired_num_groups);
   }
@@ -158,45 +158,40 @@ public:
                   Early_exit_flag_type *flag, F &&f) noexcept {
 
     std::size_t gid = idx.get_global_id(0);
-    const int group_size = idx.get_local_range(0);
-    const std::size_t num_groups = (problem_size + group_size - 1) / group_size;
+    const std::size_t dispatched_range = idx.get_global_range(0);
+    const std::size_t work_per_item =
+        (problem_size + dispatched_range - 1) / dispatched_range;
     const int lid = idx.get_local_id(0);
-    const std::size_t group_id = idx.get_group(0);
 
-    for (std::size_t i = group_id; i < num_groups;
-         i += idx.get_group_range(0)) {
-      // abort group if flag is set
-      bool exit_signal_received = false;
-      if(lid == 0) {
-        // group leader obtains value and broadcasts to group
-        Early_exit_flag_type exit_flag = sycl::detail::__acpp_atomic_load<
-            sycl::access::address_space::global_space>(
-            flag, sycl::memory_order_relaxed, sycl::memory_scope_device);
-        exit_signal_received = static_cast<bool>(exit_flag);
-      }
-      exit_signal_received =
-          sycl::group_broadcast(idx.get_group(), exit_signal_received);
-      
-      if(exit_signal_received)
-        return;
-    
-      bool should_exit = false;
-      
-      if(gid < problem_size)
-        should_exit = f(sycl::id<1>{gid});
+    bool has_exited = false;
 
-      if(sycl::any_of_group(idx.get_group(), should_exit)) {
-        if(idx.get_local_id(0) == 0) {
-          sycl::detail::__acpp_atomic_store<
-              sycl::access::address_space::global_space>(
-              flag, 1, sycl::memory_order_relaxed, sycl::memory_scope_device);
-        }
-        return;
-      }
-      
-      gid += idx.get_global_range(0);
+    if(lid == 0) {
+      // group leader obtains value and broadcasts to group
+      Early_exit_flag_type exit_flag = sycl::detail::__acpp_atomic_load<
+          sycl::access::address_space::global_space>(
+          flag, sycl::memory_order_relaxed, sycl::memory_scope_device);
+      has_exited = static_cast<bool>(exit_flag);
     }
-  };
+    has_exited =
+          sycl::group_broadcast(idx.get_group(), has_exited);
+    // abort computation if exit condition met
+    if(has_exited)
+      return;
+
+    for(int i = 0; i < work_per_item; ++i) {
+      std::size_t effective_gid = gid + i * dispatched_range;
+      if(effective_gid < problem_size) {
+        has_exited = has_exited || f(sycl::id<1>{effective_gid});
+      }
+    }
+
+    has_exited = sycl::any_of_group(idx.get_group(), has_exited);
+    if(has_exited && lid == 0) {
+      sycl::detail::__acpp_atomic_store<
+            sycl::access::address_space::global_space>(
+            flag, 1, sycl::memory_order_relaxed, sycl::memory_scope_device);
+    }
+  }
 
 private:
   std::size_t _num_groups;

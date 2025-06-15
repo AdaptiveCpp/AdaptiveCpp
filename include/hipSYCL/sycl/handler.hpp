@@ -56,6 +56,7 @@
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
 #include "tracer_utils.hpp"
+#include "tracer_utils_internal.hpp"
 
 
 
@@ -277,13 +278,13 @@ public:
   void single_task(KernelType kernelFunc) {
 
     for (auto func : Tracer_utils::tracer_state.single_task)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
         sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
 
     for (auto func : Tracer_utils::tracer_state.single_task)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -374,7 +375,7 @@ public:
                     const ReductionsAndKernel &...redu_kernel) {
 
     for (auto func : Tracer_utils::tracer_state.parallel_for)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
@@ -386,7 +387,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
     for (auto func : Tracer_utils::tracer_state.parallel_for)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   // Hierarchical kernel dispatch API
@@ -411,7 +412,7 @@ public:
                                const ReductionsAndKernel &...redu_kernel) {
 
     for (auto func : Tracer_utils::tracer_state.parallel_for_work_group)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
       this->submit_kernel<KernelName,
@@ -422,7 +423,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
     for (auto func : Tracer_utils::tracer_state.parallel_for_work_group)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   // Scoped parallelism API
@@ -462,12 +463,12 @@ public:
   void copy(accessor<T, dim, mode, tgt, variant> src,
             shared_ptr_class<T> dest) {
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     copy_ptr(src, dest);
 
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -475,24 +476,24 @@ public:
   void copy(shared_ptr_class<T> src,
             accessor<T, dim, mode, tgt, variant> dest) {
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     copy_ptr(src, dest);
 
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src, T *dest) {
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     copy_ptr(src, dest);
 
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -500,12 +501,12 @@ public:
   void copy(const T *src, accessor<T, dim, mode, tgt, variant> dest) {
 
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     copy_ptr(src, dest);
 
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   template <typename T, int dim, access::mode srcMode, access::mode dstMode,
@@ -515,7 +516,7 @@ public:
             accessor<T, dim, dstMode, destTgt, VariantDest> dest) {
 
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
@@ -557,7 +558,7 @@ public:
     _command_group_nodes.push_back(node);
 
     for (auto func : Tracer_utils::tracer_state.copy)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -587,7 +588,7 @@ public:
             accessor_variant variant>
   void fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
     for (auto func : Tracer_utils::tracer_state.fill)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     static_assert(mode != access::mode::read,
                   "Filling read-only accessors is not allowed.");
@@ -600,7 +601,7 @@ public:
         detail::kernels::fill_kernel{dest, src});
 
     for (auto func : Tracer_utils::tracer_state.fill)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   // ------ USM functions ------
@@ -608,7 +609,7 @@ public:
   void memcpy(void *dest, const void *src, std::size_t num_bytes) {
 
     for (auto func : Tracer_utils::tracer_state.memcpy)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -656,7 +657,7 @@ public:
     _command_group_nodes.push_back(node);
 
     for (auto func : Tracer_utils::tracer_state.memcpy)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   template <typename T> void copy(const T *src, T *dest, std::size_t count) {
@@ -667,7 +668,7 @@ public:
   template <class T> void fill(void *ptr, const T &pattern, std::size_t count) {
 
     for (auto func : Tracer_utils::tracer_state.fill)
-      func(Tracer_utils::start_end::START);
+      func(START);
     // For special cases we can map this to a potentially more low-level memset
     if (sizeof(T) == 1) {
       unsigned char val = *reinterpret_cast<const unsigned char *>(&pattern);
@@ -688,17 +689,17 @@ public:
     }
 
     for (auto func : Tracer_utils::tracer_state.fill)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
 
     //  for (int i = 0; i < Tracer_utils::size; i++)
     //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
-    //                                        Tracer_utils::start_end::START);
+    //                                        START);
     //
     for (auto func : Tracer_utils::tracer_state.memset)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -713,11 +714,11 @@ public:
     _command_group_nodes.push_back(node);
 
     for (auto func : Tracer_utils::tracer_state.memset)
-      func(Tracer_utils::start_end::END);
+      func(END);
 
     //  for (int i = 0; i < Tracer_utils::size; i++)
     //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
-    //                                        Tracer_utils::start_end::END);
+    //                                        END);
   }
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {

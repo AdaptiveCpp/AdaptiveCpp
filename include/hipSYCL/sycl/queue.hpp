@@ -23,7 +23,8 @@
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/sycl/backend.hpp"
-#include "hipSYCL/sycl/tracer_utils.hpp"
+#include "tracer_utils.hpp"
+#include "tracer_utils_internal.hpp"
 #include "types.hpp"
 
 #include "context.hpp"
@@ -332,7 +333,7 @@ public:
   void wait() {
 
     for (auto func : Tracer_utils::tracer_state.wait)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     if (_impl->is_in_order) {
       if (_impl->needs_in_order_emulation) {
@@ -370,7 +371,7 @@ public:
     }
 
     for (auto func : Tracer_utils::tracer_state.wait)
-      func(Tracer_utils::start_end::END);
+      func(END);
   }
 
   void wait_and_throw() {
@@ -385,7 +386,7 @@ public:
   template <typename T> event submit(const property_list &prop_list, T cgf) {
 
     for (auto func : Tracer_utils::tracer_state.submit)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     std::lock_guard<std::mutex> lock{_impl->lock};
 
@@ -450,7 +451,7 @@ public:
     rt::dag_node_ptr node = execute_submission(cgf, cgh);
 
     for (auto func : Tracer_utils::tracer_state.submit)
-      func(Tracer_utils::start_end::END);
+      func(END);
 
     return event{node, _impl->handler};
   }
@@ -464,7 +465,7 @@ public:
                const property_list &prop_list = {}) {
 
     for (auto func : Tracer_utils::tracer_state.submit_secondary)
-      func(Tracer_utils::start_end::START);
+      func(START);
 
     try {
 
@@ -492,14 +493,14 @@ public:
 
       if (!submission_failed) {
         for (auto func : Tracer_utils::tracer_state.submit_secondary)
-          func(Tracer_utils::start_end::END);
+          func(END);
         return evt;
       } else {
 
         auto evt = secondaryQueue.submit(prop_list, cgf);
 
         for (auto func : Tracer_utils::tracer_state.submit_secondary)
-          func(Tracer_utils::start_end::END);
+          func(END);
 
         return evt;
       }
@@ -508,7 +509,7 @@ public:
       auto evt = secondaryQueue.submit(prop_list, cgf);
 
       for (auto func : Tracer_utils::tracer_state.submit_secondary)
-        func(Tracer_utils::start_end::END);
+        func(END);
 
       return evt;
     }

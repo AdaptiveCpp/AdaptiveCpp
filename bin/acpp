@@ -1926,6 +1926,7 @@ class compiler:
       "-L"+self._acpp_lib_path,
       "-lacpp-rt",
       "-lacpp-common"
+      "-lsycl_tracer"
     ]
 
     if sys.platform == "darwin":

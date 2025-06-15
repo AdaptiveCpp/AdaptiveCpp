@@ -22,18 +22,19 @@ runtime::runtime() : _dag_manager{this} {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
                      << std::endl;
 
-  if (counter.load() == 0)
+  int expected = 0;
+  if (counter.compare_exchange_strong(expected, 1))
     Tracer_utils::initialize_tracers_from_env();
-
-  counter.fetch_add(1);
+  else
+    counter.fetch_add(1);
 }
 
 runtime::~runtime() {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********" << std::endl;
 
-  counter.fetch_add(-1);
+  int num = counter.fetch_add(-1) - 1;
 
-  if (counter.load() == 0)
+  if (num == 0)
     Tracer_utils::finalize_tracing();
 }
 

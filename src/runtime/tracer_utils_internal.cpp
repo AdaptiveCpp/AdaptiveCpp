@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstddef>
 #include <dlfcn.h>
 #include <iostream>
 #include <list>
@@ -424,12 +425,34 @@ void set_tracer_equal_num(tracer_funcs &tracer_state) {
               << std::endl;
   }
 #endif
+
+  if (tracer_state.finalize.size() == tracer_state.size - 1) {
+    tracer_state.finalize.push_back(nullptr);
+  }
+
+#ifdef DEBUG_TRACER_LEVEL
+  if (tracer_state.finalize.size() < tracer_state.size - 1) {
+    std::cout << "Error: Number of submit start function pointers smaller "
+                 "than number tracer files"
+              << std::endl;
+  }
+#endif
 }
 
 void finalize_tracing() {
-  for (auto func : tracer_state.finalize)
-    func(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-         nullptr, nullptr);
+  for (int i = Tracer_utils::tracer_state.size - 1; i >= 0; i--)
+    if (Tracer_utils::tracer_state.finalize[i] != nullptr)
+      Tracer_utils::tracer_state.finalize[i](
+          Tracer_utils::tracer_state.submit_state[i],
+          Tracer_utils::tracer_state.submit_secondary_state[i],
+          Tracer_utils::tracer_state.parallel_for_state[i],
+          Tracer_utils::tracer_state.parallel_for_work_group_state[i],
+          Tracer_utils::tracer_state.single_task_state[i],
+          Tracer_utils::tracer_state.memcpy_state[i],
+          Tracer_utils::tracer_state.wait_state[i],
+          Tracer_utils::tracer_state.memset_state[i],
+          Tracer_utils::tracer_state.fill_state[i],
+          Tracer_utils::tracer_state.copy_state[i]);
 }
 
 } // namespace Tracer_utils

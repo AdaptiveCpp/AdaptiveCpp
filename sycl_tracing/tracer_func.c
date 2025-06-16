@@ -1,23 +1,33 @@
+#include "hipSYCL/sycl/tracer_utils.hpp"
+#include <iostream>
+#include <stdlib.h>
 
-#include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-enum start_end {
-  START, // 0
-  END    // 1
+struct submission_state_t {
+  int num_submissions_start = 0;
+  int num_submissions_end = 0;
 };
 
-enum tracer_type {
-  SUBMIT,
-  SUBMIT_SECONDARY,
-  PARALLEL_FOR,
-  PARALLEL_FOR_WORK_GROUP,
-  SINGLE_TASK,
-  MEMCPY,
-  MEMSET
-};
-
-void tracer(enum tracer_type trace, enum start_end se_val) {
-  printf("Tracer function called\n");
-  printf("Tracer type: %d\n", trace);
-  printf("Start/End: %d\n", se_val);
+void submission_start(void *submission_state) {
+  ((submission_state_t *)submission_state)->num_submissions_start++;
+  std::cout << "Hello World from the submission start function!" << std::endl;
 }
+
+void submission_end(void *submission_state) {
+  ((submission_state_t *)submission_state)->num_submissions_end++;
+  std::cout << "Hello World from the submission end function!" << std::endl;
+}
+
+void init_register() {
+  submission_state_t *submission_state = new submission_state_t;
+  init_submit_state(submission_state);
+  init_submit_start(submission_start);
+  init_submit_end(submission_end);
+}
+
+#ifdef __cplusplus
+}
+#endif /* ifdef __cplusplus */

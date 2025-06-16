@@ -21,13 +21,13 @@ int main() {
   // Tracer_utils::initialize_tracer(cool_tracer);
 
   q.submit([&](sycl::handler &h) {
-    h.single_task([=]() {
-      int i = 0;
-      for (int j = 0; j < 100; j++) {
-        i++;
-      }
-    });
-  });
+     h.single_task([=]() {
+       int i = 0;
+       for (int j = 0; j < 100; j++) {
+         i++;
+       }
+     });
+   }).wait();
 
   std::cout << "Hello World!" << std::endl;
 }

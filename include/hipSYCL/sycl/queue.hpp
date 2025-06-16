@@ -333,8 +333,9 @@ public:
   void wait() {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.wait_start[i](
-          Tracer_utils::tracer_state.wait_state[i]);
+      if (Tracer_utils::tracer_state.wait_start[i] != nullptr)
+        Tracer_utils::tracer_state.wait_start[i](
+            Tracer_utils::tracer_state.wait_state[i]);
     }
 
     if (_impl->is_in_order) {
@@ -373,8 +374,9 @@ public:
     }
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.wait_end[i](
-          Tracer_utils::tracer_state.wait_state[i]);
+      if (Tracer_utils::tracer_state.wait_end[i] != nullptr)
+        Tracer_utils::tracer_state.wait_end[i](
+            Tracer_utils::tracer_state.wait_state[i]);
     }
   }
 
@@ -390,8 +392,9 @@ public:
   template <typename T> event submit(const property_list &prop_list, T cgf) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.submit_start[i](
-          Tracer_utils::tracer_state.wait_state[i]);
+      if (Tracer_utils::tracer_state.submit_start[i] != nullptr)
+        Tracer_utils::tracer_state.submit_start[i](
+            Tracer_utils::tracer_state.submit_state[i]);
     }
 
     std::lock_guard<std::mutex> lock{_impl->lock};
@@ -457,8 +460,9 @@ public:
     rt::dag_node_ptr node = execute_submission(cgf, cgh);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.submit_end[i](
-          Tracer_utils::tracer_state.wait_state[i]);
+      if (Tracer_utils::tracer_state.submit_end[i] != nullptr)
+        Tracer_utils::tracer_state.submit_end[i](
+            Tracer_utils::tracer_state.submit_state[i]);
     }
 
     return event{node, _impl->handler};
@@ -473,8 +477,9 @@ public:
                const property_list &prop_list = {}) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.submit_secondary_start[i](
-          Tracer_utils::tracer_state.wait_state[i]);
+      if (Tracer_utils::tracer_state.submit_secondary_start[i] != nullptr)
+        Tracer_utils::tracer_state.submit_secondary_start[i](
+            Tracer_utils::tracer_state.wait_state[i]);
     }
 
     try {
@@ -504,8 +509,9 @@ public:
       if (!submission_failed) {
 
         for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-          Tracer_utils::tracer_state.submit_secondary_end[i](
-              Tracer_utils::tracer_state.wait_state[i]);
+          if (Tracer_utils::tracer_state.submit_secondary_end[i] != nullptr)
+            Tracer_utils::tracer_state.submit_secondary_end[i](
+                Tracer_utils::tracer_state.submit_secondary_state[i]);
         }
 
         return evt;
@@ -514,8 +520,9 @@ public:
         auto evt = secondaryQueue.submit(prop_list, cgf);
 
         for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-          Tracer_utils::tracer_state.submit_secondary_end[i](
-              Tracer_utils::tracer_state.wait_state[i]);
+          if (Tracer_utils::tracer_state.submit_secondary_end[i] != nullptr)
+            Tracer_utils::tracer_state.submit_secondary_end[i](
+                Tracer_utils::tracer_state.submit_secondary_state[i]);
         }
 
         return evt;
@@ -525,8 +532,9 @@ public:
       auto evt = secondaryQueue.submit(prop_list, cgf);
 
       for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-        Tracer_utils::tracer_state.submit_secondary_end[i](
-            Tracer_utils::tracer_state.wait_state[i]);
+        if (Tracer_utils::tracer_state.submit_secondary_end[i] != nullptr)
+          Tracer_utils::tracer_state.submit_secondary_end[i](
+              Tracer_utils::tracer_state.wait_state[i]);
       }
 
       return evt;

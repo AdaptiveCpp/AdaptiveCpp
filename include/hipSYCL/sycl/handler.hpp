@@ -278,16 +278,19 @@ public:
   void single_task(KernelType kernelFunc) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.single_task_start[i](
-          Tracer_utils::tracer_state.single_task_state[i]);
+
+      if (Tracer_utils::tracer_state.single_task_start[i] != nullptr)
+        Tracer_utils::tracer_state.single_task_start[i](
+            Tracer_utils::tracer_state.single_task_state[i]);
     }
 
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
         sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.single_task_end[i](
-          Tracer_utils::tracer_state.single_task_state[i]);
+      if (Tracer_utils::tracer_state.single_task_end[i] != nullptr)
+        Tracer_utils::tracer_state.single_task_end[i](
+            Tracer_utils::tracer_state.single_task_state[i]);
     }
   }
 
@@ -298,6 +301,11 @@ public:
 
     if(numWorkItems.size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_start[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
+    }
 
     else {
       auto invoker = [&](auto&& kernel, auto&&... reductions){
@@ -308,6 +316,12 @@ public:
       };
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_end[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
     }
   }
 
@@ -318,6 +332,11 @@ public:
 
     if(numWorkItems == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_start[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
+    }
 
     else {
       auto invoker = [&](auto&& kernel, auto&&... reductions){
@@ -328,6 +347,12 @@ public:
       };
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_end[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
     }
   }
 
@@ -339,6 +364,11 @@ public:
 
     if(numWorkItems.size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_start[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
+    }
 
     else {
       auto invoker = [&](auto&& kernel, auto&& ... reductions) {
@@ -349,6 +379,12 @@ public:
       };
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_end[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
     }
   }
 
@@ -360,6 +396,11 @@ public:
 
     if(numWorkItems == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_start[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
+    }
 
     else {
       auto invoker = [&](auto&& kernel, auto&& ... reductions) {
@@ -370,6 +411,12 @@ public:
       };
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_end[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
     }
   }
 
@@ -379,8 +426,9 @@ public:
                     const ReductionsAndKernel &...redu_kernel) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.parallel_for_start[i](
-          Tracer_utils::tracer_state.parallel_for_state[i]);
+      if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_start[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
     }
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
@@ -393,8 +441,9 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.parallel_for_end[i](
-          Tracer_utils::tracer_state.parallel_for_state[i]);
+      if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_end[i](
+            Tracer_utils::tracer_state.parallel_for_state[i]);
     }
   }
 
@@ -420,8 +469,10 @@ public:
                                const ReductionsAndKernel &...redu_kernel) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.parallel_for_work_group_start[i](
-          Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
+      if (Tracer_utils::tracer_state.parallel_for_work_group_start[i] !=
+          nullptr)
+        Tracer_utils::tracer_state.parallel_for_work_group_start[i](
+            Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
     }
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
@@ -433,8 +484,9 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.parallel_for_work_group_end[i](
-          Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
+      if (Tracer_utils::tracer_state.parallel_for_work_group_end[i] != nullptr)
+        Tracer_utils::tracer_state.parallel_for_work_group_end[i](
+            Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
     }
   }
 
@@ -476,15 +528,17 @@ public:
             shared_ptr_class<T> dest) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_start[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
+        Tracer_utils::tracer_state.copy_start[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_end[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
+        Tracer_utils::tracer_state.copy_end[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
   }
 
@@ -494,15 +548,17 @@ public:
             accessor<T, dim, mode, tgt, variant> dest) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_start[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
+        Tracer_utils::tracer_state.copy_start[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_end[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
+        Tracer_utils::tracer_state.copy_end[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
   }
 
@@ -511,15 +567,17 @@ public:
   void copy(accessor<T, dim, mode, tgt, variant> src, T *dest) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_start[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
+        Tracer_utils::tracer_state.copy_start[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_end[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
+        Tracer_utils::tracer_state.copy_end[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
   }
 
@@ -528,15 +586,17 @@ public:
   void copy(const T *src, accessor<T, dim, mode, tgt, variant> dest) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_start[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
+        Tracer_utils::tracer_state.copy_start[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_end[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
+        Tracer_utils::tracer_state.copy_end[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
   }
 
@@ -547,8 +607,9 @@ public:
             accessor<T, dim, dstMode, destTgt, VariantDest> dest) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_start[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
+        Tracer_utils::tracer_state.copy_start[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
 
     validate_copy_src_accessor(src);
@@ -591,8 +652,9 @@ public:
     _command_group_nodes.push_back(node);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.copy_end[i](
-          Tracer_utils::tracer_state.copy_state[i]);
+      if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
+        Tracer_utils::tracer_state.copy_end[i](
+            Tracer_utils::tracer_state.copy_state[i]);
     }
   }
 
@@ -624,8 +686,9 @@ public:
   void fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.fill_start[i](
-          Tracer_utils::tracer_state.fill_state[i]);
+      if (Tracer_utils::tracer_state.fill_start[i] != nullptr)
+        Tracer_utils::tracer_state.fill_start[i](
+            Tracer_utils::tracer_state.fill_state[i]);
     }
 
     static_assert(mode != access::mode::read,
@@ -639,8 +702,9 @@ public:
         detail::kernels::fill_kernel{dest, src});
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.fill_end[i](
-          Tracer_utils::tracer_state.fill_state[i]);
+      if (Tracer_utils::tracer_state.fill_end[i] != nullptr)
+        Tracer_utils::tracer_state.fill_end[i](
+            Tracer_utils::tracer_state.fill_state[i]);
     }
   }
 
@@ -649,8 +713,9 @@ public:
   void memcpy(void *dest, const void *src, std::size_t num_bytes) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.memcpy_start[i](
-          Tracer_utils::tracer_state.memcpy_state[i]);
+      if (Tracer_utils::tracer_state.memcpy_start[i] != nullptr)
+        Tracer_utils::tracer_state.memcpy_start[i](
+            Tracer_utils::tracer_state.memcpy_state[i]);
     }
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
@@ -699,8 +764,9 @@ public:
     _command_group_nodes.push_back(node);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.memcpy_end[i](
-          Tracer_utils::tracer_state.memcpy_state[i]);
+      if (Tracer_utils::tracer_state.memcpy_end[i] != nullptr)
+        Tracer_utils::tracer_state.memcpy_end[i](
+            Tracer_utils::tracer_state.memcpy_state[i]);
     }
   }
 
@@ -712,8 +778,9 @@ public:
   template <class T> void fill(void *ptr, const T &pattern, std::size_t count) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.fill_start[i](
-          Tracer_utils::tracer_state.fill_state[i]);
+      if (Tracer_utils::tracer_state.fill_start[i] != nullptr)
+        Tracer_utils::tracer_state.fill_start[i](
+            Tracer_utils::tracer_state.fill_state[i]);
     }
     // For special cases we can map this to a potentially more low-level memset
     if (sizeof(T) == 1) {
@@ -735,16 +802,18 @@ public:
     }
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.fill_end[i](
-          Tracer_utils::tracer_state.fill_state[i]);
+      if (Tracer_utils::tracer_state.fill_end[i] != nullptr)
+        Tracer_utils::tracer_state.fill_end[i](
+            Tracer_utils::tracer_state.fill_state[i]);
     }
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.memset_start[i](
-          Tracer_utils::tracer_state.memset_state[i]);
+      if (Tracer_utils::tracer_state.memset_start[i] != nullptr)
+        Tracer_utils::tracer_state.memset_start[i](
+            Tracer_utils::tracer_state.memset_state[i]);
     }
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
@@ -760,8 +829,9 @@ public:
     _command_group_nodes.push_back(node);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      Tracer_utils::tracer_state.memset_start[i](
-          Tracer_utils::tracer_state.memset_state[i]);
+      if (Tracer_utils::tracer_state.memset_end[i] != nullptr)
+        Tracer_utils::tracer_state.memset_end[i](
+            Tracer_utils::tracer_state.memset_state[i]);
     }
   }
 

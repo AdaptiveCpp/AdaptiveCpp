@@ -23,6 +23,7 @@
 #include <hipSYCL/algorithms/util/allocation_cache.hpp>
 #include <hipSYCL/sycl/queue.hpp>
 #include <hipSYCL/sycl/device.hpp>
+#include <hipSYCL/sycl/platform.hpp>
 #include <hipSYCL/sycl/context.hpp>
 #include <hipSYCL/sycl/usm.hpp>
 #include <hipSYCL/sycl/usm_query.hpp>
@@ -57,6 +58,12 @@ inline sycl::queue construct_default_queue() {
         hipsycl::sycl::property::queue::AdaptiveCpp_coarse_grained_events{}}};
 }
 
+inline sycl::queue construct_queue(const sycl::device& dev) {
+  return sycl::queue{dev, hipsycl::sycl::property_list{
+        hipsycl::sycl::property::queue::in_order{},
+        hipsycl::sycl::property::queue::AdaptiveCpp_coarse_grained_events{}}};
+}
+
 class stdpar_tls_runtime {
 private:
   stdpar_tls_runtime()
@@ -72,6 +79,14 @@ private:
                   ->has(rt::device_support_aspect::
                             work_item_independent_forward_progress))
             _has_independent_work_item_forward_progress = true;
+#ifdef ACPP_STDPAR_ENABLE_AUTO_MULTIDEVICE
+          _loadbalance_queues.push_back(_queue);
+          for(auto& d : _queue.get_device().get_platform().get_devices()) {
+            if(d != _queue.get_device()) {
+              _loadbalance_queues.push_back(construct_queue(d));
+            }
+          }
+#endif
         }
 
   ~stdpar_tls_runtime() {
@@ -80,7 +95,12 @@ private:
     _host_scratch_cache.purge();
   }
 
+  // main queue for dispatching work
   sycl::queue _queue;
+  // load-balancing queues if automatic multi-device mode is enabled.
+  // also includes the main queue.
+  std::vector<sycl::queue, libc_allocator<sycl::queue>> _loadbalance_queues;
+
   algorithms::util::allocation_cache _device_scratch_cache;
   algorithms::util::allocation_cache _shared_scratch_cache;
   algorithms::util::allocation_cache _host_scratch_cache;
@@ -109,6 +129,12 @@ public:
     return _offload_db;
   }
   
+  void wait() {
+    for(auto& q : _loadbalance_queues) {
+      q.wait();
+    }
+  }
+
   sycl::queue& get_queue() {
     return _queue;
   }

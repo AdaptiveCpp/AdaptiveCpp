@@ -29,6 +29,45 @@ enum tracer_type {
 
 void initialize_tracer(void (*func)(tracer_start_end), tracer_type, void *);
 
+typedef void (*tracer_function_t)(void *state);
+typedef void (*finalizer_function_t)(void *, void *, void *, void *, void *,
+                                     void *, void *, void *, void *, void *);
+
+void init_submit_state(void *usr_state);
+void init_submit_secondary_state(void *usr_state);
+void init_parallel_for_state(void *usr_state);
+void init_parallel_for_work_group_state(void *usr_state);
+void init_single_task_state(void *usr_state);
+void init_memcpy_state(void *usr_state);
+void init_wait_state(void *usr_state);
+void init_memset_state(void *usr_state);
+void init_fill_state(void *usr_state);
+void init_copy_state(void *usr_state);
+
+void init_submit_start(tracer_function_t);
+void init_submit_secondary_start(tracer_function_t);
+void init_parallel_for_start(tracer_function_t);
+void init_parallel_for_work_group_start(tracer_function_t);
+void init_single_task_start(tracer_function_t);
+void init_memcpy_start(tracer_function_t);
+void init_wait_start(tracer_function_t);
+void init_memset_start(tracer_function_t);
+void init_fill_start(tracer_function_t);
+void init_copy_start(tracer_function_t);
+
+void init_submit_end(tracer_function_t);
+void init_submit_secondary_end(tracer_function_t);
+void init_parallel_for_end(tracer_function_t);
+void init_parallel_for_work_group_end(tracer_function_t);
+void init_single_task_end(tracer_function_t);
+void init_memcpy_end(tracer_function_t);
+void init_wait_end(tracer_function_t);
+void init_memset_end(tracer_function_t);
+void init_fill_end(tracer_function_t);
+void init_copy_end(tracer_function_t);
+
+void init_finalizer(finalizer_function_t);
+
 #ifdef __cplusplus
 }
 #endif

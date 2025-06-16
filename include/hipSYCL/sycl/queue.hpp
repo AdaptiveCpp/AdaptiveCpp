@@ -332,8 +332,10 @@ public:
 
   void wait() {
 
-    for (auto func : Tracer_utils::tracer_state.wait)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.wait_start[i](
+          Tracer_utils::tracer_state.wait_state[i]);
+    }
 
     if (_impl->is_in_order) {
       if (_impl->needs_in_order_emulation) {
@@ -370,8 +372,10 @@ public:
       _impl->requires_runtime.get()->dag().wait(_impl->node_group_id);
     }
 
-    for (auto func : Tracer_utils::tracer_state.wait)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.wait_end[i](
+          Tracer_utils::tracer_state.wait_state[i]);
+    }
   }
 
   void wait_and_throw() {
@@ -385,8 +389,10 @@ public:
 
   template <typename T> event submit(const property_list &prop_list, T cgf) {
 
-    for (auto func : Tracer_utils::tracer_state.submit)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.submit_start[i](
+          Tracer_utils::tracer_state.wait_state[i]);
+    }
 
     std::lock_guard<std::mutex> lock{_impl->lock};
 
@@ -450,8 +456,10 @@ public:
 
     rt::dag_node_ptr node = execute_submission(cgf, cgh);
 
-    for (auto func : Tracer_utils::tracer_state.submit)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.submit_end[i](
+          Tracer_utils::tracer_state.wait_state[i]);
+    }
 
     return event{node, _impl->handler};
   }
@@ -464,8 +472,10 @@ public:
   event submit(T cgf, queue &secondaryQueue,
                const property_list &prop_list = {}) {
 
-    for (auto func : Tracer_utils::tracer_state.submit_secondary)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.submit_secondary_start[i](
+          Tracer_utils::tracer_state.wait_state[i]);
+    }
 
     try {
 
@@ -492,15 +502,21 @@ public:
       }
 
       if (!submission_failed) {
-        for (auto func : Tracer_utils::tracer_state.submit_secondary)
-          func(END);
+
+        for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+          Tracer_utils::tracer_state.submit_secondary_end[i](
+              Tracer_utils::tracer_state.wait_state[i]);
+        }
+
         return evt;
       } else {
 
         auto evt = secondaryQueue.submit(prop_list, cgf);
 
-        for (auto func : Tracer_utils::tracer_state.submit_secondary)
-          func(END);
+        for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+          Tracer_utils::tracer_state.submit_secondary_end[i](
+              Tracer_utils::tracer_state.wait_state[i]);
+        }
 
         return evt;
       }
@@ -508,8 +524,10 @@ public:
 
       auto evt = secondaryQueue.submit(prop_list, cgf);
 
-      for (auto func : Tracer_utils::tracer_state.submit_secondary)
-        func(END);
+      for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+        Tracer_utils::tracer_state.submit_secondary_end[i](
+            Tracer_utils::tracer_state.wait_state[i]);
+      }
 
       return evt;
     }

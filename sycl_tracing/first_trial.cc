@@ -3,10 +3,10 @@
 #include <iostream>
 #include <sycl/sycl.hpp>
 
-void cool_tracer(Tracer_utils::tracer_type type,
-                 Tracer_utils::start_end state) {
-  std::cout << "Hello World!" << std::endl;
-}
+// void cool_tracer(Tracer_utils::tracer_type type,
+//                  Tracer_utils::start_end state) {
+//   std::cout << "Hello World!" << std::endl;
+// }
 
 int main() {
 

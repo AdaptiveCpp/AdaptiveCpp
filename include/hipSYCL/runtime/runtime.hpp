@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <memory>
+#include <mutex>
 
 namespace hipsycl {
 namespace rt {
@@ -41,6 +42,7 @@ private:
   backend_manager _backends;
   dag_manager _dag_manager;
   static std::atomic<int> counter;
+  static std::once_flag init_once;
 };
 
 } // namespace rt

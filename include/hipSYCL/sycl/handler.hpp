@@ -277,14 +277,18 @@ public:
   template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc) {
 
-    for (auto func : Tracer_utils::tracer_state.single_task)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.single_task_start[i](
+          Tracer_utils::tracer_state.single_task_state[i]);
+    }
 
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
         sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
 
-    for (auto func : Tracer_utils::tracer_state.single_task)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.single_task_end[i](
+          Tracer_utils::tracer_state.single_task_state[i]);
+    }
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -374,8 +378,10 @@ public:
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &...redu_kernel) {
 
-    for (auto func : Tracer_utils::tracer_state.parallel_for)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.parallel_for_start[i](
+          Tracer_utils::tracer_state.parallel_for_state[i]);
+    }
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
@@ -386,8 +392,10 @@ public:
 
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
-    for (auto func : Tracer_utils::tracer_state.parallel_for)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.parallel_for_end[i](
+          Tracer_utils::tracer_state.parallel_for_state[i]);
+    }
   }
 
   // Hierarchical kernel dispatch API
@@ -411,8 +419,10 @@ public:
                                range<dimensions> workGroupSize,
                                const ReductionsAndKernel &...redu_kernel) {
 
-    for (auto func : Tracer_utils::tracer_state.parallel_for_work_group)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.parallel_for_work_group_start[i](
+          Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
+    }
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
       this->submit_kernel<KernelName,
@@ -422,8 +432,10 @@ public:
     };
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
-    for (auto func : Tracer_utils::tracer_state.parallel_for_work_group)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.parallel_for_work_group_end[i](
+          Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
+    }
   }
 
   // Scoped parallelism API
@@ -462,51 +474,70 @@ public:
             accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src,
             shared_ptr_class<T> dest) {
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(START);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_start[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
 
     copy_ptr(src, dest);
 
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_end[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(shared_ptr_class<T> src,
             accessor<T, dim, mode, tgt, variant> dest) {
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(START);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_start[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
 
     copy_ptr(src, dest);
 
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_end[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src, T *dest) {
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(START);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_start[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
 
     copy_ptr(src, dest);
 
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_end[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(const T *src, accessor<T, dim, mode, tgt, variant> dest) {
 
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_start[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
 
     copy_ptr(src, dest);
 
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_end[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
   }
 
   template <typename T, int dim, access::mode srcMode, access::mode dstMode,
@@ -515,8 +546,10 @@ public:
   void copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
             accessor<T, dim, dstMode, destTgt, VariantDest> dest) {
 
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_start[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
 
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
@@ -557,8 +590,10 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    for (auto func : Tracer_utils::tracer_state.copy)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.copy_end[i](
+          Tracer_utils::tracer_state.copy_state[i]);
+    }
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -587,8 +622,11 @@ public:
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
-    for (auto func : Tracer_utils::tracer_state.fill)
-      func(START);
+
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.fill_start[i](
+          Tracer_utils::tracer_state.fill_state[i]);
+    }
 
     static_assert(mode != access::mode::read,
                   "Filling read-only accessors is not allowed.");
@@ -600,16 +638,20 @@ public:
         sycl::id<dim>{}, get_range(dest), get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
 
-    for (auto func : Tracer_utils::tracer_state.fill)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.fill_end[i](
+          Tracer_utils::tracer_state.fill_state[i]);
+    }
   }
 
   // ------ USM functions ------
 
   void memcpy(void *dest, const void *src, std::size_t num_bytes) {
 
-    for (auto func : Tracer_utils::tracer_state.memcpy)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.memcpy_start[i](
+          Tracer_utils::tracer_state.memcpy_state[i]);
+    }
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -656,8 +698,10 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    for (auto func : Tracer_utils::tracer_state.memcpy)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.memcpy_end[i](
+          Tracer_utils::tracer_state.memcpy_state[i]);
+    }
   }
 
   template <typename T> void copy(const T *src, T *dest, std::size_t count) {
@@ -667,8 +711,10 @@ public:
 
   template <class T> void fill(void *ptr, const T &pattern, std::size_t count) {
 
-    for (auto func : Tracer_utils::tracer_state.fill)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.fill_start[i](
+          Tracer_utils::tracer_state.fill_state[i]);
+    }
     // For special cases we can map this to a potentially more low-level memset
     if (sizeof(T) == 1) {
       unsigned char val = *reinterpret_cast<const unsigned char *>(&pattern);
@@ -688,18 +734,18 @@ public:
           detail::kernels::fill_kernel_usm{typed_ptr, pattern});
     }
 
-    for (auto func : Tracer_utils::tracer_state.fill)
-      func(END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.fill_end[i](
+          Tracer_utils::tracer_state.fill_state[i]);
+    }
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
 
-    //  for (int i = 0; i < Tracer_utils::size; i++)
-    //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
-    //                                        START);
-    //
-    for (auto func : Tracer_utils::tracer_state.memset)
-      func(START);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.memset_start[i](
+          Tracer_utils::tracer_state.memset_state[i]);
+    }
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -713,12 +759,10 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    for (auto func : Tracer_utils::tracer_state.memset)
-      func(END);
-
-    //  for (int i = 0; i < Tracer_utils::size; i++)
-    //    Tracer_utils::tracer_funcs_array[i](Tracer_utils::tracer_type::MEMSET,
-    //                                        END);
+    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
+      Tracer_utils::tracer_state.memset_start[i](
+          Tracer_utils::tracer_state.memset_state[i]);
+    }
   }
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {

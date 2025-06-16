@@ -12,11 +12,13 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/sycl/tracer_utils.hpp"
 #include "hipSYCL/sycl/tracer_utils_internal.hpp"
+#include <mutex>
 
 namespace hipsycl {
 namespace rt {
 
 std::atomic<int> runtime::counter = 0;
+std::once_flag runtime::init_once;
 
 runtime::runtime() : _dag_manager{this} {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
@@ -24,7 +26,8 @@ runtime::runtime() : _dag_manager{this} {
 
   int expected = 0;
   if (counter.compare_exchange_strong(expected, 1))
-    Tracer_utils::initialize_tracers_from_env();
+    std::call_once(init_once,
+                   []() { Tracer_utils::initialize_tracers_from_env(); });
   else
     counter.fetch_add(1);
 }

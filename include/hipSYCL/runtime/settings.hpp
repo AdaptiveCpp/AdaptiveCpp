@@ -205,7 +205,7 @@ public:
     _jitopt_iads_relative_threshold_min_data =
         get_configuration_or_default<setting::jitopt_iads_relative_threshold_min_data>(1024);
     _enable_allocation_tracking =
-        get_configuration_or_default<setting::enable_allocation_tracking>(false);
+        get_configuration_or_default<setting::enable_allocation_tracking>(true);
   }
 
 private:

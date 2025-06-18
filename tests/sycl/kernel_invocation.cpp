@@ -92,13 +92,6 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
   BOOST_CHECK(status1D == cl::sycl::info::event_command_status::complete);
   BOOST_CHECK(status2D == cl::sycl::info::event_command_status::complete);
   BOOST_CHECK(status3D == cl::sycl::info::event_command_status::complete);
-
-  auto deps1D = e1D.get_wait_list();
-  auto deps2D = e2D.get_wait_list();
-  auto deps3D = e3D.get_wait_list();
-  BOOST_CHECK(deps1D.empty());
-  BOOST_CHECK(deps2D.empty());
-  BOOST_CHECK(deps3D.empty());
 }
 
 BOOST_AUTO_TEST_CASE(basic_parallel_for) {

@@ -293,7 +293,7 @@ public:
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-  typename... ReductionsAndKernel, int dimensions>
+            typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
 
@@ -313,7 +313,7 @@ public:
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-  typename... ReductionsAndKernel>
+            typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
 
@@ -333,7 +333,7 @@ public:
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-  typename... ReductionsAndKernel, int dimensions>
+            typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -354,7 +354,7 @@ public:
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-  typename... ReductionsAndKernel>
+            typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     id<1> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -375,7 +375,7 @@ public:
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
-  typename... ReductionsAndKernel, int dimensions>
+            typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
     auto invoker = [&](auto&& kernel, auto&& ... reductions) {

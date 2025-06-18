@@ -48,9 +48,6 @@
 #include "detail/local_memory_allocator.hpp"
 #include "detail/mobile_shared_ptr.hpp"
 
-// NOTE: ATA - Remove
-#include <iostream>
-
 namespace hipsycl {
 namespace sycl {
 
@@ -2211,7 +2208,6 @@ private:
   specialized<range<dimensions>> _num_elements;
 };
 
-// NOTE: ATA - WORKING HERE
 template <typename dataT, int dimensions = 1>
 class local_accessor
 {
@@ -2235,7 +2231,6 @@ public:
 
   local_accessor() = default;
 
-  // NOTE: ATA - Changes
   specialized<address> getAddr() const { return _addr; }
 
   specialized<range<dimensions>> getNumElem() const { return _num_elements; }
@@ -2247,20 +2242,19 @@ public:
   std::is_same_v<U, std::remove_const_t<dataT>>>>
   local_accessor(const local_accessor<U, dimensions> &other) :
     _addr(other.getAddr()), _num_elements(other.getNumElem()) {
-    std::cout << "SFINAE Constructor used!" << std::endl;
   }
 
-  template <typename U,
-  typename = std::enable_if_t<
-  std::is_const_v<dataT> &&
-  !std::is_const_v<U> &&
-  std::is_same_v<U, std::remove_const_t<dataT>>>>
-  explicit local_accessor(const local_accessor<U, dimensions> &&other) :
-    _addr(other.getAddr()), _num_elements(other.getNumElem()) {
-    other._addr = nullptr;
-    other._num_elements = nullptr;
-    std::cout << "SFINAE MOVE-Constructor used!" << std::endl;
-  }
+  // NOTE: Not sure if this is needed because of the rule of five
+  // template <typename U,
+  // typename = std::enable_if_t<
+  // std::is_const_v<dataT> &&
+  // !std::is_const_v<U> &&
+  // std::is_same_v<U, std::remove_const_t<dataT>>>>
+  // explicit local_accessor(const local_accessor<U, dimensions> &&other) :
+  //   _addr(other.getAddr()), _num_elements(other.getNumElem()) {
+  //   other._addr = nullptr;
+  //   other._num_elements = nullptr;
+  // }
 
   template <typename U,
   typename = std::enable_if_t<
@@ -2422,11 +2416,6 @@ public:
       detail::local_memory::get_ptr<dataT>(_addr)
     };
   }
-
-  // template <typename T = dataT, std::enable_if_t<std::is_same_v<T, dataT> && !std::is_const_v<T>, bool> = false>
-  // operator local_accessor<const T, dimensions>() const {
-  //   return local_accessor<const T, dimensions>{_addr, _num_elements};
-  // }
 
   iterator begin() const noexcept {
     return iterator::make_begin(this);

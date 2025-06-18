@@ -48,6 +48,9 @@
 #include "detail/local_memory_allocator.hpp"
 #include "detail/mobile_shared_ptr.hpp"
 
+// NOTE: ATA - Remove
+#include <iostream>
+
 namespace hipsycl {
 namespace sycl {
 
@@ -2201,13 +2204,14 @@ public:
 private:
   ACPP_KERNEL_TARGET
   accessor(address addr, range<dimensions> r)
-    : _addr{addr}, _num_elements{r}
+  : _addr{addr}, _num_elements{r}
   {}
 
   specialized<address> _addr;
   specialized<range<dimensions>> _num_elements;
 };
 
+// NOTE: ATA - WORKING HERE
 template <typename dataT, int dimensions = 1>
 class local_accessor
 {
@@ -2230,6 +2234,43 @@ public:
 
 
   local_accessor() = default;
+
+  // NOTE: ATA - Changes
+  specialized<address> getAddr() const { return _addr; }
+
+  specialized<range<dimensions>> getNumElem() const { return _num_elements; }
+
+  template <typename U,
+  typename = std::enable_if_t<
+  std::is_const_v<dataT> &&
+  !std::is_const_v<U> &&
+  std::is_same_v<U, std::remove_const_t<dataT>>>>
+  local_accessor(const local_accessor<U, dimensions> &other) :
+    _addr(other.getAddr()), _num_elements(other.getNumElem()) {
+    std::cout << "SFINAE Constructor used!" << std::endl;
+  }
+
+  template <typename U,
+  typename = std::enable_if_t<
+  std::is_const_v<dataT> &&
+  !std::is_const_v<U> &&
+  std::is_same_v<U, std::remove_const_t<dataT>>>>
+  explicit local_accessor(const local_accessor<U, dimensions> &&other) :
+    _addr(other.getAddr()), _num_elements(other.getNumElem()) {
+    other._addr = nullptr;
+    other._num_elements = nullptr;
+    std::cout << "SFINAE MOVE-Constructor used!" << std::endl;
+  }
+
+  template <typename U,
+  typename = std::enable_if_t<
+  std::is_const_v<dataT> &&
+  !std::is_const_v<U> &&
+  std::is_same_v<U, std::remove_const_t<dataT>>>>
+  operator local_accessor<const U, dimensions>() const {
+    local_accessor<const U, dimensions> tmp(this);
+    return tmp;
+  }
 
   /* Available only when: dimensions == 0 */
   template<int D = dimensions,
@@ -2382,10 +2423,10 @@ public:
     };
   }
 
-  template <typename T = dataT, std::enable_if_t<std::is_same_v<T, dataT> && !std::is_const_v<T>, bool> = false>
-  operator local_accessor<const T, dimensions>() const {
-    return local_accessor<const T, dimensions>{_addr, _num_elements};
-  }
+  // template <typename T = dataT, std::enable_if_t<std::is_same_v<T, dataT> && !std::is_const_v<T>, bool> = false>
+  // operator local_accessor<const T, dimensions>() const {
+  //   return local_accessor<const T, dimensions>{_addr, _num_elements};
+  // }
 
   iterator begin() const noexcept {
     return iterator::make_begin(this);
@@ -2421,7 +2462,7 @@ public:
 private:
   ACPP_KERNEL_TARGET
   local_accessor(address addr, range<dimensions> r)
-    : _addr{addr}, _num_elements{r}
+  : _addr{addr}, _num_elements{r}
   {}
 
   specialized<address> _addr;

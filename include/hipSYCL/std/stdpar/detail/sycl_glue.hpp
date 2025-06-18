@@ -479,8 +479,8 @@ private:
     auto dev = detail::single_device_dispatch::get_queue().get_device();
 
     double user_defined_mem_pool_size = 0.0;
-    if (rt::try_get_environment_variable("stdpar_mem_pool_size",
-                                         user_defined_mem_pool_size))
+    if (common::settings::try_retrieve_settings_variable(
+            "stdpar_mem_pool_size", user_defined_mem_pool_size))
       return user_defined_mem_pool_size;
     
     // If we have system allocations, mem pool is not really needed.

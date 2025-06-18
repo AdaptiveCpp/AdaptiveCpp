@@ -224,7 +224,8 @@ private:
 
   static std::string get_dataset_name() {
     std::string dataset_name;
-    if(rt::try_get_environment_variable("stdpar_dataset_name", dataset_name)) {
+    if (common::settings::try_retrieve_settings_variable("stdpar_dataset_name",
+                                                         dataset_name)) {
       return dataset_name;
     }
     return ".acpp-stdpar-profile";

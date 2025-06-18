@@ -9,6 +9,7 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 #include <cassert>
+#include <algorithm>
 
 #include "hipSYCL/runtime/dag_submitted_ops.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"

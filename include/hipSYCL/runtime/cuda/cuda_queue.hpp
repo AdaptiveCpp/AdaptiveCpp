@@ -140,6 +140,8 @@ private:
   glue::jit::cxx_argument_mapper _arg_mapper;
   kernel_configuration _config;
   glue::jit::reflection_map _reflection_map;
+  unsigned _ptx_version;
+  unsigned _ptx_target;
 };
 
 }

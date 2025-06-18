@@ -196,8 +196,17 @@ if(WITH_SSCP_COMPILER)
         -DLLVM_DIR:PATH=${LLVM_DIR}
         -DCMAKE_INSTALL_PREFIX:PATH=${LLVMSPIRV_INSTALLDIR}
         -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}
-      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
+      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
+      INSTALL_COMMAND ""
     )
+
+    add_custom_target(InstallLLVMSpirvTranslator
+      COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv --target install
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
+    )
+
+    #install(TARGETS InstallLLVMSpirvTranslator)
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target InstallLLVMSpirvTranslator)")
 
     add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
     target_compile_definitions(llvm-to-spirv PRIVATE
@@ -249,25 +258,25 @@ if(WITH_SSCP_COMPILER)
   if(WITH_LLVM_TO_HOST)
     include(CheckCXXCompilerFlag)
 
-    check_cxx_compiler_flag(-mcpu=native HAS_MCPU_NATIVE)
-    check_cxx_compiler_flag(-march=native HAS_MARCH_NATIVE)
+    # TODO We assume that if clang -mcpu/march=native works, llc -mcpu=native works too.
+    # We should actually check llc/opt here!
+    if(NOT ACPP_HOST_FORCE_MCPU_TARGET)
+      check_cxx_compiler_flag(-mcpu=native HAS_MCPU_NATIVE)
+      check_cxx_compiler_flag(-march=native HAS_MARCH_NATIVE)
 
-    if(HAS_MARCH_NATIVE)
-      set(HOST_CPU_FLAG -march=native)
-    elseif(HAS_MCPU_NATIVE)
-      set(HOST_CPU_FLAG -mcpu=native)
-    else()
-      set(HOST_CPU_FLAG "")
-      message(WARNING "Could not find -mcpu=native or -march=native. Host code generation may be suboptimal.")
-    endif()
-
-    if(APPLE)
-      if(CMAKE_SYSROOT)
-        set(HOST_ADDITIONAL_FLAGS "-isysroot ${CMAKE_SYSROOT}")
+      if(HAS_MCPU_NATIVE OR HAS_MARCH_NATIVE)
+        set(HOST_LLC_CPU_FLAG -mcpu=native)
+        set(HOST_OPT_CPU_FLAG --mcpu=native)
       else()
-        set(HOST_ADDITIONAL_FLAGS "-isysroot ${CMAKE_OSX_SYSROOT}")
+        set(HOST_LLC_CPU_FLAG "")
+        set(HOST_OPT_CPU_FLAG "")
+        message(SEND_ERROR "Could not determine that llc -mcpu=native works. Please provide the CPU that AdaptiveCpp should target at JIT-time using -DACPP_HOST_FORCE_MCPU_TARGET")
       endif()
+    else()
+      set(HOST_LLC_CPU_FLAG "-mcpu=${ACPP_HOST_FORCE_MCPU_TARGET}")
+      set(HOST_OPT_CPU_FLAG "--mcpu=${ACPP_HOST_FORCE_MCPU_TARGET}")
     endif()
+    message(STATUS "llvm-to-host: Using llc compilation flag to target native CPU: ${HOST_LLC_CPU_FLAG}")
 
     add_hipsycl_llvm_backend(
       BACKEND host
@@ -275,8 +284,10 @@ if(WITH_SSCP_COMPILER)
       TOOL host/LLVMToHostTool.cpp)
 
     target_compile_definitions(llvm-to-host PRIVATE
-    -DACPP_HOST_CPU_FLAG="${HOST_CPU_FLAG}"
-    -DACPP_ADDITIONAL_CPU_FLAGS="${HOST_ADDITIONAL_FLAGS}")
+      -DACPP_LLC_HOST_CPU_FLAG="${HOST_LLC_CPU_FLAG}"
+      -DACPP_OPT_HOST_CPU_FLAG="${HOST_OPT_CPU_FLAG}"
+      -DACPP_LLC_ADDITIONAL_FLAGS="${HOST_ADDITIONAL_LLC_FLAGS}"
+      -DACPP_OPT_ADDITIONAL_FLAGS="${HOST_ADDITIONAL_OPT_FLAGS}")
     target_link_libraries(llvm-to-host PRIVATE acpp-clang-cbs)
   endif()
 

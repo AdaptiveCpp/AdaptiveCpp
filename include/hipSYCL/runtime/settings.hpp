@@ -11,15 +11,13 @@
 #ifndef HIPSYCL_RT_SETTINGS_HPP
 #define HIPSYCL_RT_SETTINGS_HPP
 
+#include "hipSYCL/common/settings.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
-#include <ios>
-#include <optional>
 #include <string>
 #include <cstdlib>
-#include <algorithm>
-#include <sstream>
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 namespace hipsycl {
 namespace rt {
@@ -53,40 +51,6 @@ std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, visibility_mask_t &out);
 std::istream &operator>>(std::istream &istr, default_selector_behavior& out);
 
-template <class T>
-bool try_get_environment_variable(const std::string& name, T& out) {
-  std::string env_name = name;
-
-  std::transform(env_name.begin(), env_name.end(), env_name.begin(), ::toupper);
-
-  std::string env;
-  if (const char *env_value =
-          std::getenv(("ACPP_"+env_name).c_str())) {
-    env_name = "ACPP_"+env_name;
-    env = std::string{env_value};
-  } else if (const char *env_value =
-          std::getenv(("HIPSYCL_"+env_name).c_str())) {
-    env_name = "HIPSYCL_"+env_name;
-    env = std::string{env_value};
-  }
-  
-  if (!env.empty()) {
-    
-    T val;
-    std::stringstream sstr{std::string{env}};
-    sstr >> val;
-
-    if (sstr.fail() || sstr.bad()) {
-      std::cerr << "AdaptiveCpp settings parsing: Could not parse value of environment "
-                    "variable: "
-                << env_name << std::endl;
-      return false;
-    }
-    out = val;
-    return true;
-  }
-  return false;
-}
 
 enum class setting {
   debug_level,
@@ -199,56 +163,56 @@ public:
 #ifdef HIPSYCL_DEBUG_LEVEL
     default_debug_level = HIPSYCL_DEBUG_LEVEL;
 #endif
-    _debug_level = get_environment_variable_or_default<setting::debug_level>(
+    _debug_level = get_configuration_or_default<setting::debug_level>(
         default_debug_level);
     _scheduler_type =
-        get_environment_variable_or_default<setting::scheduler_type>(
+        get_configuration_or_default<setting::scheduler_type>(
             scheduler_type::unbound);
     _visibility_mask =
-        get_environment_variable_or_default<setting::visibility_mask>(
+        get_configuration_or_default<setting::visibility_mask>(
             visibility_mask_t{});
-    _dag_requirement_optimization_depth = get_environment_variable_or_default<
+    _dag_requirement_optimization_depth = get_configuration_or_default<
         setting::dag_req_optimization_depth>(10);
-    _mqe_lane_statistics_max_size = get_environment_variable_or_default<
+    _mqe_lane_statistics_max_size = get_configuration_or_default<
         setting::mqe_lane_statistics_max_size>(100);
-    _mqe_lane_statistics_decay_time_sec = get_environment_variable_or_default<
+    _mqe_lane_statistics_decay_time_sec = get_configuration_or_default<
         setting::mqe_lane_statistics_decay_time_sec>(10.0);
     _default_selector_behavior =
-        get_environment_variable_or_default<setting::default_selector_behavior>(
+        get_configuration_or_default<setting::default_selector_behavior>(
             default_selector_behavior::strict);
     _hcf_dump_directory =
-        get_environment_variable_or_default<setting::hcf_dump_directory>(
+        get_configuration_or_default<setting::hcf_dump_directory>(
             std::string{});
     _persistent_runtime =
-        get_environment_variable_or_default<setting::persistent_runtime>(false);
-    _sscp_failed_ir_dump_directory = get_environment_variable_or_default<
+        get_configuration_or_default<setting::persistent_runtime>(false);
+    _sscp_failed_ir_dump_directory = get_configuration_or_default<
         setting::sscp_failed_ir_dump_directory>(std::string{});
     _gc_trigger_batch_size =
-        get_environment_variable_or_default<setting::gc_trigger_batch_size>(128);
+        get_configuration_or_default<setting::gc_trigger_batch_size>(128);
     _ocl_no_shared_context =
-        get_environment_variable_or_default<setting::ocl_no_shared_context>(false);
+        get_configuration_or_default<setting::ocl_no_shared_context>(false);
     _ocl_show_all_devices =
-        get_environment_variable_or_default<setting::ocl_show_all_devices>(false);
+        get_configuration_or_default<setting::ocl_show_all_devices>(false);
     _no_jit_cache_population =
-        get_environment_variable_or_default<setting::no_jit_cache_population>(false);
+        get_configuration_or_default<setting::no_jit_cache_population>(false);
     _adaptivity_level =
-        get_environment_variable_or_default<setting::adaptivity_level>(1);
+        get_configuration_or_default<setting::adaptivity_level>(1);
     
     _jitopt_iads_relative_threshold =
-        get_environment_variable_or_default<setting::jitopt_iads_relative_threshold>(0.8);
+        get_configuration_or_default<setting::jitopt_iads_relative_threshold>(0.8);
     _jitopt_iads_relative_eviction_threshold =
-        get_environment_variable_or_default<setting::jitopt_iads_relative_eviction_threshold>(0.1);
+        get_configuration_or_default<setting::jitopt_iads_relative_eviction_threshold>(0.1);
     _jitopt_iads_relative_threshold_min_data =
-        get_environment_variable_or_default<setting::jitopt_iads_relative_threshold_min_data>(1024);
+        get_configuration_or_default<setting::jitopt_iads_relative_threshold_min_data>(1024);
     _enable_allocation_tracking =
-        get_environment_variable_or_default<setting::enable_allocation_tracking>(false);
+        get_configuration_or_default<setting::enable_allocation_tracking>(false);
   }
 
 private:
   template <setting S, class T>
-  T get_environment_variable_or_default(const T &default_value) {
+  T get_configuration_or_default(const T &default_value) {
     T out;
-    if(try_get_environment_variable(setting_trait<S>::str, out)) {
+    if(common::settings::try_retrieve_settings_variable(setting_trait<S>::str, out)) {
       return out;
     }
     return default_value;

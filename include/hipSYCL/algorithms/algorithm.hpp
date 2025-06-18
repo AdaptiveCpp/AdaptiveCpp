@@ -500,28 +500,10 @@ sycl::event early_exit_for_each(sycl::queue &q, std::size_t problem_size,
   std::size_t dispatched_global_size = streamer.get_required_global_size();
 
   auto kernel = [=](sycl::nd_item<1> idx) {
-      const std::size_t item_id = idx.get_global_id(0);
-  
-      util::abortable_data_streamer::run(problem_size, idx, [&](sycl::id<1> idx){
-        
-        if (sycl::detail::__acpp_atomic_load<
-                sycl::access::address_space::global_space>(
-                output_has_exited_early, sycl::memory_order_relaxed,
-                sycl::memory_scope_device)) {
-          return true;
-        }
-
-        if (should_exit(idx)) {
-          sycl::detail::__acpp_atomic_store<
-              sycl::access::address_space::global_space>(
-              output_has_exited_early, 1, sycl::memory_order_relaxed,
-              sycl::memory_scope_device);
-          return true;
-        }
-
-        return false;
-      });
-    };
+    util::abortable_data_streamer::run(
+        problem_size, idx, output_has_exited_early,
+        [&](sycl::id<1> idx) { return should_exit(idx); });
+  };
 
   auto evt = q.single_task(deps, [=](){*output_has_exited_early = false;});
   return q.parallel_for(sycl::nd_range<1>{dispatched_global_size, group_size}, evt,

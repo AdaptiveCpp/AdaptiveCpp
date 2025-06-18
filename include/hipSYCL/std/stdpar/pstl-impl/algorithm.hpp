@@ -478,13 +478,15 @@ bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::all_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -511,13 +513,15 @@ bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::any_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -544,13 +548,15 @@ bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::none_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -1207,13 +1213,15 @@ bool all_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::all_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -1240,13 +1248,15 @@ bool any_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::any_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -1273,13 +1283,15 @@ bool none_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::none_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){

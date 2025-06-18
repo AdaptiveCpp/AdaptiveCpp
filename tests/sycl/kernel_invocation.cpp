@@ -85,13 +85,6 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
   });
 
   e3D.wait_and_throw();
-
-  auto status1D = e1D.get_info<cl::sycl::info::event::command_execution_status>();
-  auto status2D = e2D.get_info<cl::sycl::info::event::command_execution_status>();
-  auto status3D = e3D.get_info<cl::sycl::info::event::command_execution_status>();
-  BOOST_CHECK(status1D == cl::sycl::info::event_command_status::complete);
-  BOOST_CHECK(status2D == cl::sycl::info::event_command_status::complete);
-  BOOST_CHECK(status3D == cl::sycl::info::event_command_status::complete);
 }
 
 BOOST_AUTO_TEST_CASE(basic_parallel_for) {

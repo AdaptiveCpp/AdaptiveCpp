@@ -13,65 +13,123 @@
 extern "C" {
 #endif
 
+using time_point = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
+std::ofstream outfile("outfile.json");
+
 struct submission_state_t {
+  time_point start_timer;
+  std::ofstream outfile;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct parallel_for_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct parallel_for_work_group_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct single_task_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct wait_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct memcpy_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct memset_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct copy_sate_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct fill_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
 struct copy_state_t {
+  time_point start_timer;
   int num_start = 0;
   int num_end = 0;
 };
 
-void submission_start(void *submission_state) {
-  ((single_task_state_t *)submission_state)->num_start++;
+void submission_start(void *submission_state_ptr) {
+  submission_state_t &submission_state =
+      *((submission_state_t *)submission_state_ptr);
+  submission_state.num_start++;
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      start_time - submission_state.start_timer);
+
+  std::string id_string;
+  std::stringstream sid_string;
+  sid_string << std::this_thread::get_id();
+
+  nlohmann::json a{{"ph", "B"},       {"tid", id_string},
+                   {"pid", "0"},      {"name", "submission"},
+                   {"cat", "cpu_op"}, {"ts", duration_ns.count()},
+                   {"id", 0}};
+
+  outfile << a.dump();
+
   std::cout << "Hello World from the submission_start function!" << std::endl;
 }
 
-void submission_end(void *submission_state) {
-  ((single_task_state_t *)submission_state)->num_start++;
+void submission_end(void *submission_state_ptr) {
+  submission_state_t &submission_state =
+      *((submission_state_t *)submission_state_ptr);
+  submission_state.num_end++;
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      start_time - submission_state.start_timer);
+
+  std::string id_string;
+  std::stringstream sid_string;
+  sid_string << std::this_thread::get_id();
+
+  nlohmann::json a{{"ph", "X"},       {"tid", id_string},
+                   {"pid", "0"},      {"name", "submission"},
+                   {"cat", "cpu_op"}, {"ts", duration_ns.count()},
+                   {"id", 0}};
+
+  outfile << a.dump();
+
   std::cout << "Hello World from the submission_end function!" << std::endl;
 }
+
+// void submission_end(void *submission_state) {
+//   ((submission_state_t *)submission_state)->num_end++;
+//   std::cout << "Hello World from the submission_end function!" << std::endl;
+// }
 
 void single_task_start(void *single_task_state) {
   ((single_task_state_t *)single_task_state)->num_start++;
@@ -159,15 +217,18 @@ void init_register() {
 
   auto tracer_start_time = std::chrono::high_resolution_clock::now();
 
-  submission_state_t *submission_state = new submission_state_t;
-  parallel_for_state_t *parallel_for_state = new parallel_for_state_t;
-  single_task_state_t *single_task_state = new single_task_state_t;
-  wait_state_t *wait_state = new wait_state_t;
-  memcpy_state_t *memcpy_state = new memcpy_state_t;
-  memset_state_t *memset_state = new memset_state_t;
+  submission_state_t *submission_state =
+      new submission_state_t{tracer_start_time};
+  parallel_for_state_t *parallel_for_state =
+      new parallel_for_state_t{tracer_start_time};
+  single_task_state_t *single_task_state =
+      new single_task_state_t{tracer_start_time};
+  wait_state_t *wait_state = new wait_state_t{tracer_start_time};
+  memcpy_state_t *memcpy_state = new memcpy_state_t{tracer_start_time};
+  memset_state_t *memset_state = new memset_state_t{tracer_start_time};
   parallel_for_work_group_state_t *parallel_for_work_group_state =
-      new parallel_for_work_group_state_t;
-  auto *copy_state = new copy_state_t;
+      new parallel_for_work_group_state_t{tracer_start_time};
+  auto *copy_state = new copy_state_t{tracer_start_time};
   auto *fill_state = new fill_state_t;
 
   init_parallel_for_work_group_state(parallel_for_work_group_state);

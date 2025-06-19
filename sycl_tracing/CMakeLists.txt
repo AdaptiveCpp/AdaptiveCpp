@@ -21,7 +21,7 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUGMODE -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-set(CMAKE_CXX_COMPILER "/home/jakob/projects/AdaptiveCpp/installation/bin/acpp")
+set(CMAKE_CXX_COMPILER "acpp")
 
 
 add_library(tracer_funcs SHARED tracer_func.cc)

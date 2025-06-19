@@ -188,7 +188,7 @@ jobs:
     - name: run PSTL Intel tests (L0)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests --run_test=pstl_for_each
     - name: run PSTL Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp

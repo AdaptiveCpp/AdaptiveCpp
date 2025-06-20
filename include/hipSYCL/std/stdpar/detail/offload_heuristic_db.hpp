@@ -55,6 +55,7 @@ struct any_of {};
 struct none_of {};
 struct count{};
 struct count_if{};
+struct equal {};
 struct sort {};
 struct merge {};
 struct inclusive_scan {};

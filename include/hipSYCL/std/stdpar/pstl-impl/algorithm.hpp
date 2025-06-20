@@ -464,7 +464,6 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par_unseq
                                                 ForwardIt first, ForwardIt last,
                                                 UnaryPredicate q); */
 
-
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
@@ -478,13 +477,15 @@ bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::all_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -511,13 +512,15 @@ bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::any_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -544,13 +547,15 @@ bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::none_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -564,6 +569,69 @@ bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2) {
+  auto offloader = [&](auto& queue){
+
+      if(std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2);
+}
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, BinaryPred p) {
+  auto offloader = [&](auto& queue){
+
+      if(std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, p, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, p);
+}
 
 template<class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT typename std::iterator_traits<ForwardIt>::difference_type
@@ -829,6 +897,76 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
     problem_size, std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), p);
+}
+
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, ForwardIt2 last2) {
+  auto offloader = [&](auto& queue){
+
+      if (std::distance(first1, last1) != std::distance(first2, last2))
+        return false;
+      else if (std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, last2, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2, last2);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, last2);
+}
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, ForwardIt2 last2, BinaryPred p) {
+  auto offloader = [&](auto& queue){
+
+      if (std::distance(first1, last1) != std::distance(first2, last2))
+        return false;
+      else if(std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, last2, p, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
+                      first2, last2, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par_unseq{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, last2, p);
 }
 
 
@@ -1382,7 +1520,6 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par,
                                                 ForwardIt first, ForwardIt last,
                                                 UnaryPredicate q); */
 
-
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 bool all_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
@@ -1396,13 +1533,15 @@ bool all_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::all_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -1429,13 +1568,15 @@ bool any_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::any_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -1462,13 +1603,15 @@ bool none_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
-                hipsycl::algorithms::util::allocation_type::host>();
+                hipsycl::algorithms::util::allocation_type::device>();
 
     auto *output = output_scratch_group
                       .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
     hipsycl::algorithms::none_of(queue, first, last, output, p);
+    hipsycl::algorithms::detail::early_exit_flag_t result;
+    queue.memcpy(&result, output, sizeof(hipsycl::algorithms::detail::early_exit_flag_t));
     queue.wait();
-    return static_cast<bool>(*output);
+    return static_cast<bool>(result);
   };
 
   auto fallback = [&](){
@@ -1746,6 +1889,143 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
     problem_size, std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), p);
+}
+
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2) {
+  auto offloader = [&](auto& queue){
+
+      if(std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1, first2);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2);
+}
+
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, BinaryPred p) {
+  auto offloader = [&](auto& queue){
+
+      if(std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, p, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1, first2, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, p);
+}
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, ForwardIt2 last2) {
+  auto offloader = [&](auto& queue){
+
+      if (std::distance(first1, last1) != std::distance(first2, last2))
+        return false;
+      else if(std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, last2, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1, first2, last2);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2));
+}
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, ForwardIt2 last2, BinaryPred p) {
+  auto offloader = [&](auto& queue){
+
+      if (std::distance(first1, last1) != std::distance(first2, last2))
+        return false;
+      else if(std::distance(first1, last1) == 0)
+        return true;
+
+      auto output_scratch_group =
+          hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+              .make_scratch_group<
+                  hipsycl::algorithms::util::allocation_type::host>();
+
+      auto *output = output_scratch_group
+                        .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+      hipsycl::algorithms::equal(queue, first1, last1, first2, last2, p, output);
+      queue.wait();
+      return static_cast<bool>(*output);
+  };
+
+  auto fallback = [&](){
+    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1,
+                      first2, last2, p);
+  };
+
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
+                                 hipsycl::stdpar::par{}),
+      std::distance(first1, last1), bool, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), p);
 }
 
 

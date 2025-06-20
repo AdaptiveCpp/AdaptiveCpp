@@ -464,6 +464,11 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
 
+  for(const auto& flag : kernel_info->get_compilation_flags())
+    _config.set_build_flag(flag);
+  for(const auto& opt : kernel_info->get_compilation_options())
+    _config.set_build_option(opt.first, opt.second);
+
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;

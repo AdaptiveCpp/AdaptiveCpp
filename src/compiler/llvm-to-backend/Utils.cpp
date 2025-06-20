@@ -74,7 +74,7 @@ std::string getLLDPath() {
   
   std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
   std::string lld_redistributable_path = common::filesystem::join_path(
-      llvm_redistributable_path, std::vector<std::string>{"bin", "lld"});
+      llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_LLD_NAME});
 
   if(common::filesystem::exists(lld_redistributable_path)) {
     path = lld_redistributable_path;

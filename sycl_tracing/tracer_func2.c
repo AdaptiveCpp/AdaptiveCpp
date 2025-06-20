@@ -41,7 +41,7 @@ void start(void *state_ptr) {
 
   auto start_time = std::chrono::high_resolution_clock::now();
 
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+  auto duration_micros = std::chrono::duration_cast<std::chrono::microseconds>(
       start_time - state.start_timer);
 
   std::string id_string;
@@ -50,7 +50,7 @@ void start(void *state_ptr) {
 
   nlohmann::json a{{"ph", "B"},       {"tid", id_string},
                    {"pid", "0"},      {"name", state.type},
-                   {"cat", "cpu_op"}, {"ts", duration_ns.count()},
+                   {"cat", "cpu_op"}, {"ts", duration_micros.count()},
                    {"id", 0}};
 
   outfile << a.dump() << "," << std::endl;
@@ -65,7 +65,7 @@ void end(void *state_ptr) {
 
   auto start_time = std::chrono::high_resolution_clock::now();
 
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+  auto duration_micros = std::chrono::duration_cast<std::chrono::microseconds>(
       start_time - state.start_timer);
 
   std::string id_string;
@@ -74,7 +74,7 @@ void end(void *state_ptr) {
 
   nlohmann::json a{{"ph", "E"},       {"tid", id_string},
                    {"pid", "0"},      {"name", state.type},
-                   {"cat", "cpu_op"}, {"ts", duration_ns.count()},
+                   {"cat", "cpu_op"}, {"ts", duration_micros.count()},
                    {"id", 0}};
 
   outfile << a.dump() << "," << std::endl;
@@ -87,6 +87,8 @@ void finalize(void *, void *, void *, void *, void *, void *, void *, void *,
               void *, void *) {
   outfile << "]}";
   outfile.close();
+
+  std::cout << "Hello World from inside the finalize function! " << std::endl;
 };
 
 auto submission_start = start;
@@ -158,7 +160,7 @@ void init_register() {
   init_fill_state(fill_state);
   init_fill_start(fill_start);
   init_fill_end(fill_end);
-  // init_finalizer(finalize);
+  init_finalizer(finalize);
 }
 
 #ifdef __cplusplus

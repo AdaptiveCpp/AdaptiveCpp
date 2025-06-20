@@ -172,6 +172,10 @@ void init_copy_end(tracer_function_t usr_func) {
   Tracer_utils::tracer_state.copy_end.push_back(usr_func);
 }
 
+void init_finalizer(finalizer_function_t usr_func) {
+  Tracer_utils::tracer_state.finalize.push_back(usr_func);
+}
+
 #ifdef __cplusplus
 }
 #endif

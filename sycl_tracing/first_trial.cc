@@ -10,7 +10,7 @@
 
 int main() {
 
-  sycl::cpu_selector selector;
+  sycl::gpu_selector selector;
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
 
   auto dev = q.get_device();
@@ -25,9 +25,14 @@ int main() {
     numbers[i - 1] = i;
 
   int *numbers_device = sycl::malloc_device<int>(100, q);
+  q.wait();
+
   q.memcpy(numbers_device, numbers.data(), sizeof(int) * 100);
+  q.wait();
   q.memset(numbers_device, 0, sizeof(int) * 100);
+  q.wait();
   q.fill(numbers_device, 42, 100);
+
   q.copy(numbers_device, numbers.data(), 100);
 
   q.wait();

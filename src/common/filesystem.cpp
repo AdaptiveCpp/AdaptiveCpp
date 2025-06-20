@@ -154,6 +154,10 @@ std::vector<std::string> list_regular_files(const std::string& directory,
   return result;
 }
 
+ACPP_COMMON_EXPORT std::string filename(const std::string& path) {
+  return fs::path{path}.filename().string();
+}
+
 bool exists(const std::string& path) {
   return fs::exists(path);
 }

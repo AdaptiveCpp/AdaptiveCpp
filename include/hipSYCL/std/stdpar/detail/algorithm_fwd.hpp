@@ -150,7 +150,6 @@ typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
 
-
 template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt2 unique_copy( hipsycl::stdpar::par_unseq, ForwardIt1 first,
@@ -161,6 +160,12 @@ template <class ForwardIt, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt unique( hipsycl::stdpar::par_unseq, ForwardIt first,
                           ForwardIt last, BinaryPredicate pred );
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2);
+
 ///////////////////////////// par policy /////////////////////////////
 
 template <class ForwardIt1, class ForwardIt2>
@@ -199,6 +204,22 @@ template <class ForwardIt, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt unique( hipsycl::stdpar::par, ForwardIt first,
                   ForwardIt last, BinaryPredicate pred );
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, BinaryPred p);
+
+template <class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, ForwardIt2 last2);
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+           ForwardIt2 first2, ForwardIt2 last2, BinaryPred p);
+
 }
 
 #endif

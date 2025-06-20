@@ -179,9 +179,9 @@ inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcep
   }
 }
 
-template<class AlgorithmType, class Size, typename... Args>
-void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
-  auto& q = detail::single_device_dispatch::get_queue();
+template <class AlgorithmType, class Size, typename... Args>
+void prepare_offloading(sycl::queue &q, AlgorithmType type, Size problem_size,
+                        const Args &...args) {
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
@@ -605,7 +605,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded) {                                                          \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
                                                                                \
     device_instrumentation([&]() { offload_invoker(q); },                      \
@@ -628,7 +628,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
     __acpp_stdpar_barrier();                                                   \
@@ -661,7 +661,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                 __VA_ARGS__);                                  \
   };                                                                           \
   if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
     __acpp_stdpar_barrier();                                                   \

@@ -108,6 +108,12 @@ private:
   bool _has_independent_work_item_forward_progress = false;
 
   offload_heuristic_db _offload_db;
+
+  struct data_dependency {
+    const void* allocation;
+    sycl::queue* executing_queue;
+  };
+  std::vector<data_dependency, libc_allocator<data_dependency>> _dependencies_in_batch;
   std::vector<uint64_t, libc_allocator<uint64_t>> _instrumented_ops_in_batch;
   std::vector<std::size_t, libc_allocator<std::size_t>> _instrumented_op_problem_sizes_in_batch;
   uint64_t _batch_start_timestamp = 0;
@@ -180,6 +186,7 @@ public:
     _instrumented_ops_in_batch.clear();
     _instrumented_op_problem_sizes_in_batch.clear();
 #endif
+    _dependencies_in_batch.clear();
     reset_num_outstanding_operations();
     ++offloading_batch_counter();
   }

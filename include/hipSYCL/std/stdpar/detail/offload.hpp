@@ -122,6 +122,48 @@ bool validate_all_pointers(const Args&... args){
   return result;
 }
 
+template<typename... Args>
+sycl::queue& select_queue(const Args&... args) {
+#ifdef __ACPP_STDPAR_ASSUME_SYSTEM_USM__
+  return detail::single_device_dispatch::get_queue();
+#else
+  constexpr std::size_t max_deps = 32;
+  int num_detected_deps = 0;
+  sycl::queue* dependent_queues [max_deps] = {};
+  
+  auto& deps = detail::stdpar_tls_runtime::get().get_current_dependencies();
+
+  const void* new_dependencies [max_deps] = {};
+  int num_new_dependencies = 0;
+
+  auto f = [&](const void* ptr){
+    if(ptr) {
+      unified_shared_memory::allocation_lookup_result lookup_result;
+      if(unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
+        const void* allocation = lookup_result.root_address;
+
+        bool is_dependency_already_known = false;
+        for(auto& d : deps) {
+          if(d.allocation == allocation) {
+            if(detected_deps < max_deps) {
+              dependent_queues[num_detected_deps] = d.executing_queue;
+            }
+            ++num_detected_deps;
+            is_dependency_already_known = true;
+          }
+        }
+        if(!is_dependency_already_known) {
+          
+        }
+      }
+    }
+  };
+  for_each_contained_pointer(f, args...);
+
+
+#endif
+}
+
 enum prefetch_mode {
   automatic = 0,
   always = 1,
@@ -179,9 +221,9 @@ inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcep
   }
 }
 
-template <class AlgorithmType, class Size, typename... Args>
-void prepare_offloading(sycl::queue &q, AlgorithmType type, Size problem_size,
-                        const Args &...args) {
+template<class AlgorithmType, class Size, typename... Args>
+void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
+  auto& q = detail::single_device_dispatch::get_queue();
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
@@ -605,7 +647,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded) {                                                          \
-    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
+    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
                                                 problem_size, __VA_ARGS__);    \
                                                                                \
     device_instrumentation([&]() { offload_invoker(q); },                      \
@@ -628,7 +670,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
+    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
     __acpp_stdpar_barrier();                                                   \
@@ -661,7 +703,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                 __VA_ARGS__);                                  \
   };                                                                           \
   if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
+    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
                                                 problem_size, __VA_ARGS__);    \
   else                                                                         \
     __acpp_stdpar_barrier();                                                   \

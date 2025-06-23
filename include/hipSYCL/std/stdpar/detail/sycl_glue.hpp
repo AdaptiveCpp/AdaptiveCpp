@@ -65,6 +65,11 @@ inline sycl::queue construct_queue(const sycl::device& dev) {
 }
 
 class stdpar_tls_runtime {
+public:
+  struct data_dependency {
+    const void* allocation;
+    sycl::queue* executing_queue;
+  };
 private:
   stdpar_tls_runtime()
       : _queue{construct_default_queue()},
@@ -109,10 +114,8 @@ private:
 
   offload_heuristic_db _offload_db;
 
-  struct data_dependency {
-    const void* allocation;
-    sycl::queue* executing_queue;
-  };
+
+
   std::vector<data_dependency, libc_allocator<data_dependency>> _dependencies_in_batch;
   std::vector<uint64_t, libc_allocator<uint64_t>> _instrumented_ops_in_batch;
   std::vector<std::size_t, libc_allocator<std::size_t>> _instrumented_op_problem_sizes_in_batch;
@@ -166,6 +169,11 @@ public:
 
   std::size_t get_current_offloading_batch_id() const {
     return offloading_batch_counter().load(std::memory_order_acquire);
+  }
+
+  const std::vector<data_dependency, libc_allocator<data_dependency>> &
+  get_current_dependencies() const {
+    return _dependencies_in_batch;
   }
 
   void finalize_offloading_batch() noexcept {

@@ -132,20 +132,24 @@ sycl::queue& select_queue(const Args&... args) {
   sycl::queue* dependent_queues [max_deps] = {};
   
   auto& deps = detail::stdpar_tls_runtime::get().get_current_dependencies();
-
-  const void* new_dependencies [max_deps] = {};
+  
+  constexpr std::size_t arg_size = (sizeof(args) + ...);
+  constexpr std::size_t max_num_pointer_args =
+      (arg_size + sizeof(void *) - 1) / sizeof(void *);
+  const void* new_dependencies [max_num_pointer_args] = {};
   int num_new_dependencies = 0;
 
   auto f = [&](const void* ptr){
     if(ptr) {
       unified_shared_memory::allocation_lookup_result lookup_result;
-      if(unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
+      if (unified_shared_memory::allocation_lookup(const_cast<void *>(ptr),
+                                                   lookup_result)) {
         const void* allocation = lookup_result.root_address;
 
         bool is_dependency_already_known = false;
         for(auto& d : deps) {
           if(d.allocation == allocation) {
-            if(detected_deps < max_deps) {
+            if(num_detected_deps < max_deps) {
               dependent_queues[num_detected_deps] = d.executing_queue;
             }
             ++num_detected_deps;
@@ -153,14 +157,38 @@ sycl::queue& select_queue(const Args&... args) {
           }
         }
         if(!is_dependency_already_known) {
-          
+          if(num_new_dependencies < max_num_pointer_args) {
+            new_dependencies[num_new_dependencies] = allocation;
+          }
+          ++num_new_dependencies;
         }
       }
     }
   };
   for_each_contained_pointer(f, args...);
 
+  sycl::queue* selected_queue = nullptr;
+  // Select queue
+  // If dependency buffer was insufficient, back out and just schedule
+  // to default queue
+  if(num_detected_deps > max_deps) {
+    selected_queue = &detail::single_device_dispatch::get_queue();
+  } else {
+    //selected_queue = 
+  }
 
+
+  // Add new dependencies
+  assert(selected_queue);
+  for(int i = 0; i < num_new_dependencies; ++i) {
+    const void* new_dep_data_ptr = new_dependencies[i];
+    detail::stdpar_tls_runtime::data_dependency data_dep;
+    data_dep.allocation = new_dep_data_ptr;
+    data_dep.executing_queue = selected_queue;
+    detail::stdpar_tls_runtime::get().add_dependency(data_dep);
+  }
+
+  return *selected_queue;
 #endif
 }
 

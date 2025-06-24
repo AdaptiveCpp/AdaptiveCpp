@@ -176,6 +176,10 @@ public:
     return _dependencies_in_batch;
   }
 
+  void add_dependency(const data_dependency& d) {
+    _dependencies_in_batch.push_back((d));
+  }
+
   void finalize_offloading_batch() noexcept {
 #ifndef __ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__
     uint64_t batch_end = get_time_now();

@@ -46,6 +46,11 @@ Offloading is implemented for the following STL algorithms:
 |`reverse_copy` | |
 |`transform_reduce` | all overloads |
 |`reduce` | all overloads |
+|`find` | |
+|`find_if` | |
+|`find_if_not` | |
+|`find_end` | both overloads |
+|`find_first_of` | both overloads |
 |`any_of` | |
 |`all_of` | |
 |`none_of` | |

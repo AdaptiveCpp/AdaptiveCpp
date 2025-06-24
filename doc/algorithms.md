@@ -261,6 +261,52 @@ sycl::event reverse_copy(sycl::queue &q, BidirIt first,
                          BidirIt last, ForwardIt d_first,
                          const std::vector<sycl::event> &deps = {});
 
+template <class ForwardIt, class T>
+sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, const T &value,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, UnaryPredicate p,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if_not(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, UnaryPredicate p,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event find_end(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event find_end(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last, BinaryPredicate p,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event find_first_of(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event find_first_of(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last, BinaryPredicate p,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
 /// The result of the operation will be stored in out.
 ///
 /// out must point to device-accessible memory, and will be set to 0

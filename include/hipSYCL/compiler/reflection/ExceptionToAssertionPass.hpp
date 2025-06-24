@@ -14,11 +14,7 @@
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
-#include <vector>
 
-
-// #include <iostream>
-// std::cout << "Hello from ExceptionToAssertionPass.hpp" << std::endl;
 
 namespace hipsycl {
 namespace compiler {

@@ -71,6 +71,8 @@ public:
     sycl::queue* executing_queue;
   };
 private:
+  static constexpr int num_queues_per_device = 4;
+
   stdpar_tls_runtime()
       : _queue{construct_default_queue()},
         _device_scratch_cache{algorithms::util::allocation_type::device},
@@ -84,13 +86,18 @@ private:
                   ->has(rt::device_support_aspect::
                             work_item_independent_forward_progress))
             _has_independent_work_item_forward_progress = true;
-#ifdef ACPP_STDPAR_ENABLE_AUTO_MULTIDEVICE
+          
           _loadbalance_queues.push_back(_queue);
+#ifdef __ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__
+          
           for(auto& d : _queue.get_device().get_platform().get_devices()) {
-            if(d != _queue.get_device()) {
+            int target_num_queues = d == _queue.get_device()
+                                        ? num_queues_per_device - 1
+                                        : num_queues_per_device;
+            for (int i = 0; i < target_num_queues; ++i)
               _loadbalance_queues.push_back(construct_queue(d));
-            }
           }
+          
 #endif
         }
 
@@ -139,6 +146,7 @@ public:
   }
   
   void wait() {
+    _outstanding_offloaded_operations = 0;
     for(auto& q : _loadbalance_queues) {
       q.wait();
     }
@@ -174,6 +182,11 @@ public:
   const std::vector<data_dependency, libc_allocator<data_dependency>> &
   get_current_dependencies() const {
     return _dependencies_in_batch;
+  }
+
+  std::vector<sycl::queue, libc_allocator<sycl::queue>> &
+  get_available_queues() {
+    return _loadbalance_queues;
   }
 
   void add_dependency(const data_dependency& d) {

@@ -123,8 +123,9 @@ bool validate_all_pointers(const Args&... args){
 }
 
 template<typename... Args>
-sycl::queue& select_queue(const Args&... args) {
-#ifdef __ACPP_STDPAR_ASSUME_SYSTEM_USM__
+sycl::queue& schedule_to_queue(const Args&... args) {
+#if defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__) ||                              \
+    !defined(__ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__)
   return detail::single_device_dispatch::get_queue();
 #else
   constexpr std::size_t max_deps = 32;
@@ -174,10 +175,32 @@ sycl::queue& select_queue(const Args&... args) {
   if(num_detected_deps > max_deps) {
     selected_queue = &detail::single_device_dispatch::get_queue();
   } else {
-    //selected_queue = 
+    double best_cost = std::numeric_limits<double>::max();
+    for(auto& q : detail::stdpar_tls_runtime::get().get_available_queues()) {
+      rt::inorder_executor* executor = q.AdaptiveCpp_inorder_executor();
+      assert(executor);
+      rt::inorder_queue_status status;
+      double scheduling_cost = 0;
+      if(executor->get_queue()->query_status(status).is_success()) {
+        bool is_empty = status.is_complete();
+        if(!is_empty)
+          scheduling_cost += 50;
+      }
+      for(int i = 0; i < num_detected_deps; ++i) {
+        if(&q != dependent_queues[i])
+          // Synchronization cost
+          scheduling_cost += 10;
+        // TODO model data transfer cost
+        if(q.get_device() != dependent_queues[i]->get_device())
+          scheduling_cost += 100;
+      }
+      if(scheduling_cost < best_cost) {
+        selected_queue = &q;
+        best_cost = scheduling_cost;
+      }
+
+    }
   }
-
-
   // Add new dependencies
   assert(selected_queue);
   for(int i = 0; i < num_new_dependencies; ++i) {
@@ -187,6 +210,17 @@ sycl::queue& select_queue(const Args&... args) {
     data_dep.executing_queue = selected_queue;
     detail::stdpar_tls_runtime::get().add_dependency(data_dep);
   }
+
+  // Synchronize
+  std::vector<sycl::event> deps_vector;
+  for(int i = 0; i < num_detected_deps; ++i) {
+    if(dependent_queues[i] != selected_queue) {
+      sycl::event evt =
+          dependent_queues[i]->AdaptiveCpp_enqueue_custom_operation([](auto) {});
+      deps_vector.push_back(evt);
+    }
+  }
+  selected_queue->AdaptiveCpp_enqueue_custom_operation([](auto) {}, deps_vector);
 
   return *selected_queue;
 #endif
@@ -671,7 +705,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                      offload_invoker, fallback_invoker, ...)   \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
+  auto &q = hipsycl::stdpar::detail::schedule_to_queue(__VA_ARGS__);           \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded) {                                                          \
@@ -694,7 +728,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                ...)                                            \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
+  auto &q = hipsycl::stdpar::detail::schedule_to_queue(__VA_ARGS__);           \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded)                                                            \
@@ -721,7 +755,7 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                         fallback_invoker, ...)                 \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
+  auto &q = hipsycl::stdpar::detail::schedule_to_queue(__VA_ARGS__);           \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   const auto blocking_fallback_invoker = [&]() {                               \

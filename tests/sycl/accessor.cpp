@@ -64,6 +64,28 @@ BOOST_AUTO_TEST_CASE(local_accessors) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(loc_accessor_implicit_conversion){
+
+
+  // arguments are read-only
+  auto kernel_function = [](cl::sycl::local_accessor<const float> data) {
+    // do nothing
+  };
+
+  cl::sycl::queue my_queue;
+
+  my_queue.submit([&kernel_function](cl::sycl::handler & cgh){
+    // Allows for read and write
+    const cl::sycl::local_accessor<float> data{10, cgh};
+    cl::sycl::local_accessor<float> data2{10, cgh};
+
+    cgh.single_task([=](){
+        kernel_function(data);
+        kernel_function(data2);
+      });
+  }).wait();
+}
+
 BOOST_AUTO_TEST_CASE(placeholder_accessors) {
   using namespace cl::sycl::access;
   constexpr size_t num_elements = 4096 * 1024;

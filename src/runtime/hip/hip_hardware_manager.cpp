@@ -79,6 +79,27 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
     _devices.emplace_back(dev);
   }
 
+  for (int dev = 0; dev < num_devices; ++dev) {
+    hipSetDevice(dev);
+
+    for (int peer_dev = 0; peer_dev < num_devices; ++peer_dev) {
+      if (peer_dev != dev) {
+        int can_access;
+        err = hipDeviceCanAccessPeer(&can_access, dev, peer_dev);
+
+        if (err == hipSuccess && can_access) {
+          err = hipDeviceEnablePeerAccess(peer_dev, 0);
+
+          if (err != hipSuccess && err != hipErrorPeerAccessAlreadyEnabled) {
+            print_warning(
+              __acpp_here(),
+              error_info{"hip_hardware_manager: Could not enable peer access",
+                error_code{"HIP", err}});
+          }
+        }
+      }
+    }
+  }
 }
 
 

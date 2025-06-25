@@ -393,6 +393,8 @@ class unified_shared_memory {
     // heuristic, touches this value - so it may not be up to date
     // if there is no prefetch!
     int64_t most_recent_offload_batch;
+    // Updated by schedule_to_queue()
+    sycl::queue* most_recent_processing_queue;
   };
 
   using allocation_map_t = allocation_map<allocation_map_payload>;
@@ -445,6 +447,7 @@ public:
         allocation_map_t::value_type v;
         v.allocation_size = n;
         v.most_recent_offload_batch = -1;
+        v.most_recent_processing_queue = nullptr;
         get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
       }
 

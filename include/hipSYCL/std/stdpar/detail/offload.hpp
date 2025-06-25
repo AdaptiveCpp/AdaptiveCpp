@@ -20,6 +20,8 @@
 
 #include "hipSYCL/glue/reflection.hpp"
 #include "hipSYCL/common/stable_running_hash.hpp"
+#include "hipSYCL/common/small_vector.hpp"
+#include "hipSYCL/common/small_map.hpp"
 
 
 #include <atomic>
@@ -122,6 +124,11 @@ bool validate_all_pointers(const Args&... args){
   return result;
 }
 
+template<class T, int N>
+using small_static_vector = hipsycl::common::small_static_vector<T,N>;
+template<class Key, class Value>
+using small_map = hipsycl::common::small_map<Key, Value>;
+
 template<typename... Args>
 sycl::queue& schedule_to_queue(const Args&... args) {
 #if defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__) ||                              \
@@ -129,39 +136,48 @@ sycl::queue& schedule_to_queue(const Args&... args) {
   return detail::single_device_dispatch::get_queue();
 #else
   constexpr std::size_t max_deps = 32;
-  int num_detected_deps = 0;
-  sycl::queue* dependent_queues [max_deps] = {};
+  small_static_vector<sycl::queue*, max_deps> dependent_queues;
   
   auto& deps = detail::stdpar_tls_runtime::get().get_current_dependencies();
   
   constexpr std::size_t arg_size = (sizeof(args) + ...);
   constexpr std::size_t max_num_pointer_args =
       (arg_size + sizeof(void *) - 1) / sizeof(void *);
-  const void* new_dependencies [max_num_pointer_args] = {};
-  int num_new_dependencies = 0;
+  
+  small_static_vector<const void*, max_num_pointer_args> new_dependencies;
+  small_static_vector<unified_shared_memory::allocation_lookup_result,
+                      max_num_pointer_args>
+      allocation_lookup_results;
 
+  // accumulated memory size of dependencies per device
+  small_map<rt::device_id, std::size_t> local_memory_amount;
+
+  // Executed for each pointer argument to the kernel/algorithm
   auto f = [&](const void* ptr){
     if(ptr) {
       unified_shared_memory::allocation_lookup_result lookup_result;
       if (unified_shared_memory::allocation_lookup(const_cast<void *>(ptr),
                                                    lookup_result)) {
+        allocation_lookup_results.try_push_back(lookup_result);
+
         const void* allocation = lookup_result.root_address;
+        std::size_t allocation_size = lookup_result.info->allocation_size;
+        if (sycl::queue *prior_user = __atomic_load_n(
+                &(lookup_result.info->most_recent_processing_queue),
+                __ATOMIC_ACQUIRE)) {
+          local_memory_amount[prior_user->get_device()
+                                  .AdaptiveCpp_device_id()] += allocation_size;
+        }
 
         bool is_dependency_already_known = false;
         for(auto& d : deps) {
           if(d.allocation == allocation) {
-            if(num_detected_deps < max_deps) {
-              dependent_queues[num_detected_deps] = d.executing_queue;
-            }
-            ++num_detected_deps;
+            dependent_queues.try_push_back(d.executing_queue);
             is_dependency_already_known = true;
           }
         }
         if(!is_dependency_already_known) {
-          if(num_new_dependencies < max_num_pointer_args) {
-            new_dependencies[num_new_dependencies] = allocation;
-          }
-          ++num_new_dependencies;
+          new_dependencies.try_push_back(allocation);
         }
       }
     }
@@ -172,7 +188,7 @@ sycl::queue& schedule_to_queue(const Args&... args) {
   // Select queue
   // If dependency buffer was insufficient, back out and just schedule
   // to default queue
-  if(num_detected_deps > max_deps) {
+  if(dependent_queues.is_capacity_insufficient()) {
     selected_queue = &detail::single_device_dispatch::get_queue();
   } else {
     double best_cost = std::numeric_limits<double>::max();
@@ -186,14 +202,22 @@ sycl::queue& schedule_to_queue(const Args&... args) {
         if(!is_empty)
           scheduling_cost += 50;
       }
-      for(int i = 0; i < num_detected_deps; ++i) {
+      for(int i = 0; i < dependent_queues.size(); ++i) {
         if(&q != dependent_queues[i])
           // Synchronization cost
           scheduling_cost += 10;
-        // TODO model data transfer cost
-        if(q.get_device() != dependent_queues[i]->get_device())
-          scheduling_cost += 100;
       }
+      // Data transfer cost
+      for (auto local_mem_it = local_memory_amount.begin();
+           local_mem_it != local_memory_amount.end(); ++local_mem_it) {
+        if(local_mem_it->first != q.get_device().AdaptiveCpp_device_id()) {
+          // GB/s, order of magnitude
+          double transfer_speed = 10.0;
+          scheduling_cost +=
+              (local_mem_it->second * 1.e-9) / transfer_speed * 1000;
+        }
+      }
+
       if(scheduling_cost < best_cost) {
         selected_queue = &q;
         best_cost = scheduling_cost;
@@ -201,9 +225,10 @@ sycl::queue& schedule_to_queue(const Args&... args) {
 
     }
   }
-  // Add new dependencies
+  
+  // Add new dependencies to runtime tracking
   assert(selected_queue);
-  for(int i = 0; i < num_new_dependencies; ++i) {
+  for(int i = 0; i < new_dependencies.size(); ++i) {
     const void* new_dep_data_ptr = new_dependencies[i];
     detail::stdpar_tls_runtime::data_dependency data_dep;
     data_dep.allocation = new_dep_data_ptr;
@@ -211,9 +236,16 @@ sycl::queue& schedule_to_queue(const Args&... args) {
     detail::stdpar_tls_runtime::get().add_dependency(data_dep);
   }
 
+  // Update data locality tracking to selected queue
+  for(int i = 0; i < allocation_lookup_results.size(); ++i) {
+    sycl::queue **ptr =
+        &(allocation_lookup_results[i].info->most_recent_processing_queue);
+    __atomic_store_n(ptr, selected_queue, __ATOMIC_RELEASE);
+  }
+
   // Synchronize
   std::vector<sycl::event> deps_vector;
-  for(int i = 0; i < num_detected_deps; ++i) {
+  for(int i = 0; i < dependent_queues.size(); ++i) {
     if(dependent_queues[i] != selected_queue) {
       sycl::event evt =
           dependent_queues[i]->AdaptiveCpp_enqueue_custom_operation([](auto) {});

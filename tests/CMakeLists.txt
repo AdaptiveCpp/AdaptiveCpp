@@ -151,9 +151,15 @@ if(WITH_PSTL_TESTS)
     pstl/copy_n.cpp
     pstl/count.cpp
     pstl/count_if.cpp
+    pstl/equal.cpp
     pstl/exclusive_scan.cpp
     pstl/fill.cpp
     pstl/fill_n.cpp
+    pstl/find.cpp
+    pstl/find_if.cpp
+    pstl/find_if_not.cpp
+    pstl/find_end.cpp
+    pstl/find_first_of.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
     pstl/generate.cpp

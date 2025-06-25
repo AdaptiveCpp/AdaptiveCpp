@@ -27,6 +27,66 @@ BOOST_AUTO_TEST_CASE(basic_single_task) {
   BOOST_TEST(acc[0] == 321);
 }
 
+BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
+  cl::sycl::queue q;
+  const std::size_t N = 1024;
+
+  auto d_y = static_cast<int *>(cl::sycl::malloc_device(sizeof(int) * N, q));
+
+  // 1D check
+    q.parallel_for(
+      cl::sycl::range<1>(0),
+      [=](cl::sycl::id<1> idx) {
+        d_y[idx] = static_cast<int>(idx);
+      }
+    ).wait_and_throw();
+
+  // 2D check
+  q.parallel_for(
+    cl::sycl::range<2>(0,0),
+    [=](cl::sycl::id<2> idx) {
+    }
+  ).wait_and_throw();
+
+  // 3D check
+  q.parallel_for(
+    cl::sycl::range<3>(0,0,0),
+    [=](cl::sycl::id<3> idx) {
+    }
+  ).wait_and_throw();
+
+  // Checking for event & dependency handling
+  auto e1D = q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for(
+      cl::sycl::range<1>(0),
+      [](cl::sycl::id<1>){
+      }
+    );
+  });
+
+  e1D.wait_and_throw();
+
+  auto e2D = q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for(
+      cl::sycl::range<2>(0,0),
+      [](cl::sycl::id<2>){
+      }
+    );
+  });
+
+  e2D.wait_and_throw();
+
+  auto e3D = q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for(
+      cl::sycl::range<3>(0,0,0),
+      [](cl::sycl::id<3>){
+      }
+    );
+  });
+
+  e3D.wait_and_throw();
+}
+
 BOOST_AUTO_TEST_CASE(basic_parallel_for) {
   constexpr size_t num_threads = 128;
   cl::sycl::queue queue;

@@ -11,6 +11,7 @@
 #include "hipSYCL/runtime/cuda/cuda_hardware_manager.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event_pool.hpp"
 #include "hipSYCL/runtime/cuda/cuda_allocator.hpp"
+#include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
@@ -57,7 +58,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
   }
 
   for (int dev = 0; dev < num_devices; ++dev) {
-    cudaSetDevice(dev);
+    cuda_device_manager::get().activate_device(dev);
 
     for (int peer_dev = 0; peer_dev < num_devices; ++peer_dev) {
       if (peer_dev != dev) {

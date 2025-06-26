@@ -13,7 +13,9 @@
 #include "hipSYCL/runtime/hip/hip_event_pool.hpp"
 #include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
+#include "hipSYCL/runtime/hip/hip_device_manager.hpp"
 #include "hipSYCL/runtime/error.hpp"
+
 #include <exception>
 #include <cstdlib>
 #include <limits>
@@ -80,7 +82,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
   }
 
   for (int dev = 0; dev < num_devices; ++dev) {
-    hipSetDevice(dev);
+    hip_device_manager::get().activate_device(dev);
 
     for (int peer_dev = 0; peer_dev < num_devices; ++peer_dev) {
       if (peer_dev != dev) {

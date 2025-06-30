@@ -751,9 +751,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   CUmodule cumodule = static_cast<const cuda_executable_object*>(obj)->get_module();
   assert(cumodule);
 
-  return launch_kernel_from_module(cumodule, kernel_name, num_groups,
+  auto err = launch_kernel_from_module(cumodule, kernel_name, num_groups,
                                    group_size, local_mem_size, _stream,
                                    _arg_mapper.get_mapped_args());
+  on_kernel_launch_complete(kernel_name, obj);
+  return err;
 
 #else
   return make_error(

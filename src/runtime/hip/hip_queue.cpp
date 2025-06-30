@@ -703,11 +703,14 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       static_cast<const hip_executable_object *>(obj)->get_module();
   assert(module);
 
-  return launch_kernel_from_module(
+  auto err = launch_kernel_from_module(
       module, kernel_name, num_groups, group_size, local_mem_size, _stream,
       _arg_mapper.get_mapped_args(),
       const_cast<std::size_t *>(_arg_mapper.get_mapped_arg_sizes()),
       _arg_mapper.get_mapped_num_args());
+
+  on_kernel_launch_complete(kernel_name, obj);
+  return err;
 #else
   return make_error(
       __acpp_here(),

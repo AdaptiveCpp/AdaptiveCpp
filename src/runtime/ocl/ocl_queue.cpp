@@ -591,6 +591,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     return submission_err;
 
   register_submitted_op(completion_evt);
+  on_kernel_launch_complete(kernel_name, obj);
 
   return make_success();
 #else

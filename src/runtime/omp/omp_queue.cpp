@@ -534,8 +534,10 @@ result omp_queue::submit_sscp_kernel_from_code_object(
       static_cast<const omp_sscp_executable_object *>(obj)->get_kernel(
           kernel_name);
 
-  return launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
-                               _arg_mapper.get_mapped_args());
+  auto err = launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
+                                   _arg_mapper.get_mapped_args());
+  on_kernel_launch_complete(kernel_name, obj);
+  return err;
 
 #else
   return make_error(

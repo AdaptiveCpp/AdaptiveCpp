@@ -449,22 +449,18 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     // But we need to handle noalias-if-no-indirect-access before
     // dead argument elimination, since parameter index won't be correct
     // anymore afterwards!
-    llvm::SmallDenseMap<llvm::Function*, bool> KernelMayPerformIndirectAccess;
+    llvm::SmallDenseMap<llvm::Function*, bool> KernelIsFreeOfIndirectAccess;
     for(const auto& KN : Kernels) {
       if(auto* F = M.getFunction(KN)) {
-        if(utils::IsFunctionFreeOfIndirectAccess(F)) {
-          KernelMayPerformIndirectAccess[F] = false;
-        } else {
-          KernelMayPerformIndirectAccess[F] = true;
-        }
+        KernelIsFreeOfIndirectAccess[F] = utils::IsFunctionFreeOfIndirectAccess(F);
       }
     }
 
     for(auto& P : NoAliasIfNoIndirectAccessParameters) {
       auto* F = M.getFunction(P.first);
       auto IsFreeOfIndirectAccess = [&](auto* F) -> bool {
-        auto It = KernelMayPerformIndirectAccess.find(F);
-        if(It != KernelMayPerformIndirectAccess.end())
+        auto It = KernelIsFreeOfIndirectAccess.find(F);
+        if(It != KernelIsFreeOfIndirectAccess.end())
           return It->second;
         return utils::IsFunctionFreeOfIndirectAccess(F); 
       };
@@ -516,7 +512,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
       KS.Name = KN;
       KS.IsFreeOfIndirectAccess = false;
       if(auto* F = M.getFunction(KN))
-        KS.IsFreeOfIndirectAccess = !KernelMayPerformIndirectAccess[F];
+        KS.IsFreeOfIndirectAccess = KernelIsFreeOfIndirectAccess[F];
     }
 
     return true;

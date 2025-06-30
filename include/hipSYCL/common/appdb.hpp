@@ -62,6 +62,7 @@ struct kernel_entry {
     pack(kernel_args);
     pack(num_registered_invocations);
     pack(retained_argument_indices);
+    pack(is_free_of_indirect_access);
     pack(first_iads_invocation_run);
   }
 
@@ -70,6 +71,7 @@ struct kernel_entry {
   std::vector<kernel_arg_entry> kernel_args;
   std::size_t num_registered_invocations = 0;
   std::vector<int> retained_argument_indices;
+  bool is_free_of_indirect_access = false;
 
   // It seems there is a bug in msgpack serializing
   // std::numeric_limits<size_t>::max(). So we use 1 << 63
@@ -114,7 +116,7 @@ class ACPP_COMMON_EXPORT appdb  {
 public:
   // DO NOT FORGET TO INCREMENT THIS WHEN ADDING/REMOVING
   // FIELDS OR OTHERWISE CHANGING THE DATA LAYOUT!
-  static const uint64_t format_version = 4;
+  static const uint64_t format_version = 5;
 
   appdb(const std::string& db_path);
   ~appdb();

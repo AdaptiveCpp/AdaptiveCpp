@@ -129,16 +129,26 @@ using small_static_vector = hipsycl::common::small_static_vector<T,N>;
 template<class Key, class Value>
 using small_map = hipsycl::common::small_map<Key, Value>;
 
-template<typename... Args>
-sycl::queue& schedule_to_queue(const Args&... args) {
+template <class AlgorithmType, typename... Args>
+struct unique_algorithm_id {
+  static auto get() {
+    return typeid(unique_algorithm_id<AlgorithmType, Args...>).name();
+  }
+};
+
+template <class AlgorithmType, class Size, typename... Args>
+sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_sizem,
+                               const Args &...args) {
 #if defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__) ||                              \
     !defined(__ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__)
   return detail::single_device_dispatch::get_queue();
 #else
+  auto& stdpar_rt = detail::stdpar_tls_runtime::get();
+
   constexpr std::size_t max_deps = 32;
   small_static_vector<sycl::queue*, max_deps> dependent_queues;
   
-  auto& deps = detail::stdpar_tls_runtime::get().get_current_dependencies();
+  auto& deps = stdpar_rt.get_current_dependencies();
   
   constexpr std::size_t arg_size = (sizeof(args) + ...);
   constexpr std::size_t max_num_pointer_args =
@@ -153,7 +163,7 @@ sycl::queue& schedule_to_queue(const Args&... args) {
   small_map<rt::device_id, std::size_t> local_memory_amount;
 
   // Executed for each pointer argument to the kernel/algorithm
-  auto f = [&](const void* ptr){
+  auto analyze_dependencies = [&](const void* ptr){
     if(ptr) {
       unified_shared_memory::allocation_lookup_result lookup_result;
       if (unified_shared_memory::allocation_lookup(const_cast<void *>(ptr),
@@ -182,13 +192,15 @@ sycl::queue& schedule_to_queue(const Args&... args) {
       }
     }
   };
-  for_each_contained_pointer(f, args...);
+  for_each_contained_pointer(analyze_dependencies, args...);
 
   sycl::queue* selected_queue = nullptr;
   // Select queue
   // If dependency buffer was insufficient, back out and just schedule
-  // to default queue
-  if(dependent_queues.is_capacity_insufficient()) {
+  // to default queue. Similarly, if there is indirect access,
+  // we need to back out and just schedule to the default queue.
+  if (dependent_queues.is_capacity_insufficient() ||
+      !stdpar_rt.all_kernels_are_free_of_indirect_access()) {
     selected_queue = &detail::single_device_dispatch::get_queue();
   } else {
     double best_cost = std::numeric_limits<double>::max();
@@ -225,7 +237,7 @@ sycl::queue& schedule_to_queue(const Args&... args) {
 
     }
   }
-  
+
   // Add new dependencies to runtime tracking
   assert(selected_queue);
   for(int i = 0; i < new_dependencies.size(); ++i) {

@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <functional>
 
 #include "dag_node.hpp"
 #include "hints.hpp"
@@ -76,18 +77,21 @@ public:
 
   virtual ~inorder_queue(){}
 
-  using kernel_launch_complete_callback_t = void (*)(std::string_view,
-                                                     const code_object *);
+  using kernel_launch_complete_callback_t =
+      std::function<void(std::string_view, const code_object *)>;
   void set_kernel_launch_callback(kernel_launch_complete_callback_t cb) {
     _launch_complete_callback = cb;
   }
 
 protected:
-  void on_kernel_launch_complete(std::string_view kernel_name, const code_object* cb) {
-    if(_launch_complete_callback) _launch_complete_callback(kernel_name, cb);
+  void on_kernel_launch_complete(std::string_view kernel_name,
+                                 const code_object *cb) {
+    if(_launch_complete_callback)
+      _launch_complete_callback(kernel_name, cb);
   }
+
 private:
-  kernel_launch_complete_callback_t _launch_complete_callback = nullptr;
+  kernel_launch_complete_callback_t _launch_complete_callback;
 };
 
 }

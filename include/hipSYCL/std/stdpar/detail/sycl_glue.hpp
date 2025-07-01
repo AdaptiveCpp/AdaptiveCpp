@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <new>
+#include <string_view>
 #include <unistd.h>
 
 #include <hipSYCL/algorithms/util/allocation_cache.hpp>
@@ -34,6 +35,7 @@
 
 #include "allocation_map.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
 #include "offload_heuristic_db.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/sycl/info/device.hpp"
@@ -63,6 +65,34 @@ inline sycl::queue construct_queue(const sycl::device& dev) {
         hipsycl::sycl::property::queue::in_order{},
         hipsycl::sycl::property::queue::AdaptiveCpp_coarse_grained_events{}}};
 }
+
+class kernel_code_monitor {
+public:
+  //kernel_code_monitor
+  void attach(sycl::queue& q) {
+    auto* executor = q.AdaptiveCpp_inorder_executor();
+    assert(executor);
+    rt::inorder_queue* iq = executor->get_queue();
+    iq->set_kernel_launch_callback(
+        [this](std::string_view kernel_name, const code_object *cb) {
+          if (!cb->get_jit_output_metadata().is_free_of_indirect_access)
+            _all_kernels_are_free_of_indirect_access = false;
+        });
+  }
+
+  kernel_code_monitor(const kernel_code_monitor&) = delete;
+  kernel_code_monitor& operator=(const kernel_code_monitor) = delete;
+
+  bool all_launched_kernels_are_free_of_indirect_access() const {
+    return _all_kernels_are_free_of_indirect_access;
+  }
+
+  void reset() {
+    _all_kernels_are_free_of_indirect_access = true;
+  }
+private:
+  bool _all_kernels_are_free_of_indirect_access = true;
+};
 
 class stdpar_tls_runtime {
 public:
@@ -97,7 +127,8 @@ private:
             for (int i = 0; i < target_num_queues; ++i)
               _loadbalance_queues.push_back(construct_queue(d));
           }
-          
+          for(auto& q : _loadbalance_queues)
+            _code_monitor.attach(q);
 #endif
         }
 
@@ -127,6 +158,8 @@ private:
   std::vector<uint64_t, libc_allocator<uint64_t>> _instrumented_ops_in_batch;
   std::vector<std::size_t, libc_allocator<std::size_t>> _instrumented_op_problem_sizes_in_batch;
   uint64_t _batch_start_timestamp = 0;
+
+  kernel_code_monitor _code_monitor;
 
   static std::atomic<std::size_t>& offloading_batch_counter() {
     static std::atomic<std::size_t> batch_counter = 0;
@@ -193,6 +226,10 @@ public:
     _dependencies_in_batch.push_back((d));
   }
 
+  bool all_kernels_are_free_of_indirect_access() const {
+    return _code_monitor.all_launched_kernels_are_free_of_indirect_access();
+  }
+
   void finalize_offloading_batch() noexcept {
 #ifndef __ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__
     uint64_t batch_end = get_time_now();
@@ -212,6 +249,7 @@ public:
     _instrumented_op_problem_sizes_in_batch.clear();
 #endif
     _dependencies_in_batch.clear();
+    _code_monitor.reset();
     reset_num_outstanding_operations();
     ++offloading_batch_counter();
   }

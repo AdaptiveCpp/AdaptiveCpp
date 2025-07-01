@@ -87,7 +87,7 @@ protected:
     if(_launch_complete_callback) _launch_complete_callback(kernel_name, cb);
   }
 private:
-  kernel_launch_complete_callback_t _launch_complete_callback;
+  kernel_launch_complete_callback_t _launch_complete_callback = nullptr;
 };
 
 }

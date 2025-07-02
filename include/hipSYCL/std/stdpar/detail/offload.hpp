@@ -137,7 +137,7 @@ struct unique_algorithm_id {
 };
 
 template <class AlgorithmType, class Size, typename... Args>
-sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_sizem,
+sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
                                const Args &...args) {
 #if defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__) ||                              \
     !defined(__ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__)
@@ -327,9 +327,9 @@ inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcep
   }
 }
 
-template<class AlgorithmType, class Size, typename... Args>
-void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
-  auto& q = detail::single_device_dispatch::get_queue();
+template <class AlgorithmType, class Size, typename... Args>
+void prepare_offloading(sycl::queue &q, AlgorithmType type, Size problem_size,
+                        const Args &...args) {
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
@@ -749,11 +749,12 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                      offload_invoker, fallback_invoker, ...)   \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::schedule_to_queue(__VA_ARGS__);           \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded) {                                                          \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+    auto &q = hipsycl::stdpar::detail::schedule_to_queue(                      \
+        algorithm_type_object, problem_size, __VA_ARGS__);                     \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
                                                                                \
     device_instrumentation([&]() { offload_invoker(q); },                      \
@@ -772,13 +773,16 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                ...)                                            \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::schedule_to_queue(__VA_ARGS__);           \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
-  if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+  hipsycl::sycl::queue &q =                                                    \
+      hipsycl::stdpar::detail::single_device_dispatch::get_queue();            \
+  if (is_offloaded) {                                                          \
+    q = hipsycl::stdpar::detail::schedule_to_queue(algorithm_type_object,      \
+                                                   problem_size, __VA_ARGS__); \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
-  else                                                                         \
+  } else                                                                       \
     __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \
@@ -799,7 +803,8 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                         fallback_invoker, ...)                 \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::schedule_to_queue(__VA_ARGS__);           \
+  hipsycl::sycl::queue &q =                                                    \
+      hipsycl::stdpar::detail::single_device_dispatch::get_queue();            \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   const auto blocking_fallback_invoker = [&]() {                               \
@@ -808,10 +813,12 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                 algorithm_type_object, problem_size,           \
                                 __VA_ARGS__);                                  \
   };                                                                           \
-  if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+  if (is_offloaded) {                                                          \
+    q = hipsycl::stdpar::detail::schedule_to_queue(algorithm_type_object,      \
+                                                   problem_size, __VA_ARGS__); \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
-  else                                                                         \
+  } else                                                                       \
     __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \

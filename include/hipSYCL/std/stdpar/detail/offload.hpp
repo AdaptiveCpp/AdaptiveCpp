@@ -22,6 +22,7 @@
 #include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/common/small_vector.hpp"
 #include "hipSYCL/common/small_map.hpp"
+#include "hipSYCL/common/appdb.hpp"
 
 
 #include <atomic>
@@ -132,7 +133,21 @@ using small_map = hipsycl::common::small_map<Key, Value>;
 template <class AlgorithmType, typename... Args>
 struct unique_algorithm_id {
   static auto get() {
-    return typeid(unique_algorithm_id<AlgorithmType, Args...>).name();
+    std::string_view name =
+        typeid(unique_algorithm_id<AlgorithmType, Args...>).name();
+    std::array<uint64_t, 2> hash = {};
+    if(name.size() == 0)
+      return hash;
+
+    hipsycl::common::stable_running_hash h1, h2;
+    auto half_size = name.size() / 2;
+    h1(name.data(), half_size);
+    h2(name.data()+half_size, name.size() - half_size);
+
+    hash[0] = h1.get_current_hash();
+    hash[1] = h2.get_current_hash();
+
+    return hash;
   }
 };
 
@@ -144,6 +159,12 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
   return detail::single_device_dispatch::get_queue();
 #else
   auto& stdpar_rt = detail::stdpar_tls_runtime::get();
+
+  auto algorithm_unique_id = unique_algorithm_id<AlgorithmType, Args...>::get();
+  /*hipsycl::common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_write_access([&](hipsycl::common::db::appdb_data &appdb) {        
+  });*/
 
   constexpr std::size_t max_deps = 32;
   small_static_vector<sycl::queue*, max_deps> dependent_queues;

@@ -91,6 +91,17 @@ struct binary_entry {
   ACPP_COMMON_EXPORT void dump(std::ostream& ostr, int indentation_level=0) const;
 };
 
+struct scheduling_object_entry {
+  bool is_free_of_indirect_access = false;
+
+  template<class T>
+  void pack(T &pack) {
+    pack(is_free_of_indirect_access);
+  }
+
+  ACPP_COMMON_EXPORT void dump(std::ostream& ostr, int indentation_level=0) const;
+};
+
 struct appdb_data {
   std::size_t content_version = 0;
 
@@ -100,11 +111,15 @@ struct appdb_data {
   std::unordered_map<rt::kernel_configuration::id_type, binary_entry,
                      rt::kernel_id_hash>
       binaries;
+  std::unordered_map<rt::kernel_configuration::id_type, scheduling_object_entry,
+                     rt::kernel_id_hash>
+      scheduling_objects;
 
   template<class T>
   void pack(T &pack) {
     pack(kernels);
     pack(binaries);
+    pack(scheduling_objects);
     pack(content_version);
   }
 

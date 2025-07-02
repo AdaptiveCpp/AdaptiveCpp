@@ -71,6 +71,11 @@ void binary_entry::dump(std::ostream& ostr, int indentation_level) const {
                        indentation_level);
 }
 
+void scheduling_object_entry::dump(std::ostream& ostr, int indentation_level) const {
+  print_key_value_pair(ostr, "is_free_of_indirect_access",
+                       is_free_of_indirect_access, indentation_level);
+}
+
 void appdb_data::dump(std::ostream& ostr, int indentation_level) const {
   print_key_value_pair(ostr, "content_version", content_version, indentation_level);
   
@@ -94,6 +99,14 @@ void appdb_data::dump(std::ostream& ostr, int indentation_level) const {
   for(const auto& entry : binaries) {
     std::string binary_name = get_id_string(entry.first);
     print_key_value_pair(ostr, binary_name, "<binary-entry>", indentation_level+1);
+    entry.second.dump(ostr, indentation_level+2);
+  }
+
+  print_key_value_pair(ostr, "scheduling_objects", "<map>", indentation_level);
+
+  for(const auto& entry : scheduling_objects) {
+    std::string obj_name = get_id_string(entry.first);
+    print_key_value_pair(ostr, obj_name, "<scheduling-object-entry>", indentation_level+1);
     entry.second.dump(ostr, indentation_level+2);
   }
 }

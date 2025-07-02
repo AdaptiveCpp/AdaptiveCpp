@@ -74,12 +74,13 @@ public:
     assert(executor);
     rt::inorder_queue* iq = executor->get_queue();
     iq->set_kernel_launch_callback(
-        [this](std::string_view kernel_name, const code_object *cb) {
+        [this](std::string_view kernel_name, const rt::code_object *cb) {
           if (!cb->get_jit_output_metadata().is_free_of_indirect_access)
             _all_kernels_are_free_of_indirect_access = false;
         });
   }
 
+  kernel_code_monitor() = default;
   kernel_code_monitor(const kernel_code_monitor&) = delete;
   kernel_code_monitor& operator=(const kernel_code_monitor) = delete;
 

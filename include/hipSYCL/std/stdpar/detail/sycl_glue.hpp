@@ -20,6 +20,7 @@
 #include <new>
 #include <string_view>
 #include <unistd.h>
+#include <optional>
 
 #include <hipSYCL/algorithms/util/allocation_cache.hpp>
 #include <hipSYCL/sycl/queue.hpp>
@@ -75,8 +76,11 @@ public:
     rt::inorder_queue* iq = executor->get_queue();
     iq->set_kernel_launch_callback(
         [this](std::string_view kernel_name, const rt::code_object *cb) {
-          if (!cb->get_jit_output_metadata().is_free_of_indirect_access)
+          bool kernel_was_free_of_indirect_access =
+              cb->get_jit_output_metadata().is_free_of_indirect_access;
+          if (!kernel_was_free_of_indirect_access)
             _all_kernels_are_free_of_indirect_access = false;
+            _most_recent_algorithm_was_free_of_indirect_access = false;
         });
   }
 
@@ -88,11 +92,21 @@ public:
     return _all_kernels_are_free_of_indirect_access;
   }
 
-  void reset() {
+  bool all_launched_kernels_from_algorithm_are_free_of_indirect_access() const {
+    return _most_recent_algorithm_was_free_of_indirect_access;
+  }
+
+  void finalize_batch() {
     _all_kernels_are_free_of_indirect_access = true;
+    finalize_algorithm();
+  }
+
+  void finalize_algorithm() {
+    _most_recent_algorithm_was_free_of_indirect_access = true;
   }
 private:
   bool _all_kernels_are_free_of_indirect_access = true;
+  bool _most_recent_algorithm_was_free_of_indirect_access = true;
 };
 
 class stdpar_tls_runtime {
@@ -250,7 +264,7 @@ public:
     _instrumented_op_problem_sizes_in_batch.clear();
 #endif
     _dependencies_in_batch.clear();
-    _code_monitor.reset();
+    _code_monitor.finalize_batch();
     reset_num_outstanding_operations();
     ++offloading_batch_counter();
   }

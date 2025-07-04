@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <optional>
 #include <sys/types.h>
 #include <utility>
 
@@ -161,10 +162,16 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
   auto& stdpar_rt = detail::stdpar_tls_runtime::get();
 
   auto algorithm_unique_id = unique_algorithm_id<AlgorithmType, Args...>::get();
-  /*hipsycl::common::filesystem::persistent_storage::get()
+  std::optional<bool> is_free_of_indirect_access;
+
+  hipsycl::common::filesystem::persistent_storage::get()
       .get_this_app_db()
-      .read_write_access([&](hipsycl::common::db::appdb_data &appdb) {        
-  });*/
+      .read_access([&](hipsycl::common::db::appdb_data &appdb) {
+        auto it = appdb.scheduling_objects.find(algorithm_unique_id);
+        if (it != appdb.scheduling_objects.end()) {
+          is_free_of_indirect_access = it->second;
+        }
+      });
 
   constexpr std::size_t max_deps = 32;
   small_static_vector<sycl::queue*, max_deps> dependent_queues;
@@ -213,15 +220,29 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       }
     }
   };
+  sycl::queue* selected_queue = nullptr;
+
   for_each_contained_pointer(analyze_dependencies, args...);
 
-  sycl::queue* selected_queue = nullptr;
   // Select queue
   // If dependency buffer was insufficient, back out and just schedule
-  // to default queue. Similarly, if there is indirect access,
+  // to default queue.
+  // Similarly, if there is indirect access,
   // we need to back out and just schedule to the default queue.
-  if (dependent_queues.is_capacity_insufficient() ||
-      !stdpar_rt.all_kernels_are_free_of_indirect_access()) {
+
+  // Whether *this* algorithm has indirect access
+  const bool is_known_to_have_indirect_access =
+      is_free_of_indirect_access.has_value() && !is_free_of_indirect_access;
+  // Also need to fall back if any of the kernels in the same batch have indirect
+  // access, since then we can no longer guarantee correct dependency resolution
+  const bool previous_kernels_in_batch_have_indirect_access = 
+      !stdpar_rt.all_kernels_are_free_of_indirect_access();
+  const bool fallback_to_single_queue =
+      dependent_queues.is_capacity_insufficient() ||
+      !is_free_of_indirect_access.has_value() ||
+      is_known_to_have_indirect_access ||
+      previous_kernels_in_batch_have_indirect_access;
+  if (fallback_to_single_queue) {
     selected_queue = &detail::single_device_dispatch::get_queue();
   } else {
     double best_cost = std::numeric_limits<double>::max();
@@ -242,7 +263,7 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       }
       // Data transfer cost
       for (auto local_mem_it = local_memory_amount.begin();
-           local_mem_it != local_memory_amount.end(); ++local_mem_it) {
+          local_mem_it != local_memory_amount.end(); ++local_mem_it) {
         if(local_mem_it->first != q.get_device().AdaptiveCpp_device_id()) {
           // GB/s, order of magnitude
           double transfer_speed = 10.0;
@@ -278,15 +299,28 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
 
   // Synchronize
   std::vector<sycl::event> deps_vector;
-  for(int i = 0; i < dependent_queues.size(); ++i) {
-    if(dependent_queues[i] != selected_queue) {
-      sycl::event evt =
-          dependent_queues[i]->AdaptiveCpp_enqueue_custom_operation([](auto) {});
-      deps_vector.push_back(evt);
+  if(!fallback_to_single_queue) {
+    for(int i = 0; i < dependent_queues.size(); ++i) {
+      if(dependent_queues[i] != selected_queue) {
+        sycl::event evt =
+            dependent_queues[i]->AdaptiveCpp_enqueue_custom_operation([](auto) {});
+        deps_vector.push_back(evt);
+      }
+    }
+  } else {
+    for(auto& q : detail::stdpar_tls_runtime::get().get_available_queues()) {
+      if(&q != selected_queue) {
+        if(!q.khr_empty())
+          deps_vector.push_back(
+              q.AdaptiveCpp_enqueue_custom_operation([](auto) {}));
+      }
     }
   }
   selected_queue->AdaptiveCpp_enqueue_custom_operation([](auto) {}, deps_vector);
 
+  // TODO - query stdpar_rt.all_kernels_are_free_of_indirect_access() and update appdb
+  //      - if indirect access is detected, all subsequent kernels of batch need to remain
+  //       on default queue!
   return *selected_queue;
 #endif
 }

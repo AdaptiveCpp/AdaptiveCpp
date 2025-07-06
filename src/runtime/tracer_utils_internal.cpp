@@ -47,6 +47,9 @@ void initialize_tracers_from_env() {
                        "library "
                     << single_lib << std::endl;
         }
+      } else {
+        std::cout << "Warning: could not find library" << single_lib
+                  << std::endl;
       }
     }
   }

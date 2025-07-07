@@ -37,8 +37,7 @@ public:
 
   event(
       const rt::dag_node_ptr &evt,
-      async_handler handler =
-          [](exception_list e) { glue::default_async_handler(e); })
+      async_handler handler = [](exception_list e) { glue::default_async_handler(e); })
       : _node{evt} {}
 
   std::vector<event> get_wait_list() {
@@ -60,14 +59,12 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.wait_start[i] != nullptr)
-        Tracer_utils::tracer_state.wait_start[i](
-            Tracer_utils::tracer_state.wait_state[i]);
+        Tracer_utils::tracer_state.wait_start[i](Tracer_utils::tracer_state.wait_state[i]);
     }
 
     if (this->_node) {
       if (!this->_node->is_submitted())
- 	_requires_runtime.get()->dag().flush_and_gc();
-
+        _requires_runtime.get()->dag().flush_and_gc();
 
       assert(this->_node->is_submitted());
       this->_node->wait();
@@ -75,8 +72,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.wait_end[i] != nullptr)
-        Tracer_utils::tracer_state.wait_end[i](
-            Tracer_utils::tracer_state.wait_state[i]);
+        Tracer_utils::tracer_state.wait_end[i](Tracer_utils::tracer_state.wait_state[i]);
     }
   }
 
@@ -91,7 +87,7 @@ public:
         if (!evt._node->is_submitted())
           flush = true;
 
-    if(flush)
+    if (flush)
       requires_runtime.get()->dag().flush_and_gc();
 
     for (const event &evt : eventList) {
@@ -110,8 +106,7 @@ public:
 
     // Just invoke handler of first event?
     if (eventList.empty())
-      glue::throw_asynchronous_errors(
-          [](exception_list e) { glue::default_async_handler(e); });
+      glue::throw_asynchronous_errors([](exception_list e) { glue::default_async_handler(e); });
     else
       glue::throw_asynchronous_errors(eventList.front()._handler);
   }
@@ -124,12 +119,10 @@ public:
   // `property::queue::enable_profiling`.
   // Timestamps are returned in std::chrono::system_clock
   // nanoseconds-since-epoch.
-  template <typename Param>
-  typename Param::return_type get_profiling_info() const {
+  template <typename Param> typename Param::return_type get_profiling_info() const {
     if (!_node) {
-      const auto error = rt::make_error(
-          __acpp_here(), {"Operation not profiled: node is invalid.",
-                          rt::error_type::invalid_object_error});
+      const auto error = rt::make_error(__acpp_here(), {"Operation not profiled: node is invalid.",
+                                                        rt::error_type::invalid_object_error});
       throw exception{make_error_code(errc::invalid), error.what()};
     }
     // Instrumentations are only set up once a node has passed
@@ -138,7 +131,7 @@ public:
     // decides to queue up the operation to wait for more work,
     // but the user thread waits for the instrumentation results
     // and so cannot submit more work.
-    if(!this->_node->is_submitted())
+    if (!this->_node->is_submitted())
       _requires_runtime.get()->dag().flush_and_gc();
 
     rt::execution_hints &hints = _node->get_execution_hints();
@@ -146,25 +139,22 @@ public:
     // so we can check for the presence of all three timestamp instrumentation
     // requests.
     bool was_full_profiling_requested =
-        hints.has_hint<
-            rt::hints::request_instrumentation_submission_timestamp>() &&
+        hints.has_hint<rt::hints::request_instrumentation_submission_timestamp>() &&
         hints.has_hint<rt::hints::request_instrumentation_start_timestamp>() &&
         hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>();
 
     if (!was_full_profiling_requested) {
-      const auto error =
-          rt::make_error(__acpp_here(), {"Operation not profiled: "
-                                         "Profiling was not requested by user.",
-                                         rt::error_type::invalid_object_error});
+      const auto error = rt::make_error(__acpp_here(), {"Operation not profiled: "
+                                                        "Profiling was not requested by user.",
+                                                        rt::error_type::invalid_object_error});
       throw exception{make_error_code(errc::invalid), error.what()};
     }
     if (_node->get_operation()->is_requirement()) {
-      const auto error =
-          rt::make_error(__acpp_here(), {"Operation not profiled: "
-                                         "hipSYCL currently does not support "
-                                         "profiling explicit requirements "
-                                         "or host updates",
-                                         rt::error_type::invalid_object_error});
+      const auto error = rt::make_error(__acpp_here(), {"Operation not profiled: "
+                                                        "hipSYCL currently does not support "
+                                                        "profiling explicit requirements "
+                                                        "or host updates",
+                                                        rt::error_type::invalid_object_error});
       throw exception{make_error_code(errc::invalid), error.what()};
     }
 
@@ -174,9 +164,8 @@ public:
                             .get<rt::instrumentations::submission_timestamp>();
 
       if (!submission)
-        throw exception{
-            make_error_code(errc::invalid),
-            "Operation not profiled: No submission timestamp available"};
+        throw exception{make_error_code(errc::invalid),
+                        "Operation not profiled: No submission timestamp available"};
 
       return rt::profiler_clock::ns_ticks(submission->get_time_point());
     } else if (std::is_same_v<Param, info::event_profiling::command_start>) {
@@ -185,40 +174,30 @@ public:
                        .get<rt::instrumentations::execution_start_timestamp>();
 
       if (!start)
-        throw exception{make_error_code(errc::invalid),
-                        "Operation not profiled: No execution "
-                        "start timestamp available"};
+        throw exception{make_error_code(errc::invalid), "Operation not profiled: No execution "
+                                                        "start timestamp available"};
 
       return rt::profiler_clock::ns_ticks(start->get_time_point());
     } else if (std::is_same_v<Param, info::event_profiling::command_end>) {
-      auto finish =
-          _node->get_operation()
-              ->get_instrumentations()
-              .get<rt::instrumentations::execution_finish_timestamp>();
+      auto finish = _node->get_operation()
+                        ->get_instrumentations()
+                        .get<rt::instrumentations::execution_finish_timestamp>();
 
       if (!finish)
-        throw exception{make_error_code(errc::invalid),
-                        "Operation not profiled: No execution "
-                        "end timestamp available"};
+        throw exception{make_error_code(errc::invalid), "Operation not profiled: No execution "
+                                                        "end timestamp available"};
 
       return rt::profiler_clock::ns_ticks(finish->get_time_point());
     } else {
-      throw exception{make_error_code(errc::invalid),
-                      "Unknown event profiling request"};
+      throw exception{make_error_code(errc::invalid), "Unknown event profiling request"};
     }
   }
 
-  friend bool operator==(const event &lhs, const event &rhs) {
-    return lhs._node == rhs._node;
-  }
+  friend bool operator==(const event &lhs, const event &rhs) { return lhs._node == rhs._node; }
 
-  friend bool operator!=(const event &lhs, const event &rhs) {
-    return !(lhs == rhs);
-  }
+  friend bool operator!=(const event &lhs, const event &rhs) { return !(lhs == rhs); }
 
-  std::size_t AdaptiveCpp_hash_code() const {
-    return std::hash<void *>{}(_node.get());
-  }
+  std::size_t AdaptiveCpp_hash_code() const { return std::hash<void *>{}(_node.get()); }
 
   [[deprecated("Use AdaptiveCpp_hash_code()")]]
   auto hipSYCL_hash_code() const {
@@ -241,9 +220,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status) {
   return info::event_command_status::submitted;
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count) {
-  return _node.use_count();
-}
+HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count) { return _node.use_count(); }
 
 } // namespace sycl
 } // namespace hipsycl
@@ -251,9 +228,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count) {
 namespace std {
 
 template <> struct hash<hipsycl::sycl::event> {
-  std::size_t operator()(const hipsycl::sycl::event &e) const {
-    return e.AdaptiveCpp_hash_code();
-  }
+  std::size_t operator()(const hipsycl::sycl::event &e) const { return e.AdaptiveCpp_hash_code(); }
 };
 
 } // namespace std

@@ -59,7 +59,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.wait_start[i] != nullptr)
-        Tracer_utils::tracer_state.wait_start[i](Tracer_utils::tracer_state.wait_state[i]);
+        Tracer_utils::tracer_state.wait_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     if (this->_node) {
@@ -72,7 +72,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.wait_end[i] != nullptr)
-        Tracer_utils::tracer_state.wait_end[i](Tracer_utils::tracer_state.wait_state[i]);
+        Tracer_utils::tracer_state.wait_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 

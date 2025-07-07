@@ -262,8 +262,7 @@ public:
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
 
       if (Tracer_utils::tracer_state.single_task_start[i] != nullptr)
-        Tracer_utils::tracer_state.single_task_start[i](
-            Tracer_utils::tracer_state.single_task_state[i]);
+        Tracer_utils::tracer_state.single_task_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(sycl::id<1>{0}, sycl::range<1>{1},
@@ -271,8 +270,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.single_task_end[i] != nullptr)
-        Tracer_utils::tracer_state.single_task_end[i](
-            Tracer_utils::tracer_state.single_task_state[i]);
+        Tracer_utils::tracer_state.single_task_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -282,8 +280,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_start[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     if (numWorkItems.size() == 0)
@@ -301,8 +298,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_end[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -311,8 +307,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_start[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     if (numWorkItems == 0)
@@ -329,8 +324,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_end[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -341,8 +335,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_start[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     if (numWorkItems.size() == 0)
@@ -360,8 +353,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_end[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -371,8 +363,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_start[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_start[i](Tracer_utils::tracer_state.states[i]);
     }
     if (numWorkItems == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto &) {});
@@ -388,8 +379,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_end[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -400,8 +390,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_start[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_start[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
@@ -414,8 +403,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_end[i] != nullptr)
-        Tracer_utils::tracer_state.parallel_for_end[i](
-            Tracer_utils::tracer_state.parallel_for_state[i]);
+        Tracer_utils::tracer_state.parallel_for_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -442,7 +430,7 @@ public:
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_work_group_start[i] != nullptr)
         Tracer_utils::tracer_state.parallel_for_work_group_start[i](
-            Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
+            Tracer_utils::tracer_state.states[i]);
     }
 
     auto invoker = [&](auto &&kernel, auto &&...reductions) {
@@ -455,7 +443,7 @@ public:
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.parallel_for_work_group_end[i] != nullptr)
         Tracer_utils::tracer_state.parallel_for_work_group_end[i](
-            Tracer_utils::tracer_state.parallel_for_work_group_state[i]);
+            Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -495,14 +483,14 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
-        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
-        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -511,14 +499,14 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
-        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
-        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -527,14 +515,14 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
-        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
-        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -543,14 +531,14 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
-        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     copy_ptr(src, dest);
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
-        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -561,7 +549,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_start[i] != nullptr)
-        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     validate_copy_src_accessor(src);
@@ -601,7 +589,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.copy_end[i] != nullptr)
-        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.copy_state[i]);
+        Tracer_utils::tracer_state.copy_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -629,7 +617,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.fill_start[i] != nullptr)
-        Tracer_utils::tracer_state.fill_start[i](Tracer_utils::tracer_state.fill_state[i]);
+        Tracer_utils::tracer_state.fill_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     static_assert(mode != access::mode::read, "Filling read-only accessors is not allowed.");
@@ -641,7 +629,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.fill_end[i] != nullptr)
-        Tracer_utils::tracer_state.fill_end[i](Tracer_utils::tracer_state.fill_state[i]);
+        Tracer_utils::tracer_state.fill_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -651,7 +639,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.memcpy_start[i] != nullptr)
-        Tracer_utils::tracer_state.memcpy_start[i](Tracer_utils::tracer_state.memcpy_state[i]);
+        Tracer_utils::tracer_state.memcpy_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
@@ -697,7 +685,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.memcpy_end[i] != nullptr)
-        Tracer_utils::tracer_state.memcpy_end[i](Tracer_utils::tracer_state.memcpy_state[i]);
+        Tracer_utils::tracer_state.memcpy_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -709,7 +697,7 @@ public:
     // For special cases we can map this to a potentially more low-level memset
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.fill_start[i] != nullptr)
-        Tracer_utils::tracer_state.fill_start[i](Tracer_utils::tracer_state.fill_state[i]);
+        Tracer_utils::tracer_state.fill_start[i](Tracer_utils::tracer_state.states[i]);
     }
     if (sizeof(T) == 1) {
       unsigned char val = *reinterpret_cast<const unsigned char *>(&pattern);
@@ -730,7 +718,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.fill_end[i] != nullptr)
-        Tracer_utils::tracer_state.fill_end[i](Tracer_utils::tracer_state.fill_state[i]);
+        Tracer_utils::tracer_state.fill_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 
@@ -738,7 +726,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.memset_start[i] != nullptr)
-        Tracer_utils::tracer_state.memset_start[i](Tracer_utils::tracer_state.memset_state[i]);
+        Tracer_utils::tracer_state.memset_start[i](Tracer_utils::tracer_state.states[i]);
     }
 
     if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
@@ -755,7 +743,7 @@ public:
 
     for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
       if (Tracer_utils::tracer_state.memset_end[i] != nullptr)
-        Tracer_utils::tracer_state.memset_end[i](Tracer_utils::tracer_state.memset_state[i]);
+        Tracer_utils::tracer_state.memset_end[i](Tracer_utils::tracer_state.states[i]);
     }
   }
 

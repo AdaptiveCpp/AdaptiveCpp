@@ -16,7 +16,7 @@ In order to successfully build and install AdaptiveCpp, the following dependenci
 
 * python 3 (for the `acpp` compiler driver)
 * `cmake`
-* the Boost C++ libraries (in particular `boost.fiber`, `boost.context` and for the unit tests `boost.test`)
+* the Boost C++ libraries (in particular, `boost.test` for the unit tests)
     * it may be helpful to set the `BOOST_ROOT` `cmake` variable to the path to the root directory of Boost you wish to use if `cmake` does not find it automatically
     * **Note for boost 1.78 users:** There seems to be a bug in the build system for boost 1.78, causing the compiled fiber and context libraries not to be copied to the installation directory. You will have to copy these libraries manually to the installation directory. In binary packages from some distribution repositories this issue is fixed. You might be only affected when building boost manually from source.
 
@@ -221,7 +221,7 @@ cmake ../llvm -GNinja \
 ninja stage2-install
 ```
 
-Any changes to the AdaptiveCpp CMake configuration flags should be of the form `-DBOOSTRAP_<THE_ACPP_OPTION>` where `-D<THE_ACPP_OPTION>` is how you would normally specify it.
+Any changes to the AdaptiveCpp CMake configuration flags should be of the form `-DBOOTSTRAP_<THE_ACPP_OPTION>` where `-D<THE_ACPP_OPTION>` is how you would normally specify it.
 
 
 ## Installation from source (Mac)

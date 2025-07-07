@@ -523,7 +523,7 @@ class acpp_config:
       * omp - OpenMP CPU backend
                Backend Flavors:
                - omp.library-only: Works with any OpenMP enabled CPU compiler.
-                                   Uses Boost.Fiber for nd_range parallel_for support.
+                                   Uses Minicoro for nd_range parallel_for support.
                - omp.accelerated: Uses clang as host compiler to enable compiler support
                                   for nd_range parallel_for (see --acpp-use-accelerated-cpu).
       * cuda - CUDA backend

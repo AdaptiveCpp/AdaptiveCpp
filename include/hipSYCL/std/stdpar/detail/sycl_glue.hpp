@@ -32,6 +32,7 @@
 // Fetch builtin declarations to aid SSCP StdBuiltinRemapperPass for
 // std:: math function support inside kernels.
 #include <hipSYCL/sycl/libkernel/builtin_interface.hpp>
+#include <hipSYCL/common/appdb.hpp>
 
 
 #include "allocation_map.hpp"
@@ -67,9 +68,9 @@ inline sycl::queue construct_queue(const sycl::device& dev) {
         hipsycl::sycl::property::queue::AdaptiveCpp_coarse_grained_events{}}};
 }
 
-class kernel_code_monitor {
+class scheduling_monitor {
 public:
-  //kernel_code_monitor
+
   void attach(sycl::queue& q) {
     auto* executor = q.AdaptiveCpp_inorder_executor();
     assert(executor);
@@ -78,17 +79,22 @@ public:
         [this](std::string_view kernel_name, const rt::code_object *cb) {
           bool kernel_was_free_of_indirect_access =
               cb->get_jit_output_metadata().is_free_of_indirect_access;
-          if (!kernel_was_free_of_indirect_access)
+          if (!kernel_was_free_of_indirect_access) {
             _all_kernels_are_free_of_indirect_access = false;
             _most_recent_algorithm_was_free_of_indirect_access = false;
+          }
         });
   }
 
-  kernel_code_monitor() = default;
-  kernel_code_monitor(const kernel_code_monitor&) = delete;
-  kernel_code_monitor& operator=(const kernel_code_monitor) = delete;
+  scheduling_monitor() = default;
+  scheduling_monitor(const scheduling_monitor&) = delete;
+  scheduling_monitor& operator=(const scheduling_monitor) = delete;
+  ~scheduling_monitor() {
+    // in case there are any appdb update requests still open
+    finalize_algorithm();
+  }
 
-  bool all_launched_kernels_are_free_of_indirect_access() const {
+  bool all_launched_kernels_from_batch_are_free_of_indirect_access() const {
     return _all_kernels_are_free_of_indirect_access;
   }
 
@@ -102,11 +108,31 @@ public:
   }
 
   void finalize_algorithm() {
+    if(_update_appdb_algorithm_id.has_value()) {
+      hipsycl::common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_write_access([&](hipsycl::common::db::appdb_data &appdb) {
+        
+        auto& obj = appdb.scheduling_objects[_update_appdb_algorithm_id.value()];
+        obj.is_free_of_indirect_access =
+            _most_recent_algorithm_was_free_of_indirect_access;
+      });
+    }
+    _update_appdb_algorithm_id.reset();
+
     _most_recent_algorithm_was_free_of_indirect_access = true;
   }
+
+  // When finalize_algorithm() is called, the information stored in the monitor
+  // will be saved in the appdb with the provided algorithm id as key.
+  void request_sync_to_appdb(std::array<uint64_t, 2> alg_id) {
+    _update_appdb_algorithm_id = alg_id;
+  }
+
 private:
   bool _all_kernels_are_free_of_indirect_access = true;
   bool _most_recent_algorithm_was_free_of_indirect_access = true;
+  std::optional<std::array<uint64_t, 2>> _update_appdb_algorithm_id;
 };
 
 class stdpar_tls_runtime {
@@ -143,7 +169,7 @@ private:
               _loadbalance_queues.push_back(construct_queue(d));
           }
           for(auto& q : _loadbalance_queues)
-            _code_monitor.attach(q);
+            _scheduling_monitor.attach(q);
 #endif
         }
 
@@ -174,7 +200,7 @@ private:
   std::vector<std::size_t, libc_allocator<std::size_t>> _instrumented_op_problem_sizes_in_batch;
   uint64_t _batch_start_timestamp = 0;
 
-  kernel_code_monitor _code_monitor;
+  scheduling_monitor _scheduling_monitor;
 
   static std::atomic<std::size_t>& offloading_batch_counter() {
     static std::atomic<std::size_t> batch_counter = 0;
@@ -241,8 +267,8 @@ public:
     _dependencies_in_batch.push_back((d));
   }
 
-  bool all_kernels_are_free_of_indirect_access() const {
-    return _code_monitor.all_launched_kernels_are_free_of_indirect_access();
+  const auto& get_scheduling_monitor() const {
+    return _scheduling_monitor;
   }
 
   void finalize_offloading_batch() noexcept {
@@ -264,7 +290,7 @@ public:
     _instrumented_op_problem_sizes_in_batch.clear();
 #endif
     _dependencies_in_batch.clear();
-    _code_monitor.finalize_batch();
+    _scheduling_monitor.finalize_batch();
     reset_num_outstanding_operations();
     ++offloading_batch_counter();
   }

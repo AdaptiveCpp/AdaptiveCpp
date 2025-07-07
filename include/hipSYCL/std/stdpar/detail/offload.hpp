@@ -160,8 +160,10 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
   return detail::single_device_dispatch::get_queue();
 #else
   auto& stdpar_rt = detail::stdpar_tls_runtime::get();
-
+  // finalize prior algorithm
+  stdpar_rt.get_scheduling_monitor().finalize_algorithm();
   auto algorithm_unique_id = unique_algorithm_id<AlgorithmType, Args...>::get();
+
   std::optional<bool> is_free_of_indirect_access;
 
   hipsycl::common::filesystem::persistent_storage::get()
@@ -172,6 +174,12 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
           is_free_of_indirect_access = it->second;
         }
       });
+
+  // Ask the code monitor to store the obtained information from this run in
+  // the appdb for future use
+  if(!is_free_of_indirect_access.has_value()) {
+    stdpar_rt.get_scheduling_monitor().request_sync_to_appdb(algorithm_unique_id);
+  }
 
   constexpr std::size_t max_deps = 32;
   small_static_vector<sycl::queue*, max_deps> dependent_queues;
@@ -235,8 +243,9 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       is_free_of_indirect_access.has_value() && !is_free_of_indirect_access;
   // Also need to fall back if any of the kernels in the same batch have indirect
   // access, since then we can no longer guarantee correct dependency resolution
-  const bool previous_kernels_in_batch_have_indirect_access = 
-      !stdpar_rt.all_kernels_are_free_of_indirect_access();
+  const bool previous_kernels_in_batch_have_indirect_access =
+      !stdpar_rt.get_scheduling_monitor()
+           .all_launched_kernels_from_batch_are_free_of_indirect_access();
   const bool fallback_to_single_queue =
       dependent_queues.is_capacity_insufficient() ||
       !is_free_of_indirect_access.has_value() ||
@@ -318,9 +327,6 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
   }
   selected_queue->AdaptiveCpp_enqueue_custom_operation([](auto) {}, deps_vector);
 
-  // TODO - query stdpar_rt.all_kernels_are_free_of_indirect_access() and update appdb
-  //      - if indirect access is detected, all subsequent kernels of batch need to remain
-  //       on default queue!
   return *selected_queue;
 #endif
 }

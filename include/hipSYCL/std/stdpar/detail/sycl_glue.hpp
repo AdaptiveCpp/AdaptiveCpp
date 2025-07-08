@@ -104,6 +104,7 @@ public:
 
   void finalize_batch() {
     _all_kernels_are_free_of_indirect_access = true;
+    _enqueued_operations_costs.clear();
     finalize_algorithm();
   }
 
@@ -129,10 +130,23 @@ public:
     _update_appdb_algorithm_id = alg_id;
   }
 
+  void add_enqueued_operation_cost(int queue_id, double cost) {
+    if(queue_id >= _enqueued_operations_costs.size())
+      _enqueued_operations_costs.resize(queue_id+1);
+    _enqueued_operations_costs[queue_id] += cost;
+  }
+
+  double get_enqueued_cost(int queue_id) const {
+    if(queue_id < _enqueued_operations_costs.size())
+      return _enqueued_operations_costs[queue_id];
+    return 0.;
+  }
+
 private:
   bool _all_kernels_are_free_of_indirect_access = true;
   bool _most_recent_algorithm_was_free_of_indirect_access = true;
   std::optional<std::array<uint64_t, 2>> _update_appdb_algorithm_id;
+  std::vector<double> _enqueued_operations_costs;
 };
 
 class stdpar_tls_runtime {
@@ -269,6 +283,20 @@ public:
 
   const auto& get_scheduling_monitor() const {
     return _scheduling_monitor;
+  }
+
+  auto& get_scheduling_monitor() {
+    return _scheduling_monitor;
+  }
+
+  int get_queue_index(sycl::queue& lookup_q) const {
+    int current = 0;
+    for(auto& q : _loadbalance_queues) {
+      if(&q == &lookup_q)
+        return current;
+      ++current;
+    }
+    return -1;
   }
 
   void finalize_offloading_batch() noexcept {

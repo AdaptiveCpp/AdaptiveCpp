@@ -168,10 +168,10 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
 
   hipsycl::common::filesystem::persistent_storage::get()
       .get_this_app_db()
-      .read_access([&](hipsycl::common::db::appdb_data &appdb) {
+      .read_access([&](const hipsycl::common::db::appdb_data &appdb) {
         auto it = appdb.scheduling_objects.find(algorithm_unique_id);
         if (it != appdb.scheduling_objects.end()) {
-          is_free_of_indirect_access = it->second;
+          is_free_of_indirect_access = it->second.is_free_of_indirect_access;
         }
       });
 
@@ -255,20 +255,37 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
     selected_queue = &detail::single_device_dispatch::get_queue();
   } else {
     double best_cost = std::numeric_limits<double>::max();
-    for(auto& q : detail::stdpar_tls_runtime::get().get_available_queues()) {
-      rt::inorder_executor* executor = q.AdaptiveCpp_inorder_executor();
-      assert(executor);
-      rt::inorder_queue_status status;
+    int best_queue_id = 0;
+    auto& queues = detail::stdpar_tls_runtime::get().get_available_queues();
+    for(int queue_id = 0; queue_id < queues.size(); ++queue_id) {
+      auto& q = queues[queue_id];
+
+      // rough time estimate in ms
       double scheduling_cost = 0;
-      if(executor->get_queue()->query_status(status).is_success()) {
-        bool is_empty = status.is_complete();
-        if(!is_empty)
-          scheduling_cost += 50;
-      }
+
+      // Previous operations in queue
+      scheduling_cost += stdpar_rt.get_scheduling_monitor().get_enqueued_cost(queue_id);
+
       for(int i = 0; i < dependent_queues.size(); ++i) {
-        if(&q != dependent_queues[i])
+        if(&q != dependent_queues[i]) {
           // Synchronization cost
-          scheduling_cost += 10;
+          scheduling_cost += 1;
+          // Try map dependent queue to its index, and obtain the work that has
+          // been enqueued there
+          int queue_index = stdpar_rt.get_queue_index(*dependent_queues[i]);
+          if(queue_index >= 0) {
+            double preenqueued_cost = stdpar_rt.get_scheduling_monitor().get_enqueued_cost(
+                    queue_index);
+            if(q.get_device() == dependent_queues[i]->get_device()) {
+              // If we're scheduling to the same device, kernels may run *slower*
+              // due to resource contention. This effect is difficult to predict,
+              // but the factor 1.5 only really needs to ensure that the kernel is more costly
+              // than running on a different device.
+              preenqueued_cost *= 1.5;
+            }
+            scheduling_cost += preenqueued_cost;
+          }
+        }
       }
       // Data transfer cost
       for (auto local_mem_it = local_memory_amount.begin();
@@ -281,12 +298,22 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
         }
       }
 
+      // Rough cost of the algorithm itself
+      // TODO Actual take device characteristics, information from prior runs
+      // etc into account
+      double memory_bandwidth = q.get_device().is_cpu() ? 100. : 800.;
+      scheduling_cost +=
+          0.05 + 1000 * static_cast<double>(problem_size * sizeof(int)) *
+                     1.e-9 / memory_bandwidth;
+
       if(scheduling_cost < best_cost) {
         selected_queue = &q;
         best_cost = scheduling_cost;
+        best_queue_id = queue_id;
       }
-
+      ++queue_id;
     }
+    stdpar_rt.get_scheduling_monitor().add_enqueued_operation_cost(best_queue_id, best_cost);
   }
 
   // Add new dependencies to runtime tracking

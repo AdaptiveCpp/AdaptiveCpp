@@ -175,6 +175,16 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
         }
       });
 
+  if(!is_free_of_indirect_access.has_value()) {
+    HIPSYCL_DEBUG_INFO
+        << "[stdpar-mqs] Algorithm indirect access properties are unknown"
+        << std::endl;
+  } else if(!is_free_of_indirect_access) {
+    HIPSYCL_DEBUG_INFO
+        << "[stdpar-mqs] Could not prove that device code is free of indirect access"
+        << std::endl;
+  }
+
   // Ask the code monitor to store the obtained information from this run in
   // the appdb for future use
   if(!is_free_of_indirect_access.has_value()) {
@@ -252,6 +262,7 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       is_known_to_have_indirect_access ||
       previous_kernels_in_batch_have_indirect_access;
   if (fallback_to_single_queue) {
+    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Falling back to default queue" << std::endl;
     selected_queue = &detail::single_device_dispatch::get_queue();
   } else {
     double best_cost = std::numeric_limits<double>::max();
@@ -306,12 +317,15 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
           0.05 + 1000 * static_cast<double>(problem_size * sizeof(int)) *
                      1.e-9 / memory_bandwidth;
 
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Queue " << queue_id
+                         << " has an estimated scheduling cost of "
+                         << scheduling_cost << std::endl;
+
       if(scheduling_cost < best_cost) {
         selected_queue = &q;
         best_cost = scheduling_cost;
         best_queue_id = queue_id;
       }
-      ++queue_id;
     }
     stdpar_rt.get_scheduling_monitor().add_enqueued_operation_cost(best_queue_id, best_cost);
   }

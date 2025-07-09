@@ -11,6 +11,7 @@
 #include "hipSYCL/runtime/cuda/cuda_hardware_manager.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event_pool.hpp"
 #include "hipSYCL/runtime/cuda/cuda_allocator.hpp"
+#include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
@@ -56,6 +57,27 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
     _devices.emplace_back(dev);
   }
 
+  for (int dev = 0; dev < num_devices; ++dev) {
+    cuda_device_manager::get().activate_device(dev);
+
+    for (int peer_dev = 0; peer_dev < num_devices; ++peer_dev) {
+      if (peer_dev != dev) {
+        int can_access;
+        err = cudaDeviceCanAccessPeer(&can_access, dev, peer_dev);
+
+        if (err == cudaSuccess && can_access) {
+          err = cudaDeviceEnablePeerAccess(peer_dev, 0);
+
+          if (err != cudaSuccess && err != cudaErrorPeerAccessAlreadyEnabled) {
+            print_warning(
+              __acpp_here(),
+              error_info{"cuda_hardware_manager: Could not enable peer access",
+                error_code{"CUDA", err}});
+          }
+        }
+      }
+    }
+  }
 }
 
 

@@ -355,6 +355,71 @@ sycl::event generate_n(sycl::queue &q, ForwardIt first, Size count, Generator g,
                         });
 }
 
+template <class ForwardIt1, class ForwardIt2, class T>
+sycl::event remove_copy(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+                    const T &value, std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {}) {
+    auto pred = [value](auto x){return !(x == value);};
+    return copy_if(q, scratch_allocations, first, last, d_first, pred,
+                   num_elements_copied, deps);
+}
+
+template <class ForwardIt, class T>
+sycl::event remove(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, const T &value,
+                   std::size_t *num_elements_copied = nullptr,
+                   const std::vector<sycl::event> &deps = {}) {
+  if(first == last) {
+    if(num_elements_copied)
+      *num_elements_copied = 0;
+    return sycl::event{};
+  }
+
+  T* device_buffer = scratch_allocations.obtain<T>(std::distance(first, last));
+
+  auto pred = [value](auto x){ return !(x == value); };
+  auto evt = copy_if(q, scratch_allocations, first, last, device_buffer, pred,
+          num_elements_copied, deps);
+
+  evt.wait();
+  return copy_n(q, &(*device_buffer), *num_elements_copied, first,
+                deps);
+}
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event remove_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, UnaryPredicate pred,
+                   std::size_t *num_elements_copied = nullptr,
+                   const std::vector<sycl::event> &deps = {}) {
+  if(first == last) {
+    if(num_elements_copied)
+      *num_elements_copied = 0;
+    return sycl::event{};
+  }
+
+  using ValueT = typename std::iterator_traits<ForwardIt>::value_type;
+  ValueT* device_buffer = scratch_allocations.obtain<ValueT>(std::distance(first, last));
+
+  auto op = [pred](auto x){ return !pred(x); };
+  auto evt = copy_if(q, scratch_allocations, first, last, device_buffer, op,
+          num_elements_copied, deps);
+
+  evt.wait();
+  return copy_n(q, &(*device_buffer), *num_elements_copied, first,
+                deps);
+}
+
+template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
+sycl::event remove_copy_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+                    UnaryPredicate p, std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {}) {
+    auto pred = [p](auto x){return !p(x);};
+    return copy_if(q, scratch_allocations, first, last, d_first, pred,
+                   num_elements_copied, deps);
+}
+
 template <class ForwardIt, class T>
 sycl::event replace(sycl::queue &q, ForwardIt first, ForwardIt last,
                     const T &old_value, const T &new_value,
@@ -446,6 +511,237 @@ sycl::event reverse_copy(sycl::queue &q, BidirIt first,
                         });
 }
 
+template <class ForwardIt, class T>
+sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, const T &value,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {}) {
+  if(first == last)
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [first, value, problem_size] (ForwardIt input) {
+    return (*input == value ? std::distance(first, input) : problem_size);
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, UnaryPredicate p,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {}) {
+  if(first == last)
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [first, p, problem_size] (ForwardIt input) {
+    return (p(*input) ? std::distance(first, input) : problem_size);
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    // Transform returns a DiffT object.
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if_not(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, UnaryPredicate p,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {}) {
+  if(first == last)
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [first, p, problem_size] (ForwardIt input) {
+    return (!p(*input) ? std::distance(first, input) : problem_size);
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    // Transform returns a DiffT object.
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event find_end(sycl::queue &q, util::allocation_group &scratch_allocations,
+                          ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                          ForwardIt2 s_last,
+                          typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                          const std::vector<sycl::event> &deps = {}) {
+  if (first == last || s_first == s_last)
+    return sycl::event{};
+
+  if (std::distance(first, last) < std::distance(s_first, s_last))
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [=](ForwardIt1 input) {
+    auto it = input;
+    for (ForwardIt1 s_it = s_first; s_it != s_last; ++s_it) {
+      if(!(*it++ == *s_it))
+        return std::numeric_limits<DiffT>::min();
+    }
+    return std::distance(first, input);
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::maximum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::min(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event find_end(sycl::queue &q, util::allocation_group &scratch_allocations,
+                          ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                          ForwardIt2 s_last, BinaryPredicate p,
+                          typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                          const std::vector<sycl::event> &deps = {}) {
+  if (first == last || s_first == s_last)
+    return sycl::event{};
+
+  if (std::distance(first, last) < std::distance(s_first, s_last))
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [=](ForwardIt1 input) {
+    auto it = input;
+    for (ForwardIt1 s_it = s_first; s_it != s_last; ++s_it) {
+      if( !p(*it++, *s_it) )
+        return std::numeric_limits<DiffT>::min();
+    }
+    return std::distance(first, input);
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::maximum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::min(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event find_first_of(sycl::queue &q, util::allocation_group &scratch_allocations,
+                          ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                          ForwardIt2 s_last,
+                          typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                          const std::vector<sycl::event> &deps = {}) {
+  if (first == last || s_first == s_last)
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [=] (ForwardIt1 input) {
+    auto s_it = s_first;
+    for (; s_it != s_last; ++s_it) {
+      if(*input == *s_it)
+        return std::distance(first, input);
+    }
+    return problem_size;
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event find_first_of(sycl::queue &q, util::allocation_group &scratch_allocations,
+                          ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                          ForwardIt2 s_last, BinaryPredicate p,
+                          typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                          const std::vector<sycl::event> &deps = {}) {
+  if (first == last || s_first == s_last)
+    return sycl::event{};
+
+  using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+  DiffT problem_size = std::distance(first, last);
+
+  auto transform = [=] (ForwardIt1 input) {
+    auto s_it = s_first;
+    for (; s_it != s_last; ++s_it) {
+      if(p(*input, *s_it))
+        return std::distance(first, input);
+    }
+    return problem_size;
+  };
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input = first;
+    std::advance(input, idx[0]);
+    reducer.combine(transform(input));
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
+}
+
 // Need transform_reduce functionality for find etc, so forward
 // declare here.
 /*template <class ForwardIt, class T, class BinaryReductionOp,
@@ -464,22 +760,6 @@ sycl::event
 transform_reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
                  ForwardIt first, ForwardIt last, T* out, T init,
                  BinaryReductionOp reduce, UnaryTransformOp transform);
-
-template <class ForwardIt, class T>
-sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
-                 typename std::iterator_traits<ForwardIt>::difference_type* out, const T &value) {
-  using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
-  
-  return transform_reduce(q, scratch_allocations, first, last, out, std::distance(first, last), sycl::minimum<difference_type>{},)
-}
-
-template <class ForwardIt, class UnaryPredicate>
-sycl::event find_if(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
-                    typename std::iterator_traits<ForwardIt>::difference_type* out, UnaryPredicate p);
-
-template <class ForwardIt, class UnaryPredicate>
-sycl::event find_if_not(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
-                        typename std::iterator_traits<ForwardIt>::difference_type* out, UnaryPredicate p);
 */
 
 namespace detail {

@@ -130,10 +130,10 @@ public:
     _update_appdb_algorithm_id = alg_id;
   }
 
-  void add_enqueued_operation_cost(int queue_id, double cost) {
+  void set_enqueued_operation_cost(int queue_id, double cost) {
     if(queue_id >= _enqueued_operations_costs.size())
       _enqueued_operations_costs.resize(queue_id+1);
-    _enqueued_operations_costs[queue_id] += cost;
+    _enqueued_operations_costs[queue_id] = cost;
   }
 
   double get_enqueued_cost(int queue_id) const {

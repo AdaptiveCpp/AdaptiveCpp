@@ -277,10 +277,12 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       // Previous operations in queue
       scheduling_cost += stdpar_rt.get_scheduling_monitor().get_enqueued_cost(queue_id);
 
+      double max_dependency_cost = 0;
       for(int i = 0; i < dependent_queues.size(); ++i) {
+        double dependency_cost_i = 0;
         if(&q != dependent_queues[i]) {
           // Synchronization cost
-          scheduling_cost += 1;
+          dependency_cost_i += 1;
           // Try map dependent queue to its index, and obtain the work that has
           // been enqueued there
           int queue_index = stdpar_rt.get_queue_index(*dependent_queues[i]);
@@ -294,10 +296,12 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
               // than running on a different device.
               preenqueued_cost *= 1.5;
             }
-            scheduling_cost += preenqueued_cost;
+            dependency_cost_i += preenqueued_cost;
           }
         }
+        max_dependency_cost = std::max(max_dependency_cost, dependency_cost_i);
       }
+      scheduling_cost += max_dependency_cost;
       // Data transfer cost
       for (auto local_mem_it = local_memory_amount.begin();
           local_mem_it != local_memory_amount.end(); ++local_mem_it) {
@@ -314,7 +318,7 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       // etc into account
       double memory_bandwidth = q.get_device().is_cpu() ? 100. : 800.;
       scheduling_cost +=
-          0.05 + 1000 * static_cast<double>(problem_size * sizeof(int)) *
+          0.05 + 1000. * static_cast<double>(problem_size * sizeof(int)) *
                      1.e-9 / memory_bandwidth;
 
       HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Queue " << queue_id
@@ -327,7 +331,7 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
         best_queue_id = queue_id;
       }
     }
-    stdpar_rt.get_scheduling_monitor().add_enqueued_operation_cost(best_queue_id, best_cost);
+    stdpar_rt.get_scheduling_monitor().set_enqueued_operation_cost(best_queue_id, best_cost);
   }
 
   // Add new dependencies to runtime tracking

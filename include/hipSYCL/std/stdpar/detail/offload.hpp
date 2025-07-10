@@ -331,6 +331,8 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
         best_queue_id = queue_id;
       }
     }
+    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Selected queue " << selected_queue
+                       << std::endl;
     stdpar_rt.get_scheduling_monitor().set_enqueued_operation_cost(best_queue_id, best_cost);
   }
 

@@ -363,6 +363,9 @@ class acpp_config:
 """  If set, assume availability of system-level unified shared memory where every pointer from regular
   malloc() is accessible on GPU. This disables automatic hijacking of memory allocations at the compiler
   level by AdaptiveCpp."""),
+      'stdpar-multi-queue-scheduling' : option("--acpp-stdpar-multi-queue-scheduling", "ACPP_STDPAR_MULTI_QUEUE_SCHEDULING", "default-is-stdpar-multi-queue-scheduling",
+"""  If set, enables AdaptiveCpp to automatically enable stdpar algorithms across multiple queues, and potentially
+  multiple devices."""),
       'stdpar-unconditional-offload' : option("--acpp-stdpar-unconditional-offload", "ACPP_STDPAR_UNCONDITIONAL_OFFLOAD", "default-is-stdpar-unconditional-offload",
 """  Normally, heuristics are employed to determine whether algorithms should be offloaded.
   This particularly affects small problem sizes. If this flag is set, supported parallel STL
@@ -873,6 +876,13 @@ class acpp_config:
   def is_stdpar_unconditional_offload(self):
     try:
       return self._is_flag_set("stdpar-unconditional-offload")
+    except OptionNotSet:
+      return False
+  
+  @property
+  def is_stdpar_mqs(self):
+    try:
+      return self._is_flag_set("stdpar-multi-queue-scheduling")
     except OptionNotSet:
       return False
 
@@ -1678,6 +1688,7 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    self._is_stdpar_mqs = config.is_stdpar_mqs
     self._is_pcuda = config.is_pcuda
     self._clang_opt_args = config.default_clang_optimization_args
     self._acpp_pcuda_pp_path = os.path.join(config.acpp_binary_path, "acpp-pcuda-pp")
@@ -1893,6 +1904,9 @@ class compiler:
         "-mllvm", "-acpp-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
       ]
+      if self._is_stdpar_mqs:
+        args += ["-D__ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__"]
+      
 
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-acpp-stdpar-no-malloc-to-usm", "-D__ACPP_STDPAR_ASSUME_SYSTEM_USM__"]

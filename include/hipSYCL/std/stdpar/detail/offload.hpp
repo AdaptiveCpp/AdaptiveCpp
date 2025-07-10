@@ -317,9 +317,24 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       // TODO Actual take device characteristics, information from prior runs
       // etc into account
       double memory_bandwidth = q.get_device().is_cpu() ? 100. : 800.;
-      scheduling_cost +=
+      double kernel_cost =
           0.05 + 1000. * static_cast<double>(problem_size * sizeof(int)) *
                      1.e-9 / memory_bandwidth;
+      double device_load = 0.0;
+      for(int i = 0; i < queues.size(); ++i) {
+        if(i != queue_id) {
+          if(queues[i].get_device() == queues[queue_id].get_device())
+            device_load += stdpar_rt.get_scheduling_monitor().get_enqueued_cost(i);
+        }
+      }
+      // Kernel runs slower on device that runs other stuff on other queues.
+      // The exact factor is not important, it's just important to have
+      // a mechanism to prefer other devices!
+      if(device_load > 0)
+        kernel_cost *= 1.5;
+
+      scheduling_cost += kernel_cost;
+          
 
       HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Queue " << queue_id
                          << " has an estimated scheduling cost of "

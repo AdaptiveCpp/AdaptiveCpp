@@ -73,13 +73,6 @@ const char* resolve_function_name(Ret (*func)(Args...)) {
 extern "C" void __acpp_reflection_init_registered_function_pointers();
 extern "C" void __acpp_function_annotation_needs_function_ptr_argument_reflection();
 
-// Compiler will generate calls to this function to register functions.
-__attribute__((used))
-inline void __acpp_reflection_associate_function_pointer(const void *func_ptr,
-                                             const char *func_name) {
-  hipsycl::rt::support::symbol_information::get()
-      .register_function_symbol(func_ptr, func_name);
-}
 
 struct __acpp_reflection_tu_init_trigger {
   __acpp_reflection_tu_init_trigger() {

@@ -365,7 +365,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
     for(auto* I : StdparCallPositions) {
       // For the start of our search, we need be move to the next instruction following
       // the stdpar call.
-      // If the stdpar call is mapped to an InvokeInst (which is tpyically the case),
+      // If the stdpar call is mapped to an InvokeInst (which is typically the case),
       // it does not have a next instruction.
       //
       // It is important to have this logic here, and not e.g. when collecting StdparCallPositions,

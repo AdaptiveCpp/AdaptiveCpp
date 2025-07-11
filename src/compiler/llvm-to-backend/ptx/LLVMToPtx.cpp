@@ -44,49 +44,25 @@ namespace {
 
 
 
-class LibdevicePath {
-public:
-  static bool get(std::string& Out) {
-    static LibdevicePath P;
-
-    if(P.IsFound)
-      Out = P.Path;
-    return P.IsFound;
+std::string getDeviceLibPath() {
+  static std::string Path;
+  if(!Path.empty()) {
+    return Path;
   }
-private:
-  LibdevicePath() {
-    IsFound = findLibdevice(Path);
-
-    if(IsFound) {
-      HIPSYCL_DEBUG_INFO << "LLVMToPtx: Found libdevice: " << Path << "\n";
-    } else {
-      HIPSYCL_DEBUG_INFO << "LLVMToPtx: Could not find CUDA libdevice!\n";
-    }
+  
+  std::string LibdeviceName = "libdevice.10.bc";
+  std::string RedistPackagePath = 
+    common::filesystem::join_path(getRedistPackageBitcodePath("ptx"), LibdeviceName);
+  if (common::filesystem::exists(RedistPackagePath)) {
+    Path = RedistPackagePath;
+  } else {
+    Path = 
+      common::filesystem::join_path(ACPP_CUDA_DEVICE_LIBS_PATH, LibdeviceName);
   }
 
-  bool findLibdevice(std::string& Out) {
-    
-    std::string CUDAPath = HIPSYCL_CUDA_PATH;
-    std::vector<std::string> SubDir {"nvvm", "libdevice"};
-    std::string BitcodeDir = common::filesystem::join_path(CUDAPath, SubDir);
+  return Path;
+}
 
-    std::error_code EC;
-    auto Files = common::filesystem::list_regular_files(BitcodeDir, EC);
-    if(EC) return false;
-
-    for(const auto& F : Files) {
-      if (F.find("libdevice.") != std::string::npos && F.find(".bc") != std::string::npos) {
-        Out = F;
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  std::string Path;
-  bool IsFound;
-};
 
 void setNVVMReflectParameter(llvm::Module& M, llvm::StringRef Name, int Value) {
   llvm::SmallVector<llvm::Metadata*, 4> Metadata;
@@ -205,11 +181,8 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-ptx-full.bc"});
   
-  std::string LibdeviceFile;
-  if(!LibdevicePath::get(LibdeviceFile)) {
-    this->registerError("LLVMToPtx: Could not find CUDA libdevice bitcode library");
-    return false;
-  }
+  std::string LibdeviceFile = getDeviceLibPath();
+  HIPSYCL_DEBUG_INFO << "LLVMToPtx: Using libdevice at " << LibdeviceFile << "\n";
 
   AddressSpaceInferencePass ASIPass {ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);

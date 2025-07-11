@@ -12,6 +12,8 @@
 #ifndef ACPP_RT_PCUDA_DEVICE_TOPOLOGY_HPP
 #define ACPP_RT_PCUDA_DEVICE_TOPOLOGY_HPP
 
+#include <vector>
+
 #include "hipSYCL/runtime/device_id.hpp"
 
 namespace hipsycl::rt {

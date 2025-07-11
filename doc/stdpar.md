@@ -34,6 +34,10 @@ Offloading is implemented for the following STL algorithms:
 |`fill_n` | |
 |`generate` | |
 |`generate_n` | |
+|`remove_copy` | |
+|`remove_copy_if` | |
+|`remove` | |
+|`remove_if` | |
 |`replace` | |
 |`replace_if` | |
 |`replace_copy` | |
@@ -42,6 +46,11 @@ Offloading is implemented for the following STL algorithms:
 |`reverse_copy` | |
 |`transform_reduce` | all overloads |
 |`reduce` | all overloads |
+|`find` | |
+|`find_if` | |
+|`find_if_not` | |
+|`find_end` | both overloads |
+|`find_first_of` | both overloads |
 |`any_of` | |
 |`all_of` | |
 |`none_of` | |
@@ -52,6 +61,8 @@ Offloading is implemented for the following STL algorithms:
 |`sort` | may not scale optimally for large problems |
 |`min_element` | |
 |`max_element` | |
+|`is_sorted_until` | both overloads |
+|`is_sorted` | both overloads |
 |`inclusive_scan` | |
 |`exclusive_scan` | |
 |`transform_inclusive_scan` | |

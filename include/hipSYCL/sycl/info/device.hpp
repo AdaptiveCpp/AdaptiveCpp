@@ -175,6 +175,17 @@ namespace device {
 };
 
 } // namespace info
+
+namespace khr{
+namespace info{
+namespace device{
+  template<int Dimensions = 3>
+  struct max_work_group_range { using return_type = sycl::range<Dimensions>; };
+
+  struct max_work_group_range_size { using return_type = size_t; };
+}
+}
+}
 } // namespace sycl
 } // namespace hipsycl
 

@@ -44,7 +44,6 @@
 #include <llvm/Support/Error.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
-#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <string>
 #include <optional>
 #include <cstdlib>

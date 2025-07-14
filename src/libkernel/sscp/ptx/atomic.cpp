@@ -471,7 +471,13 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
     if(scope == __acpp_sscp_memory_scope::system) {
-      if(order == __acpp_sscp_memory_order::release) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        asm volatile("st.relaxed.sys.s32 [%0], %1;"
+                    :
+                    :"l"(ptr), "r"(x)
+                    : "memory");
+        return;
+      } else if(order == __acpp_sscp_memory_order::release) {
         asm volatile("st.release.sys.s32 [%0], %1;"
                     :
                     :"l"(ptr), "r"(x)
@@ -479,7 +485,13 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
         return;
       }
     } else if(scope == __acpp_sscp_memory_scope::device) {
-      if(order == __acpp_sscp_memory_order::release) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        asm volatile("st.relaxed.gpu.s32 [%0], %1;"
+                    :
+                    :"l"(ptr), "r"(x)
+                    : "memory");
+        return;
+      } else if(order == __acpp_sscp_memory_order::release) {
         asm volatile("st.release.gpu.s32 [%0], %1;"
                     :
                     :"l"(ptr), "r"(x)
@@ -518,7 +530,14 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
 
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
     if(scope == __acpp_sscp_memory_scope::system) {
-      if(order == __acpp_sscp_memory_order::acquire) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        __acpp_int32 result;
+        asm volatile("ld.relaxed.sys.u32 %0,[%1];"
+                    : "=r"(result)
+                    : "l"(ptr)
+                    : "memory");
+        return result;
+      } else if(order == __acpp_sscp_memory_order::acquire) {
         __acpp_int32 result;
         asm volatile("ld.acquire.sys.u32 %0,[%1];"
                     : "=r"(result)
@@ -527,7 +546,14 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
         return result;
       }
     } else if(scope == __acpp_sscp_memory_scope::device) {
-      if(order == __acpp_sscp_memory_order::acquire) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        __acpp_int32 result;
+        asm volatile("ld.relaxed.gpu.u32 %0,[%1];"
+                    : "=r"(result)
+                    : "l"(ptr)
+                    : "memory");
+        return result;
+      } else if(order == __acpp_sscp_memory_order::acquire) {
         __acpp_int32 result;
         asm volatile("ld.acquire.gpu.u32 %0,[%1];"
                     : "=r"(result)

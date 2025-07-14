@@ -50,11 +50,14 @@ struct reverse_copy {};
 struct find {};
 struct find_if {};
 struct find_if_not {};
+struct find_end {};
+struct find_first_of {};
 struct all_of {};
 struct any_of {};
 struct none_of {};
 struct count{};
 struct count_if{};
+struct equal {};
 struct sort {};
 struct merge {};
 struct inclusive_scan {};
@@ -224,7 +227,8 @@ private:
 
   static std::string get_dataset_name() {
     std::string dataset_name;
-    if(rt::try_get_environment_variable("stdpar_dataset_name", dataset_name)) {
+    if (common::settings::try_retrieve_settings_variable("stdpar_dataset_name",
+                                                         dataset_name)) {
       return dataset_name;
     }
     return ".acpp-stdpar-profile";

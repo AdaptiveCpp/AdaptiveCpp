@@ -106,11 +106,11 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
   if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(HIPSYCL_DEBUG_LEVEL 3 CACHE STRING
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
-FORCE)
+  )
   else()
     set(HIPSYCL_DEBUG_LEVEL 2 CACHE STRING
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
-FORCE)
+  )
   endif()
 endif()
 
@@ -473,6 +473,22 @@ if(WITH_ROCM_BACKEND)
     message(SEND_ERROR "ROCm device library path not found; please provide the path containing the ROCm bitcode libraries (e.g. ockl.bc) manually using -DROCM_DEVICE_LIBS_PATH")
   endif()
 endif()
+
+
+if(WITH_CUDA_BACKEND)
+  find_path(CUDA_DEVICE_LIBS_PATH libdevice.10.bc HINTS
+      ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice
+      DOC "Path containing the CUDA bitcode libraries. Typically, $CUDA_PATH/nvvm/libdevice")
+
+  if(CUDA_DEVICE_LIBS_PATH)
+    message(STATUS "Found CUDA bitcode library path: ${CUDA_DEVICE_LIBS_PATH}")
+  else()
+    message(SEND_ERROR "CUDA device library path not found; please provide the path containing the CUDA bitcode libraries (libdevice.10.bc) manually using -DCUDA_DEVICE_LIBS_PATH")
+  endif()
+endif()
+
+
+
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions

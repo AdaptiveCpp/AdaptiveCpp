@@ -162,6 +162,9 @@ private:
   static std::string getDefaultABIVersionLib(const std::string& DeviceLibDir) {
     std::error_code EC;
     std::vector<std::string> Files = common::filesystem::list_regular_files(DeviceLibDir, EC);
+    for(auto& S : Files) {
+      S = common::filesystem::filename(S);
+    }
     if(EC)
       return "";
     
@@ -228,7 +231,8 @@ public:
       NeededBitcodeLibs.push_back("oclc_abi_version_" + std::to_string(ForceCodeObjectModel) +
                                   ".bc");
     } else {
-      NeededBitcodeLibs.push_back(getDefaultABIVersionLib(DeviceLibPath));
+      std::string DefaultABILib = getDefaultABIVersionLib(DeviceLibPath);
+      NeededBitcodeLibs.push_back(DefaultABILib);
     }
 
     if(IsFastMath) {

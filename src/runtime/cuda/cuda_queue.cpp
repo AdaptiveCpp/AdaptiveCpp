@@ -47,11 +47,56 @@
 
 #include <cassert>
 #include <memory>
+#include <vector>
 
 namespace hipsycl {
 namespace rt {
 
 namespace {
+
+
+unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
+  // Our bitcode libraries need at least ptx +60
+  unsigned ptx_version = 60;
+  
+  // for each sm, stores minimum ptx version required
+  // based on data from
+  // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#ptx-module-directives-target
+  static std::vector<std::array<unsigned, 2>> sm_min_ptx_version =
+      {{72, 61},
+       {75, 63},
+       {80, 70},
+       {86, 71},
+       {87, 74},
+       {89, 78},
+       {90, 80},
+       // some variants of 100, 101 need 8.6, some 8.8
+       // so require 8.8 for all to be on the safe side.
+       {100, 88},
+       {101, 88},
+       {103, 88},
+       {120, 88},
+       {121, 88}};
+
+  if(sm_version < sm_min_ptx_version.front()[0]) {
+    ptx_target = sm_version;
+    return ptx_version;
+  } else if(sm_version >= sm_min_ptx_version.back()[0]) {
+    // in case of newer sm version than we know about,
+    // just try targeting the last known one.
+    ptx_version = sm_min_ptx_version.back()[1];
+    ptx_target = sm_min_ptx_version.back()[0];
+  } else {
+    for(const auto& entry : sm_min_ptx_version) {
+      if(entry[0] >= sm_version) {
+        ptx_version = entry[1];
+        ptx_target = entry[0];
+        break;
+      }
+    }
+  }
+  return ptx_version;
+}
 
 void host_synchronization_callback(cudaStream_t stream, cudaError_t status,
                                    void *userData) {
@@ -176,8 +221,17 @@ cuda_queue::cuda_queue(cuda_backend *be, device_id dev, int priority)
       _kernel_cache{kernel_cache::get()} {
   this->activate_device();
 
-  _reflection_map = glue::jit::construct_default_reflection_map(
-      be->get_hardware_manager()->get_device(dev.get_id()));
+  cuda_hardware_context *ctx = static_cast<cuda_hardware_context *>(
+      this->_backend->get_hardware_manager()->get_device(dev.get_id()));
+  
+  this->_ptx_target = 0;
+  this->_ptx_version =
+      select_ptx_version(ctx->get_compute_capability(), _ptx_target);
+
+  _reflection_map = glue::jit::construct_default_reflection_map(ctx);
+  _reflection_map["ptx_version"] = _ptx_version;
+  _reflection_map["ptx_target"] = _ptx_target;
+
 
   cudaError_t err;
   if(priority == 0) {
@@ -577,8 +631,6 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   cuda_hardware_context *ctx = static_cast<cuda_hardware_context *>(
       this->_backend->get_hardware_manager()->get_device(device));
 
-  unsigned compute_capability = ctx->get_compute_capability();
-
   if(!kernel_info) {
     return make_error(
         __acpp_here(),
@@ -614,12 +666,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     _config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
     _config.set_build_option(opt.first, opt.second);
-  // TODO This is incorrect, we should attempt to find a better way to determine
-  // the right ptx version
+  
   _config.set_build_option(kernel_build_option::ptx_version,
-                          compute_capability);
+                          this->_ptx_version);
   _config.set_build_option(kernel_build_option::ptx_target_device,
-                          compute_capability);
+                          this->_ptx_target);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;

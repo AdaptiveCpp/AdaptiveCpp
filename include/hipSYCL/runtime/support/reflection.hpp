@@ -10,7 +10,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_SUPPORT_REFLECTION_HPP
 #define HIPSYCL_SUPPORT_REFLECTION_HPP
-
 #include <mutex>
 #include <unordered_map>
 

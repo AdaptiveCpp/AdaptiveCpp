@@ -203,6 +203,8 @@ ForwardIt shift_right(hipsycl::stdpar::par_unseq,
                 ForwardIt first, ForwardIt last,
                 typename std::iterator_traits<ForwardIt>::difference_type n);
 
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt min_element(hipsycl::stdpar::par_unseq, ForwardIt first,
                       ForwardIt last);
 

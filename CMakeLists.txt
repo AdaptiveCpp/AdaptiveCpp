@@ -744,9 +744,8 @@ if(WITH_ROCM_BACKEND)
 endif()
 
 message(STATUS "Numa: ${NUMA_LIBRARY}")
-set(ACPP_DEPLOY_LIBDIR "lib/")
 set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
-  \"${NUMA_LIBRARY}\" : \"${ACPP_DEPLOY_LIBDIR}\"
+  \"${NUMA_LIBRARY}\" : \"/\"
 }
 ")
 

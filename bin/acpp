@@ -182,15 +182,51 @@ class deployment_db:
 class deployment_engine:
   def __init__(self, deployment_db):
     self._deployment_db = deployment_db
-  
-  def _deploy(self, origin, target):
-    pass
+
+  # relative symlink in same directory
+  def _relative_symlink(self, target, link):
+    if os.path.exists(link):
+      os.unlink(link)
+    
+    os.symlink(os.path.basename(target), link)
+
+  def _deploy(self, origin, target, target_root_path):
+    if origin == "" or origin.endswith("-NOTFOUND"):
+      return
+    
+    if origin.endswith("/*"):
+      for f in os.listdir(origin.replace("/*","")):
+        if os.path.isfile(f):
+          self._deploy(f, target, target_root_path)
+          return
+    
+    # os.path.join("abc", "/") returns '/', not 'abc/'.
+    # Remove leading / to fix.
+    if target.startswith("/"):
+      target=target.replace("/","",1)
+    # target is assumed to be a directory!
+
+    full_target_path = os.path.join(target_root_path, target)
+    print(origin,"->",full_target_path)
+
+
+    os.makedirs(full_target_path,0o777, True)
+    if os.path.islink(origin):
+      # first deploy link target to 
+      real_origin = os.path.realpath(origin)
+      self._deploy(real_origin, target, target_root_path)
+      # create symlink
+      self._relative_symlink(os.path.join(full_target_path,os.path.basename(real_origin)),
+                             os.path.join(full_target_path,os.path.basename(origin)))
+    else:
+      destination = os.path.join(full_target_path, os.path.basename(origin))
+      shutil.copy(origin, destination)
 
   def deploy_component(self, component, target_path):
     manifest = self._deployment_db.deployment_manifest(component)
     
     for f in manifest:
-      self._deploy(f, manifest[f])
+      self._deploy(f, manifest[f], target_path)
 
 
 class config_db:

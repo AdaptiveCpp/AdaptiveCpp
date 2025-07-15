@@ -34,6 +34,10 @@ class OptionNotSet(Exception):
   def __init__(self, msg):
     super().__init__(msg)
 
+class DeploymentComponentUnavailable(Exception):
+  def __init__(self, msg):
+    super().__init__(msg)
+
 class hcf_node:
   def __init__(self, node_name, nesting_level=0):
     self._subnodes = []
@@ -172,7 +176,7 @@ class deployment_db:
   def deployment_manifest(self, component):
     lower_component = component.lower()
     if not lower_component in self._data:
-      raise RuntimeError("Deployment component '"+component+"' is unvailable.")
+      raise DeploymentComponentUnavailable("Deployment component '"+component+"' is unvailable.")
     return self._data[component]
 
 class deployment_engine:
@@ -182,11 +186,12 @@ class deployment_engine:
   def _deploy(self, origin, target):
     pass
 
-  def deploy_component(self, component):
+  def deploy_component(self, component, target_path):
     manifest = self._deployment_db.deployment_manifest(component)
     
     for f in manifest:
       self._deploy(f, manifest[f])
+
 
 class config_db:
   # Scans the provided directory for json files
@@ -367,7 +372,17 @@ class acpp_config:
       * after-sync  - Prefetch all allocations used by the first kernel submitted after each synchronization point.
                       (Prefetches running on non-idling queues can be expensive!)
       * first       - Prefetch allocations only the very first time they are used in a kernel
-      * auto        - Let AdaptiveCpp decide (default)""")
+      * auto        - Let AdaptiveCpp decide (default)"""),
+      'deploy' : option("--acpp-deploy", "ACPP_DEPLOY", "default-deploy",
+"""  If set, enables deployment, i.e. AdaptiveCpp will attempt to collect all AdaptiveCpp dependencies 
+    of generated binaries in the specified directory. The format is:
+    deployment-target1,deployment-target2,...,deployment-targetN:/path/to/deploy/to
+    Supported deployment targets are:
+      * core        - Core AdaptiveCpp components and OpenMP CPU backend. This will always be required.
+      * cuda        - CUDA backend for NVIDIA hardware
+      * hip         - HIP backend for AMD hardware
+      * ocl         - OpenCL backend (e.g. Intel hardware)
+      * all         - All of the above targets""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
@@ -667,6 +682,37 @@ class acpp_config:
 
     return result
 
+  def _parse_deployment(self, deployment_arg):
+    available_components = ["core", "cuda", "hip", "ocl"]
+
+    deployment_components=deployment_arg.replace("'","").replace('"',"").split(':')
+
+    if len(deployment_components) == 0:
+      return {}
+
+    if len(deployment_components) != 2:
+      raise RuntimeError("Invalid deployment target description: "+deployment_arg)
+    
+    target_path = deployment_components[1]
+
+    deployment_components = deployment_components[0].split(",")
+    deployment_components = [d.lower() for d in deployment_components]
+    enable_all = False
+    for d in deployment_components:
+      if d == "all":
+        enable_all = True
+      if not d in available_components and d != "all":
+        raise RuntimeError("Invalid deployment component: "+d)
+    
+    if enable_all:
+      deployment_components = available_components
+
+    result = {}
+    for d in deployment_components:
+      result[d] = target_path
+
+    return result
+
   def _get_executable_path(self, path):
     path = self._substitute_omp_template_string(path)
     normalized_path = shutil.which(path)
@@ -766,6 +812,14 @@ class acpp_config:
       self._targets = self._parse_targets(raw_target_string)
 
     return self._targets
+
+  @property
+  def deployment(self):
+    try:
+      d = raw_target_string = self._retrieve_option("deploy")
+      return self._parse_deployment(d)
+    except OptionNotSet:
+      return {}
 
   @property
   def cuda_path(self):
@@ -1006,7 +1060,7 @@ class acpp_config:
     return self._config_db
   
   @property
-  def deployment_db(self)
+  def deployment_db(self):
     return self._deployment_db
 
   def is_pure_linking_stage(self):
@@ -2125,6 +2179,17 @@ class compiler:
       print("acpp: Using temporary directory:",temp_dir)
       return self._run(temp_dir)
 
+def run_deployment(config, component_path_map):
+  print("Starting deployment...")
+  de = deployment_engine(config.deployment_db)
+  for c in component_path_map:
+    target_path=component_path_map[c]
+    print("Deploying component: "+c+" -> "+target_path)
+    try:
+      de.deploy_component(c, target_path)
+    except DeploymentComponentUnavailable:
+      print_warning("Requested deployment component '"+c+"' is unavailable; skipping (was AdaptiveCpp built with support for it?)")
+
 def print_config(config):
   config_db = config.config_db
   print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")
@@ -2182,7 +2247,11 @@ if __name__ == '__main__':
       print_usage(config)
       sys.exit(-1)
 
+    is_pure_deployment=True
     for arg in args:
+      if not arg.startswith("--acpp-deploy="):
+        is_pure_deployment=False
+
       if arg == "--help":
         print_usage(config)
         sys.exit(0)
@@ -2201,8 +2270,17 @@ if __name__ == '__main__':
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
               "enable optimizations.")
 
-    c = compiler(config)
-    sys.exit(c.run())
+    if not is_pure_deployment:
+      c = compiler(config)
+      retval = c.run()
+      if retval != 0:
+        sys.exit(retval)
+    
+    deployment_spec = config.deployment
+    if len(deployment_spec) > 0:
+      run_deployment(config, deployment_spec)
+
+    sys.exit(0)
   except Exception as e:
     print_error("fatal: "+str(e))
     sys.exit(-1)

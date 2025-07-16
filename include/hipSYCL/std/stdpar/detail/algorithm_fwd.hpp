@@ -191,6 +191,31 @@ typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
 
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par_unseq,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2 );
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2, BinaryPredicate p);
+
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par_unseq,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2, ForwardIt2 last2 );
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2, ForwardIt2 last2,
+                                    BinaryPredicate p);
+
 template <class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt shift_left(hipsycl::stdpar::par_unseq,
@@ -288,6 +313,31 @@ HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
+
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2 );
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2, BinaryPredicate p);
+
+template<class ForwardIt1, class ForwardIt2>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2, ForwardIt2 last2 );
+
+template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
+                                    ForwardIt1 first1, ForwardIt1 last1,
+                                    ForwardIt2 first2, ForwardIt2 last2,
+                                    BinaryPredicate p);
 
 template <class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT

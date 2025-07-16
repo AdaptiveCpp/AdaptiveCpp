@@ -352,6 +352,37 @@ sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations
                   typename std::iterator_traits<ForwardIt>::difference_type *out,
                   UnaryPredicate p, const std::vector<sycl::event> &deps = {});
 
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    BinaryPredicate p,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    ForwardIt2 last2,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    ForwardIt2 last2, BinaryPredicate p,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
 /// The result of the operation will be stored in out.
 ///
 /// out must point to device-accessible memory, and will be set to 0

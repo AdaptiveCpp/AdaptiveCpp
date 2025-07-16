@@ -870,6 +870,73 @@ sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations
                           deps);
 }
 
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    ForwardIt2 last2, BinaryPredicate p,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {}) {
+  if (first1 == last1 || first2 == last2)
+    return sycl::event{};
+
+  using  DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
+  DiffT problem_size = std::min(std::distance(first1, last1),
+                                std::distance(first2, last2));
+
+  auto kernel = [=](sycl::id<1> idx, auto& reducer) {
+    auto input1 = std::next(first1, idx[0]);
+    auto input2 = std::next(first2, idx[0]);
+    if ( p(*input1, *input2) )
+      reducer.combine(problem_size);
+    else
+      reducer.combine(idx[0]);
+  };
+
+  auto reduce = sycl::minimum<DiffT>{};
+
+  return detail::transform_reduce_impl(q, scratch_allocations, out,
+                                       std::numeric_limits<DiffT>::max(),
+                                       problem_size, kernel, reduce, deps);
+}
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    BinaryPredicate p,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {}) {
+  if (first1 == last1)
+    return sycl::event{};
+
+  return mismatch(q, scratch_allocations, first1, last1, first2,
+                  std::next(first2, std::distance(first1, last1)), p, out, deps);
+}
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    ForwardIt2 last2,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {}) {
+  if (first1 == last1 || first2 == last2)
+    return sycl::event{};
+
+  return mismatch(q, scratch_allocations, first1, last1, first2,
+                  last2, std::equal_to<>(), out, deps);
+}
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {}) {
+  if (first1 == last1)
+    return sycl::event{};
+
+  return mismatch(q, scratch_allocations, first1, last1, first2,
+                  std::next(first2, std::distance(first1, last1)), out, deps);
+}
+
 template <class ForwardIt>
 sycl::event
 min_element(sycl::queue &q, util::allocation_group &scratch_allocations,

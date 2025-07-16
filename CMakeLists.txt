@@ -744,12 +744,35 @@ if(WITH_ROCM_BACKEND)
 endif()
 
 message(STATUS "Numa: ${NUMA_LIBRARY}")
+# TODO OpenMP
 set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
-  \"${NUMA_LIBRARY}\" : \"/\"
+  \"$ACPP_LIB_PATH/SHARED_LIB:acpp-rt\" : \"/\",
+  \"$ACPP_LIB_PATH/SHARED_LIB:acpp-common\" : \"/\",
+  \"$ACPP_LIB_PATH/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
+  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${NUMA_LIBRARY}\" : \"/\",
+  \"${LLVM_LIBRARY}\" : \"/\",
+  \"${hipSYCL_OpenMP_CXX_LIBRARIES}\" : \"/\"
+}
+")
+
+#TODO cudart
+set(ACPP_CUDA_DEPLOYMENT_MANIFEST "{
+  \"$ACPP_LIB_PATH/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
+  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\"
 }
 ")
 
 file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json ${ACPP_CORE_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json ${ACPP_CUDA_DEPLOYMENT_MANIFEST})
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -824,6 +847,7 @@ if(WITH_ROCM_BACKEND)
 endif()
 
 install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)

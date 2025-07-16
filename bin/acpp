@@ -159,7 +159,7 @@ ACPP_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_i
       f.write(str(self))
 
 class deployment_db:
-  def __init__(self, config_file_dirs):
+  def __init__(self, config_file_dirs, config):
     self._data = {}
     for d in [os.path.join(x, "deploy") for x in config_file_dirs]:
       files = os.listdir(d)
@@ -171,7 +171,20 @@ class deployment_db:
             data = json.load(manifest_file)
             for entry in data:
               if entry != "" and not entry.endswith("-NOTFOUND"):
-                self._data[component][entry] = data[entry]
+                self._data[component][self._parse_entry_origin_string(entry, config)] = data[entry]
+
+  def _parse_entry_origin_string(self, entry, config):
+    if "SHARED_LIB:" in entry:
+      entry = entry.replace("SHARED_LIB:","")
+      filename = os.path.basename(entry)
+      if sys.platform.startswith('win32'):
+        filename = filename + ".dll"
+      elif sys.platform == "darwin":
+        filename = "lib"+filename+".dylib"
+      else:
+        filename = "lib"+filename+".so"
+      entry = os.path.join(os.path.dirname(entry), filename)
+    return config.substitute_generic_template_string(entry)
 
   def deployment_manifest(self, component):
     lower_component = component.lower()
@@ -191,8 +204,6 @@ class deployment_engine:
     os.symlink(os.path.basename(target), link)
 
   def _deploy(self, origin, target, target_root_path):
-    if origin == "" or origin.endswith("-NOTFOUND"):
-      return
     
     if origin.endswith("/*"):
       for f in os.listdir(origin.replace("/*","")):
@@ -503,10 +514,8 @@ class acpp_config:
     elif os.path.exists(global_config_dir):
       config_file_directories.append(global_config_dir)
     self._config_db = config_db(config_file_directories)
-    self._deployment_db = deployment_db(config_file_directories)
-
-
     self._common_compiler_args = self._get_std_compiler_args()
+    self._deployment_db = deployment_db(config_file_directories, self)
 
 
   def _upgrade_legacy_arg(self, arg):
@@ -643,6 +652,13 @@ class acpp_config:
   def _substitute_omp_template_string(self, template_string):
     return self._substitute_template_string(
       template_string, self._get_omp_substitution_vars())
+  
+  def substitute_generic_template_string(self, template_string):
+    substitution_dict = {}
+    substitution_dict.update(self._get_omp_substitution_vars())
+    substitution_dict.update(self._get_cuda_substitution_vars())
+    substitution_dict.update(self._get_rocm_substitution_vars())
+    return self._substitute_template_string(template_string, substitution_dict)
 
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]

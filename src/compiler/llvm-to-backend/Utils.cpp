@@ -19,7 +19,7 @@ namespace {
 std::string getRedistributablePackagePath() {
   const auto install_dir = common::filesystem::get_install_directory();
   return common::filesystem::join_path(install_dir,
-                                       std::vector<std::string>{"lib", "hipSYCL", "ext"});
+                                       std::vector<std::string>{"hipSYCL", "ext"});
 }
 
 std::string getLLVMRedistributablePackagePath() {

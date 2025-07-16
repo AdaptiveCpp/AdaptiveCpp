@@ -299,8 +299,8 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   }
 
   std::string BuiltinBitcodeFile = 
-    common::filesystem::join_path(common::filesystem::get_install_directory(),
-      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-full.bc"});
+    common::filesystem::join_path(common::filesystem::get_lib_directory(),
+      {"hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-full.bc"});
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;

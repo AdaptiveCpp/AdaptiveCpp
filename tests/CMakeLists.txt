@@ -155,16 +155,30 @@ if(WITH_PSTL_TESTS)
     pstl/exclusive_scan.cpp
     pstl/fill.cpp
     pstl/fill_n.cpp
+    pstl/find.cpp
+    pstl/find_if.cpp
+    pstl/find_if_not.cpp
+    pstl/find_end.cpp
+    pstl/find_first_of.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
     pstl/generate.cpp
     pstl/generate_n.cpp
     pstl/inclusive_scan.cpp
+    pstl/is_sorted_until.cpp
+    pstl/is_sorted.cpp
     pstl/memory.cpp
     pstl/merge.cpp
+    pstl/mismatch.cpp
+    pstl/min_element.cpp
+    pstl/max_element.cpp
     pstl/move.cpp
     pstl/none_of.cpp
     pstl/reduce.cpp
+    pstl/remove_copy.cpp
+    pstl/remove_copy_if.cpp
+    pstl/remove.cpp
+    pstl/remove_if.cpp
     pstl/replace.cpp
     pstl/replace_if.cpp
     pstl/replace_copy.cpp

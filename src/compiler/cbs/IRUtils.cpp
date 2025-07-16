@@ -40,6 +40,7 @@ void replaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm:
     if (auto I = llvm::dyn_cast<llvm::LoadInst>(U); I && I->getFunction() == &F) {
       HIPSYCL_DEBUG_INFO << LogPrefix << "RUOGVW: " << *I << " with " << *To << "\n";
       I->replaceAllUsesWith(To);
+      ToErase.push_back(I);
     }
   }
   for (auto I : ToErase)

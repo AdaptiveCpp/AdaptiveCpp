@@ -389,7 +389,7 @@ createLLVMToHostTranslator(const std::vector<std::string> &KernelNames) {
 }
 
 void LLVMToHostTranslator::migrateKernelProperties(llvm::Function *From, llvm::Function *To) {
-  assert(false && "migrateKernelProperties is unsupport for LLVMToHost");
+  assert(false && "migrateKernelProperties is unsupported for LLVMToHost");
 }
 
 } // namespace compiler

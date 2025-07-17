@@ -206,10 +206,12 @@ class deployment_engine:
   def _deploy(self, origin, target, target_root_path):
     
     if origin.endswith("/*"):
-      for f in os.listdir(origin.replace("/*","")):
-        if os.path.isfile(f):
-          self._deploy(f, target, target_root_path)
-          return
+      root=origin.replace("/*","")
+      for f in os.listdir(root):
+        full_path = os.path.join(root, f)
+        if os.path.isfile(full_path):
+          self._deploy(full_path, target, target_root_path)
+      return
     
     # os.path.join("abc", "/") returns '/', not 'abc/'.
     # Remove leading / to fix.
@@ -218,7 +220,7 @@ class deployment_engine:
     # target is assumed to be a directory!
 
     full_target_path = os.path.join(target_root_path, target)
-    print(origin,"->",full_target_path)
+    print("  ",origin,"->",full_target_path)
 
 
     os.makedirs(full_target_path,0o777, True)
@@ -238,7 +240,6 @@ class deployment_engine:
     
     for f in manifest:
       self._deploy(f, manifest[f], target_path)
-
 
 class config_db:
   # Scans the provided directory for json files
@@ -2236,7 +2237,7 @@ def run_deployment(config, component_path_map):
   de = deployment_engine(config.deployment_db)
   for c in component_path_map:
     target_path=component_path_map[c]
-    print("Deploying component: "+c+" -> "+target_path)
+    print("\nDeploying component: "+c+" -> "+target_path)
     try:
       de.deploy_component(c, target_path)
     except DeploymentComponentUnavailable:

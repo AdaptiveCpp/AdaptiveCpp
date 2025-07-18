@@ -209,6 +209,16 @@ class deployment_engine:
       return (components[len(components)-1], ".".join(components[:-1]))
     return (None, filename)
 
+  def _get_so_versions(self, target, so_version_path):
+    result = []
+    for f in os.listdir(so_version_path):
+      full_path = os.path.join(so_version_path, f)
+      if os.path.islink(full_path):
+        real_target=os.path.realpath(full_path)
+        if real_target == target and os.path.basename(real_target) != os.path.basename(full_path):
+          result.append(full_path)
+    return result
+
   def _deploy(self, origin, target, target_root_path):
     
     if origin.endswith("/*"):
@@ -235,19 +245,17 @@ class deployment_engine:
       real_origin = os.path.realpath(origin)
       self._deploy(real_origin, target, target_root_path)
 
-      # create symlinks for all so version subversion if applicable
-      filename = os.path.basename(real_origin)
-      so_version = self._get_last_so_version(filename)
-      
-      while so_version[0] != None:
-        self._relative_symlink(os.path.join(full_target_path,os.path.basename(real_origin)),
-                             os.path.join(full_target_path,os.path.basename(so_version[1])))
-
-        so_version = self._get_last_so_version(so_version[1])
-
-      # create symlink
-      self._relative_symlink(os.path.join(full_target_path,os.path.basename(real_origin)),
-                             os.path.join(full_target_path,os.path.basename(origin)))
+      # find all SO-versions and create symlinks for all so version subversion if applicable
+      so_version = self._get_last_so_version(os.path.basename(real_origin))
+      if so_version[0] != None:
+        # find all SO-versions
+        so_versions = set(
+          self._get_so_versions(real_origin, os.path.dirname(origin))+
+          self._get_so_versions(real_origin, os.path.dirname(real_origin)))
+        for sv in so_versions:
+          self._relative_symlink(
+            os.path.join(full_target_path,os.path.basename(real_origin)),
+            os.path.join(full_target_path,os.path.basename(sv)))
     else:
       destination = os.path.join(full_target_path, os.path.basename(origin))
       shutil.copy(origin, destination)

@@ -2270,7 +2270,7 @@ def run_deployment(config, component_path_map):
   print(command)
 
   print("\nand consider whether you would like to also ship those libraries with your application.")
-  print("Note 1: libcuda.so and libdrm* are typically provided by graphics drivers and typically should NOT be distributed by you!")
+  print("Note 1: libcuda.so and libdrm* are typically provided by graphics drivers and typically should NOT be distributed by you! Similarly, you usually should not deploy your own libc.")
   print("Note 2: Please ensure that the deployment path is in the library search path for your application, e.g. by setting LD_LIBRARY_PATH.")
   print("Note 3: OpenCL backend: AdaptiveCpp only deploys the OpenCL ICD loader; end users are expected to install an OpenCL implementation for their hardware.")
   print("Note 4: If the deployment package is too large for your liking, consider distributing individual optional packages for specific backends. Only the 'core' deployment target is mandatory for AdaptiveCpp!")

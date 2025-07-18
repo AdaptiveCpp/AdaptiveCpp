@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 
 namespace hipsycl {
 namespace compiler {
@@ -17,7 +18,7 @@ namespace compiler {
 namespace {
 
 std::string getRedistributablePackagePath() {
-  const auto install_dir = common::filesystem::get_install_directory();
+  const auto install_dir = common::filesystem::get_lib_directory();
   return common::filesystem::join_path(install_dir,
                                        std::vector<std::string>{"hipSYCL", "ext"});
 }

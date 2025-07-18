@@ -9,7 +9,7 @@
 
 // adapted from https://github.com/UoB-HPC/sycl_dgemm/blob/main/dgemm.cpp
 
-#include <CL/sycl.hpp>
+#include <SYCL/sycl.hpp>
 using namespace cl;
 
 const double Aval = 2.0;
@@ -142,7 +142,7 @@ int main()
   constexpr size_t Ndim = 256;
   constexpr size_t Pdim = 256;
 
-  cl::sycl::queue queue;
+  sycl::queue queue;
 
   std::vector<double> Cgold(Ndim * Mdim);
   get_true_solution(Ndim, Mdim, Pdim, Cgold.data());

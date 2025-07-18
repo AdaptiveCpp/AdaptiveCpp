@@ -1,0 +1,212 @@
+[
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DHIPSYCL_DEBUG_LEVEL=2 -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/device_compilation_tests.dir/device_compilation_tests.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/device_compilation_tests.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/device_compilation_tests.cpp",
+  "output": "CMakeFiles/device_compilation_tests.dir/device_compilation_tests.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/smoke/task_graph.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/smoke/task_graph.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/smoke/task_graph.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/smoke/task_graph.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/accessor.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/accessor.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/accessor.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/accessor.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/atomic.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/atomic.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/atomic.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/atomic.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/buffer.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/buffer.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/buffer.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/buffer.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/explicit_copy.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/explicit_copy.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/explicit_copy.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/explicit_copy.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/extensions.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/extensions.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/extensions.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/extensions.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/fill.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/fill.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/fill.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/fill.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_misc.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_misc.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_misc.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_misc.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_binary_reduce.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_binary_reduce.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_binary_reduce.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_binary_reduce.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_reduce.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_reduce.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_reduce.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_reduce.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_scan.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_scan.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/group_functions/group_functions_scan.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/group_functions/group_functions_scan.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/half.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/half.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/half.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/half.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/id_range.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/id_range.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/id_range.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/id_range.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/info_queries.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/info_queries.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/info_queries.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/info_queries.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/interop_handle.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/interop_handle.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/interop_handle.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/interop_handle.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/item.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/item.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/item.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/item.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/kernel_invocation.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/kernel_invocation.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/kernel_invocation.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/kernel_invocation.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/math.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/math.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/math.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/math.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/marray.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/marray.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/marray.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/marray.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/profiler.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/profiler.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/profiler.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/profiler.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/reduction.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/reduction.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/reduction.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/reduction.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/reference_semantics.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/reference_semantics.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/reference_semantics.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/reference_semantics.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/relational.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/relational.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/relational.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/relational.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/sub_group.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/sub_group.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/sub_group.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/sub_group.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/sycl_test_suite.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/sycl_test_suite.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/sycl_test_suite.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/sycl_test_suite.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/usm.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/usm.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/usm.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/usm.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/vec.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/vec.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/vec.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/vec.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/queue.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/queue.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/queue.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/queue.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DACPP_ALLOW_INSTANT_SUBMISSION=1 -DHIPSYCL_DEBUG_LEVEL=2 -DLIB_NUMA_AVAILABLE -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/sycl_tests.dir/sycl/multi_ptr.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/multi_ptr.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/sycl/multi_ptr.cpp",
+  "output": "CMakeFiles/sycl_tests.dir/sycl/multi_ptr.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DHIPSYCL_DEBUG_LEVEL=2 -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/rt_tests.dir/runtime/runtime_test_suite.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/runtime/runtime_test_suite.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/runtime/runtime_test_suite.cpp",
+  "output": "CMakeFiles/rt_tests.dir/runtime/runtime_test_suite.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DHIPSYCL_DEBUG_LEVEL=2 -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/rt_tests.dir/runtime/dag_builder.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/runtime/dag_builder.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/runtime/dag_builder.cpp",
+  "output": "CMakeFiles/rt_tests.dir/runtime/dag_builder.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build",
+  "command": "/usr/bin/c++ -DHIPSYCL_DEBUG_LEVEL=2 -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/rt_tests.dir/runtime/data.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/runtime/data.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/runtime/data.cpp",
+  "output": "CMakeFiles/rt_tests.dir/runtime/data.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build/platform_api",
+  "command": "/usr/bin/c++ -DHIPSYCL_DEBUG_LEVEL=2 -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/platform_api.dir/api_test.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/platform_api/api_test.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/platform_api/api_test.cpp",
+  "output": "platform_api/CMakeFiles/platform_api.dir/api_test.cpp.o"
+},
+{
+  "directory": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/build/dump_test",
+  "command": "/usr/bin/c++ -DHIPSYCL_DEBUG_LEVEL=2 -I/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/dump_test -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include -isystem /home/ath0mos_/work/AdaptiveCpp_CleanUp/build/install/include/AdaptiveCpp -O3 -DNDEBUG -o CMakeFiles/dump_test.dir/dump_test.cpp.o -c /home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/dump_test/dump_test.cpp",
+  "file": "/home/ath0mos_/work/AdaptiveCpp_CleanUp/tests/dump_test/dump_test.cpp",
+  "output": "dump_test/CMakeFiles/dump_test.dir/dump_test.cpp.o"
+}
+]

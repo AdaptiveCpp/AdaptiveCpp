@@ -22,26 +22,26 @@ using math_test_genfloats = boost::mp11::mp_list<
   float,
   // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
   // if this is an oversight or intentional.
-  //cl::sycl::vec<float, 1>
-  cl::sycl::vec<float, 2>,
-  cl::sycl::vec<float, 3>,
-  cl::sycl::vec<float, 4>,
-  cl::sycl::vec<float, 8>,
-  cl::sycl::vec<float, 16>,
+  //sycl::vec<float, 1>
+  sycl::vec<float, 2>,
+  sycl::vec<float, 3>,
+  sycl::vec<float, 4>,
+  sycl::vec<float, 8>,
+  sycl::vec<float, 16>,
   double,
-  //cl::sycl::vec<double, 1>,
-  cl::sycl::vec<double, 2>,
-  cl::sycl::vec<double, 3>,
-  cl::sycl::vec<double, 4>,
-  cl::sycl::vec<double, 8>,
-  cl::sycl::vec<double, 16>>;
+  //sycl::vec<double, 1>,
+  sycl::vec<double, 2>,
+  sycl::vec<double, 3>,
+  sycl::vec<double, 4>,
+  sycl::vec<double, 8>,
+  sycl::vec<double, 16>>;
 
 
 
 namespace {
 
   template<typename DT, int D>
-  using vec = cl::sycl::vec<DT, D>;
+  using vec = sycl::vec<DT, D>;
 
   auto tolerance = boost::test_tools::tolerance(0.0001);
 
@@ -230,7 +230,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int FUN_COUNT = 8;
 
@@ -296,7 +296,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int FUN_COUNT = 23;
 
@@ -381,22 +381,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
 // some subset of types classified as "geninteger" in SYCL
 using math_test_genints = boost::mp11::mp_list<
   int,
-  cl::sycl::vec<int, 2>,
-  cl::sycl::vec<int, 3>,
-  cl::sycl::vec<int, 16>,
+  sycl::vec<int, 2>,
+  sycl::vec<int, 3>,
+  sycl::vec<int, 16>,
   short,
-  cl::sycl::vec<short, 4>,
+  sycl::vec<short, 4>,
   unsigned char,
-  cl::sycl::vec<unsigned char, 3>,
+  sycl::vec<unsigned char, 3>,
   unsigned long,
-  cl::sycl::vec<unsigned long, 8>>;
+  sycl::vec<unsigned long, 8>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints) {
 
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int FUN_COUNT = 6;
 
@@ -466,17 +466,17 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints) {
 
 // types allowed for the "cross" function
 using math_test_crossinputs = boost::mp11::mp_list<
-  cl::sycl::vec<float, 3>,
-  cl::sycl::vec<float, 4>,
-  cl::sycl::vec<double, 3>,
-  cl::sycl::vec<double, 4>>;
+  sycl::vec<float, 3>,
+  sycl::vec<float, 4>,
+  sycl::vec<double, 3>,
+  sycl::vec<double, 4>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs) {
 
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int FUN_COUNT = 1;
 
@@ -523,15 +523,15 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs) {
 
 using math_test_gengeofloats = boost::mp11::mp_list<
   float,
-  cl::sycl::vec<float, 2>,
-  cl::sycl::vec<float, 3>,
-  cl::sycl::vec<float, 4>>;
+  sycl::vec<float, 2>,
+  sycl::vec<float, 3>,
+  sycl::vec<float, 4>>;
 
 using math_test_gengeodoubles = boost::mp11::mp_list<
   double,
-  cl::sycl::vec<double, 2>,
-  cl::sycl::vec<double, 3>,
-  cl::sycl::vec<double, 4>>;
+  sycl::vec<double, 2>,
+  sycl::vec<double, 3>,
+  sycl::vec<double, 4>>;
 
 using math_test_gengeo = boost::mp11::mp_append<math_test_gengeofloats, math_test_gengeodoubles>;
 
@@ -540,7 +540,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo) {
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int FUN_COUNT = 4;
 
@@ -596,7 +596,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats) {
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int FUN_COUNT = 3;
 
@@ -650,7 +650,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_int, T,
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   constexpr int FUN_COUNT = 1;
 
@@ -697,7 +697,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   using IntType = typename s::detail::builtin_type_traits<T>::template alternative_data_type<int>;
 

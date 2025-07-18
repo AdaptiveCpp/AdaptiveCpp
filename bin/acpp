@@ -203,6 +203,12 @@ class deployment_engine:
     
     os.symlink(os.path.basename(target), link)
 
+  def _get_last_so_version(self, filename):
+    components = filename.split(".")
+    if components[len(components)-1].isdigit():
+      return (components[len(components)-1], ".".join(components[:-1]))
+    return (None, filename)
+
   def _deploy(self, origin, target, target_root_path):
     
     if origin.endswith("/*"):
@@ -225,9 +231,20 @@ class deployment_engine:
 
     os.makedirs(full_target_path,0o777, True)
     if os.path.islink(origin):
-      # first deploy link target to 
+      # first deploy link target 
       real_origin = os.path.realpath(origin)
       self._deploy(real_origin, target, target_root_path)
+
+      # create symlinks for all so version subversion if applicable
+      filename = os.path.basename(real_origin)
+      so_version = self._get_last_so_version(filename)
+      
+      while so_version[0] != None:
+        self._relative_symlink(os.path.join(full_target_path,os.path.basename(real_origin)),
+                             os.path.join(full_target_path,os.path.basename(so_version[1])))
+
+        so_version = self._get_last_so_version(so_version[1])
+
       # create symlink
       self._relative_symlink(os.path.join(full_target_path,os.path.basename(real_origin)),
                              os.path.join(full_target_path,os.path.basename(origin)))
@@ -2235,6 +2252,7 @@ class compiler:
 def run_deployment(config, component_path_map):
   print("Starting deployment...")
   de = deployment_engine(config.deployment_db)
+  target_path=""
   for c in component_path_map:
     target_path=component_path_map[c]
     print("\nDeploying component: "+c+" -> "+target_path)
@@ -2243,6 +2261,19 @@ def run_deployment(config, component_path_map):
     except DeploymentComponentUnavailable:
       print_warning("Requested deployment component '"+c+"' is unavailable; skipping (was AdaptiveCpp built with support for it?)")
 
+  print("Deployment complete. Note that AdaptiveCpp cannot know how every of its dependencies was itself built in detail.")
+  print("Because of this, it only deploys its *direct* dependencies and certain indirect dependencies known for common setups.")
+  print("To avoid surprises, it is strongly recommended to check for remaining indirect dependencies outside the deployment tree, e.g. by running\n")
+
+  command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v deploy-test | awk '{{print $3;}}' | sort | uniq".format(
+    targetdir=os.path.abspath(target_path))
+  print(command)
+
+  print("\nand consider whether you would like to also ship those libraries with your application.")
+  print("Note 1: libcuda.so and libdrm* are typically provided by graphics drivers and typically should NOT be distributed by you!")
+  print("Note 2: Please ensure that the deployment path is in the library search path for your application, e.g. by setting LD_LIBRARY_PATH.")
+  print("Note 3: OpenCL backend: AdaptiveCpp only deploys the OpenCL ICD loader; end users are expected to install an OpenCL implementation for their hardware.")
+  print("Note 4: If the deployment package is too large for your liking, consider distributing individual optional packages for specific backends. Only the 'core' deployment target is mandatory for AdaptiveCpp!")
 def print_config(config):
   config_db = config.config_db
   print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")

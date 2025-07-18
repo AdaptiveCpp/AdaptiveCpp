@@ -57,7 +57,7 @@ std::string getLLCPath() {
   
   std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
   std::string llc_redistributable_path = common::filesystem::join_path(
-      llvm_redistributable_path, std::vector<std::string>{"bin", "llc"});
+      llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_LLC_NAME});
 
   if(common::filesystem::exists(llc_redistributable_path)) {
     path = llc_redistributable_path;
@@ -93,7 +93,7 @@ std::string getOptPath() {
   
   std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
   std::string opt_redistributable_path = common::filesystem::join_path(
-      llvm_redistributable_path, std::vector<std::string>{"bin", "opt"});
+      llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_OPT_NAME});
 
   if(common::filesystem::exists(opt_redistributable_path)) {
     path = opt_redistributable_path;

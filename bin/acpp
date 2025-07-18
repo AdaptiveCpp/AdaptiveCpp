@@ -673,9 +673,18 @@ class acpp_config:
   
   def substitute_generic_template_string(self, template_string):
     substitution_dict = {}
-    substitution_dict.update(self._get_omp_substitution_vars())
-    substitution_dict.update(self._get_cuda_substitution_vars())
-    substitution_dict.update(self._get_rocm_substitution_vars())
+    try:
+      substitution_dict.update(self._get_omp_substitution_vars())
+    except OptionNotSet:
+      pass
+    try:
+      substitution_dict.update(self._get_cuda_substitution_vars())
+    except OptionNotSet:
+      pass
+    try:
+      substitution_dict.update(self._get_rocm_substitution_vars())
+    except OptionNotSet:
+      pass
     return self._substitute_template_string(template_string, substitution_dict)
 
   def _is_option_set_to_non_default_value(self, option_name):

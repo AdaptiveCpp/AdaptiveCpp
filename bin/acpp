@@ -219,6 +219,12 @@ class deployment_engine:
           result.append(full_path)
     return result
 
+  def _is_shared_library(self, filename):
+    sv=self._get_last_so_version(filename)
+    while sv[0] != None:
+      sv=self._get_last_so_version(sv[1])
+    return sv[1].endswith(".so") or sv[1].endswith(".dylib") or sv[1].endswith(".dll")
+
   def _deploy(self, origin, target, target_root_path):
     
     if origin.endswith("/*"):
@@ -240,7 +246,8 @@ class deployment_engine:
 
 
     os.makedirs(full_target_path,0o777, True)
-    if os.path.islink(origin):
+    
+    if self._is_shared_library(origin) and os.path.islink(origin):
       # first deploy link target 
       real_origin = os.path.realpath(origin)
       self._deploy(real_origin, target, target_root_path)

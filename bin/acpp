@@ -784,8 +784,13 @@ class acpp_config:
     if len(deployment_components) == 0:
       return {}
 
-    if len(deployment_components) != 2:
+    if len(deployment_components) < 2:
       raise RuntimeError("Invalid deployment target description: "+deployment_arg)
+    elif len(deployment_components) > 2:
+      first = deployment_components[0]
+      second = ":".join(deployment_components[1:])
+      deployment_components = [first, second]
+
     
     target_path = deployment_components[1]
 

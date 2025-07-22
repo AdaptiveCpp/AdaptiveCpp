@@ -744,12 +744,19 @@ if(WITH_ROCM_BACKEND)
 endif()
 
 message(STATUS "Numa: ${NUMA_LIBRARY}")
+
+if(WIN32)
+  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_PATH/bin")
+else()
+  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_LIB_PATH")
+endif()
+
 # TODO OpenMP is poorly handled.
 # - We copy both omp and gomp instead of checking what we need
 # - Won't work with AdaptiveCpp-in-LLVM builds
 set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
-  \"$ACPP_LIB_PATH/SHARED_LIB:acpp-rt\" : \"/\",
-  \"$ACPP_LIB_PATH/SHARED_LIB:acpp-common\" : \"/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-rt\" : \"/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-common\" : \"/\",
   \"$ACPP_LIB_PATH/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
   \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend\" : \"/hipSYCL/llvm-to-backend/\",

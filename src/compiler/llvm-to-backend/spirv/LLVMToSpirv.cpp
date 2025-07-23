@@ -444,14 +444,15 @@ void LLVMToSpirvTranslator::applyKernelProperties(llvm::Function* F) {
 
   llvm::Module& M = *F->getParent();
 
+  auto SizeT = M.getDataLayout().getLargestLegalIntType(M.getContext());
   if (KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
     llvm::SmallVector<llvm::Metadata *> MDs;
     MDs.push_back(llvm::ConstantAsMetadata::get(
-        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+        llvm::ConstantInt::get(SizeT, KnownGroupSizeX)));
     MDs.push_back(llvm::ConstantAsMetadata::get(
-        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+        llvm::ConstantInt::get(SizeT, KnownGroupSizeY)));
     MDs.push_back(llvm::ConstantAsMetadata::get(
-        llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+        llvm::ConstantInt::get(SizeT, KnownGroupSizeZ)));
 
     static const char *ReqdWGSize = "reqd_work_group_size";
     F->setMetadata(ReqdWGSize, llvm::MDNode::get(M.getContext(), MDs));

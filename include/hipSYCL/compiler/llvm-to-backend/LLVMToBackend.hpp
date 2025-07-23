@@ -206,9 +206,9 @@ protected:
 
   // These will be non-zero if work group sizes are known at jit time.
   // Backends should check these values for being != 0 before using them.
-  int KnownGroupSizeX = 0;
-  int KnownGroupSizeY = 0;
-  int KnownGroupSizeZ = 0;
+  size_t KnownGroupSizeX = 0;
+  size_t KnownGroupSizeY = 0;
+  size_t KnownGroupSizeZ = 0;
 
   // Will be >= 0 if set by option. Backends using this should therefore check >= 0.
   std::int64_t KnownLocalMemSize = -1;

@@ -757,9 +757,9 @@ endif()
 set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-rt\" : \"/\",
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-common\" : \"/\",
-  \"$ACPP_LIB_PATH/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
-  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host\" : \"/hipSYCL/llvm-to-backend/\",
-  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
   \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
@@ -774,8 +774,8 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
 
 #TODO cudart for older cmake versions?
 set(ACPP_CUDA_DEPLOYMENT_MANIFEST "{
-  \"$ACPP_LIB_PATH/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
-  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\",
   \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\",
   \"${CUDA_cudart_LIBRARY}\" : \"/\"
@@ -793,8 +793,8 @@ if(WITH_ROCM_BACKEND)
   find_library(ROCPROFILERREGISTER_LIBRARY rocprofiler-register HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
 endif()
 set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
-  \"$ACPP_LIB_PATH/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
-  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc\" : \"/hipSYCL/bitcode/\",
   \"${ROCM_DEVICE_LIBS_PATH}/*\" : \"/hipSYCL/ext/bitcode/amdgcn/\",
   \"${HIPRTC_LIBRARY}\" : \"/\",
@@ -809,8 +809,8 @@ set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
 # TODO Looks like llvm-spirv sets up spirv-tools dependency if it finds
 # it on the system -> look into explicitly disabling this?
 set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
-  \"$ACPP_LIB_PATH/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
-  \"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
   \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
   \"${OpenCL_LIBRARIES}\" : \"/\"

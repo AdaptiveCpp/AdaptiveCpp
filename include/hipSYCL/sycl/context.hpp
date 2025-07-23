@@ -159,7 +159,7 @@ public:
     return platform{last_platform};
   }
 
-  vector_class<device> get_devices() const {
+  std::vector<device> get_devices() const {
     std::vector<device> devs;
     _impl->devices.for_each_device([&](rt::device_id d) {
       devs.push_back(d);

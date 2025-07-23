@@ -117,7 +117,7 @@ public:
   // We cannot make this function available on device, since
   // it would pull shared_ptr_class<T> into device code.
   ACPP_HOST_TARGET
-  shared_ptr_class<T> get_shared_ptr() const {
+  std::shared_ptr<T> get_shared_ptr() const {
     __acpp_if_target_host(
       return get_shared_ptr_ref();
     );

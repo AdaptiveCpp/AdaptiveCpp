@@ -96,7 +96,7 @@ public:
 
 
   /// \todo Think of a better solution
-  bool has_extension(const string_class &extension) const {
+  bool has_extension(const std::string &extension) const {
     return false;
   }
 
@@ -186,7 +186,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, vendor)
 
 HIPSYCL_SPECIALIZE_GET_INFO(platform, extensions)
 {
-  return vector_class<string_class>{};
+  return std::vector<std::string>{};
 }
 
 inline platform device::get_platform() const  {

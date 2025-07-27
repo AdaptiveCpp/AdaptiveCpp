@@ -2232,17 +2232,17 @@ public:
   local_accessor() = default;
 
   template <typename U,
-  typename = std::enable_if_t<
-  std::is_const_v<dataT> &&
-  std::is_same_v<U, std::remove_const_t<dataT>>>>
+            typename = std::enable_if_t<
+            std::is_const_v<dataT> &&
+            std::is_same_v<U, std::remove_const_t<dataT>>>>
   local_accessor(const local_accessor<U, dimensions> &other) :
     _addr(other.getAddr()), _num_elements(other.getNumElem()) {
   }
 
   template <typename U,
-  typename = std::enable_if_t<
-  std::is_const_v<dataT> &&
-  std::is_same_v<U, std::remove_const_t<dataT>>>>
+            typename = std::enable_if_t<
+            std::is_const_v<dataT> &&
+            std::is_same_v<U, std::remove_const_t<dataT>>>>
   operator local_accessor<const U, dimensions>() const {
     local_accessor<const U, dimensions> tmp(this);
     return tmp;

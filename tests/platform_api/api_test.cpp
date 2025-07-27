@@ -10,7 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include <iostream>
-#include <SYCL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 int main()
 {

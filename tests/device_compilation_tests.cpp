@@ -24,7 +24,7 @@
 // then also include a few unit tests to assert the correct behavior of the
 // resulting programs.
 
-#include <SYCL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include "common/reset.hpp"
 BOOST_FIXTURE_TEST_SUITE(device_compilation_test_suite, reset_device_fixture)
 

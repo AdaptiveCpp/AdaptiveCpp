@@ -9,7 +9,7 @@
 
 // adapted from https://github.com/UoB-HPC/sycl_dgemm/blob/main/dgemm.cpp
 
-#include <SYCL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 const double Aval = 2.0;
 const double Bval = 0.50;

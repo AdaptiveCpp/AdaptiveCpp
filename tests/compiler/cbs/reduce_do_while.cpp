@@ -11,7 +11,7 @@
 #include <array>
 #include <iostream>
 
-#include <SYCL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 int main()
 {

@@ -10,7 +10,7 @@
 #include "hipSYCL/sycl/libkernel/group_functions.hpp"
 #include <iostream>
 
-#include <SYCL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 int main()
 {

@@ -182,6 +182,10 @@ VectorShape VectorShape::operator/(int64_t M) const {
   if (!isDefined())
     return *this;
 
+  if (M == 0) {
+    return VectorShape::undef();
+  }
+
   bool IsCleanAlignDiv = (getAlignmentFirst() % M == 0);
 
   // Result alignment
@@ -197,7 +201,7 @@ VectorShape VectorShape::operator/(int64_t M) const {
   assert(hasStridedShape());
   bool IsCleanDiv = (getStride() % M == 0) && IsCleanAlignDiv;
   if (IsCleanDiv) {
-    return VectorShape::strided(getStride() % M, NewA);
+    return VectorShape::strided(getStride() / M, NewA);
   }
   return VectorShape::varying(1);
 }

@@ -253,6 +253,7 @@ public:
                 "Invalid data type for vec<>");
 
   using element_type = T;
+  using value_type = T;
 
   using vector_t = typename VectorStorage::interop_type;
 

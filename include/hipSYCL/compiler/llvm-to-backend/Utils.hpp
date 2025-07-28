@@ -348,6 +348,7 @@ std::string getClangPath();
 std::string getLLCPath();
 std::string getLLDPath();
 std::string getOptPath();
+std::string getBitcodePath();
 std::string getRedistPackageBitcodePath(const std::string& backend);
 
 }

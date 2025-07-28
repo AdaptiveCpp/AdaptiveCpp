@@ -128,8 +128,7 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
   if(IsFastMath)
     BuiltinBitcodeFileName = "libkernel-sscp-host-fast-full.bc";
   std::string BuiltinBitcodeFile =
-      common::filesystem::join_path(common::filesystem::get_lib_directory(),
-                                    {"hipSYCL", "bitcode", BuiltinBitcodeFileName});
+      common::filesystem::join_path(getBitcodePath(), BuiltinBitcodeFileName);
 
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;

@@ -2294,7 +2294,7 @@ def run_deployment(config, component_path_map):
   print("Because of this, it only deploys its *direct* dependencies and certain indirect dependencies known for common setups.")
   print("To avoid surprises, it is strongly recommended to check for remaining indirect dependencies outside the deployment tree, e.g. by running\n")
 
-  command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v deploy-test | awk '{{print $3;}}' | sort | uniq".format(
+  command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v {targetdir} | awk '{{print $3;}}' | sort | uniq".format(
     targetdir=os.path.abspath(target_path))
   print(command)
 

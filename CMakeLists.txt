@@ -746,9 +746,22 @@ endif()
 message(STATUS "Numa: ${NUMA_LIBRARY}")
 
 if(WIN32)
+  # libs on windows are under bin/
   set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_PATH/bin")
+  # on windows, these libraries don't exist as they are linked
+  # statically to backends
+  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "")
 else()
   set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_LIB_PATH")
+  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host")
+  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx")
+  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu")
+  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv")
+  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend")
 endif()
 
 # TODO OpenMP is poorly handled.
@@ -758,8 +771,8 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-rt\" : \"/\",
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-common\" : \"/\",
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host\" : \"/hipSYCL/llvm-to-backend/\",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
   \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
@@ -775,7 +788,7 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
 #TODO cudart for older cmake versions?
 set(ACPP_CUDA_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\",
   \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\",
   \"${CUDA_cudart_LIBRARY}\" : \"/\"
@@ -794,7 +807,7 @@ if(WITH_ROCM_BACKEND)
 endif()
 set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc\" : \"/hipSYCL/bitcode/\",
   \"${ROCM_DEVICE_LIBS_PATH}/*\" : \"/hipSYCL/ext/bitcode/amdgcn/\",
   \"${HIPRTC_LIBRARY}\" : \"/\",
@@ -810,7 +823,7 @@ set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
 # it on the system -> look into explicitly disabling this?
 set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
   \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
   \"${OpenCL_LIBRARIES}\" : \"/\"

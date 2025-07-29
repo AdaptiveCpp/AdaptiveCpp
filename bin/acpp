@@ -16,6 +16,7 @@
 import json
 import os
 import os.path
+import re
 import sys
 import subprocess
 import string
@@ -38,6 +39,108 @@ class DeploymentComponentUnavailable(Exception):
   def __init__(self, msg):
     super().__init__(msg)
 
+
+###################### Windows library dependency scanner ###################
+# Figures out dependencies for deployment on Windows
+
+
+
+class windows_library_dependency_scanner:
+  def __init__(self, dumpbin_path):
+    self._dumpbin_path = dumpbin_path
+    self._dll_line_re = re.compile(r'^\s*([A-Za-z0-9\.\-_]+\.dll)\s*$', re.IGNORECASE)
+    self._local_dlls = set()
+    self._dependency_map = {}
+    self._seen = set()
+
+  def _get_system_dirs(self):
+    # Common system directories; maybe other directories should be added
+    system_root = os.environ.get('SystemRoot', r'C:\Windows')
+    return [
+      os.path.join(system_root, 'System32'),
+      os.path.join(system_root, 'SysWOW64'),
+    ]
+
+  def _find_dll_path(self, dll_name, scan_path):
+    # 1. Deployment directory
+    for root, dirs, files in os.walk(scan_path):
+        for f in files:
+            if f.lower() == dll_name:
+                return os.path.abspath(os.path.join(root, f))
+    # 2. PATH directories
+    for path in os.environ.get('PATH', '').split(os.pathsep):
+        dll_path = os.path.join(path, dll_name)
+        if os.path.isfile(dll_path):
+            return dll_path
+    # 3. System directories
+    for sysdir in self._get_system_dirs():
+        dll_path = os.path.join(sysdir, dll_name)
+        if os.path.isfile(dll_path):
+            return dll_path
+    # Not found
+    return None
+
+  def _get_dumpbin_deps(self, path):
+    deps = []
+    try:
+      out = subprocess.check_output([self._dumpbin_path, '/DEPENDENTS', path], stderr=subprocess.STDOUT, universal_newlines=True)
+      for line in out.splitlines():
+        line = line.strip()
+        for line in out.splitlines():
+          m = self._dll_line_re.match(line)
+          if m:
+            deps.append(m.group(1).lower())
+    except subprocess.CalledProcessError:
+      pass
+    return deps
+
+  def _scan_file(self, path, scan_path):
+    path = os.path.abspath(path)
+    if path in self._seen:
+        return
+    self._seen.add(path)
+    deps = self._get_dumpbin_deps(path)
+    self._dependency_map[path] = deps
+    for dep in deps:
+      for root, dirs, files in os.walk(scan_path):
+        for fname in files:
+          if fname.lower() == dep:
+            dep_path = os.path.join(root, fname)
+            self._scan_file(dep_path, scan_path)
+            break
+
+  def run(self, scan_path):
+    self._local_dlls = set()
+    self._dependency_map = {}
+    self._seen = set()
+
+    for root, dirs, files in os.walk(scan_path):
+      for fname in files:
+        if fname.lower().endswith('.dll'):
+          local_dlls.add(fname.lower())
+
+    for root, dirs, files in os.walk(scan_path):
+      for fname in files:
+        if fname.lower().endswith('.exe') or fname.lower().endswith('.dll'):
+          self._scan_file(os.path.join(root, fname), scan_path)
+
+    all_deps = set()
+    for deps in self._dependency_map.values():
+      for dep in deps:
+        if dep not in self._local_dlls:
+          all_deps.add(dep)
+
+    print('External DLL dependencies (with resolved paths where possible):')
+    for dep in sorted(all_deps):
+      path = self._find_dll_path(dep, scan_path)
+      if path:
+        print(path)
+      else:
+        print(dep + ' (not found)')
+
+
+
+###################### HCF implementation for explicit multipass ##############
 class hcf_node:
   def __init__(self, node_name, nesting_level=0):
     self._subnodes = []
@@ -2292,13 +2395,24 @@ def run_deployment(config, component_path_map):
 
   print("Deployment complete. Note that AdaptiveCpp cannot know how every of its dependencies was itself built in detail.")
   print("Because of this, it only deploys its *direct* dependencies and certain indirect dependencies known for common setups.")
-  print("To avoid surprises, it is strongly recommended to check for remaining indirect dependencies outside the deployment tree, e.g. by running\n")
 
-  command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v {targetdir} | awk '{{print $3;}}' | sort | uniq".format(
-    targetdir=os.path.abspath(target_path))
-  print(command)
+  if sys.platform.startswith('win32'):
+    
+    print("#############################################")
+    print("acpp will now attempt to detect all indirect transitive dependencies. Please consider whether you would like to also include those!")
+    print("\This step will fail if dumpbin.exe is not in your PATH. In this case, please add dumpbin.exe to your PATH and run again!")
+    print("#############################################")
+    wlds = windows_library_dependency_scanner(r'dumpbin.exe')
+    wlds.run(os.path.abspath(target_path))
+    print("Please consider whether you would like to include these indirect dependencies in your deployment package.")
+  else:
+    print("To avoid surprises, it is strongly recommended to check for remaining indirect dependencies outside the deployment tree, e.g. by running\n")
 
-  print("\nand consider whether you would like to also ship those libraries with your application.")
+    command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v {targetdir} | awk '{{print $3;}}' | sort | uniq".format(
+      targetdir=os.path.abspath(target_path))
+    print(command)
+    print("\nand consider whether you would like to also ship those libraries with your application.")
+
   print("Note 1: libcuda.so and libdrm* are typically provided by graphics drivers and typically should NOT be distributed by you! Similarly, you usually should not deploy your own libc.")
   print("Note 2: Please ensure that the deployment path is in the library search path for your application, e.g. by setting LD_LIBRARY_PATH.")
   print("Note 3: OpenCL backend: AdaptiveCpp only deploys the OpenCL ICD loader; end users are expected to install an OpenCL implementation for their hardware.")

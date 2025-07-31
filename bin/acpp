@@ -117,7 +117,7 @@ class windows_library_dependency_scanner:
     for root, dirs, files in os.walk(scan_path):
       for fname in files:
         if fname.lower().endswith('.dll'):
-          local_dlls.add(fname.lower())
+          self._local_dlls.add(fname.lower())
 
     for root, dirs, files in os.walk(scan_path):
       for fname in files:

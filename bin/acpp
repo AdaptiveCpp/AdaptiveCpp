@@ -2400,7 +2400,7 @@ def run_deployment(config, component_path_map):
     
     print("#############################################")
     print("acpp will now attempt to detect all indirect transitive dependencies. Please consider whether you would like to also include those!")
-    print("\This step will fail if dumpbin.exe is not in your PATH. In this case, please add dumpbin.exe to your PATH and run again!")
+    print("\nThis step will fail if dumpbin.exe is not in your PATH. In this case, please add dumpbin.exe to your PATH and run again!")
     print("#############################################")
     wlds = windows_library_dependency_scanner(r'dumpbin.exe')
     wlds.run(os.path.abspath(target_path))

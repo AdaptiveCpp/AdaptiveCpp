@@ -172,7 +172,7 @@ inline kernel program::get_kernel() const
   return kernel{"dummy-parameter", _ctx};
 }
 
-inline kernel program::get_kernel(string_class kernelName) const
+inline kernel program::get_kernel(std::string kernelName) const
 {
   return kernel{"dummy-parameter", _ctx};
 }

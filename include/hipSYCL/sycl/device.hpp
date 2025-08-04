@@ -166,7 +166,7 @@ public:
   template <typename Param>
   typename Param::return_type get_info() const;
 
-  bool has_extension(const string_class &extension) const
+  bool has_extension(const std::string &extension) const
   {
     return false;
   }
@@ -697,7 +697,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, queue_profiling) {
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, built_in_kernels)
-{ return std::vector<string_class>{}; }
+{ return std::vector<std::string>{}; }
 
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor) {
@@ -754,7 +754,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, aspects)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, extensions)
 {
-  return std::vector<string_class>{};
+  return std::vector<std::string>{};
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, printf_buffer_size) {

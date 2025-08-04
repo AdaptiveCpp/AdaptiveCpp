@@ -28,23 +28,23 @@ namespace detail::hiplike_builtins {
 
 // ********************** math builtins *********************
 
-#define HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(name, impl_name_sp, impl_name_dp)  \
-  HIPSYCL_HIPLIKE_BUILTIN float name(float x) { return ::impl_name_sp(x); }    \
-  HIPSYCL_HIPLIKE_BUILTIN double name(double x) { return ::impl_name_dp(x); }
+#define HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(name, impl_name_sp, impl_name_dp)           \
+  HIPSYCL_HIPLIKE_BUILTIN float name(float x) noexcept { return ::impl_name_sp(x); }    \
+  HIPSYCL_HIPLIKE_BUILTIN double name(double x) noexcept { return ::impl_name_dp(x); }
 
 #define HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(name, impl_name_sp, impl_name_dp) \
-  HIPSYCL_HIPLIKE_BUILTIN float name(float x, float y) {                       \
+  HIPSYCL_HIPLIKE_BUILTIN float name(float x, float y) noexcept {              \
     return ::impl_name_sp(x, y);                                               \
   }                                                                            \
-  HIPSYCL_HIPLIKE_BUILTIN double name(double x, double y) {                    \
+  HIPSYCL_HIPLIKE_BUILTIN double name(double x, double y) noexcept {           \
     return ::impl_name_dp(x, y);                                               \
   }
 
 #define HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN3(name, impl_name_sp, impl_name_dp) \
-  HIPSYCL_HIPLIKE_BUILTIN float name(float x, float y, float z) {              \
+  HIPSYCL_HIPLIKE_BUILTIN float name(float x, float y, float z) noexcept {     \
     return ::impl_name_sp(x, y, z);                                            \
   }                                                                            \
-  HIPSYCL_HIPLIKE_BUILTIN double name(double x, double y, double z) {          \
+  HIPSYCL_HIPLIKE_BUILTIN double name(double x, double y, double z) noexcept { \
     return ::impl_name_dp(x, y, z);                                            \
   }
 
@@ -111,34 +111,30 @@ template<class T>
 HIPSYCL_HIPLIKE_BUILTIN
 T __acpp_fract(T x, T* ptr) noexcept;
 
-template<class IntPtr>
-HIPSYCL_HIPLIKE_BUILTIN float __acpp_frexp(float x, IntPtr y) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN float __acpp_frexp(float x, int* y) noexcept {
   return ::frexpf(x, y);
 }
 
-template<class IntPtr>
-HIPSYCL_HIPLIKE_BUILTIN double __acpp_frexp(double x, IntPtr y) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN double __acpp_frexp(double x, int* y) noexcept {
   return ::frexp(x, y);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_hypot, hypotf, hypot)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_ilogb, ilogbf, ilogb)
 
-template<class IntType>
-HIPSYCL_HIPLIKE_BUILTIN float __acpp_ldexp(float x, IntType k) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN float __acpp_ldexp(float x, int k) noexcept {
   return ::ldexpf(x, k);
 }
 
-template<class IntType>
-HIPSYCL_HIPLIKE_BUILTIN double __acpp_ldexp(double x, IntType k) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN double __acpp_ldexp(double x, int k) noexcept {
   return ::ldexp(x, k);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_lgamma, lgammaf, lgamma)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_tgamma, tgammaf, tgamma)
 
-template<class T, class IntPtr>
-HIPSYCL_HIPLIKE_BUILTIN T __acpp_lgamma_r(T x, IntPtr y) noexcept {
+template<class T>
+HIPSYCL_HIPLIKE_BUILTIN T __acpp_lgamma_r(T x, int* y) noexcept {
   auto r = hiplike_builtins::__acpp_lgamma(x);
   auto g = hiplike_builtins::__acpp_tgamma(x);
   *y = (g >= 0) ? 1 : -1;
@@ -172,15 +168,13 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-template<class FloatPtr>
-HIPSYCL_HIPLIKE_BUILTIN float __acpp_modf(float x, FloatPtr y) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN float __acpp_modf(float x, float* y) noexcept {
   return ::modff(x, y);
-};
+}
 
-template<class FloatPtr>
-HIPSYCL_HIPLIKE_BUILTIN double __acpp_modf(double x, FloatPtr y) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN double __acpp_modf(double x, double* y) noexcept {
   return ::modf(x, y);
-};
+}
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_nextafter, nextafterf, nextafter)
 
@@ -189,16 +183,16 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_powr(T x, T y) noexcept {
   return hiplike_builtins::__acpp_pow(x, y);
 }
 
-template<class T, class IntType>
-HIPSYCL_HIPLIKE_BUILTIN T __acpp_pown(T x, IntType y) noexcept {
+template<class T>
+HIPSYCL_HIPLIKE_BUILTIN T __acpp_pown(T x, int y) noexcept {
   return hiplike_builtins::__acpp_pow(x, static_cast<T>(y));
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_remainder, remainderf, remainder)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_rint, rintf, rint)
 
-template<class T, class IntType>
-HIPSYCL_HIPLIKE_BUILTIN T __acpp_rootn(T x, IntType y) noexcept {
+template<class T>
+HIPSYCL_HIPLIKE_BUILTIN T __acpp_rootn(T x, int y) noexcept {
   return hiplike_builtins::__acpp_pow(x, T{1}/T{y});
 }
 
@@ -216,15 +210,13 @@ HIPSYCL_HIPLIKE_BUILTIN double __acpp_rsqrt(double x) noexcept {
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_sin, sinf, sin)
 
-template<class FloatPtr>
-HIPSYCL_HIPLIKE_BUILTIN float __acpp_sincos(float x, FloatPtr cosval) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN float __acpp_sincos(float x, float* cosval) noexcept {
   float sinval;
   ::sincosf(x, &sinval, cosval);
   return sinval;
 }
 
-template<class FloatPtr>
-HIPSYCL_HIPLIKE_BUILTIN double __acpp_sincos(double x, FloatPtr cosval) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN double __acpp_sincos(double x, double* cosval) noexcept {
   double sinval;
   ::sincos(x, &sinval, cosval);
   return sinval;
@@ -562,18 +554,18 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_sign(T x) noexcept {
 template <typename VecType>
 HIPSYCL_HIPLIKE_BUILTIN VecType 
 __acpp_cross3(const VecType &a, const VecType &b) noexcept {
-  return {a.y() * b.z() - a.z() * b.y(),
-          a.z() * b.x() - a.x() * b.z(),
-          a.x() * b.y() - a.y() * b.x()};
+  return {a[1] * b[2] - a[2] * b[1],
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0]};
 }
 
 template <typename VecType>
 HIPSYCL_HIPLIKE_BUILTIN VecType 
 __acpp_cross4(const VecType &a, const VecType &b) noexcept {
-  return {a.y() * b.z() - a.z() * b.y(), 
-          a.z() * b.x() - a.x() * b.z(),
-          a.x() * b.y() - a.y() * b.x(),
-          typename VecType::element_type{0}};
+  return {a[1] * b[2] - a[2] * b[1], 
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0],
+          typename VecType::value_type{0}};
 }
 
 // ****************** geometric functions ******************
@@ -584,8 +576,8 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_dot(T a, T b) noexcept {
 }
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_HIPLIKE_BUILTIN typename T::element_type __acpp_dot(T a, T b) noexcept {
-  typename T::element_type result = 0;
+HIPSYCL_HIPLIKE_BUILTIN typename T::value_type __acpp_dot(T a, T b) noexcept {
+  typename T::value_type result = 0;
   for (int i = 0; i < a.size(); ++i) {
     result += a[i] * b[i];
   }
@@ -598,7 +590,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_length(T a) noexcept {
 }
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_HIPLIKE_BUILTIN typename T::element_type __acpp_length(T a) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN typename T::value_type __acpp_length(T a) noexcept {
   auto d = hiplike_builtins::__acpp_dot(a, a);
   return hiplike_builtins::__acpp_sqrt(d);
 }
@@ -620,7 +612,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_fast_length(T a) noexcept {
 }
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_HIPLIKE_BUILTIN typename T::element_type __acpp_fast_length(T a) noexcept {
+HIPSYCL_HIPLIKE_BUILTIN typename T::value_type __acpp_fast_length(T a) noexcept {
   auto d = hiplike_builtins::__acpp_dot(a, a);
   return hiplike_builtins::__acpp_half_sqrt(d);
 }
@@ -638,9 +630,9 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_fast_normalize(T a) noexcept {
 
 // ********************** relational functions *********************
 
-#define HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(name, impl_name_sp, impl_name_dp)   \
-  HIPSYCL_HIPLIKE_BUILTIN int name(float x) { return ::impl_name_sp(x); }      \
-  HIPSYCL_HIPLIKE_BUILTIN int name(double x) { return ::impl_name_dp(x); }
+#define HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(name, impl_name_sp, impl_name_dp)        \
+  HIPSYCL_HIPLIKE_BUILTIN int name(float x) noexcept { return ::impl_name_sp(x); }  \
+  HIPSYCL_HIPLIKE_BUILTIN int name(double x) noexcept { return ::impl_name_dp(x); }
 
 HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__acpp_isnan, isnan, isnan);
 

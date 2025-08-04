@@ -151,17 +151,17 @@ namespace device {
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(is_linker_available, bool);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(execution_capabilities, std::vector<execution_capability>);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(queue_profiling, bool);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(built_in_kernels, std::vector<string_class>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(built_in_kernels, std::vector<std::string>);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(platform, sycl::platform);
 
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(name, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(vendor, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(driver_version, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(profile, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(version, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(opencl_c_version, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(name, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(vendor, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(driver_version, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(profile, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(version, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(opencl_c_version, std::string);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(aspects, std::vector<aspect>);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(extensions, std::vector<string_class>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(extensions, std::vector<std::string>);
 
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(printf_buffer_size, size_t);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_interop_user_sync, bool);

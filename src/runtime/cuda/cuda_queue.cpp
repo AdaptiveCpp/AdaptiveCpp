@@ -416,15 +416,24 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& n
   cuda_instrumentation_guard instrumentation{this, op, node.get()};
 #ifndef _WIN32
   cudaError_t err = cudaSuccess;
-  
-  if (op.get_target().is_host()) {
-    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                        cudaCpuDeviceId, get_stream());
-  } else {
-    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                        _dev.get_id(), get_stream());
-  }
 
+  #if CUDART_VERSION >= 13000
+  cudaMemLocation location;
+  if (op.get_target().is_host()) {
+    location.id = 0; // ignored
+    location.type = cudaMemLocationTypeHostNumaCurrent;
+  } else {
+    location.id = _dev.get_id();
+    location.type = cudaMemLocationTypeDevice;
+  }
+  const unsigned int flags = 0;
+  err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                    location, flags, get_stream());
+  #else
+  int location = op.get_target().is_host() ? cudaCpuDeviceId : _dev.get_id();
+  err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                           location, get_stream());
+  #endif
 
   if (err != cudaSuccess) {
     return make_error(__acpp_here(),

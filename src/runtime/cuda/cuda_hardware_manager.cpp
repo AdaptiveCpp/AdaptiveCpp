@@ -329,7 +329,18 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
     return 2;
     break;
   case device_uint_property::max_clock_speed:
+#if CUDART_VERSION >= 13000
+    {
+      int clockRate = 0;
+      auto err = cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, _dev);
+      if (err == cudaSuccess)
+        return clockRate / 1000;
+      else
+        return 0;
+    }
+#else
     return _properties->clockRate / 1000;
+#endif
     break;
   case device_uint_property::max_malloc_size:
     return _properties->totalGlobalMem;

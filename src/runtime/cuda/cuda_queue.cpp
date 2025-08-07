@@ -68,6 +68,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
        {80, 70},
        {86, 71},
        {87, 74},
+       {88, 90},
        {89, 78},
        {90, 80},
        // some variants of 100, 101 need 8.6, some 8.8
@@ -75,6 +76,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
        {100, 88},
        {101, 88},
        {103, 88},
+       {110, 90},
        {120, 88},
        {121, 88}};
 

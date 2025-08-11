@@ -145,10 +145,17 @@ set(COMPILER_LIBRARY_SOURCES
 )
 
 if(NOT ACPP_LLVM_COMPONENT)
-  add_library(${COMPILER_LIBRARY_NAME} MODULE
-    ${COMPILER_LIBRARY_SOURCES}
-    frontend/AdaptiveCppClangPlugin.cpp
-  )
+  if(WIN32)
+    add_library(${COMPILER_LIBRARY_NAME} SHARED
+      ${COMPILER_LIBRARY_SOURCES}
+      frontend/AdaptiveCppClangPlugin.cpp
+    )
+  else()
+    add_library(${COMPILER_LIBRARY_NAME} MODULE
+      ${COMPILER_LIBRARY_SOURCES}
+      frontend/AdaptiveCppClangPlugin.cpp
+    )
+  endif()
 else()
   add_clang_library(acpp-frontend OBJECT
     frontend/AdaptiveCppClangPlugin.cpp

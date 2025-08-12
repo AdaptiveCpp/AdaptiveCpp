@@ -21,9 +21,9 @@ struct tracer_funcs {
 
   std::size_t size = 0;
   std::vector<tracer_function_t> submit_start;
-  std::vector<tracer_function_t> submit_end;
+  std::vector<tracer_function_submit_t> submit_end;
   std::vector<tracer_function_t> submit_secondary_start;
-  std::vector<tracer_function_t> submit_secondary_end;
+  std::vector<tracer_function_submit_t> submit_secondary_end;
   std::vector<tracer_function_t> parallel_for_start;
   std::vector<tracer_function_t> parallel_for_end;
   std::vector<tracer_function_t> parallel_for_work_group_start;
@@ -40,6 +40,14 @@ struct tracer_funcs {
   std::vector<tracer_function_t> fill_end;
   std::vector<tracer_function_t> copy_start;
   std::vector<tracer_function_t> copy_end;
+  std::vector<tracer_function_t> malloc_device_start;
+  std::vector<malloc_function_t> malloc_device_end;
+  std::vector<tracer_function_t> malloc_host_start;
+  std::vector<malloc_function_t> malloc_host_end;
+  std::vector<tracer_function_t> malloc_shared_start;
+  std::vector<malloc_function_t> malloc_shared_end;
+  std::vector<tracer_function_t> free_start;
+  std::vector<malloc_function_t> free_end;
   std::vector<finalizer_function_t> finalize;
   std::vector<void *> states;
 };

@@ -10,6 +10,25 @@
 #include "hipSYCL/sycl/tracer_utils.hpp"
 #include "hipSYCL/sycl/tracer_utils_internal.hpp"
 
+#define EQUALIZE_HELPER(type)                                                                      \
+  if (this->type.size() == this->size - 1) {                                                       \
+    this->type.push_back(nullptr);                                                                 \
+  }
+
+#define DEBUG(type)                                                                                \
+  if (this->type.size() < this->size - 1) {                                                        \
+    std::cout << "Error: Number of " << #type                                                      \
+              << " function pointers smaller than number tracer files" << std::endl;               \
+  }
+
+#define CLEAR(type, x) this->type.clear();
+
+#ifdef DEBUG_TRACER_LEVEL
+#define EQUALIZER(type) EQUALIZE_HELPER(type) DEBUG(type)
+#else
+#define EQUALIZER(type, x) EQUALIZE_HELPER(type)
+#endif
+
 namespace Tracer_utils {
 using time_point = std::chrono::high_resolution_clock::time_point;
 
@@ -17,377 +36,17 @@ bool is_init = false;
 
 void tracer_funcs::set_tracer_equal_num() {
   this->size++;
-
-  if (this->submit_start.size() == this->size - 1) {
-    this->submit_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->submit_start.size() < this->size - 1) {
-    std::cout << "Error: Number of submit start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->submit_end.size() == this->size - 1) {
-    this->submit_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->submit_end.size() < this->- 1) {
-    std::cout << "Error: Number of submit_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->submit_secondary_start.size() == this->size - 1) {
-    this->submit_secondary_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->submit_secondary_start.size() < this->- 1) {
-    std::cout << "Error: Number of submit_secondary_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->submit_secondary_end.size() == this->size - 1) {
-    this->submit_secondary_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->submit_secondary_end.size() < this->- 1) {
-    std::cout << "Error: Number of submit_secondary_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->parallel_for_start.size() == this->size - 1) {
-    this->parallel_for_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->parallel_for_start.size() < this->- 1) {
-    std::cout << "Error: Number of parallel_for_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->parallel_for_end.size() == this->size - 1) {
-    this->parallel_for_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->parallel_for_end.size() < this->- 1) {
-    std::cout << "Error: Number of parallel_for_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->parallel_for_work_group_start.size() == this->size - 1) {
-    this->parallel_for_work_group_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->parallel_for_work_group_start.size() < this->- 1) {
-    std::cout << "Error: Number of parallel_for_work_group_start function "
-                 "pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->parallel_for_work_group_end.size() == this->size - 1) {
-    this->parallel_for_work_group_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->parallel_for_work_group_end.size() < this->- 1) {
-    std::cout << "Error: Number of parallel_for_work_group_end function "
-                 "pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->single_task_start.size() == this->size - 1) {
-    this->single_task_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->single_task_start.size() < this->- 1) {
-    std::cout << "Error: Number of single_task_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->single_task_end.size() == this->size - 1) {
-    this->single_task_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->single_task_end.size() < this->- 1) {
-    std::cout << "Error: Number of single_task_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->memcpy_start.size() == this->size - 1) {
-    this->memcpy_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->memcpy_start.size() < this->- 1) {
-    std::cout << "Error: Number of memcpy_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->memcpy_end.size() == this->size - 1) {
-    this->memcpy_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->memcpy_end.size() < this->- 1) {
-    std::cout << "Error: Number of memcpy_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->wait_start.size() == this->size - 1) {
-    this->wait_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->wait_start.size() < this->- 1) {
-    std::cout << "Error: Number of wait_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->wait_end.size() == this->size - 1) {
-    this->wait_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->wait_end.size() < this->- 1) {
-    std::cout << "Error: Number of wait_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->memset_start.size() == this->size - 1) {
-    this->memset_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->memset_start.size() < this->- 1) {
-    std::cout << "Error: Number of memset_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->memset_end.size() == this->size - 1) {
-    this->memset_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->memset_end.size() < this->- 1) {
-    std::cout << "Error: Number of memset_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->fill_start.size() == this->size - 1) {
-    this->fill_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->fill_start.size() < this->- 1) {
-    std::cout << "Error: Number of fill_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->fill_end.size() == this->size - 1) {
-    this->fill_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->fill_end.size() < this->- 1) {
-    std::cout << "Error: Number of fill_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->copy_start.size() == this->size - 1) {
-    this->copy_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->copy_start.size() < this->- 1) {
-    std::cout << "Error: Number of copy_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->copy_end.size() == this->size - 1) {
-    this->copy_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->copy_end.size() < this->- 1) {
-    std::cout << "Error: Number of copy_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->finalize.size() == this->size - 1) {
-    this->finalize.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->finalize.size() < this->size - 1) {
-    std::cout << "Error: Number of submit start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->states.size() == this->size - 1) {
-    this->states.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->states.size() < this->size - 1) {
-    std::cout << "Error: Number of submit start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->malloc_device_start.size() == this->size - 1) {
-    this->malloc_device_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->malloc_device_start.size() < this->size - 1) {
-    std::cout << "Error: Number of malloc_start_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->malloc_shared_start.size() == this->size - 1) {
-    this->malloc_shared_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->malloc_shared_start.size() < this->size - 1) {
-    std::cout << "Error: Number of malloc_shared_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->malloc_host_start.size() == this->size - 1) {
-    this->malloc_host_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->malloc_host_start.size() < this->size - 1) {
-    std::cout << "Error: Number of malloc_host_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->malloc_device_end.size() == this->size - 1) {
-    this->malloc_device_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->malloc_device_end.size() < this->size - 1) {
-    std::cout << "Error: Number of malloc_end_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->malloc_shared_end.size() == this->size - 1) {
-    this->malloc_shared_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->malloc_shared_end.size() < this->size - 1) {
-    std::cout << "Error: Number of malloc_shared_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->malloc_host_end.size() == this->size - 1) {
-    this->malloc_host_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->malloc_host_end.size() < this->size - 1) {
-    std::cout << "Error: Number of malloc_host_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->free_end.size() == this->size - 1) {
-    this->free_end.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->free_end.size() < this->size - 1) {
-    std::cout << "Error: Number of free_end function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
-
-  if (this->free_start.size() == this->size - 1) {
-    this->free_start.push_back(nullptr);
-  }
-
-#ifdef DEBUG_TRACER_LEVEL
-  if (this->free_start.size() < this->size - 1) {
-    std::cout << "Error: Number of free_start function pointers smaller "
-                 "than number tracer files"
-              << std::endl;
-  }
-#endif
+  ALL_TYPES(EQUALIZER);
 }
 
-tracer_funcs::tracer_funcs() {
+std::list<void *> so_libraries;
+std::list<tracer_functs_initialize_t> init_funcs;
+
+void tracer_funcs::initialize_tracer() {
 
   // If the init has not run yet, we initialize and set the flag
 
   std::cout << "Hello World from inside the tracer_funcs constructor" << std::endl;
-
-  std::list<void *> so_libraries;
 
   if (const char *env_p = std::getenv("SYCL_TOOL_LIBRARY")) {
     std::string path(env_p);
@@ -403,6 +62,9 @@ tracer_funcs::tracer_funcs() {
         so_libraries.push_back(so_lib);
         tracer_functs_initialize_t tracer_func_initializer =
             (tracer_functs_initialize_t)dlsym(so_lib, "init_register");
+
+        init_funcs.push_back(tracer_func_initializer);
+
         if (tracer_func_initializer) {
           tracer_func_initializer();
           this->set_tracer_equal_num();
@@ -420,12 +82,19 @@ tracer_funcs::tracer_funcs() {
   }
 }
 
-tracer_funcs::~tracer_funcs() {
+void tracer_funcs::run_finalizers() {
+
+  std::cout << "Hello World from inside the tracer_funcs finalizer stuff" << std::endl;
   for (int i = this->size - 1; i >= 0; i--)
     if (this->finalize[i] != nullptr)
       this->finalize[i](this->states[i]);
+
+  clear_all();
 }
 
+void tracer_funcs::clear_all() {
+  this->size = 0;
+  ALL_TYPES(CLEAR);
+}
 tracer_funcs tracer_state;
-
 } // namespace Tracer_utils

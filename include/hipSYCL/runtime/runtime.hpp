@@ -13,6 +13,7 @@
 
 #include "backend.hpp"
 #include "dag_manager.hpp"
+#include "hipSYCL/sycl/tracer_utils_internal.hpp"
 #include "settings.hpp"
 
 #include <iostream>
@@ -41,6 +42,7 @@ private:
   // when the dag_manager is destructed!
   backend_manager _backends;
   dag_manager _dag_manager;
+
   static std::atomic<int> counter;
   static std::once_flag init_once;
 };

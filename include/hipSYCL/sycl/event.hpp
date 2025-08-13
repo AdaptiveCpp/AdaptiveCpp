@@ -17,6 +17,7 @@
 #include "hipSYCL/sycl/info/event.hpp"
 #include "info/info.hpp"
 #include "libkernel/backend.hpp"
+#include "tracer_macros.h"
 #include "tracer_utils.hpp"
 #include "tracer_utils_internal.hpp"
 #include "types.hpp"
@@ -57,10 +58,7 @@ public:
 
   void wait() {
 
-    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      if (Tracer_utils::tracer_state.wait_start[i] != nullptr)
-        Tracer_utils::tracer_state.wait_start[i](Tracer_utils::tracer_state.states[i]);
-    }
+    TRACER_FUNCTION1ARG(wait_start);
 
     if (this->_node) {
       if (!this->_node->is_submitted())
@@ -70,10 +68,7 @@ public:
       this->_node->wait();
     }
 
-    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      if (Tracer_utils::tracer_state.wait_end[i] != nullptr)
-        Tracer_utils::tracer_state.wait_end[i](Tracer_utils::tracer_state.states[i]);
-    }
+    TRACER_FUNCTION1ARG(wait_end);
   }
 
   static void wait(const vector_class<event> &eventList) {
@@ -100,8 +95,7 @@ public:
     glue::throw_asynchronous_errors(_handler);
   }
 
-  static void wait_and_throw(const std::vector<event> &eventList)
-  {
+  static void wait_and_throw(const std::vector<event> &eventList) {
     wait(eventList);
 
     // Just invoke handler of first event?

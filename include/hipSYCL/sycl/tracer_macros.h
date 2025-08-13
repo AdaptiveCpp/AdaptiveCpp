@@ -37,4 +37,22 @@
 
 #define MEMBER_VECTOR(name, type) std::vector<type> name;
 
+#define TRACER_FUNCTION1ARG(type)                                                                  \
+  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
+    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
+      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i]);                    \
+  }
+
+#define TRACER_FUNCTION2ARG(type, arg2)                                                            \
+  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
+    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
+      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], arg2);              \
+  }
+
+#define TRACER_FUNCTION3ARG(type, arg2, arg3)                                                      \
+  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
+    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
+      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], arg2, arg3);        \
+  }
+
 #endif

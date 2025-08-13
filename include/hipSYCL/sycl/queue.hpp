@@ -23,6 +23,7 @@
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/sycl/backend.hpp"
+#include "tracer_macros.h"
 #include "tracer_utils.hpp"
 #include "tracer_utils_internal.hpp"
 #include "types.hpp"
@@ -50,10 +51,8 @@ namespace detail {
 
 template <typename, int, access::mode, access::target> class automatic_placeholder_requirement_impl;
 
-using queue_submission_hooks =
-  function_set<sycl::handler&>;
-using queue_submission_hooks_ptr = 
-  std::shared_ptr<queue_submission_hooks>;
+using queue_submission_hooks = function_set<sycl::handler &>;
+using queue_submission_hooks_ptr = std::shared_ptr<queue_submission_hooks>;
 
 } // namespace detail
 
@@ -302,10 +301,7 @@ public:
 
   void wait() {
 
-    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      if (Tracer_utils::tracer_state.wait_start[i] != nullptr)
-        Tracer_utils::tracer_state.wait_start[i](Tracer_utils::tracer_state.states[i]);
-    }
+    TRACER_FUNCTION1ARG(wait_start);
 
     if (_impl->is_in_order) {
       if (_impl->needs_in_order_emulation) {
@@ -342,10 +338,7 @@ public:
       _impl->requires_runtime.get()->dag().wait(_impl->node_group_id);
     }
 
-    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      if (Tracer_utils::tracer_state.wait_end[i] != nullptr)
-        Tracer_utils::tracer_state.wait_end[i](Tracer_utils::tracer_state.states[i]);
-    }
+    TRACER_FUNCTION1ARG(wait_end);
   }
 
   void wait_and_throw() {
@@ -359,10 +352,7 @@ public:
 
   template <typename T> event submit(const property_list &prop_list, T cgf) {
 
-    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      if (Tracer_utils::tracer_state.submit_start[i] != nullptr)
-        Tracer_utils::tracer_state.submit_start[i](Tracer_utils::tracer_state.states[i]);
-    }
+    TRACER_FUNCTION1ARG(submit_start)
 
     std::lock_guard<std::mutex> lock{_impl->lock};
 
@@ -419,11 +409,7 @@ public:
 
     event return_event{node, _impl->handler};
 
-    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      if (Tracer_utils::tracer_state.submit_end[i] != nullptr)
-        Tracer_utils::tracer_state.submit_end[i](Tracer_utils::tracer_state.states[i],
-                                                 &return_event, this);
-    }
+    TRACER_FUNCTION3ARG(submit_end, &return_event, this);
 
     return return_event;
   }
@@ -433,10 +419,7 @@ public:
   template <typename T>
   event submit(T cgf, queue &secondaryQueue, const property_list &prop_list = {}) {
 
-    for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-      if (Tracer_utils::tracer_state.submit_secondary_start[i] != nullptr)
-        Tracer_utils::tracer_state.submit_secondary_start[i](Tracer_utils::tracer_state.states[i]);
-    }
+    TRACER_FUNCTION1ARG(submit_secondary_start);
 
     try {
 
@@ -464,22 +447,14 @@ public:
 
       if (!submission_failed) {
 
-        for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-          if (Tracer_utils::tracer_state.submit_secondary_end[i] != nullptr)
-            Tracer_utils::tracer_state.submit_secondary_end[i](Tracer_utils::tracer_state.states[i],
-                                                               &evt, this);
-        }
+        TRACER_FUNCTION3ARG(submit_secondary_end, &evt, this);
 
         return evt;
       } else {
 
         auto evt = secondaryQueue.submit(prop_list, cgf);
 
-        for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-          if (Tracer_utils::tracer_state.submit_secondary_end[i] != nullptr)
-            Tracer_utils::tracer_state.submit_secondary_end[i](Tracer_utils::tracer_state.states[i],
-                                                               &evt, this);
-        }
+        TRACER_FUNCTION3ARG(submit_secondary_end, &evt, this);
 
         return evt;
       }
@@ -487,11 +462,7 @@ public:
 
       auto evt = secondaryQueue.submit(prop_list, cgf);
 
-      for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {
-        if (Tracer_utils::tracer_state.submit_secondary_end[i] != nullptr)
-          Tracer_utils::tracer_state.submit_secondary_end[i](Tracer_utils::tracer_state.states[i],
-                                                             &evt, this);
-      }
+      TRACER_FUNCTION3ARG(submit_secondary_end, &evt, this);
 
       return evt;
     }

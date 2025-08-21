@@ -246,9 +246,12 @@ public:
   void depends_on(event e) {
     // No need to consider default constructed events that are
     // not bound to a node
+
+    TRACER_FUNCTION1ARG(depends_on_start)
     if (e._node) {
       _requirements.add_node_requirement(e._node);
     }
+    TRACER_FUNCTION2ARG(depends_on_end, e.AdaptiveCpp_hash_code());
   }
 
   void depends_on(const std::vector<event> &events) {

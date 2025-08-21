@@ -338,7 +338,7 @@ public:
       _impl->requires_runtime.get()->dag().wait(_impl->node_group_id);
     }
 
-    TRACER_FUNCTION1ARG(wait_end);
+    TRACER_FUNCTION2ARG(wait_queue_end, _impl->node_group_id)
   }
 
   void wait_and_throw() {
@@ -349,6 +349,8 @@ public:
   void throw_asynchronous() { glue::throw_asynchronous_errors(_impl->handler); }
 
   template <typename Param> typename Param::return_type get_info() const;
+
+  template <typename T> struct TD;
 
   template <typename T> event submit(const property_list &prop_list, T cgf) {
 
@@ -409,7 +411,11 @@ public:
 
     event return_event{node, _impl->handler};
 
-    TRACER_FUNCTION3ARG(submit_end, &return_event, this);
+    TRACER_FUNCTION3ARG(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id);
+
+    //  using func_type = decltype(Tracer_utils::tracer_state.submit_end[0]);
+    //  TD<func_type> td;
+    //  TD<tracer_function_submit_t> td1;
 
     return return_event;
   }
@@ -447,22 +453,24 @@ public:
 
       if (!submission_failed) {
 
-        TRACER_FUNCTION3ARG(submit_secondary_end, &evt, this);
+        TRACER_FUNCTION3ARG(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+                            _impl->node_group_id);
 
         return evt;
       } else {
 
-        auto evt = secondaryQueue.submit(prop_list, cgf);
+        event evt = secondaryQueue.submit(prop_list, cgf);
 
-        TRACER_FUNCTION3ARG(submit_secondary_end, &evt, this);
+        TRACER_FUNCTION3ARG(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+                            _impl->node_group_id);
 
         return evt;
       }
     } catch (exception &) {
 
-      auto evt = secondaryQueue.submit(prop_list, cgf);
+      event evt = secondaryQueue.submit(prop_list, cgf);
 
-      TRACER_FUNCTION3ARG(submit_secondary_end, &evt, this);
+      TRACER_FUNCTION3ARG(submit_secondary_end, evt.AdaptiveCpp_hash_code(), _impl->node_group_id);
 
       return evt;
     }

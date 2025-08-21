@@ -68,7 +68,7 @@ public:
       this->_node->wait();
     }
 
-    TRACER_FUNCTION1ARG(wait_end);
+    TRACER_FUNCTION2ARG(wait_event_end, this->AdaptiveCpp_hash_code());
   }
 
   static void wait(const vector_class<event> &eventList) {

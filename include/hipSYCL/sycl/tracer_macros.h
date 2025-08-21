@@ -17,7 +17,8 @@
   MACRO(memcpy_start, tracer_function_t);                                                          \
   MACRO(memcpy_end, tracer_function_t);                                                            \
   MACRO(wait_start, tracer_function_t);                                                            \
-  MACRO(wait_end, tracer_function_t);                                                              \
+  MACRO(wait_queue_end, tracer_function_wait_t);                                                   \
+  MACRO(wait_event_end, tracer_function_wait_t);                                                   \
   MACRO(memset_start, tracer_function_t);                                                          \
   MACRO(memset_end, tracer_function_t);                                                            \
   MACRO(fill_start, tracer_function_t);                                                            \
@@ -32,10 +33,18 @@
   MACRO(malloc_host_end, malloc_function_t);                                                       \
   MACRO(free_start, tracer_function_t);                                                            \
   MACRO(free_end, malloc_function_t);                                                              \
+  MACRO(depends_on_start, tracer_function_t)                                                       \
+  MACRO(depends_on_end, tracer_function_depends_on_t)                                              \
   MACRO(finalize, finalizer_function_t);                                                           \
   MACRO(states, void *);
 
 #define MEMBER_VECTOR(name, type) std::vector<type> name;
+
+#define TRACER_FUNCTION_VA_ARGS(type, ...)                                                         \
+  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
+    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
+      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], __VA_ARGS__);       \
+  }
 
 #define TRACER_FUNCTION1ARG(type)                                                                  \
   for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \

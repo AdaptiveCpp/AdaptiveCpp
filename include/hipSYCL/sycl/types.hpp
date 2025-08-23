@@ -73,6 +73,7 @@ namespace detail::half_impl {
     class half;
 }
 using half = detail::half_impl::half;
+using byte = std::uint8_t;
 
 // \todo Better use uint32_t etc
 namespace detail {

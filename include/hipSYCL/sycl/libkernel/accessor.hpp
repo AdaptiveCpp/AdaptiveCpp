@@ -697,19 +697,19 @@ inline constexpr sycl::access_mode default_access_mode() {
   return std::is_const_v<T> ? access_mode::read : access_mode::read_write;
 }
 
-template <target accessTarget, typename value_type>
+template <target accessTarget, typename value_type, access::decorated IsDecorated>
 struct multi_ptr_for_target {
   using type = void*;
 };
 
-template <typename value_type>
-struct multi_ptr_for_target<target::device, value_type> {
-  using type = global_ptr<value_type>;
+template <typename value_type, access::decorated IsDecorated>
+struct multi_ptr_for_target<target::device, value_type, IsDecorated> {
+  using type = global_ptr<value_type, IsDecorated>;
 };
 
-template <typename value_type>
-struct multi_ptr_for_target<target::local, value_type> {
-  using type = local_ptr<value_type>;
+template <typename value_type, access::decorated IsDecorated>
+struct multi_ptr_for_target<target::local, value_type, IsDecorated> {
+  using type = local_ptr<value_type, IsDecorated>;
 };
     
 } // detail
@@ -839,7 +839,7 @@ public:
   using reference = value_type &;
   using const_reference = const dataT &;
   template <access::decorated IsDecorated>
-  using accessor_ptr = typename detail::multi_ptr_for_target<accessTarget, value_type>::type;
+  using accessor_ptr = typename detail::multi_ptr_for_target<accessTarget, value_type, IsDecorated>::type;
   using iterator = detail::accessor_iterator<value_type, dimensions, accessor>;
   using const_iterator = detail::accessor_iterator<const value_type, dimensions, accessor>;
   using reverse_iterator = std::reverse_iterator<iterator>;

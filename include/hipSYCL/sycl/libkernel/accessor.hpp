@@ -1111,7 +1111,25 @@ public:
   size_t get_count() const noexcept
   { return 1; }
 
-  /* void swap(accessor &other); */
+  void swap(accessor &other) {
+    std::swap(*this, other);
+  }
+
+  /* Available only when: (AccessMode != access_mode::atomic &&
+                           AccessMode != access_mode::read && Dimensions == 0) */
+  template<access::mode M = accessmode, int D = dimensions, std::enable_if_t<M != access_mode::atomic && M != access_mode::read && D == 0, bool> = false>
+  const accessor& operator=(const value_type& other) const {
+    *get_pointer() = other;
+    return *this;
+  }
+
+  /* Available only when: (AccessMode != access_mode::atomic &&
+                           AccessMode != access_mode::read && Dimensions == 0) */
+  template<access::mode M = accessmode, int D = dimensions, std::enable_if_t<M != access_mode::atomic && M != access_mode::read && D == 0, bool> = false>
+  const accessor& operator=(value_type&& other) const {
+    *get_pointer() = std::move(other);
+    return *this;
+  }
 
   template <bool IsAllowed = has_size_queries,
             std::enable_if_t<IsAllowed, int> = 0>
@@ -1877,6 +1895,19 @@ public:
     return *_impl.get_pointer();
   }
 
+  /* Available only when: (AccessMode != access_mode::read && Dimensions == 0) */
+  template<access::mode M = accessMode, int D = dimensions, std::enable_if_t<M != access_mode::read && D == 0, bool> = false>
+  const host_accessor& operator=(const value_type& other) const {
+    *get_pointer() = other;
+    return *this;
+  }
+
+  template<access::mode M = accessMode, int D = dimensions, std::enable_if_t<M != access_mode::read && D == 0, bool> = false>
+  const host_accessor& operator=(value_type&& other) const {
+    *get_pointer() = std::move(other);
+    return *this;
+  }
+
   /* Available only when: (dimensions > 0) */
   template<int D = dimensions,
             std::enable_if_t<(D > 0), bool> = true>
@@ -2363,6 +2394,7 @@ public:
     return _num_elements;
   }
 
+  /* Available only when: (Dimensions == 0) */
   template<int D = dimensions, std::enable_if_t<D == 0, bool> = false>
   ACPP_KERNEL_TARGET
   operator reference() const
@@ -2370,16 +2402,23 @@ public:
     return *detail::local_memory::get_ptr<dataT>(_addr);
   }
 
+  /* Available only when: (!std::is_const_v<DataT> && Dimensions == 0) */
   template<int D = dimensions, std::enable_if_t<!std::is_const_v<dataT> && D == 0, bool> = false>
+  ACPP_KERNEL_TARGET
   const local_accessor& operator=(const value_type& other) const {
-    *get_multi_ptr() = other;
+    *get_pointer() = other;
+    return *this;
   }
 
+  /* Available only when: (!std::is_const_v<DataT> && Dimensions == 0) */
   template<int D = dimensions, std::enable_if_t<!std::is_const_v<dataT> && D == 0, bool> = false>
+  ACPP_KERNEL_TARGET
   const local_accessor& operator=(value_type&& other) const {
-    *get_multi_ptr() = other;
+    *get_pointer() = std::move(other);
+    return *this;
   }
 
+  /* Available only when: (Dimensions > 0) */
   template<int D = dimensions, std::enable_if_t<(D > 0), bool> = false>
   ACPP_KERNEL_TARGET
   reference operator[](id<dimensions> index) const
@@ -2388,6 +2427,7 @@ public:
         detail::linear_id<dimensions>::get(index, _num_elements));
   }
 
+  /* Available only when: (Dimensions == 1) */
   template<int D = dimensions, std::enable_if_t<D == 1, bool> = false>
   ACPP_KERNEL_TARGET
   reference operator[](size_t index) const
@@ -2395,7 +2435,7 @@ public:
     return *(detail::local_memory::get_ptr<dataT>(_addr) + index);
   }
 
-  /* Available only when: dimensions > 1 */
+  /* Available only when: (Dimensions > 1) */
   template<int D = dimensions, std::enable_if_t<(D > 1), bool> = false>
   ACPP_KERNEL_TARGET
   detail::accessor::local_subscript_proxy<dataT, dimensions>

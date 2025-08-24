@@ -32,45 +32,47 @@ public:
   using interop_type = vec_storage<T,N>;
   using value_type = T;
 
-  ACPP_UNIVERSAL_TARGET
-  T& operator[](int i) { return _storage[i]; }
+  constexpr vec_storage() = default;
 
   ACPP_UNIVERSAL_TARGET
-  const T& operator[](int i) const { return _storage[i]; }
+  constexpr T& operator[](int i) { return _storage[i]; }
+
+  ACPP_UNIVERSAL_TARGET
+  constexpr const T& operator[](int i) const { return _storage[i]; }
 
   template<int Index>
   ACPP_UNIVERSAL_TARGET
-  T& get() {
+  constexpr T& get() {
     return _storage[Index];
   }
 
   template<int Index>
   ACPP_UNIVERSAL_TARGET
-  const T& get() const {
+  constexpr const T& get() const {
     return _storage[Index];
   }
 
   template<class F>
   ACPP_UNIVERSAL_TARGET
-  void for_each(F&& f) {
+  constexpr void for_each(F&& f) {
     for(int i = 0; i < N; ++i)
       f(i, _storage[i]);
   }
 
   template<class F>
   ACPP_UNIVERSAL_TARGET
-  void for_each(F&& f) const {
+  constexpr void for_each(F&& f) const {
     for(int i = 0; i < N; ++i)
       f(i, _storage[i]);
   }
 
   ACPP_UNIVERSAL_TARGET
-  interop_type interop() const {
+  constexpr interop_type interop() const {
     return *this;
   }
 
 private:
-  alignas(alignment) T _storage [effective_size];
+  alignas(alignment) T _storage [effective_size]{};
 };
 
 // An alternative implementation of the vec_storage concept
@@ -78,7 +80,6 @@ private:
 template<class TargetStorage, int... SwizzleIndices>
 class swizzled_view_storage {
 public:
-
   using interop_type = typename TargetStorage::interop_type;
   using value_type = typename TargetStorage::value_type;
 
@@ -267,7 +268,7 @@ public:
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
   ACPP_UNIVERSAL_TARGET
-  vec() {
+  constexpr vec() {
     for(int i = 0; i < N; ++i)
       _data[i] = T{};
   }
@@ -275,7 +276,7 @@ public:
   template <class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  ACPP_UNIVERSAL_TARGET explicit vec(const T &value) {
+  ACPP_UNIVERSAL_TARGET constexpr explicit vec(const T &value) {
     for(int i = 0; i < N; ++i)
       _data[i] = value;
   }
@@ -286,7 +287,7 @@ public:
                              bool> = true,
             std::enable_if_t<(detail::count_num_elements<Args, T> + ...) == N,
                              bool> = true>
-  ACPP_UNIVERSAL_TARGET vec(const Args &...args) {
+  ACPP_UNIVERSAL_TARGET constexpr vec(const Args &...args) {
     int current_init_index = 0;
     (partial_initialization(current_init_index, args), ...);
   }

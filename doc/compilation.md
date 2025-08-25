@@ -25,10 +25,12 @@ The following illustration shows the complete stack and its capabilities to targ
 **Note:** This flow is AdaptiveCpp's default compilation flow, and for good reason: It compiles faster, typically generates faster code, and creates portable binaries. It is one of the focal points of our work, and development is thus moving quickly.
 
 AdaptiveCpp supports a generic single-pass compiler flow, where a single compiler invocation generates both host and device code. The SSCP compilation consists of two stages:
+
 1. Stage 1 happens at compile time: During the regular C++ host compilation, AdaptiveCpp extracts LLVM IR for kernels with backend-independent representations of builtins, kernel annotations etc. This LLVM IR is embedded in the host code. During stage 1, it is not yet known on which device(s) the code will ultimately run.
 2. Stage 2 typically happens at runtime: The embedded device IR is passed to AdaptiveCpp's `llvm-to-backend` infrastructure, which lowers the IR to backend-specific formats, such as NVIDIA's PTX, SPIR-V or amdgcn code. Unlike stage 1, stage 2 assumes that the target device is known. While stage 2 typically happens at runtime, support for precompiling to particular devices and formats could be added in the future.
 
 The generic SSCP design has several advantages over other implementation choices:
+
 * There is a single code representation across all backends, which allows implementing JIT-based features such as runtime kernel fusion in a backend-independent way;
 * Code is only parsed a single time, which can result is significant compilation speedups especially for template-heavy code;
 * Binaries inherently run on a wide range of hardware, without the user having to precompile for particular devices, and hence making assumptions where the binary will ultimately be executed ("Compile once, run anywhere").
@@ -92,6 +94,7 @@ Not all backends necessarily support all models. The following compilation flows
 | `generic` | (see below) | Generic SSCP | Generic single-pass flow |
 
 **Note:** 
+
 * Explicit multipass requires building AdaptiveCpp against a clang that supports `__builtin_unique_stable_name()` (available in clang 11), or clang 13 or newer as described in the [installation documentation](installing.md). `hip.explicit-multipass` requires clang 13 or newer.
 * Generic SSCP requires clang 14 or newer.
 

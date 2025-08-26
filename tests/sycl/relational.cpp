@@ -20,14 +20,14 @@ using rel_test_genfloats = boost::mp11::mp_list<
   float,
   // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
   // if this is an oversight or intentional.
-  sycl::vec<float, 1>
+  // sycl::vec<float, 1>
   sycl::vec<float, 2>,
   sycl::vec<float, 3>,
   sycl::vec<float, 4>,
   sycl::vec<float, 8>,
   sycl::vec<float, 16>,
   double,
-  sycl::vec<double, 1>,
+  // sycl::vec<double, 1>,
   sycl::vec<double, 2>,
   sycl::vec<double, 3>,
   sycl::vec<double, 4>,

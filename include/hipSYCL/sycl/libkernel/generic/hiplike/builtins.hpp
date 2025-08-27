@@ -231,15 +231,11 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_trunc, truncf, trunc)
 // ***************** native math builtins ******************
 
 #define HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(name, sp_impl, dp_impl)     \
-  HIPSYCL_HIPLIKE_BUILTIN float name(float x) noexcept { return sp_impl(x); }  \
-  HIPSYCL_HIPLIKE_BUILTIN double name(double x) noexcept { return dp_impl(x); }
+  HIPSYCL_HIPLIKE_BUILTIN float name(float x) noexcept { return sp_impl(x); }
 
 #define HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN2(name, sp_impl, dp_impl)    \
   HIPSYCL_HIPLIKE_BUILTIN float name(float x, float y) noexcept {              \
     return sp_impl(x, y);                                                      \
-  }                                                                            \
-  HIPSYCL_HIPLIKE_BUILTIN double name(double x, double y) noexcept {           \
-    return dp_impl(x, y);                                                      \
   }
 
 HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__acpp_native_cos, __cosf,

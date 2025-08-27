@@ -218,17 +218,11 @@ HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(trunc)
 #define HIPSYCL_DEFINE_SSCP_GENFLOAT_NATIVE_BUILTIN(name)                    \
   HIPSYCL_BUILTIN float __acpp_native_##name(float x) noexcept {             \
     return __acpp_sscp_native_##name##_f32(x);                               \
-  }                                                                          \
-  HIPSYCL_BUILTIN double __acpp_native_##name(double x) noexcept {           \
-    return __acpp_sscp_native_##name##_f64(x);                               \
   }
 
 #define HIPSYCL_DEFINE_SSCP_GENFLOAT_NATIVE_BUILTIN2(name)                   \
   HIPSYCL_BUILTIN float __acpp_native_##name(float x, float y) noexcept {    \
     return __acpp_sscp_native_##name##_f32(x, y);                            \
-  }                                                                          \
-  HIPSYCL_BUILTIN double __acpp_native_##name(double x, double y) noexcept { \
-    return __acpp_sscp_native_##name##_f64(x, y);                            \
   }
 
 

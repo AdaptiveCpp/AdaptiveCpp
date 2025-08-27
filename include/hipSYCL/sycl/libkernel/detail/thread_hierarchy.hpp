@@ -126,7 +126,11 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_z,
   // for now
   #define __acpp_warp_size 32
 #else
-  #define __acpp_warp_size warpSize
+  #if defined(__GFX8__) || defined(__GFX9__)
+    #define __acpp_warp_size 64
+  #else
+    #define __acpp_warp_size 32
+  #endif
 #endif
 
 #endif

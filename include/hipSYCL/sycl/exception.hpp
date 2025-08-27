@@ -118,7 +118,7 @@ public:
 private:
   std::shared_ptr<context> _context;
   std::error_code error_code;
-  string_class _msg;
+  std::string _msg;
 };
 
 } // namespace sycl

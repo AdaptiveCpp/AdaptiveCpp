@@ -187,8 +187,12 @@ LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
       KernelNames{KN} {}
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
-  
+
+#if LLVM_VERSION_MAJOR > 20
+  M.setTargetTriple(llvm::Triple("spir64-unknown-unknown"));
+#else
   M.setTargetTriple("spir64-unknown-unknown");
+#endif
   M.setDataLayout("e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:"
                   "1024-A4-n8:16:32:64");
 
@@ -226,7 +230,11 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-spirv-full.bc"});
 
+#if LLVM_VERSION_MAJOR > 20
+  if (!this->linkBitcodeFile(M, BuiltinBitcodeFile, M.getTargetTriple().str(), M.getDataLayoutStr()))
+#else
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile, M.getTargetTriple(), M.getDataLayoutStr()))
+#endif
     return false;
 
   // Set up local memory

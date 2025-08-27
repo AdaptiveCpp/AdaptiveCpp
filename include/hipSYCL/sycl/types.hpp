@@ -65,7 +65,7 @@ using hash_class [[deprecated("Use std::hash instead")]] = std::hash<T>;
 using exception_ptr_class [[deprecated("Use std::exception_ptr instead")]] = std::exception_ptr;
 
 
-using exception_ptr [[deprecated("Use std::exception_ptr instead")]] = exception_ptr_class;
+using exception_ptr [[deprecated("Use std::exception_ptr instead")]] = std::exception_ptr;
 using exception_list = std::vector<std::exception_ptr>;
 using async_handler = std::function<void(sycl::exception_list)>;
 

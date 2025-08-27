@@ -453,13 +453,13 @@ public:
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
-  void copy(accessor<T, dim, mode, tgt, variant> src, shared_ptr_class<T> dest) {
+  void copy(accessor<T, dim, mode, tgt, variant> src, std::shared_ptr<T> dest) {
     copy_ptr(src, dest);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
-  void copy(shared_ptr_class<T> src, accessor<T, dim, mode, tgt, variant> dest) {
+  void copy(std::shared_ptr<T> src, accessor<T, dim, mode, tgt, variant> dest) {
     copy_ptr(src, dest);
   }
 

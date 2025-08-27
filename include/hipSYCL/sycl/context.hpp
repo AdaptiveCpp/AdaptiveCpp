@@ -146,7 +146,7 @@ public:
                 << std::endl;
           }
           
-          last_platform = rt::platform_id{b, platform_index};
+          last_platform = rt::platform_id{b, static_cast<int>(platform_index)};
           found_device_platform = true;
         }
       }
@@ -159,7 +159,7 @@ public:
     return platform{last_platform};
   }
 
-  vector_class<device> get_devices() const {
+  std::vector<device> get_devices() const {
     std::vector<device> devs;
     _impl->devices.for_each_device([&](rt::device_id d) {
       devs.push_back(d);

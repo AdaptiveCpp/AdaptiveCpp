@@ -263,13 +263,11 @@ HIPSYCL_BUILTIN T __acpp_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __acpp_modf(float x, float* y) noexcept {
+HIPSYCL_BUILTIN float __acpp_modf(float x, float* y) noexcept {
   return std::modf(x, y);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __acpp_modf(double x, double* y) noexcept {
+HIPSYCL_BUILTIN double __acpp_modf(double x, double* y) noexcept {
   return std::modf(x, y);
 }
 

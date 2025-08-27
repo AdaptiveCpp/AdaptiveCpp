@@ -25,7 +25,7 @@ template<class Arg>
 class function_set
 {
 public:
-  using function_type = function_class<void (Arg)>;
+  using function_type = std::function<void (Arg)>;
   using id = std::size_t;
 
   void run_all(Arg arg) const

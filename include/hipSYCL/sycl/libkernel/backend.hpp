@@ -93,17 +93,27 @@
 
 #ifndef __acpp_if_target_host
  #if !ACPP_LIBKERNEL_IS_DEVICE_PASS
-  #define __acpp_if_target_host(...) __VA_ARGS__
+  #define __acpp_if_target_host(...)                                         \
+   if constexpr (true) {                                                     \
+     __VA_ARGS__                                                             \
+   }
  #else
-  #define __acpp_if_target_host(...)
+  #define __acpp_if_target_host(...)                                         \
+   if constexpr (false) {                                                    \
+   }
  #endif
 #endif
 
 #ifndef __acpp_if_target_device
  #if ACPP_LIBKERNEL_IS_DEVICE_PASS
-  #define __acpp_if_target_device(...) __VA_ARGS__
+  #define __acpp_if_target_device(...)                                       \
+   if constexpr (true) {                                                     \
+     __VA_ARGS__                                                             \
+   }
  #else
-  #define __acpp_if_target_device(...)
+  #define __acpp_if_target_device(...)                                       \
+   if constexpr (false) {                                                    \
+   }
  #endif
 #endif
 

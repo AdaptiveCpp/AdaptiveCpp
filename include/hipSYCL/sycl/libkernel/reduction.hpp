@@ -32,9 +32,9 @@
 #include "backend.hpp"
 #include "functional.hpp"
 #include "accessor.hpp"
-#include "hipSYCL/sycl/property.hpp"
+#include "../property.hpp"
 
-#include "hipSYCL/algorithms/reduction/reduction_descriptor.hpp"
+#include "../../algorithms/reduction/reduction_descriptor.hpp"
 
 namespace hipsycl {
 namespace sycl {

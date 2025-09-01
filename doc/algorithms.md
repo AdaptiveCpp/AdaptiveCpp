@@ -206,6 +206,30 @@ template <class ForwardIt, class Size, class Generator>
 sycl::event generate_n(sycl::queue &q, ForwardIt first, Size count, Generator g,
                        const std::vector<sycl::event> &deps = {});
 
+template <class ForwardIt1, class ForwardIt2, class T>
+sycl::event remove_copy(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+                    const T &value, std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
+sycl::event remove_copy_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+                    UnaryPredicate p, std::size_t *num_elements_copied = nullptr,
+                    const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class T>
+sycl::event remove(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, const T &value,
+                   std::size_t *num_elements_copied = nullptr,
+                   const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event remove_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                     ForwardIt first, ForwardIt last, UnaryPredicate p,
+                     std::size_t *num_elements_copied = nullptr,
+                     const std::vector<sycl::event> &deps = {});
+
 template <class ForwardIt, class T>
 sycl::event replace(sycl::queue &q, ForwardIt first, ForwardIt last,
                     const T &old_value, const T &new_value,
@@ -236,6 +260,52 @@ template <class BidirIt, class ForwardIt>
 sycl::event reverse_copy(sycl::queue &q, BidirIt first,
                          BidirIt last, ForwardIt d_first,
                          const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class T>
+sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, const T &value,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, UnaryPredicate p,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if_not(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, UnaryPredicate p,
+                 typename std::iterator_traits<ForwardIt>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event find_end(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event find_end(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last, BinaryPredicate p,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2>
+sycl::event find_first_of(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event find_first_of(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt1 first, ForwardIt1 last, ForwardIt2 s_first,
+                 ForwardIt2 s_last, BinaryPredicate p,
+                 typename std::iterator_traits<ForwardIt1>::difference_type *out,
+                 const std::vector<sycl::event> &deps = {});
 
 /// The result of the operation will be stored in out.
 ///
@@ -282,10 +352,112 @@ sycl::event count_if(sycl::queue &q, util::allocation_group &scratch_allocations
                   typename std::iterator_traits<ForwardIt>::difference_type *out,
                   UnaryPredicate p, const std::vector<sycl::event> &deps = {});
 
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    BinaryPredicate p,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    ForwardIt2 last2,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
+/// out must point to memory that is accessible on the target device.
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+sycl::event mismatch(sycl::queue &q, util::allocation_group &scratch_allocations,
+                    ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                    ForwardIt2 last2, BinaryPredicate p,
+                    typename std::iterator_traits<ForwardIt1>::difference_type* out,
+                    const std::vector<sycl::event>& deps = {});
+
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt1, class ForwardIt2>
+sycl::event equal(sycl::queue &q,
+                   ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                   int* out, const std::vector<sycl::event>& deps= {});
+
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+sycl::event equal(sycl::queue &q,
+                   ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                   BinaryPred p, int* out,
+                   const std::vector<sycl::event>& deps = {});
+
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt1, class ForwardIt2>
+sycl::event equal(sycl::queue &q,
+                   ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                   ForwardIt2 last2, int* out,
+                   const std::vector<sycl::event>& deps = {});
+
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt1, class ForwardIt2, class BinaryPred>
+sycl::event equal(sycl::queue &q,
+                   ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
+                   ForwardIt2 last2, BinaryPred p, int* out,
+                   const std::vector<sycl::event>& deps = {});
+
 template <class RandomIt, class Compare>
 sycl::event sort(sycl::queue &q, RandomIt first, RandomIt last,
                  Compare comp = std::less<>{},
                  const std::vector<sycl::event>& deps = {});
+
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt>
+sycl::event is_sorted(sycl::queue &q, ForwardIt first, ForwardIt last,
+                      detail::early_exit_flag_t* out,
+                      const std::vector<sycl::event>& deps = {});
+
+/// The result of the operation will be stored in out.
+///
+/// out must point to device-accessible memory, and will be set to 0
+/// for a negative result, and 1 for a positive result.
+template <class ForwardIt, class Compare>
+sycl::event is_sorted(sycl::queue &q, ForwardIt first, ForwardIt last,
+                      detail::early_exit_flag_t* out,
+                      Compare comp,
+                      const std::vector<sycl::event>& deps = {});
+
+template<class ForwardIt>
+sycl::event is_sorted_until(sycl::queue &q, util::allocation_group &scratch_allocations,
+                            ForwardIt first, ForwardIt last,
+                            typename std::iterator_traits<ForwardIt>::difference_type *out,
+                            const std::vector<sycl::event>& deps = {});
+
+template<class ForwardIt, class Compare>
+sycl::event is_sorted_until(sycl::queue &q, util::allocation_group &scratch_allocations,
+                            ForwardIt first, ForwardIt last,
+                            typename std::iterator_traits<ForwardIt>::difference_type *out,
+                            Compare comp,
+                            const std::vector<sycl::event>& deps = {});
 
 template< class ForwardIt1, class ForwardIt2,
           class ForwardIt3, class Compare >
@@ -295,6 +467,34 @@ sycl::event merge(sycl::queue& q,
                   ForwardIt2 first2, ForwardIt2 last2,
                   ForwardIt3 d_first, Compare comp = std::less<>{},
                   const std::vector<sycl::event>& deps = {});
+
+template <class ForwardIt>
+sycl::event min_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
+
+template <class ForwardIt, class Compare>
+sycl::event min_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last, Compare comp,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
+
+template <class ForwardIt>
+sycl::event max_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
+
+template <class ForwardIt, class Compare>
+sycl::event max_element(sycl::queue &q,
+                util::allocation_group &scratch_allocations,
+                ForwardIt first, ForwardIt last, Compare comp,
+                std::pair<ForwardIt, typename std::iterator_traits<ForwardIt>::value_type> *out,
+                const std::vector<sycl::event> &deps= {});
 
 }
 

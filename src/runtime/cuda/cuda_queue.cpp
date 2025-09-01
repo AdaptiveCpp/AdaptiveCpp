@@ -68,6 +68,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
        {80, 70},
        {86, 71},
        {87, 74},
+       {88, 90},
        {89, 78},
        {90, 80},
        // some variants of 100, 101 need 8.6, some 8.8
@@ -75,6 +76,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
        {100, 88},
        {101, 88},
        {103, 88},
+       {110, 90},
        {120, 88},
        {121, 88}};
 
@@ -416,15 +418,24 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& n
   cuda_instrumentation_guard instrumentation{this, op, node.get()};
 #ifndef _WIN32
   cudaError_t err = cudaSuccess;
-  
-  if (op.get_target().is_host()) {
-    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                        cudaCpuDeviceId, get_stream());
-  } else {
-    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                        _dev.get_id(), get_stream());
-  }
 
+  #if CUDART_VERSION >= 13000
+  cudaMemLocation location;
+  if (op.get_target().is_host()) {
+    location.id = 0; // ignored
+    location.type = cudaMemLocationTypeHostNumaCurrent;
+  } else {
+    location.id = _dev.get_id();
+    location.type = cudaMemLocationTypeDevice;
+  }
+  const unsigned int flags = 0;
+  err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                    location, flags, get_stream());
+  #else
+  int location = op.get_target().is_host() ? cudaCpuDeviceId : _dev.get_id();
+  err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                           location, get_stream());
+  #endif
 
   if (err != cudaSuccess) {
     return make_error(__acpp_here(),

@@ -2269,7 +2269,7 @@ public:
 
   specialized<address> AdaptiveCpp_get_addr() const { return _addr; }
 
-  specialized<range<dimensions>> getNumElem() const { return _num_elements; }
+  specialized<range<dimensions>> AdaptiveCpp_get_num_elem() const { return _num_elements; }
 
 
   void swap(local_accessor &other)

@@ -168,12 +168,14 @@ return {
                 });
 #endif
 
+/*
 #ifdef HIPSYCL_WITH_DEVICE_EXCEPTIONS
           PB.registerPipelineStartEPCallback(
             [&](llvm::ModulePassManager &MPM, OptLevel Level) {
               MPM.addPass(ExceptionToAssertionPass{});
             });
 #endif
+*/
 
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
           if(EnableStdPar) {

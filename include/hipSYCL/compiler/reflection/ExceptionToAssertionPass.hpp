@@ -8,7 +8,6 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-
 #ifndef ACPP_REFLECTION_EXCEPTION_TO_ASSERTION_PASS_HPP
 #define ACPP_REFLECTION_EXCEPTION_TO_ASSERTION_PASS_HPP
 
@@ -21,7 +20,8 @@ namespace compiler {
 
 class ExceptionToAssertionPass : public llvm::PassInfoMixin<ExceptionToAssertionPass> {
 public:
-  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+  llvm::PreservedAnalyses run(llvm::Module &M, 
+                              llvm::ModuleAnalysisManager &AM);
 };
 
 }

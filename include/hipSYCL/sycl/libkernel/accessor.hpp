@@ -2267,7 +2267,7 @@ public:
       _num_elements{allocationSize}
   {}
 
-  specialized<address> getAddr() const { return _addr; }
+  specialized<address> AdaptiveCpp_get_addr() const { return _addr; }
 
   specialized<range<dimensions>> getNumElem() const { return _num_elements; }
 

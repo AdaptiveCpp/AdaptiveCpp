@@ -16,6 +16,7 @@ AdaptiveCpp by default uses some experimental heuristics to determine if a probl
 ## Algorithms and policies supported for offloading
 
 Currently, the following execution policies qualify for offloading:
+
 * `par_unseq`
 * `par` (experimental; will only be offloaded on hardware that provides independent work item forward progress guarantees such as recent NVIDIA GPUs)
 

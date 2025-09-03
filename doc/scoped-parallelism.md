@@ -3,6 +3,7 @@
 ## Introduction
 
 Scoped parallelism provides a novel way to formulate kernels in a hierarchical and performance-portable way. It contributes the following features to the SYCL world:
+
 * Hierarchical kernels with arbitrary nesting depth, while avoid the implementation and performance pitfalls from old SYCL 1.2.1 hierarchical parallelism by giving the implementation more freedom;
 * Performance portability (`nd_range` parallel for is notoriously difficult to implement efficiently in library-only CPU implementations);
 * Multi-dimensional (potentially nested) subgroups;
@@ -80,12 +81,14 @@ sycl::queue{}.parallel(num_work_groups, logical_group_size,
 ```
 
 There are three different group categories in scoped parallelism. They can be distinguished using the `static constexpr sycl::memory_scope fence_scope` member.
+
 1. The work group. For this group, it holds that `Group::fence_scope == sycl::memory_scope::work_group`. Represents the entire work group.
 2. A subgroup. For subgroups it holds that `Group::fence_scope == sycl::memory_scope::sub_group`. A sub group is a collection of logical work items below the granularity of the full work group. A backend or device might support multiple levels of nested sub groups.
 3. A scalar group. For scalar groups it holds that `Group::fence_scope == sycl::memory_scope::work_item`. Scalar groups contain a single logical work item.
 
  
 Invoking `distribute_groups()` on a group may result in the following group types provided in the next nesting level:
+
 1. Work group subdivision may result in subgroup or a scalar group.
 2. Subdivision of a subgroup may result in another, smaller subgroup or a scalar group
 3. Subdivision of a scalar group will result in a scalar group.
@@ -96,6 +99,7 @@ The user then expresses the kernel using calls to `distribute_groups` and `distr
 ## Scoped parallelism nesting rules
 
 Any program not obeying any of the following rules is **illegal**.
+
 1. The group object passed to `distribute_items(), distribute_groups(), single_item()`, their `*_and_wait` counterparts as well as group algorithms (e.g. `group_barrier()`) must be the smallest available group subunit available at that point in the code. In other words, it must be the group object that is "closest" in the nesting hierarchy. Otherwise the code would request execution within a parent group from a subunit of the parent group, at which point not all items from the parent group might participate anymore.
 2. `distribute_items(), distribute_groups(), single_item()`, their `*_and_wait` counterparts as well as group algorithms (e.g. `group_barrier()`) may not be called from within `distribute_items()` calls. `s_private_memory` objects may not be declared inside `distribute_items()` calls.
 3. `distribute_items(), distribute_groups(), single_item()`, their `*_and_wait` counterparts as well as group algorithms (e.g. `group_barrier()`) are collective with respect to the physical work items of the group object they operate on. The user must guarantee that each physical work item of the provided group object reaches their callsite. As soon as one physical item of a group invokes those functions, all others from the same group need to invoke it as well. There are no requirements regarding other, independent groups.
@@ -163,6 +167,7 @@ sycl::queue{}.parallel(num_work_groups, logical_group_size,
 ## Synchronization
 
 There are two ways of synchronizing:
+
 * `distribute_items_and_wait()`, `distribute_groups_and_wait()`, `single_item_and_wait()` automatically insert a barrier on the group provided as argument to those functions after executing the user-provided callable.
 * alternatively, `group_barrier()` can be invoked directly outside of `distribute_items` and in the appropriate scope of the group. This can provide more control as the fence scope can also be specified in this way.
 
@@ -171,6 +176,7 @@ There are two ways of synchronizing:
 ## Memory placement rules
 
 In the scoped parallelism model, the following memory placement rules apply:
+
 * Variables declared inside a `distribute_items()` call will be allocated in private memory of the logical work item.
 * Variables declared outside of `distribute_items()` calls will be allocated in the private memory of the executing physical work item.
 * Variables can be explicitly but into either local memory or the private memory of logical work items using `sycl::memory_environment()`
@@ -618,6 +624,7 @@ class ScopedGroup {
 ## Supported group algorithms
 
 The following group algorithms are supported for scoped parallelism groups:
+
 * `group_barrier()`
 * `joint_*` functions (not yet implemented)
 * `*_over_group` functions for arguments of private memory wrapper type obtained from `sycl::memory_environment()` (not yet implemented)

@@ -2236,7 +2236,7 @@ public:
             std::is_const_v<dataT> &&
             std::is_same_v<U, std::remove_const_t<dataT>>>>
   local_accessor(const local_accessor<U, dimensions> &other) :
-    _addr(other.getAddr()), _num_elements(other.getNumElem()) {
+    _addr(other.AdaptiveCpp_get_addr()), _num_elements(other.AdaptiveCpp_get_num_elem()) {
   }
 
   template <typename U,

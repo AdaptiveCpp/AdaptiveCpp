@@ -65,9 +65,17 @@ namespace compiler {
 /// especially in the presence of system USM where stack memory might be used inside kernels too.
 /// In practice, for cases where this becomes relevant we should not offload anyway because the problem
 /// size would be way too small to be an efficient offload use case.
+///
+/// If host stack pointers can be assumed to not occur in offloaded kernels,
+/// then memory accesses to host stack locations are treated to not cause synchronization.
 class SyncElisionPass : public llvm::PassInfoMixin<SyncElisionPass> {
 public:
+  SyncElisionPass(bool AssumeNoStackPtrsInStdparAlgorithms)
+  : NoStackPtrsInStdparAlgorithms{AssumeNoStackPtrsInStdparAlgorithms} {}
+
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+private:
+  bool NoStackPtrsInStdparAlgorithms;
 };
 
 /// This pass causes callers of stdpar algorithms to be inlined. This is a simplistic heuristic

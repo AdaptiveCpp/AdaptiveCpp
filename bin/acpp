@@ -1910,6 +1910,8 @@ class compiler:
 
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-acpp-stdpar-no-malloc-to-usm", "-D__ACPP_STDPAR_ASSUME_SYSTEM_USM__"]
+      else:
+        args += ["-mllvm", "-acpp-stdpar-assume-no-stack-pointers"]
       if self._is_stdpar_unconditional_offload:
         args += ["-D__ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__"]
 

@@ -94,6 +94,8 @@ endif()
 
 set(ACPP_EXPERIMENTAL_LLVM OFF CACHE BOOL "Whether to allow building AdaptiveCpp against unsupported LLVM versions")
 
+set(ACPP_SUBPROJECT_PARALLEL_JOBS 1 CACHE INTEGER "Specifies the number of parallel jobs to use when building subprojects")
+
 set(HIPSYCL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ACPP_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(ACPP_BINARY_ROOT "${CMAKE_CURRENT_BINARY_DIR}")

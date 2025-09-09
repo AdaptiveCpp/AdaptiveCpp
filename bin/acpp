@@ -363,9 +363,10 @@ class acpp_config:
 """  If set, assume availability of system-level unified shared memory where every pointer from regular
   malloc() is accessible on GPU. This disables automatic hijacking of memory allocations at the compiler
   level by AdaptiveCpp."""),
-      'stdpar-multi-queue-scheduling' : option("--acpp-stdpar-multi-queue-scheduling", "ACPP_STDPAR_MULTI_QUEUE_SCHEDULING", "default-is-stdpar-multi-queue-scheduling",
-"""  If set, enables AdaptiveCpp to automatically enable stdpar algorithms across multiple queues, and potentially
-  multiple devices."""),
+      'stdpar-multi-queue-scheduling' : option("--acpp-stdpar-mqs", "ACPP_STDPAR_MQS", "default-is-stdpar-mqs",
+"""  Experimental! If set, enables AdaptiveCpp to automatically schedule stdpar algorithms across
+  multiple queues, and potentially multiple devices.
+  This is *exclusively* supported with --acpp-targets=generic."""),
       'stdpar-unconditional-offload' : option("--acpp-stdpar-unconditional-offload", "ACPP_STDPAR_UNCONDITIONAL_OFFLOAD", "default-is-stdpar-unconditional-offload",
 """  Normally, heuristics are employed to determine whether algorithms should be offloaded.
   This particularly affects small problem sizes. If this flag is set, supported parallel STL

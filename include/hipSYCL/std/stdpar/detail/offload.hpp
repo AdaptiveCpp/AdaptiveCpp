@@ -282,7 +282,7 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
         double dependency_cost_i = 0;
         if(&q != dependent_queues[i]) {
           // Synchronization cost
-          dependency_cost_i += 1;
+          dependency_cost_i += 0.01;
           // Try map dependent queue to its index, and obtain the work that has
           // been enqueued there
           int queue_index = stdpar_rt.get_queue_index(*dependent_queues[i]);

@@ -242,6 +242,12 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
 
   for_each_contained_pointer(analyze_dependencies, args...);
 
+  for(auto entry : local_memory_amount) {
+    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Kernel has " << entry.second*1.e-9 
+        << " GB of data dependencies on device " << entry.first.get_id() 
+        << std::endl;
+  }
+
   // Select queue
   // If dependency buffer was insufficient, back out and just schedule
   // to default queue.
@@ -339,14 +345,15 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Queue " << queue_id
                          << " has an estimated scheduling cost of "
                          << scheduling_cost << std::endl;
-
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Pure kernel cost: " << kernel_cost << std::endl;
       if(scheduling_cost < best_cost) {
         selected_queue = &q;
         best_cost = scheduling_cost;
         best_queue_id = queue_id;
       }
     }
-    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Selected queue " << selected_queue
+    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Selected queue " << selected_queue << "(index " << best_queue_id << ") on device " 
+                       << selected_queue->get_device().AdaptiveCpp_device_id().get_id()
                        << std::endl;
     stdpar_rt.get_scheduling_monitor().set_enqueued_operation_cost(best_queue_id, best_cost);
   }

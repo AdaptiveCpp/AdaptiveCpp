@@ -52,6 +52,11 @@ bool all_bytes_equal(const T& val, unsigned char& byte_value) {
 }
 
 inline bool should_use_memcpy(const sycl::device& dev) {
+#ifdef __ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__
+  // MQS assumes that all operations are kernels
+  return false;
+#endif
+
   // OpenMP backend implements queue::memcpy() using std::memcpy
   // which can break perf on NUMA systems
   if(dev.get_backend() == sycl::backend::omp)
@@ -66,16 +71,23 @@ inline bool should_use_memcpy(const sycl::device& dev) {
     // It was reported that hipMemcpy does not handly copies involving
     // shared allocations efficiently
     return false;
+
   return true;
 }
 
 inline bool should_use_memset(const sycl::device& dev) {
+#ifdef __ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__
+  // MQS assumes that all operations are kernels
+  return false;
+#endif
+
   if(dev.get_backend() == sycl::backend::omp)
     return false;
   if(dev.get_backend() == sycl::backend::ocl)
     return false;
   if(dev.get_backend() == sycl::backend::hip)
     return false;
+
   return true;
 }
 

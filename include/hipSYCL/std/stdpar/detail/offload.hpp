@@ -337,7 +337,10 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       // The exact factor is not important, it's just important to have
       // a mechanism to prefer other devices!
       if(device_load > 0)
-        kernel_cost *= 1.5;
+        // We add half the device load here because even if there
+        // are no dependencies, on typical GPUs, kernels
+        // will be serialized once sufficient utilization has been reached.
+        kernel_cost += 0.5*device_load;
 
       scheduling_cost += kernel_cost;
           

@@ -182,6 +182,7 @@ In this scenario, a remedy can be to use a 2-stage compilation process to build 
 In compiler land this is known as [bootstrapping](https://llvm.org/docs/AdvancedBuilds.html#bootstrap-builds).
 
 To get an AdaptiveCpp build on MacOS that supports the generic JIT compiler, we recommend a 2-stage build process that proceeds as follows:
+
 1. ensure `ninja`, `cmake` and `boost` are available. For Mac you may use `brew`:
 ```bash
 # force CMake 3.31.6 (CMake 4.0 seems to break LLVM's compiler-rt build)

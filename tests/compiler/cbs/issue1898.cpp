@@ -37,12 +37,9 @@ int main(int argc, char **argv) {
       for (int cx = 0; cx < ncol; cx++) {
         h_data.at(nsource * (cx + rx * ncol) + sx) = v;
         h_reduction_correct.at(cx + rx * ncol) += v;
-        std::cout << v << " ";
         v++;
       }
-      std::cout << "\n";
     }
-    std::cout << "\n\n";
   }
 
       
@@ -70,9 +67,7 @@ int main(int argc, char **argv) {
                 const int offset = ex * local_sycl_range;
                 for (unsigned int s = half_sycl_range; s > 0; s >>= 1) {
                   if (local_sycl_index < s) {
-                    // const int current = d_data[local_sycl_index + offset];
                     d_data[local_sycl_index + offset] +=
-                        // current + 
                         d_data[local_sycl_index + offset + s];
                   }
                   sycl::group_barrier(idx.get_group());

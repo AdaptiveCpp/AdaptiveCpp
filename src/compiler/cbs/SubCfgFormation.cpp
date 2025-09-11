@@ -967,6 +967,8 @@ void SubCFG::fixSingleSubCfgValues(
           if (auto *Load = InstLoadMap.lookup(OPI))
             // if the already inserted Load does not dominate I, we must create another load.
             if (DT.dominates(Load, &I)) {
+              HIPSYCL_DEBUG_INFO << "  Use already existing load " << *Load << " for " << I
+                                 << " operand: " << *OPI << "\n";
               I.replaceUsesOfWith(OPI, Load);
               continue;
             }
@@ -1013,7 +1015,7 @@ void SubCFG::fixSingleSubCfgValues(
           }
 #endif
 
-          auto *Load = utils::loadFromAlloca(Alloca, Idx, NewIP, OPI->getName());
+          llvm::Instruction *Load = utils::loadFromAlloca(Alloca, Idx, NewIP, OPI->getName());
           utils::copyDgbValues(OPI, Load, NewIP);
 
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT
@@ -1036,6 +1038,48 @@ void SubCFG::fixSingleSubCfgValues(
             I.replaceUsesOfWith(OPI, PHINode);
             InstLoadMap.insert({OPI, PHINode});
           } else {
+
+            // This fixes issue 1898
+            // Here, the issue was that an inner loop was split, and the outer loop wasn't split.
+            // All loop indices are uniform in the outer loop.
+            // Therefore, they were loaded only once in the uniload block.
+            // However, when the outer loop takes its backedge (without another barrier),
+            // the outer loop's index is not updated for the first iteration of the inner loop.
+            // Therefore, we should create a PHI node after the backedge of the outer loop
+            // to select between the value loaded in the uniload block and the value from
+            // the backedge of the outer loop.
+            auto *CommonDom = DT.findNearestCommonDominator(OPI->getParent(), I.getParent());
+            auto IsPredDominated = [&](llvm::BasicBlock *Pred) {
+              return Pred == OPI->getParent() || DT.dominates(OPI, Pred);
+            };
+            while (CommonDom && !std::any_of(llvm::pred_begin(CommonDom),
+                                              llvm::pred_end(CommonDom), IsPredDominated)) {
+              HIPSYCL_DEBUG_INFO << "  CommonDom: " << CommonDom->getName() << "\n";
+              for (auto *Pred : llvm::predecessors(CommonDom))
+                if (DT.dominates(Pred, OPI->getParent()) && DT.dominates(Pred, I.getParent())) {
+                  CommonDom = Pred;
+                  break;
+                }
+              if (CommonDom == LoadBB_)
+                CommonDom = nullptr;
+            }
+            if (CommonDom && (CommonDom != OPI->getParent() || CommonDom != I.getParent())) {
+              llvm::IRBuilder<> PhiBuilder{CommonDom, CommonDom->getFirstNonPHIIt()};
+              auto NewPhi =
+                  PhiBuilder.CreatePHI(OPI->getType(), 0, OPI->getName() + ".fixdom.phi");
+              for (auto *Pred : llvm::predecessors(NewPhi->getParent())) {
+                HIPSYCL_DEBUG_INFO << "  Pred: " << Pred->getName() << "\n";
+                if (Pred == OPI->getParent() || DT.dominates(OPI, Pred)) {
+                  NewPhi->addIncoming(OPI, Pred);
+                  HIPSYCL_DEBUG_INFO << "   dominated by OPI\n";
+                } else {
+                  assert(Pred == Load->getParent() || DT.dominates(Load, Pred));
+                  NewPhi->addIncoming(Load, Pred);
+                  HIPSYCL_DEBUG_INFO << "   dominated by Load\n";
+                }
+              }
+              Load = NewPhi;
+            }
             I.replaceUsesOfWith(OPI, Load);
             InstLoadMap.insert({OPI, Load});
           }

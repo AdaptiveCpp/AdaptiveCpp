@@ -49,6 +49,15 @@ using namespace hipsycl::compiler::cbs;
 
 static const std::array<char, 3> DimName{'x', 'y', 'z'};
 
+template <class Instruction>
+llvm::IRBuilder<> createBuilder(llvm::BasicBlock *BB, Instruction *I) {
+  return llvm::IRBuilder{BB, I->getIterator()};
+}
+
+template <class iterator> llvm::IRBuilder<> createBuilder(llvm::BasicBlock *BB, iterator I) {
+  return llvm::IRBuilder{BB, I};
+}
+
 // gets the load inside F from the global variable called VarName
 llvm::Instruction *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName) {
   auto SizeT = F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext());
@@ -1064,7 +1073,7 @@ void SubCFG::fixSingleSubCfgValues(
                 CommonDom = nullptr;
             }
             if (CommonDom && (CommonDom != OPI->getParent() || CommonDom != I.getParent())) {
-              llvm::IRBuilder<> PhiBuilder{CommonDom, CommonDom->getFirstNonPHIIt()};
+              auto PhiBuilder = createBuilder(CommonDom, CommonDom->getFirstNonPHI());
               auto NewPhi =
                   PhiBuilder.CreatePHI(OPI->getType(), 0, OPI->getName() + ".fixdom.phi");
               for (auto *Pred : llvm::predecessors(NewPhi->getParent())) {
@@ -1239,15 +1248,6 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
   return true;
 }
 
-template <class Instruction>
-llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, Instruction *I) {
-  return llvm::IRBuilder{BB, I->getIterator()};
-}
-
-template <class iterator> llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, iterator I) {
-  return llvm::IRBuilder{BB, I};
-}
-
 // Widens the allocas in the entry block to array allocas.
 // Replace uses of the original alloca with GEP that indexes the new alloca with
 // \a Idx.
@@ -1293,7 +1293,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
     for (auto &SubCfg : SubCfgs) {
       auto GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
 
-      llvm::IRBuilder LoadBuilder = createLoadBuilder(SubCfg.getLoadBB(), GepIp);
+      llvm::IRBuilder LoadBuilder = createBuilder(SubCfg.getLoadBB(), GepIp);
       auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
           Alloca->getAllocatedType(), Alloca, SubCfg.getContiguousIdx(), I->getName() + "_gep"));
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);

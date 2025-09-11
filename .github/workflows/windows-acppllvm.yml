@@ -23,7 +23,7 @@ jobs:
     - name: Use MSVC Command prompt
       uses: ilammy/msvc-dev-cmd@v1
     - name: Install LLVM and Clang
-      uses: KyleMayes/install-llvm-action@v2.0.5
+      uses: KyleMayes/install-llvm-action@v2
       with:
         version: "${{matrix.base_compiler}}.1"
     - name: ccache

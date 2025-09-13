@@ -94,7 +94,10 @@ endif()
 
 set(ACPP_EXPERIMENTAL_LLVM OFF CACHE BOOL "Whether to allow building AdaptiveCpp against unsupported LLVM versions")
 
-set(ACPP_SUBPROJECT_PARALLEL_JOBS 1 CACHE INTEGER "Specifies the number of parallel jobs to use when building subprojects")
+set(ACPP_SUBPROJECT_PARALLEL_JOBS "1" CACHE STRING "Specifies the number of parallel jobs to use when building subprojects")
+if(NOT ACPP_SUBPROJECT_PARALLEL_JOBS MATCHES "^[1-9][0-9]*$")
+  message(SEND_ERROR "ACPP_SUBPROJECT_PARALLEL_JOBS must be a positive integer.")
+endif()
 
 set(HIPSYCL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ACPP_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -280,8 +280,19 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       // rough time estimate in ms
       double scheduling_cost = 0;
 
+      // general device load
+      double device_load = 0.0;
+      for(int i = 0; i < queues.size(); ++i) {
+        if(i != queue_id) {
+          if(queues[i].get_device() == queues[queue_id].get_device())
+            // 0.5: Maybe we can achieve ~2x concurrency on device?
+            device_load += 0.5 * stdpar_rt.get_scheduling_monitor().get_enqueued_cost(i);
+        }
+      }
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Device load cost: " << device_load << std::endl;
+
       // Previous operations in queue
-      scheduling_cost += stdpar_rt.get_scheduling_monitor().get_enqueued_cost(queue_id);
+      double own_queue_cost = stdpar_rt.get_scheduling_monitor().get_enqueued_cost(queue_id);
 
       double max_dependency_cost = 0;
       for(int i = 0; i < dependent_queues.size(); ++i) {
@@ -307,17 +318,22 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
         }
         max_dependency_cost = std::max(max_dependency_cost, dependency_cost_i);
       }
-      scheduling_cost += max_dependency_cost;
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Dependency cost: " << max_dependency_cost << std::endl;
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Preenqueued work cost: " << own_queue_cost << std::endl;
+      scheduling_cost += std::max(std::max(max_dependency_cost, device_load), own_queue_cost);
       // Data transfer cost
+      double data_transfer_cost = 0.;
       for (auto local_mem_it = local_memory_amount.begin();
           local_mem_it != local_memory_amount.end(); ++local_mem_it) {
         if(local_mem_it->first != q.get_device().AdaptiveCpp_device_id()) {
           // GB/s, order of magnitude
           double transfer_speed = 10.0;
-          scheduling_cost +=
+          data_transfer_cost +=
               (local_mem_it->second * 1.e-9) / transfer_speed * 1000;
         }
       }
+      scheduling_cost += data_transfer_cost;
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Data transfer cost: " << data_transfer_cost << std::endl;
 
       // Rough cost of the algorithm itself
       // TODO Actual take device characteristics, information from prior runs
@@ -326,21 +342,7 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       double kernel_cost =
           0.05 + 1000. * static_cast<double>(problem_size * sizeof(int)) *
                      1.e-9 / memory_bandwidth;
-      double device_load = 0.0;
-      for(int i = 0; i < queues.size(); ++i) {
-        if(i != queue_id) {
-          if(queues[i].get_device() == queues[queue_id].get_device())
-            device_load += stdpar_rt.get_scheduling_monitor().get_enqueued_cost(i);
-        }
-      }
-      // Kernel runs slower on device that runs other stuff on other queues.
-      // The exact factor is not important, it's just important to have
-      // a mechanism to prefer other devices!
-      if(device_load > 0)
-        // We add half the device load here because even if there
-        // are no dependencies, on typical GPUs, kernels
-        // will be serialized once sufficient utilization has been reached.
-        kernel_cost += 0.5*device_load;
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Pure kernel cost: " << kernel_cost << std::endl;
 
       scheduling_cost += kernel_cost;
           
@@ -348,7 +350,7 @@ sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
       HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Queue " << queue_id
                          << " has an estimated scheduling cost of "
                          << scheduling_cost << std::endl;
-      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Pure kernel cost: " << kernel_cost << std::endl;
+      
       if(scheduling_cost < best_cost) {
         selected_queue = &q;
         best_cost = scheduling_cost;

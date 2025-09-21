@@ -145,9 +145,9 @@ private:
   }
 
   int get_num_subgroups() {
-    auto wg_size = __acpp_lsize_x() *
-                   __acpp_lsize_y() *
-                   __acpp_lsize_z();
+    auto wg_size = __acpp_lsize_x *
+                   __acpp_lsize_y *
+                   __acpp_lsize_z;
     auto sg_size = 32; // max subgroup size
 
     return (wg_size + sg_size - 1) / sg_size;

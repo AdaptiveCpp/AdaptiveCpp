@@ -39,10 +39,10 @@ public:
   : _ctx{context}
   {}
 
-  program(const context &context, vector_class<device> deviceList)
+  program(const context &context, std::vector<device> deviceList)
   : _ctx{context}
   {}
-  program(vector_class<program> programList, string_class linkOptions = ""){}
+  program(std::vector<program> programList, std::string linkOptions = ""){}
 
   template<class Cl_program>
   program(const context &context, Cl_program clProgram)
@@ -58,43 +58,43 @@ public:
   }
   
   template <typename kernelT>
-  void compile_with_kernel_type(string_class compileOptions = "")
+  void compile_with_kernel_type(std::string compileOptions = "")
   {}
 
-  void compile_with_source(string_class kernelSource, string_class compileOptions = "")
+  void compile_with_source(std::string kernelSource, std::string compileOptions = "")
   {}
 
-  template <typename kernelT> void build_with_kernel_type(string_class buildOptions = "")
+  template <typename kernelT> void build_with_kernel_type(std::string buildOptions = "")
   {}
 
-  void build_with_source(string_class kernelSource, string_class buildOptions = "")
+  void build_with_source(std::string kernelSource, std::string buildOptions = "")
   {
     // On CUDA, we may be able to use NVRTC library here for runtime compilation?
     throw exception{make_error_code(errc::feature_not_supported),
                     "program::build_with_source() is unimplemented."};
   }
 
-  void link(string_class linkOptions = "")
+  void link(std::string linkOptions = "")
   {}
 
   template <typename kernelT> 
   bool has_kernel() const
   { return true; }
 
-  bool has_kernel(string_class kernelName) const
+  bool has_kernel(std::string kernelName) const
   { return true; }
 
   // get_kernel() is implemented in kernel.hpp.
   template <typename kernelT>
   kernel get_kernel() const;
-  kernel get_kernel(string_class kernelName) const;
+  kernel get_kernel(std::string kernelName) const;
 
   template <typename Param>
   typename Param::return_type get_info() const;
   
-  vector_class<vector_class<char>> get_binaries() const
+  std::vector<std::vector<char>> get_binaries() const
   {
-    return vector_class<vector_class<char>>{};
+    return std::vector<std::vector<char>>{};
   }
   
   context get_context() const
@@ -102,15 +102,15 @@ public:
     return _ctx;
   }
 
-  vector_class<device> get_devices() const;
+  std::vector<device> get_devices() const;
 
-  string_class get_compile_options() const
+  std::string get_compile_options() const
   { return ""; }
 
-  string_class get_link_options() const
+  std::string get_link_options() const
   { return ""; }
 
-  string_class get_build_options() const
+  std::string get_build_options() const
   { return ""; }
 
   program_state get_state() const

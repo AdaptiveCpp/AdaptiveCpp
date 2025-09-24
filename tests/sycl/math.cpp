@@ -11,8 +11,9 @@
 
 #include "sycl_test_suite.hpp"
 
-#include <bitset>
+#include <boost/type_traits/common_type.hpp>
 
+#include <bitset>
 #include <cmath>
 
 BOOST_FIXTURE_TEST_SUITE(math_tests, reset_device_fixture)
@@ -20,30 +21,24 @@ BOOST_FIXTURE_TEST_SUITE(math_tests, reset_device_fixture)
 // list of types classified as "genfloat" in the SYCL standard
 using math_test_genfloats = boost::mp11::mp_list<
   float,
-  // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
-  // if this is an oversight or intentional.
-  //cl::sycl::vec<float, 1>
+  cl::sycl::vec<float, 1>,
   cl::sycl::vec<float, 2>,
   cl::sycl::vec<float, 3>,
   cl::sycl::vec<float, 4>,
   cl::sycl::vec<float, 8>,
   cl::sycl::vec<float, 16>,
   double,
-  //cl::sycl::vec<double, 1>,
+  cl::sycl::vec<double, 1>,
   cl::sycl::vec<double, 2>,
   cl::sycl::vec<double, 3>,
   cl::sycl::vec<double, 4>,
   cl::sycl::vec<double, 8>,
   cl::sycl::vec<double, 16>>;
 
-
-
 namespace {
 
   template<typename DT, int D>
   using vec = cl::sycl::vec<DT, D>;
-
-  auto tolerance = boost::test_tools::tolerance(0.0001);
 
   // utility type traits for generic testing
 
@@ -97,6 +92,8 @@ namespace {
   auto get_math_input(const vec<DT, 16> &v) {
     if constexpr(D==0) {
       return v.template swizzle<0>();
+    } else if constexpr(D==1) {
+      return vec<DT, 1>{v.template swizzle<0>()};
     } else if constexpr(D==2) {
       return vec<DT, 2>{v.template swizzle<0,1>()};
     } else if constexpr(D==3) {
@@ -224,6 +221,7 @@ namespace {
   }
 }
 
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
                               math_test_genfloats) {
 
@@ -276,20 +274,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == std::atan2(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::copysign(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fmin(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fmax(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::atan2(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
+      BOOST_TEST(comp(acc[i++], c) == std::copysign(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
+      BOOST_TEST(comp(acc[i++], c) == std::fmin(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
+      BOOST_TEST(comp(acc[i++], c) == std::fmax(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
 #ifndef ACPP_LIBKERNEL_CUDA_NVCXX
-      BOOST_TEST(comp(acc[i++], c) == std::fmod(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fmod(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
 #endif
-      BOOST_TEST(comp(acc[i++], c) == std::fdim(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::hypot(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::pow(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fdim(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
+      BOOST_TEST(comp(acc[i++], c) == std::hypot(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
+      BOOST_TEST(comp(acc[i++], c) == std::pow(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))));
     }
   }
 }
 
+
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
     math_test_genfloats) {
 
@@ -299,14 +299,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
   namespace s = cl::sycl;
 
   constexpr int FUN_COUNT = 23;
-
   // build inputs
 
   s::queue queue;
   s::buffer<T> buf{{FUN_COUNT + 2}};
-  constexpr DT input_scalar = 3.5f;
-  constexpr DT mix_input_1 = 0.5f;
-  constexpr DT mix_input_2 = 0.8f;
+  DT input_scalar = 3.5f;
+  DT mix_input_1 = 0.5f;
+  DT mix_input_2 = 0.8f;
   {
     auto acc = buf.template get_access<s::access::mode::write>();
     s::vec<DT, 16> v1{7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0};
@@ -355,25 +354,25 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == std::abs(comp(acc[0], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), comp(acc[1], c), comp(acc[1], c) + 10), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), input_scalar, input_scalar + 10), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_degrees(comp(acc[0], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fma(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fma(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance); // mad
-      BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), input_scalar), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), input_scalar), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_2), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_radians(comp(acc[0], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_step(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_step(input_scalar, comp(acc[0], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(comp(acc[0], c), comp(acc[0], c) + 10, comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(input_scalar, input_scalar + 1, comp(acc[0], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == ref_sign(comp(acc[0], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::abs(comp(acc[0], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), comp(acc[1], c), comp(acc[1], c) + 10));
+      BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), input_scalar, input_scalar + 10));
+      BOOST_TEST(comp(acc[i++], c) == ref_degrees(comp(acc[0], c)));
+      BOOST_TEST(comp(acc[i++], c) == std::fma(comp(acc[0], c), comp(acc[1], c), mix_input_1));
+      BOOST_TEST(comp(acc[i++], c) == std::fma(comp(acc[0], c), comp(acc[1], c), mix_input_1)); // mad
+      BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)));
+      BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), input_scalar));
+      BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)));
+      BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), input_scalar));
+      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_1));
+      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_2));
+      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_1));
+      BOOST_TEST(comp(acc[i++], c) == ref_radians(comp(acc[0], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_step(comp(acc[0], c), comp(acc[1], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_step(input_scalar, comp(acc[0], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(comp(acc[0], c), comp(acc[0], c) + 10, comp(acc[1], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(input_scalar, input_scalar + 1, comp(acc[0], c)));
+      BOOST_TEST(comp(acc[i++], c) == ref_sign(comp(acc[0], c)));
     }
   }
 }
@@ -391,6 +390,7 @@ using math_test_genints = boost::mp11::mp_list<
   unsigned long,
   cl::sycl::vec<unsigned long, 8>>;
 
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints) {
 
   constexpr int D = vector_length_v<T>;
@@ -471,6 +471,7 @@ using math_test_crossinputs = boost::mp11::mp_list<
   cl::sycl::vec<double, 3>,
   cl::sycl::vec<double, 4>>;
 
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs) {
 
   constexpr int D = vector_length_v<T>;
@@ -535,6 +536,7 @@ using math_test_gengeodoubles = boost::mp11::mp_list<
 
 using math_test_gengeo = boost::mp11::mp_append<math_test_gengeofloats, math_test_gengeodoubles>;
 
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo) {
 
   constexpr int D = vector_length_v<T>;
@@ -583,14 +585,15 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo) {
     auto normalize_ref_result = ref_normalize(acc[0]);
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(dot_ref_result), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(length_ref_result), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(distance_ref_result), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(comp(normalize_ref_result, c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(dot_ref_result));
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(length_ref_result));
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(distance_ref_result));
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(comp(normalize_ref_result, c)));
     }
   }
 }
 
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats) {
 
   constexpr int D = vector_length_v<T>;
@@ -637,13 +640,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats) {
     auto normalize_ref_result = ref_normalize(acc[0]);
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(length_ref_result), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(distance_ref_result), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(comp(normalize_ref_result, c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(length_ref_result));
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(distance_ref_result));
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(comp(normalize_ref_result, c)));
     }
   }
 }
 
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_int, T,
                               math_test_genfloats) {
 
@@ -691,6 +695,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_int, T,
   }
 }
 
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
                               math_test_genfloats) {
 
@@ -699,7 +704,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
 
   namespace s = cl::sycl;
 
-  using IntType = typename s::detail::builtin_type_traits<T>::template alternative_data_type<int>;
+  using IntType = s::detail::builtin_input_intlike_t<T>;
 
   constexpr int FUN_COUNT = 3;
 
@@ -745,9 +750,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == std::ldexp(comp(float_inputs[0], c), comp(int_inputs[0], c)), tolerance);
-      BOOST_TEST(comp(outputs[i++], c) == std::pow(comp(float_inputs[0], c), comp(int_inputs[0], c)), tolerance);
-      BOOST_TEST(comp(outputs[i++], c) == std::pow(std::fabs(comp(float_inputs[0], c)), 1./comp(int_inputs[0], c)), tolerance);
+      BOOST_TEST(comp(outputs[i++], c) == std::ldexp(comp(float_inputs[0], c), comp(int_inputs[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::pow(comp(float_inputs[0], c), comp(int_inputs[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::pow(std::fabs(comp(float_inputs[0], c)), 1./comp(int_inputs[0], c)));
     }
   }
 }

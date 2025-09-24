@@ -208,6 +208,7 @@ int main() {
 The AdaptiveCpp runtime maintains a kernel cache that automatically distinguishes the same kernel invoked with different dynamic function configuration. JIT compilation is only triggered when a new configuration is requested that is not yet present in the cache.
 
 **Important notes**
+
 * `dynamic_function_config::apply()` is a very light-weight operation, but constructing a new `dynamic_function_config` object may have some overhead due to initializing the required data structures. It is therefore recommended to reuse a preexisting `dynamic_function_config` object when the same kernel is submitted multiple times with the same configuration.
 * Only a single `dynamic_function_config` object may be applied at a given kernel launch.
 * It is the user's responsibility to ensure that the `dynamic_function_config` object is kept alive at least until all kernels using it have completed.
@@ -445,6 +446,7 @@ See [here](accessor-variants.md) for more details.
 ### `ACPP_EXT_UPDATE_DEVICE`
 
 An extension that adds `handler::update()` for device accessors in analogy to `update_host()`. While `update_host()` makes sure that the host allocation of the buffer is updated, `update()` updates the allocation on the device to which the operation is submitted. This can be used
+
 * To preallocate memory if the buffer is uninitialized;
 * To separate potential data transfers from kernel execution, e.g. for benchmarking;
 * To control buffer data state when using buffer-USM interoperability(`ACPP_EXT_BUFFER_USM_INTEROP`);
@@ -491,6 +493,7 @@ For example, a coarse grained event for a backend based on in-order queues (e.g.
 Coarse-grained events support the same functionality as regular events.
 
 Coarse-grained events can be requested in two ways: 
+
 1. By passing a property to `queue` which instructs the `queue` to construct coarse-grained events for all operations that it processes, and 
 2. by passing in a property to an individual command group (see `ACPP_EXT_CG_PROPERTY_*`). In this case, coarse-grained events can be enabled selectively only for some command groups submitted to a queue.
 
@@ -717,6 +720,7 @@ q.submit([&] (cl::sycl::handler& cgh) {
 ```
 
 This extension serves two purposes:
+
 1. Avoid having to call `require()` again and again if the same accessor is used in many subsequent kernels. This can lead to a significant reduction of boilerplate code.
 2. Simplify code when working with SYCL libraries that accept lambda functions or function objects. For example, for a `sort()` function in a SYCL library a custom comparator may be desired. Currently, there is no easy way to access some independent data in that comparator because accessors must be requested in the command group handler. This would not be possible in that case since the command group would be spawned internally by `sort`, and the user has no means of accessing it.
 

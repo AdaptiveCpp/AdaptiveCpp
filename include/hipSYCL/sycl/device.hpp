@@ -15,6 +15,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "info/device.hpp"
 #include "types.hpp"
 #include "aspect.hpp"
 #include "info/info.hpp"
@@ -165,7 +166,7 @@ public:
   template <typename Param>
   typename Param::return_type get_info() const;
 
-  bool has_extension(const string_class &extension) const
+  bool has_extension(const std::string &extension) const
   {
     return false;
   }
@@ -305,13 +306,54 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, device_type) {
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
 { 
   return get_rt_device()->get_property(
-      rt::device_uint_property::vendor_id); 
+      rt::device_uint_property::vendor_id);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 {
   return get_rt_device()->get_property(
       rt::device_uint_property::max_compute_units);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<1>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range0));
+  return range<1>{size0};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<2>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range1));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<2>{size1, size0};
+  else
+    return range<2>{size0, size1};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<3>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range1));
+  std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range2));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<3>{size2, size1, size0};
+  else
+    return range<3>{size0, size1, size2};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range_size)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range_size);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
@@ -655,7 +697,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, queue_profiling) {
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, built_in_kernels)
-{ return std::vector<string_class>{}; }
+{ return std::vector<std::string>{}; }
 
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor) {
@@ -712,7 +754,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, aspects)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, extensions)
 {
-  return std::vector<string_class>{};
+  return std::vector<std::string>{};
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, printf_buffer_size) {

@@ -92,8 +92,8 @@ public:
 class use_mutex : public detail::buffer_property
 {
 public:
-  use_mutex(mutex_class& ref);
-  mutex_class* get_mutex_ptr() const;
+  use_mutex(std::mutex& ref);
+  std::mutex* get_mutex_ptr() const;
 };
 
 class context_bound : public detail::buffer_property

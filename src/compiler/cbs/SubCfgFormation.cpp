@@ -1141,7 +1141,14 @@ bool fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruct
             WL.push_back(UI);
           if (auto CI = llvm::dyn_cast<llvm::CallBase>(UI)) {
             auto OperandNo = U.getOperandNo();
-            if (!CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::NoCapture) &&
+#if LLVM_VERSION_MAJOR > 20
+            if (!CI->dataOperandHasImpliedAttr(
+                OperandNo, llvm::Attribute::getWithCaptureInfo(
+                      CI->getContext(),llvm::CaptureInfo::none()).getKindAsEnum()) &&
+#else
+            if (!CI->dataOperandHasImpliedAttr(
+                OperandNo, llvm::Attribute::NoCapture) &&
+#endif
                 !CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::StructRet)) {
               HIPSYCL_DEBUG_INFO << "[SubCFG] Found function call that captures " << *I << ": "
                                  << *CI << " OperandNo: " << OperandNo << "\n";

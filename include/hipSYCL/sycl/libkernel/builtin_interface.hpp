@@ -186,8 +186,8 @@ T __acpp_fract(T x, T* ptr) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_fract, x, ptr);
 }
 
-template<class T, class IntPtr>
-HIPSYCL_BUILTIN T __acpp_frexp(T x, IntPtr y) noexcept {
+template<class T>
+HIPSYCL_BUILTIN T __acpp_frexp(T x, int* y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_frexp, x, y);
 }
 
@@ -201,8 +201,8 @@ HIPSYCL_BUILTIN int __acpp_ilogb(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_ilogb, x);
 }
 
-template<class T, class IntType>
-HIPSYCL_BUILTIN T __acpp_ldexp(T x, IntType k) noexcept {
+template<class T>
+HIPSYCL_BUILTIN T __acpp_ldexp(T x, int k) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_ldexp, x, k);
 }
 
@@ -211,8 +211,8 @@ HIPSYCL_BUILTIN T __acpp_lgamma(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_acos, x);
 }
 
-template<class T, class IntPtr>
-HIPSYCL_BUILTIN T __acpp_lgamma_r(T x, IntPtr y) noexcept {
+template<class T>
+HIPSYCL_BUILTIN T __acpp_lgamma_r(T x, int* y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_lgamma_r, x, y);
 }
 
@@ -256,8 +256,8 @@ HIPSYCL_BUILTIN T __acpp_minmag(T x, T y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_minmag, x, y);
 }
 
-template<class T, class FloatPtr>
-HIPSYCL_BUILTIN T __acpp_modf(T x, FloatPtr y) noexcept {
+template<class T>
+HIPSYCL_BUILTIN T __acpp_modf(T x, T* y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_modf, x, y);
 }
 
@@ -276,8 +276,8 @@ HIPSYCL_BUILTIN T __acpp_powr(T x, T y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_powr, x, y);
 }
 
-template<class T, class IntType>
-HIPSYCL_BUILTIN T __acpp_pown(T x, IntType y) noexcept {
+template<class T>
+HIPSYCL_BUILTIN T __acpp_pown(T x, int y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_pown, x, y);
 }
 
@@ -291,8 +291,8 @@ HIPSYCL_BUILTIN T __acpp_rint(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_rint, x);
 }
 
-template<class T, class IntType>
-HIPSYCL_BUILTIN T __acpp_rootn(T x, IntType y) noexcept {
+template<class T>
+HIPSYCL_BUILTIN T __acpp_rootn(T x, int y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_rootn, x, y);
 }
 
@@ -311,8 +311,8 @@ HIPSYCL_BUILTIN T __acpp_sin(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sin, x);
 }
 
-template<class T, class FloatPtr>
-HIPSYCL_BUILTIN T __acpp_sincos(T x, FloatPtr cosval) noexcept {
+template<class T>
+HIPSYCL_BUILTIN T __acpp_sincos(T x, T* cosval) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_sincos, x, cosval);
 }
 

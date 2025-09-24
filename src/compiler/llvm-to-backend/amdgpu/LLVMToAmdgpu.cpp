@@ -263,7 +263,12 @@ LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &K
 
 bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
+#if LLVM_VERSION_MAJOR > 20
+  M.setTargetTriple(llvm::Triple(TargetTriple));
+#else
   M.setTargetTriple(TargetTriple);
+#endif
+
 #if LLVM_VERSION_MAJOR >= 18
   M.setDataLayout("e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:"
                   "32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:"

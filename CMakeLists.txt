@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.10)
 if(POLICY CMP0074) # Since CMake 3.12
   cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
 endif()
+if (POLICY CMP0144) # Since CMake 3.27
+  cmake_policy(SET CMP0144 NEW)
+endif()
 if(POLICY CMP0167) # Since CMake 3.30
     # Suppress warning: "Policy CMP0167 is not set: The FindBoost module is removed."
     # Set CMP0167 to OLD to avoid breakage in the Windows & macOS CI tests.
@@ -123,11 +126,7 @@ if (NOT ${BOOST_ROOT} STREQUAL "")
   set(ENV{BOOST_ROOT} ${BOOST_ROOT})
 endif()
 
-find_package(Boost COMPONENTS context fiber )
-
-if(NOT Boost_FOUND)
-  message(FATAL_ERROR "Please provide the path to the root directory of the boost installation using the -DBOOST_ROOT option")
-endif()
+find_package(Boost REQUIRED COMPONENTS context fiber)
 
 # Check for CUDA/ROCm and clang
 list(INSERT CMAKE_MODULE_PATH 0 "${ACPP_SOURCE_ROOT}/cmake/")

@@ -146,7 +146,7 @@ private:
 
   ACPP_KERNEL_TARGET
   id_type get_subgroup_id() const {
-  __acpp_if_target_hiplike(
+  __acpp_if_target_device(
     int local_tid = __acpp_lid_x 
                   + __acpp_lid_y * __acpp_lsize_x 
                   + __acpp_lid_z * __acpp_lsize_x * __acpp_lsize_y;
@@ -157,7 +157,7 @@ private:
 
   ACPP_KERNEL_TARGET
   id_type get_num_subgroups() const {
-  __acpp_if_target_hiplike(
+  __acpp_if_target_device(
     auto wg_size = __acpp_lsize_x *
                    __acpp_lsize_y *
                    __acpp_lsize_z;

@@ -145,7 +145,7 @@ private:
   }
 
   ACPP_KERNEL_TARGET
-  int get_num_subgroups() const {
+  id_type get_num_subgroups() const {
     auto wg_size = __acpp_lsize_x *
                    __acpp_lsize_y *
                    __acpp_lsize_z;

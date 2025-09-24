@@ -412,8 +412,8 @@ ze_queue::get_enqueued_event_handles() const {
   if(!wait_events.empty()) {
     evts.reserve(wait_events.size());
     for(std::size_t i = 0; i < wait_events.size(); ++i) {
-      evts[i] = static_cast<ze_node_event *>(wait_events[i].get())
-                    ->get_event_handle();
+      evts.emplace_back(static_cast<ze_node_event *>(wait_events[i].get())
+                    ->get_event_handle());
     }
   }
   return evts;

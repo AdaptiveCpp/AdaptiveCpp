@@ -164,8 +164,8 @@ private:
     auto sg_size = __acpp_warp_size; // max subgroup size
 
     return (wg_size + sg_size - 1) / sg_size;
-  }
   );
+  }
 
   ACPP_KERNEL_TARGET
   int local_tid() const {

@@ -130,7 +130,7 @@ private:
   ACPP_KERNEL_TARGET
   int cuda_get_subgroup_size() const {
     __acpp_if_target_hiplike(
-      if (get_group_id() ==
+      if (get_subgroup_id() ==
           get_num_subgroups() - 1) {
         auto wg_size = __acpp_lsize_x *
           __acpp_lsize_y * __acpp_lsize_z;
@@ -146,12 +146,12 @@ private:
 
   ACPP_KERNEL_TARGET
   id_type get_subgroup_id() const {
-    int local_tid =
-      __acpp_lsize_x +
-      __acpp_lsize_y * __acpp_lsize_x +
-      __acpp_lsize_z * __acpp_lsize_x *
-        __acpp_lsize_y;
+    int local_tid = __acpp_lid_x 
+                  + __acpp_lid_y * __acpp_lsize_x 
+                  + __acpp_lid_z * __acpp_lsize_x * __acpp_lsize_y;
+
     return local_tid / __acpp_warp_size;
+  }
 
   ACPP_KERNEL_TARGET
   id_type get_num_subgroups() const {

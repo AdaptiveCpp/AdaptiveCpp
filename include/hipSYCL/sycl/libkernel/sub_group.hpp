@@ -146,15 +146,18 @@ private:
 
   ACPP_KERNEL_TARGET
   id_type get_subgroup_id() const {
+  __acpp_if_target_hiplike(
     int local_tid = __acpp_lid_x 
                   + __acpp_lid_y * __acpp_lsize_x 
                   + __acpp_lid_z * __acpp_lsize_x * __acpp_lsize_y;
 
     return local_tid / __acpp_warp_size;
+  );
   }
 
   ACPP_KERNEL_TARGET
   id_type get_num_subgroups() const {
+  __acpp_if_target_hiplike(
     auto wg_size = __acpp_lsize_x *
                    __acpp_lsize_y *
                    __acpp_lsize_z;
@@ -162,6 +165,7 @@ private:
 
     return (wg_size + sg_size - 1) / sg_size;
   }
+  );
 
   ACPP_KERNEL_TARGET
   int local_tid() const {

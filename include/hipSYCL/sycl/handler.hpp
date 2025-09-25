@@ -378,14 +378,19 @@ public:
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
-    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
-      this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
-        executionRange.get_offset(), executionRange.get_global_range(),
-        executionRange.get_local_range(),
-        kernel, reductions...);
-    };
+    if (executionRange.get_global_range() == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    else {
+      auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+        this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
+          executionRange.get_offset(), executionRange.get_global_range(),
+          executionRange.get_local_range(),
+          kernel, reductions...);
+      };
+
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
   }
 
   // Hierarchical kernel dispatch API
@@ -408,13 +413,18 @@ public:
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
                                const ReductionsAndKernel &... redu_kernel) {
-    auto invoker = [&](auto &&kernel, auto &&... reductions) {
-      this->submit_kernel<KernelName,
-                          rt::kernel_type::hierarchical_parallel_for>(
-          sycl::id<dimensions>{}, numWorkGroups * workGroupSize, workGroupSize,
-          kernel, reductions...);
-    };
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    if (numWorkGroups == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
+
+    else {
+      auto invoker = [&](auto &&kernel, auto &&... reductions) {
+        this->submit_kernel<KernelName,
+                            rt::kernel_type::hierarchical_parallel_for>(
+            sycl::id<dimensions>{}, numWorkGroups * workGroupSize, workGroupSize,
+            kernel, reductions...);
+      };
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
   }
 
   // Scoped parallelism API
@@ -425,14 +435,19 @@ public:
                 range<dimensions> workGroupSize,
                 const ReductionsAndKernel& ... redu_kernel)
   {
-    auto invoker = [&](auto&& kernel, auto&&... reductions) {
-      this->submit_kernel<KernelName, rt::kernel_type::scoped_parallel_for>(
-          sycl::id<dimensions>{}, numWorkGroups * workGroupSize,
-          workGroupSize,
-          kernel, reductions...);
-    };
+    if (numWorkGroups == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
-    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    else {
+      auto invoker = [&](auto&& kernel, auto&&... reductions) {
+        this->submit_kernel<KernelName, rt::kernel_type::scoped_parallel_for>(
+            sycl::id<dimensions>{}, numWorkGroups * workGroupSize,
+            workGroupSize,
+            kernel, reductions...);
+      };
+
+      detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+    }
   }
 
   /*

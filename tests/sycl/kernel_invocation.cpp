@@ -41,6 +41,13 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
       }
     ).wait_and_throw();
 
+    q.parallel_for(
+      cl::sycl::nd_range<1>{{0}, {0}},
+      [=](cl::sycl::nd_item<1> idx) {
+        d_y[idx.get_global_linear_id()] = static_cast<int>(idx.get_global_linear_id());
+      }
+    ).wait_and_throw();
+
   // 2D check
   q.parallel_for(
     cl::sycl::range<2>(0,0),
@@ -48,11 +55,25 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
     }
   ).wait_and_throw();
 
+  q.parallel_for(
+  cl::sycl::nd_range<2>{{0, 0}, {0, 0}},
+  [=](cl::sycl::nd_item<2> idx) {
+    d_y[idx.get_global_linear_id()] = static_cast<int>(idx.get_global_linear_id());
+  }
+  ).wait_and_throw();
+
   // 3D check
   q.parallel_for(
     cl::sycl::range<3>(0,0,0),
     [=](cl::sycl::id<3> idx) {
     }
+  ).wait_and_throw();
+
+  q.parallel_for(
+  cl::sycl::nd_range<3>{{0, 0, 0}, {0, 0, 0}},
+  [=](cl::sycl::nd_item<3> idx) {
+    d_y[idx.get_global_linear_id()] = static_cast<int>(idx.get_global_linear_id());
+  }
   ).wait_and_throw();
 
   // Checking for event & dependency handling
@@ -85,6 +106,37 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
   });
 
   e3D.wait_and_throw();
+
+  // Check for hierarchical parallelism and scoped parallelism
+  q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for_work_group(cl::sycl::range<1>{0}, cl::sycl::range<1>{0}, [=](auto& work_item) {
+    });
+  }).wait_and_throw();
+
+  q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for_work_group(cl::sycl::range<2>{0, 0}, cl::sycl::range<2>{0, 0}, [=](auto& work_item) {
+    });
+  }).wait_and_throw();
+
+  q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel_for_work_group(cl::sycl::range<3>{0, 0, 0}, cl::sycl::range<3>{0, 0, 0}, [=](auto& work_item) {
+    });
+  }).wait_and_throw();
+
+  q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel(cl::sycl::range<1>{0}, cl::sycl::range<1>{0}, [=](auto& work_item) {
+    });
+  }).wait_and_throw();
+
+  q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel(cl::sycl::range<2>{0, 0}, cl::sycl::range<2>{0, 0}, [=](auto& work_item) {
+    });
+  }).wait_and_throw();
+
+  q.submit([&](cl::sycl::handler &cgh) {
+    cgh.parallel(cl::sycl::range<3>{0, 0, 0}, cl::sycl::range<3>{0, 0, 0}, [=](auto& work_item) {
+    });
+  }).wait_and_throw();
 }
 
 BOOST_AUTO_TEST_CASE(basic_parallel_for) {

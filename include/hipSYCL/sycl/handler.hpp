@@ -378,7 +378,7 @@ public:
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
-    if (executionRange.get_global_range() == 0)
+    if (executionRange.get_global_range().size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
     else {
@@ -413,7 +413,7 @@ public:
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
                                const ReductionsAndKernel &... redu_kernel) {
-    if (numWorkGroups == 0)
+    if (numWorkGroups.size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
     else {
@@ -435,7 +435,7 @@ public:
                 range<dimensions> workGroupSize,
                 const ReductionsAndKernel& ... redu_kernel)
   {
-    if (numWorkGroups == 0)
+    if (numWorkGroups.size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
     else {

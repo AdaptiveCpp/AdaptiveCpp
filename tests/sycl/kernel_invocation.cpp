@@ -124,17 +124,17 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
   }).wait_and_throw();
 
   q.submit([&](cl::sycl::handler &cgh) {
-    cgh.parallel(cl::sycl::range<1>{0}, cl::sycl::range<1>{0}, [=](auto& work_item) {
+    cgh.parallel(cl::sycl::range<1>{0}, cl::sycl::range<1>{0}, [=](auto work_item) {
     });
   }).wait_and_throw();
 
   q.submit([&](cl::sycl::handler &cgh) {
-    cgh.parallel(cl::sycl::range<2>{0, 0}, cl::sycl::range<2>{0, 0}, [=](auto& work_item) {
+    cgh.parallel(cl::sycl::range<2>{0, 0}, cl::sycl::range<2>{0, 0}, [=](auto work_item) {
     });
   }).wait_and_throw();
 
   q.submit([&](cl::sycl::handler &cgh) {
-    cgh.parallel(cl::sycl::range<3>{0, 0, 0}, cl::sycl::range<3>{0, 0, 0}, [=](auto& work_item) {
+    cgh.parallel(cl::sycl::range<3>{0, 0, 0}, cl::sycl::range<3>{0, 0, 0}, [=](auto work_item) {
     });
   }).wait_and_throw();
 }

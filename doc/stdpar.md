@@ -90,8 +90,17 @@ The selected device is currently the device returned from the default selector. 
 
 The C++ STL algorithms are all designed around the assumption of being synchronous. This can become a performance issue especially when multiple algorithms are executed in succession, as in principle a `wait()` must be executed after each algorithm is submitted to device.
 
-To address this issue, a dedicated compiler optimization tries to remove `wait()` calls in between successive calls to offloaded algorithms, such that a `wait()` will only be executed for the last algorithm invocation. This is possible without side effects if no instructions (particularly loads and stores) between the algorithm invocations are present.
-Currently, the analysis is very simplistic and the compiler gives up the optimization attempt early - therefore, it is recommended for now to make it as easy as possible for the compiler to spot this opportunity by removing any code between calls to C++ algorithms if possible. This also includes code in the call arguments, such as calls to `begin()` and `end()`, which currently should better be moved to before the algorithm invocation. Example:
+To address this issue, a dedicated compiler optimization tries to remove `wait()` calls in between successive calls to offloaded algorithms, such that a `wait()` will only be executed for the last algorithm invocation. This is possible without side effects if no instructions (particularly loads and stores) between the algorithm invocations are present that might rely on memory changes initiated by the offload device.
+
+This is an optimization, which has limits in terms of the depth of the analysis that the compiler performs. The following conditions can prevent synchronization elision, if they occur between two stdpar calls in the generated code:
+
+* Calls to functions that are not inlined by the compiler, since this can prevent control flow analysis. Try to avoid any function calls in between stdpar calls (ideally also including `begin()` and `end()`);
+* Calls to functions that are defined in other translation units, since the compiler then does not see the code that will be executed;
+* Loads and stores, and other operations that may access or modify memory;
+   * This can be mitigated to some extent by **not** using `--acpp-stdpar-system-usm`. Without system USM, AdaptiveCpp can assume that the stack is not accessible by offload devices, and therefore, any access to the stack does not prevent synchronization elision. With system USM however, this assumption no longer holds, and AdaptiveCpp needs to retain synchronization even for stack memory accesses! If you wish to rely on synchronization elision for performance, you might therefore want to **not** enable `--acpps-stdpar-system-usm`!
+* Calling an stdpar algorithm like `transform_reduce` that returns the result of its computation as its return value - such an algorithm must always be synchronous due to its semantics!
+
+In this example, the compiler might remove the synchronization after the `for_each()`:
 
 ```c++
 
@@ -100,6 +109,39 @@ auto last = data.end();
 auto dest = dest.begin();
 std::for_each(std::execution::par_unseq, first, last, ...);
 std::transform(std::execution::par_unseq, first, last, dest, ...);
+
+```
+
+
+### Experimental: Automatic utilization of multiple devices using MQS (multi-queue scheduling)
+
+AdaptiveCpp stdpar contains an **experimental** feature that allows it to schedule independent kernels to different queues on one device (which might improve device utilization), or even to different devices. This allows single-threaded stdpar programs to harness the power of multiple GPUs.
+
+This works by compiler and runtime determining dependencies between kernels by investigating the accessed allocations. Independent kernels may then be assigned by the runtime to run on different queues or devices. For this decision, the runtime takes into account potential data transfer cost and the size of kernels.
+
+In order for kernels to be scheduled to different devices or queues, several conditions must be met:
+
+* The code must be compiled with `--acpp-targets=generic` and `--acpp-stdpar-mqs`.
+* The compiler must be able to prove that the kernels exclusively access the allocations that are passed as kernel arguments (e.g. pointers captures in a lambda). In particular, the kernel must not perform *indirect access*, i.e. loading additional pointers from memory.
+* In order to be able to run concurrently, kernels must access different sets of allocations, otherwise the compiler and runtime might assume a dependency.
+* The synchronization elision optimization logic mentioned in the previous section must be able to elide the synchronization between the kernels. Please see the previous section for recommendations on how to ensure this.
+
+If these conditions are met, the runtime can generate a task graph of the kernels which it then schedules across devices. **Note that currently, it can only schedule to multiple devices of the same backend.**
+
+The following example illustrates a code pattern where the individual kernels for the different computational domains might be scheduled to different devices:
+
+```c++
+
+std::array<float*, NUM_DOMAINS> computational_domains = ... /* initialize domains somehow */
+
+for(int i = 0; i < NUM_DOMAINS, ++i) {
+    // These for_each calls are independent and might be scheduled to multiple
+    // devices, or to different queues on a single device if only one device is
+    // available.
+    std::for_each(computational_domains[i], computational_domains[i]+domain_size, [=](auto& x){
+        // operate on element from domain
+    });
+}
 
 ```
 

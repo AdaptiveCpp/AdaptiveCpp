@@ -59,6 +59,8 @@ void kernel_entry::dump(std::ostream& ostr, int indentation_level) const {
                        num_registered_invocations, indentation_level);
   print_array(ostr, "retained_argument_indices", retained_argument_indices,
               "int", indentation_level);
+  print_key_value_pair(ostr, "is_free_of_indirect_access",
+                       is_free_of_indirect_access, indentation_level);
   print_array(ostr, "kernel_args", kernel_args, "arg_entry", indentation_level);
   print_key_value_pair(ostr, "first_invocation_run",
                        first_iads_invocation_run, indentation_level);
@@ -67,6 +69,11 @@ void kernel_entry::dump(std::ostream& ostr, int indentation_level) const {
 void binary_entry::dump(std::ostream& ostr, int indentation_level) const {
   print_key_value_pair(ostr, "jit_cache_filename", jit_cache_filename,
                        indentation_level);
+}
+
+void scheduling_object_entry::dump(std::ostream& ostr, int indentation_level) const {
+  print_key_value_pair(ostr, "is_free_of_indirect_access",
+                       is_free_of_indirect_access, indentation_level);
 }
 
 void appdb_data::dump(std::ostream& ostr, int indentation_level) const {
@@ -92,6 +99,14 @@ void appdb_data::dump(std::ostream& ostr, int indentation_level) const {
   for(const auto& entry : binaries) {
     std::string binary_name = get_id_string(entry.first);
     print_key_value_pair(ostr, binary_name, "<binary-entry>", indentation_level+1);
+    entry.second.dump(ostr, indentation_level+2);
+  }
+
+  print_key_value_pair(ostr, "scheduling_objects", "<map>", indentation_level);
+
+  for(const auto& entry : scheduling_objects) {
+    std::string obj_name = get_id_string(entry.first);
+    print_key_value_pair(ostr, obj_name, "<scheduling-object-entry>", indentation_level+1);
     entry.second.dump(ostr, indentation_level+2);
   }
 }

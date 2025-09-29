@@ -522,16 +522,11 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
     
     // Lower kernels to SPIR-V
-    rt::result err;
-    if(kernel_names.size() == 1) {
-      err = glue::jit::dead_argument_elimination::compile_kernel(
-          translator.get(), hcf_object, selected_image_name, _config,
-          binary_configuration_id, _reflection_map, compiled_image);
-    } else {
-      err =
-          glue::jit::compile(translator.get(), hcf_object, selected_image_name,
-                             _config, _reflection_map, compiled_image);
-    }
+    bool enable_dead_arg_elimination = kernel_names.size() == 1;
+    rt::result err = glue::jit::compile_and_store_stats(
+        translator.get(), hcf_object, selected_image_name, _config,
+        binary_configuration_id, _reflection_map, compiled_image,
+        enable_dead_arg_elimination);
     
     if(!err.is_success()) {
       register_error(err);
@@ -551,11 +546,10 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
-    if(exec_obj->supported_backend_kernel_names().size() == 1)
-      exec_obj->get_jit_output_metadata().kernel_retained_arguments_indices =
-          glue::jit::dead_argument_elimination::
-              retrieve_retained_arguments_mask(binary_configuration_id);
-
+    bool has_dead_arg_elimination =
+        exec_obj->supported_backend_kernel_names().size() == 1;
+    glue::jit::load_jit_output_metadata(*exec_obj, has_dead_arg_elimination,
+                                        binary_configuration_id);
 
     return exec_obj;
   };
@@ -597,6 +591,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     return submission_err;
 
   register_submitted_op(completion_evt);
+  on_kernel_launch_complete(kernel_name, obj);
 
   return make_success();
 #else

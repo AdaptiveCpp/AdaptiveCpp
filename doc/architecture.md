@@ -23,6 +23,7 @@ These four components are strictly separated both in terms of the directory stru
 ## SYCL interface
 
 The SYCL interface provides the SYCL classes and functions that the user actually interacts with, i.e. everything inside the `sycl::` namespace. It can be seen as divided in two parts: 
+
 1. SYCL host API: This part of the SYCL interface is written in regular C++, only runs on the host and provides mechanisms for task submission, task management, platform and device management etc. For example `sycl::queue`, `sycl::event`, `sycl::device` belong to the host API. The SYCL host API is mainly just an interface to the SYCL runtime, which actually implements most of these features. *Backend-specific code is not allowed in the host API as a rule of thumb. Non-standard C++ code (e.g. CUDA) is absolutely not allowed in the host API.*
 2. SYCL kernel library: The kernel library contains all SYCL classes and functions that are available from kernels. In general, the kernel library will make use of backend-specific functionality and may even need to be written in a backend-specific C++ dialect such as CUDA. This means that in general, a regular C++ compiler may not be able to parse the kernel library code.
   Note that there are some classes such as `sycl::accessor`, `sycl::id`, `sycl::range` that are needed both inside and outside kernel code.

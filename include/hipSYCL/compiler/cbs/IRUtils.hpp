@@ -81,6 +81,7 @@ template <class PtrSet> struct PtrSetWrapper {
     return Set.insert(Value).first;
   }
   auto begin() -> decltype(Set.begin()) { return Set.begin(); }
+  auto end() -> decltype(Set.end()) { return Set.end(); }
 };
 
 

@@ -6,6 +6,7 @@ AdaptiveCpp supports a dialect of the CUDA/HIP language called portable CUDA (PC
 Similarly to using `--acpp-targets=generic` with SYCL or C++ standard parallelism code (stdpar), AdaptiveCpp can JIT-compile the input PCUDA code for any target from a single binary, including CPUs, NVIDIA GPUs, AMD GPUs, and Intel GPUs.
 
 Possible use cases for PCUDA include:
+
 * Working with existing CUDA/HIP code bases;
 * Iterative porting of existing CUDA/HIP code bases;
 * Fairer compiler comparisons between AdaptiveCpp and nvcc or hipcc, since the exact same (or at least very similar) input code can be used for benchmarks;
@@ -52,6 +53,7 @@ AdaptiveCpp does not implement CUDA's legacy default stream semantics and only s
 ### Multi-backend device topology and device management
 
 AdaptiveCpp is a portable platform supporting multiple backends that might potentially also be used simultaneously.
+
 * Multiple backends may be available. The OpenMP host backend targeting the CPU is always available.
 * A backend may contain multiple platorms. This is primarily used on backends like OpenCL, where the backend itself might expose multiple available drivers. For example, a system might have the Intel OpenCL implementation for CPU installed as well as the Intel GPU OpenCL implementation.
 * A platform may contain multiple devices.
@@ -392,6 +394,7 @@ sycl::queue q = sycl::AdaptiveCpp_pcuda::make_queue(stream);
 ```
 
 **Note:** 
+
 1. During the lifetime of the queue, the underlying backend queue is shared between the PCUDA stream and the SYCL queue. The underlying backend queue will be freed once *both* PCUDA stream and SYCL queue are no longer alive.
 2. The queue returned from `make_queue` will always be an in-order queue. However, SYCL may queue up work to perform batched submission in certain cases. This can cause SYCL work dispatched before PCUDA work to be executed *after* PCUDA work even if both submit to the same underlying queue. To avoid this, use the AdaptiveCpp instant submission mode in SYCL (see [here](macros.md)) and avoid using the buffer-accessor data management model.
 3. You can get a SYCL queue for the PCUDA default stream for the current PCUDA device using `make_queue(0)`.

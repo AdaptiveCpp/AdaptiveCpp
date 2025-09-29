@@ -80,6 +80,11 @@ static llvm::cl::opt<bool> StdparNoMallocToUSM{
     "acpp-stdpar-no-malloc-to-usm", llvm::cl::init(false),
     llvm::cl::desc{"Disable hipSYCL C++ standard parallelism malloc-to-usm compiler-side support"}};
 
+static llvm::cl::opt<bool> StdparNoStackPtrs{
+    "acpp-stdpar-assume-no-stack-pointers", llvm::cl::init(false),
+    llvm::cl::desc{"Stdpar: Assume that no host stack pointers can occur in offloaded code."}};
+
+
 // Register and activate passes
 
 #if LLVM_VERSION_MAJOR < 16
@@ -175,7 +180,7 @@ return {
           PB.registerOptimizerLastEPCallback(LastEPAdapter{[&](llvm::ModulePassManager &MPM, OptLevel) {
               MPM.addPass(SyncElisionInliningPass{});
               MPM.addPass(llvm::AlwaysInlinerPass{});
-              MPM.addPass(SyncElisionPass{});
+              MPM.addPass(SyncElisionPass{StdparNoStackPtrs});
             }});
           }
 #endif

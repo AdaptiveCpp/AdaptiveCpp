@@ -9,6 +9,7 @@ clang usually produces CUDA programs with very competitive performance compared 
 If you use a very recent CUDA version, you might get a warning when compiling with AdaptiveCpp that clang does not support your CUDA version and treats like an older version. This warning can usually safely be ignored.
 
 CMake variables:
+
 * `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda` to point AdaptiveCpp to the CUDA root installation directory (e.g. `/usr/local/cuda`), if cmake doesn't find the right CUDA installation.
 * `-DWITH_CUDA_BACKEND=ON` if AdaptiveCpp does not automatically enable the CUDA backend 
 
@@ -18,6 +19,7 @@ Please install the latest release of the NVIDIA HPC SDK and make sure to point A
 Please install CUDA 10.0 or later. You can also rely on the CUDA bundled with the NVIDIA HPC SDK
 
 CMake variables:
+
 * `-DNVCXX_COMPILER=/path/to/nvc++`
 * You can use the CUDA bundled with nvc++. Make sure to point AdaptiveCpp to the right CUDA installation using `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda`. 
 * `-DWITH_CUDA_BACKEND=ON` if AdaptiveCpp does not automatically enable the CUDA backend

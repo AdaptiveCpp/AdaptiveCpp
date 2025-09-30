@@ -84,7 +84,7 @@ void wait_end(void *usr_state) {
 
 void init_register() {
   state_t *state = &my_state;
-  init_state(state);
+  init_states(state);
   init_submit_end(submit_end);
   init_wait_end(wait_end);
 }

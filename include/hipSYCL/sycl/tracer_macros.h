@@ -43,25 +43,11 @@
 #define TRACER_FUNCTION_VA_ARGS(type, ...)                                                         \
   for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
     if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
-      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], __VA_ARGS__);       \
+      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], ##__VA_ARGS__);     \
   }
 
-#define TRACER_FUNCTION1ARG(type)                                                                  \
-  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
-    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
-      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i]);                    \
-  }
-
-#define TRACER_FUNCTION2ARG(type, arg2)                                                            \
-  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
-    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
-      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], arg2);              \
-  }
-
-#define TRACER_FUNCTION3ARG(type, arg2, arg3)                                                      \
-  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
-    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
-      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], arg2, arg3);        \
-  }
+#define TRACER_FUNCTION1ARG(type) TRACER_FUNCTION_VA_ARGS(type)
+#define TRACER_FUNCTION2ARG(type, arg2) TRACER_FUNCTION_VA_ARGS(type, arg2)
+#define TRACER_FUNCTION3ARG(type, arg2, arg3) TRACER_FUNCTION_VA_ARGS(type, arg2, arg3)
 
 #endif

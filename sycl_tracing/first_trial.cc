@@ -11,11 +11,16 @@
 int main() {
 
   sycl::gpu_selector selector;
-  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  sycl::queue q{selector, sycl::property_list{sycl::property::queue::in_order{}}};
+
+  sycl::cpu_selector selector2;
+  sycl::queue q2{selector2, sycl::property_list{sycl::property::queue::in_order{}}};
 
   auto dev = q.get_device();
+  auto dev2 = q2.get_device();
 
-  std::cout << "Running on device: " << dev.get_info<sycl::info::device::name>()
+  std::cout << "Running on device: " << dev.get_info<sycl::info::device::name>() << std::endl;
+  std::cout << "Running on device with q2: " << dev2.get_info<sycl::info::device::name>()
             << std::endl;
 
   // Tracer_utils::initialize_tracer(cool_tracer);
@@ -31,13 +36,14 @@ int main() {
   q.wait();
   q.memset(numbers_device, 0, sizeof(int) * 100);
   q.wait();
-  q.fill(numbers_device, 42, 100);
+  auto e = q.fill(numbers_device, 42, 100);
 
   q.copy(numbers_device, numbers.data(), 100);
 
-  q.wait();
+  // q.wait();
 
   q.submit([&](sycl::handler &h) {
+     h.depends_on(e);
      h.single_task([=]() {
        int i = 0;
        for (int j = 0; j < 100; j++) {
@@ -46,9 +52,7 @@ int main() {
      });
    }).wait();
 
-  q.parallel_for(sycl::range<1>(10), [=](sycl::id<1> I) {
-     const int i = 0;
-   }).wait();
+  q.parallel_for(sycl::range<1>(10), [=](sycl::id<1> I) { const int i = 0; }).wait();
 
   std::cout << "Hello World!" << std::endl;
 }

@@ -411,11 +411,8 @@ public:
 
     event return_event{node, _impl->handler};
 
-    TRACER_FUNCTION3ARG(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id);
-
-    //  using func_type = decltype(Tracer_utils::tracer_state.submit_end[0]);
-    //  TD<func_type> td;
-    //  TD<tracer_function_submit_t> td1;
+    TRACER_FUNCTION_VA_ARGS(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id,
+                            this->is_in_order());
 
     return return_event;
   }

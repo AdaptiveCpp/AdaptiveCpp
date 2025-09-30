@@ -6,14 +6,11 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
-#include <set>
 #include <sstream>
 #include <stdlib.h>
 #include <string>
-#include <string_view>
 #include <thread>
 #include <unordered_map>
-#include <unordered_set>
 
 #ifdef __cplusplus
 extern "C" {
@@ -122,8 +119,9 @@ auto malloc_shared_start = [](void *usr_state) { start(usr_state, 12, "malloc_sh
 auto malloc_shared_end = [](void *usr_state, void *ptr) { end(usr_state, 12, "malloc_shared"); };
 
 auto free_start = [](void *usr_state) { start(usr_state, 13, "sycl::free"); };
-
 auto free_end = [](void *usr_state, void *ptr) { end(usr_state, 13, "sycl::free"); };
+
+auto finalize = [](void *usr_state) { delete (state_t *)usr_state; };
 
 const auto i = std::atexit(
     []() { std::cout << "Hello World from inside the std::atexit function" << std::endl; });
@@ -134,10 +132,10 @@ void init_register() {
 
   my_state.start_timer = tracer_start_time;
 
-  state_t *state = &my_state;
+  state_t *state = new state_t{"outfile.json"};
   state->outfile << "{ \"traceEvents\": [" << std::endl;
 
-  init_state(state);
+  init_states(state);
   init_parallel_for_work_group_start(parallel_for_work_group_start);
   init_parallel_for_work_group_end(parallel_for_work_group_end);
   init_memset_start(memset_start);
@@ -164,6 +162,7 @@ void init_register() {
   init_malloc_shared_end(malloc_shared_end);
   init_free_start(free_start);
   init_free_end(free_end);
+  init_finalize(finalize);
 }
 
 #ifdef __cplusplus

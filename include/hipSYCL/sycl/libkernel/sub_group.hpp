@@ -66,8 +66,8 @@ public:
         return 1, 
         return __acpp_sscp_get_subgroup_size(),
         // TODO This is not actually correct for incomplete subgroups
-        return cuda_get_subgroup_size(),
-        return __acpp_warp_size);
+        return hiplike_get_subgroup_size(),
+        return hiplike_get_subgroup_size());
   }
 
   ACPP_KERNEL_TARGET
@@ -128,7 +128,7 @@ private:
   }
 
   ACPP_KERNEL_TARGET
-  int cuda_get_subgroup_size() const {
+  int hiplike_get_subgroup_size() const {
     __acpp_if_target_hiplike(
       if (get_subgroup_id() ==
           get_num_subgroups() - 1) {
@@ -142,6 +142,7 @@ private:
         return __acpp_warp_size;
       }
     );
+    return 0;
   }
 
   ACPP_KERNEL_TARGET
@@ -153,6 +154,7 @@ private:
 
     return local_tid / __acpp_warp_size;
   );
+    return 0;
   }
 
   ACPP_KERNEL_TARGET
@@ -165,6 +167,7 @@ private:
 
     return (wg_size + sg_size - 1) / sg_size;
   );
+    return 0;
   }
 
   ACPP_KERNEL_TARGET

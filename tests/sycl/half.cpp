@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(half_arithmetic) {
   
   auto tolerance = boost::test_tools::tolerance(0.0001);
   
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   s::queue q;
   s::half h1 {1.0f};
@@ -60,7 +60,7 @@ using half_test_types =
                    long, long long,
                    unsigned long, unsigned long long>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   auto tolerance = boost::test_tools::tolerance(0.0001);
   
   s::queue q;
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
 
 BOOST_AUTO_TEST_CASE(half_unary_operators){
 
-  namespace s = cl::sycl; 
+  namespace s = sycl; 
   namespace tt = boost::test_tools;
 
   // build inputs and allocate outputs

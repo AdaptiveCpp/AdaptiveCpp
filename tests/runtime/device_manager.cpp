@@ -13,7 +13,7 @@
 
 #include <future>
 
-#include <SYCL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <hipSYCL/runtime/device_id.hpp>
 
 #ifdef HIPSYCL_PLATFORM_CUDA

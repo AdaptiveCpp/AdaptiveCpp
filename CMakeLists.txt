@@ -747,6 +747,97 @@ if(WITH_ROCM_BACKEND)
   file(WRITE ${ACPP_BINARY_ROOT}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
 endif()
 
+message(STATUS "Numa: ${NUMA_LIBRARY}")
+
+if(WIN32)
+  # libs on windows are under bin/
+  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_PATH/bin")
+  # on windows, these libraries don't exist as they are linked
+  # statically to backends
+  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "")
+else()
+  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_LIB_PATH")
+  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host")
+  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx")
+  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu")
+  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv")
+  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend")
+endif()
+
+# TODO OpenMP is poorly handled.
+# - We copy both omp and gomp instead of checking what we need
+# - Won't work with AdaptiveCpp-in-LLVM builds
+set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-rt\" : \"/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-common\" : \"/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${NUMA_LIBRARY}\" : \"/\",
+  \"${LLVM_LIBRARY}\" : \"/\",
+  \"${OpenMP_omp_LIBRARY}\" : \"/\",
+  \"${OpenMP_gomp_LIBRARY}\" : \"/\"
+}
+")
+
+#TODO cudart for older cmake versions?
+set(ACPP_CUDA_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\",
+  \"${CUDA_cudart_LIBRARY}\" : \"/\"
+}
+")
+
+# TODO Can we unify with the other ROCm detection logic that we already have?
+if(WITH_ROCM_BACKEND)
+  find_library(AMDHIP64_LIBRARY amdhip64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
+  if(NOT WIN32)
+    find_library(HSARUNTIME64_LIBRARY hsa-runtime64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
+  endif()
+  find_library(AMDCOMGR_LIBRARY amd_comgr HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+  find_library(HSAKMT_LIBRARY hsakmt HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+  find_library(ROCPROFILERREGISTER_LIBRARY rocprofiler-register HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+endif()
+set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${ROCM_DEVICE_LIBS_PATH}/*\" : \"/hipSYCL/ext/bitcode/amdgcn/\",
+  \"${HIPRTC_LIBRARY}\" : \"/\",
+  \"${AMDHIP64_LIBRARY}\" : \"/\",
+  \"${HSARUNTIME64_LIBRARY}\" : \"/\",
+  \"${AMDCOMGR_LIBRARY}\" : \"/\",
+  \"${HSAKMT_LIBRARY}\" : \"/\",
+  \"${ROCPROFILERREGISTER_LIBRARY}\" : \"/\"
+}
+")
+
+# TODO Looks like llvm-spirv sets up spirv-tools dependency if it finds
+# it on the system -> look into explicitly disabling this?
+set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
+  \"${OpenCL_LIBRARIES}\" : \"/\"
+}
+")
+
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json ${ACPP_CORE_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json ${ACPP_CUDA_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json ${ACPP_HIP_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json ${ACPP_OCL_DEPLOYMENT_MANIFEST})
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -819,6 +910,11 @@ endif()
 if(WITH_ROCM_BACKEND)
   install(FILES ${ACPP_BINARY_ROOT}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 endif()
+
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)

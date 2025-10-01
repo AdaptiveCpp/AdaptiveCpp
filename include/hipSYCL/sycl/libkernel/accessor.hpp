@@ -2201,7 +2201,7 @@ public:
 private:
   ACPP_KERNEL_TARGET
   accessor(address addr, range<dimensions> r)
-    : _addr{addr}, _num_elements{r}
+  : _addr{addr}, _num_elements{r}
   {}
 
   specialized<address> _addr;
@@ -2231,6 +2231,23 @@ public:
 
   local_accessor() = default;
 
+  template <typename U,
+            typename = std::enable_if_t<
+            std::is_const_v<dataT> &&
+            std::is_same_v<U, std::remove_const_t<dataT>>>>
+  local_accessor(const local_accessor<U, dimensions> &other) :
+    _addr(other.AdaptiveCpp_get_addr()), _num_elements(other.AdaptiveCpp_get_num_elem()) {
+  }
+
+  template <typename U,
+            typename = std::enable_if_t<
+            std::is_const_v<dataT> &&
+            std::is_same_v<U, std::remove_const_t<dataT>>>>
+  operator local_accessor<const U, dimensions>() const {
+    local_accessor<const U, dimensions> tmp(this);
+    return tmp;
+  }
+
   /* Available only when: dimensions == 0 */
   template<int D = dimensions,
            typename std::enable_if_t<D == 0>* = nullptr>
@@ -2249,6 +2266,11 @@ public:
               allocationSize.size())},
       _num_elements{allocationSize}
   {}
+
+  specialized<address> AdaptiveCpp_get_addr() const { return _addr; }
+
+  specialized<range<dimensions>> AdaptiveCpp_get_num_elem() const { return _num_elements; }
+
 
   void swap(local_accessor &other)
   {
@@ -2382,11 +2404,6 @@ public:
     };
   }
 
-  template <typename T = dataT, std::enable_if_t<std::is_same_v<T, dataT> && !std::is_const_v<T>, bool> = false>
-  operator local_accessor<const T, dimensions>() const {
-    return local_accessor<const T, dimensions>{_addr, _num_elements};
-  }
-
   iterator begin() const noexcept {
     return iterator::make_begin(this);
   }
@@ -2421,7 +2438,7 @@ public:
 private:
   ACPP_KERNEL_TARGET
   local_accessor(address addr, range<dimensions> r)
-    : _addr{addr}, _num_elements{r}
+  : _addr{addr}, _num_elements{r}
   {}
 
   specialized<address> _addr;

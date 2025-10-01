@@ -16,7 +16,7 @@
 BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(subgroup_size_check) {
-  namespace s = cl::sycl;
+  namespace s = sycl;
   s::queue q;
   auto SG = q.get_device().get_info<s::info::device::sub_group_sizes>().front();
 

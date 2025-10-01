@@ -15,7 +15,23 @@
 
 BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
 
+BOOST_AUTO_TEST_CASE(subgroup_size_check) {
+  namespace s = cl::sycl;
+  s::queue q;
+  auto SG = q.get_device().get_info<s::info::device::sub_group_sizes>().front();
 
+  auto* res = s::malloc_shared<uint32_t>(SG, q);
+  q.parallel_for(
+    s::nd_range<1>(SG, SG),
+    [=](s::nd_item<1> it) {
+      res[it.get_local_linear_id()] = it.get_sub_group().get_local_linear_range();
+    }).wait();
+
+  for (size_t i = 0; i < SG; i++)
+    BOOST_CHECK_EQUAL(res[i], SG);
+
+  s::free(res, q);
+}
 
 BOOST_AUTO_TEST_CASE(sub_group) {
   namespace s = sycl;

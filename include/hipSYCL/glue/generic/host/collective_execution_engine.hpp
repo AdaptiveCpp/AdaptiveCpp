@@ -25,12 +25,12 @@
 #include <functional>
 #include <vector>
 
+#include "hipSYCL/runtime/support/minicoro_wrapper.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 
 #include "iterate_range.hpp"
-#include "minicoro_wrapper.hpp"
 #include "range_decomposition.hpp"
 
 namespace hipsycl {
@@ -41,6 +41,10 @@ enum class group_execution_iteration {
   omp_for,
   sequential
 };
+
+template<typename T>
+using fiber = hipsycl::rt::support::fiber<T>;
+using yield_signal = hipsycl::rt::support::yield_signal;
 
 template<int Dim>
 class collective_execution_engine {

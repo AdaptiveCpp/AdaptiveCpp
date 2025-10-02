@@ -11,12 +11,12 @@
 
 #include <cassert>
 
-#include "hipSYCL/glue/generic/host/minicoro_wrapper.hpp"
+#include "hipSYCL/runtime/support/minicoro_wrapper.hpp"
 
 #define MINICORO_IMPL
-#include "support/minicoro.h"
+#include "minicoro.h"
 
-namespace hipsycl::glue::host {
+namespace hipsycl::rt::support {
 template<typename arguments_type>
 fiber<arguments_type>::fiber(function_type func, const arguments_type& initial_args)
   : _coro(nullptr), _function(std::move(func)), _args(initial_args)
@@ -100,9 +100,9 @@ void fiber<arguments_type>::entry_point(mco_coro* co) {
 // Not beautiful, but helps keep it all isolated
 #include "hipSYCL/glue/generic/host/collective_execution_engine.hpp"
 
-namespace hipsycl::glue::host {
+namespace hipsycl::rt::support {
   // Expose the nested type for each Dim to allow explicit template instantiation
-  template class fiber<collective_execution_engine<1>::FiberData>;
-  template class fiber<collective_execution_engine<2>::FiberData>;
-  template class fiber<collective_execution_engine<3>::FiberData>;
+  template class fiber<hipsycl::glue::host::collective_execution_engine<1>::FiberData>;
+  template class fiber<hipsycl::glue::host::collective_execution_engine<2>::FiberData>;
+  template class fiber<hipsycl::glue::host::collective_execution_engine<3>::FiberData>;
 }

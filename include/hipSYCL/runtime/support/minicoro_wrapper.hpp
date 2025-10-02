@@ -1,13 +1,20 @@
-#ifndef HIPSYCL_COROUTINE_WRAPPER_HPP
-#define HIPSYCL_COROUTINE_WRAPPER_HPP
-
+/*
+ * This file is part of AdaptiveCpp, an implementation of SYCL and C++ standard
+ * parallelism for CPUs and GPUs.
+ *
+ * Copyright The AdaptiveCpp Contributors
+ *
+ * AdaptiveCpp is released under the BSD 2-Clause "Simplified" License.
+ * See file LICENSE in the project root for full license details.
+ */
+// SPDX-License-Identifier: BSD-2-Clause
+#ifndef HIPSYCL_SUPPORT_MINICORO_WRAPPER_HPP
+#define HIPSYCL_SUPPORT_MINICORO_WRAPPER_HPP
 #include <functional>
 
 struct mco_coro;
 
-namespace hipsycl {
-namespace glue {
-namespace host {
+namespace hipsycl::rt::support {
 
 enum class fiber_status {
     suspended,
@@ -55,8 +62,6 @@ private:
     static void entry_point(mco_coro* co);
 };
 
-} // namespace host
-} // namespace glue
-} // namespace hipsycl
+} // namespace hipsycl::rt::support
 
-#endif // HIPSYCL_COROUTINE_WRAPPER_HPP
+#endif // HIPSYCL_SUPPORT_MINICORO_WRAPPER_HPP

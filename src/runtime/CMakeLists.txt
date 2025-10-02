@@ -38,7 +38,6 @@ add_library(acpp-rt SHARED
   kernel_configuration.cpp
   multi_queue_executor.cpp
   runtime_event_handlers.cpp
-  minicoro_wrapper.cpp
   dag.cpp
   dag_node.cpp
   dag_builder.cpp
@@ -52,6 +51,7 @@ add_library(acpp-rt SHARED
   hw_model/memcpy.cpp
   serialization/serialization.cpp
   support/reflection.cpp
+  support/minicoro_wrapper.cpp
   pcuda/pcuda_device_topology.cpp
   pcuda/pcuda_error.cpp
   pcuda/pcuda_stream.cpp

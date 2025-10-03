@@ -51,7 +51,7 @@ public:
       const static_range_decomposition<Dim>& group_range_decomposition,
       int my_group_region)
       : _num_groups{num_groups}, _local_size{local_size}, _offset{offset},
-        _fibers_spawned{false}, _current_fiber(nullptr),
+        _fibers_spawned{false},
         _master_group_position(0), _groups{group_range_decomposition},
         _my_group_region{my_group_region} {}
 
@@ -59,7 +59,6 @@ public:
   void run_kernel(WorkItemFunction f) {
     _kernel = f;
     _fibers_spawned = false;
-    _current_fiber = nullptr;
     _master_group_position = 0;
 
     // Create master fiber
@@ -93,19 +92,14 @@ public:
   }
 
   void barrier() {
-    assert(_current_fiber && "Barrier outside coroutine");
-    fiber* const self = _current_fiber; // _current_fiber can change as we switch
+    fiber* const self = fiber::get_current();
     if (!_fibers_spawned) {
       assert(self == &_fibers[0]);
-      _current_fiber = nullptr;
       self->yield(yield_signal::spawn);
       assert(_fibers_spawned);
       self->yield(yield_signal::next_item);
-      _current_fiber = self;
     }
-    _current_fiber = nullptr;
     self->yield(yield_signal::barrier);
-    _current_fiber = self;
   }
 
 private:
@@ -125,27 +119,13 @@ private:
   // Use deque to keep pointers stable on emplace_back
   std::deque<fiber> _fibers;
   std::deque<FiberData> _fiber_args;
-  fiber* _current_fiber;
   std::function<void(sycl::id<Dim>, sycl::id<Dim>)> _kernel;
   size_t _master_group_position;
   const static_range_decomposition<Dim>& _groups;
   int _my_group_region;
 
-
-  // Helper to yield from the current fiber while taking care of _current_fiber value
-  static void yield_to_next(fiber* self) {
-    assert(self);
-    collective_execution_engine* engine = self->arg<FiberData>()->engine;
-    assert(self == engine->_current_fiber);
-    engine->_current_fiber = nullptr;
-    self->yield(yield_signal::next_item);
-    assert(engine->_current_fiber == nullptr);
-    engine->_current_fiber = self;
-  }
-
   static void master_coro_body(fiber* self) {
     collective_execution_engine* engine = self->arg<FiberData>()->engine;
-    engine->_current_fiber = self;
     engine->_groups.for_each_local_element(
       engine->_my_group_region, [engine, self](sycl::id<Dim> group_id) {
         if (!engine->_fibers_spawned) {
@@ -154,28 +134,25 @@ private:
               engine->execute_work_item(local_id, group_id);
           });
         } else {
-          yield_to_next(self);
+          self->yield(yield_signal::next_item);
           engine->execute_work_item(sycl::id<Dim>{}, group_id);
         }
         ++engine->_master_group_position;
       });
-    engine->_current_fiber = nullptr;
   }
 
   static void worker_coro_body(fiber* self) {
     FiberData* arg = self->arg<FiberData>();
     collective_execution_engine* engine = arg->engine;
-    engine->_current_fiber = self;
     size_t current_group = 0;
     engine->_groups.for_each_local_element(
       engine->_my_group_region, [&](sycl::id<Dim> group_id) {
         if (current_group >= arg->master_offset) {
-          yield_to_next(self);
+          self->yield(yield_signal::next_item);
           engine->execute_work_item(arg->local_id, group_id);
         }
         current_group++;
       });
-    engine->_current_fiber = nullptr;
   }
 
   void spawn_fibers() {

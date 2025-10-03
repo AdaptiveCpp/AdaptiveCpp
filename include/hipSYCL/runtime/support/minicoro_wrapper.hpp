@@ -53,6 +53,8 @@ public:
 
     [[nodiscard]] bool is_alive() const;
 
+    static fiber* get_current();
+
 private:
     mco_coro* _coro;
     function_type _function;

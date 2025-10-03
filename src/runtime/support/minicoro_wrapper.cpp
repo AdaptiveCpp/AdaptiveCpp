@@ -70,6 +70,11 @@ bool fiber::is_alive() const {
   return status() != fiber_status::dead;
 }
 
+fiber* fiber::get_current() {
+    mco_coro* co = mco_running();
+    return static_cast<fiber*>(mco_get_user_data(co));
+}
+
 void fiber::create_coroutine(std::size_t stack_size) {
   mco_desc desc = mco_desc_init(entry_point, stack_size);
   desc.user_data = this;

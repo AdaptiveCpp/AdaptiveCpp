@@ -17,24 +17,22 @@
 #include "minicoro.h"
 
 namespace hipsycl::rt::support {
-template<typename arguments_type>
-fiber<arguments_type>::fiber(function_type func, const arguments_type& initial_args)
-  : _coro(nullptr), _function(std::move(func)), _args(initial_args)
+
+fiber::fiber(function_type function, void* argument)
+  : _coro(nullptr), _function(std::move(function)), _arg(argument)
 {
   static constexpr size_t stack_size = 256 * 1024; // bytes
   create_coroutine(stack_size);
 }
 
-template<typename arguments_type>
-fiber<arguments_type>::~fiber() {
+fiber::~fiber() {
   if (_coro) {
     mco_destroy(_coro);
     _coro = nullptr;
   }
 }
 
-template<typename arguments_type>
-yield_signal fiber<arguments_type>::resume() {
+yield_signal fiber::resume() {
   assert(_coro != nullptr);
   assert(status() != fiber_status::dead);
 
@@ -51,21 +49,13 @@ yield_signal fiber<arguments_type>::resume() {
   return signal;
 }
 
-template<typename arguments_type>
-void fiber<arguments_type>::yield(yield_signal signal) {
+void fiber::yield(yield_signal signal) {
   assert(_coro != nullptr);
   mco_push(_coro, &signal, sizeof(yield_signal));
   mco_yield(_coro);
 }
 
-template<typename arguments_type>
-arguments_type& fiber<arguments_type>::args() { return _args; }
-
-template<typename arguments_type>
-const arguments_type& fiber<arguments_type>::args() const { return _args; }
-
-template<typename arguments_type>
-fiber_status fiber<arguments_type>::status() const {
+fiber_status fiber::status() const {
   if (!_coro) return fiber_status::dead;
 
   switch (mco_status(_coro)) {
@@ -76,13 +66,11 @@ fiber_status fiber<arguments_type>::status() const {
   }
 }
 
-template<typename arguments_type>
-bool fiber<arguments_type>::is_alive() const {
+bool fiber::is_alive() const {
   return status() != fiber_status::dead;
 }
 
-template<typename arguments_type>
-void fiber<arguments_type>::create_coroutine(std::size_t stack_size) {
+void fiber::create_coroutine(std::size_t stack_size) {
   mco_desc desc = mco_desc_init(entry_point, stack_size);
   desc.user_data = this;
 
@@ -90,19 +78,10 @@ void fiber<arguments_type>::create_coroutine(std::size_t stack_size) {
   assert(res == MCO_SUCCESS);
 }
 
-template<typename arguments_type>
-void fiber<arguments_type>::entry_point(mco_coro* co) {
+void fiber::entry_point(mco_coro* co) {
   auto* self = static_cast<fiber*>(mco_get_user_data(co));
   self->_function(self);
 }
-}
 
-// Not beautiful, but helps keep it all isolated
-#include "hipSYCL/glue/generic/host/collective_execution_engine.hpp"
+} // namespace hipsycl::rt::support
 
-namespace hipsycl::rt::support {
-  // Expose the nested type for each Dim to allow explicit template instantiation
-  template class fiber<hipsycl::glue::host::collective_execution_engine<1>::FiberData>;
-  template class fiber<hipsycl::glue::host::collective_execution_engine<2>::FiberData>;
-  template class fiber<hipsycl::glue::host::collective_execution_engine<3>::FiberData>;
-}

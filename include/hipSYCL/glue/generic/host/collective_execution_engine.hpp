@@ -42,10 +42,6 @@ enum class group_execution_iteration {
   sequential
 };
 
-template<typename T>
-using fiber = hipsycl::rt::support::fiber<T>;
-using yield_signal = hipsycl::rt::support::yield_signal;
-
 template<int Dim>
 class collective_execution_engine {
 public:
@@ -55,7 +51,7 @@ public:
       const static_range_decomposition<Dim>& group_range_decomposition,
       int my_group_region)
       : _num_groups{num_groups}, _local_size{local_size}, _offset{offset},
-        _fibers_spawned{false}, _fibers(), _current_fiber(nullptr),
+        _fibers_spawned{false}, _current_fiber(nullptr),
         _master_group_position(0), _groups{group_range_decomposition},
         _my_group_region{my_group_region} {}
 
@@ -63,14 +59,16 @@ public:
   void run_kernel(WorkItemFunction f) {
     _kernel = f;
     _fibers_spawned = false;
+    _current_fiber = nullptr;
     _master_group_position = 0;
 
-    // Create master coroutine
-    _fibers.emplace_back(std::make_unique<fiber<FiberData>>(master_coro_body, FiberData{this, sycl::id<Dim>{}, 0}));
+    // Create master fiber
+    auto& data = _fiber_args.emplace_back(FiberData{this, sycl::id<Dim>{}, 0});
+    _fibers.emplace_back(master_coro_body, &data);
     bool all_done = false;
 
-    // Launch master coroutine
-    if (yield_signal signal = _fibers[0]->resume(); signal == yield_signal::dead) {
+    // Launch master fiber
+    if (yield_signal signal = _fibers[0].resume(); signal == yield_signal::dead) {
       all_done = true;
     } else {
       assert(signal == yield_signal::spawn);
@@ -79,9 +77,9 @@ public:
 
     while (!all_done) {
       all_done = true;
-      for (auto& co : _fibers) {
-        if (co->is_alive()) {
-          if (yield_signal signal = co->resume(); signal != yield_signal::dead) {
+      for (auto& fiber : _fibers) {
+        if (fiber.is_alive()) {
+          if (yield_signal signal = fiber.resume(); signal != yield_signal::dead) {
             assert(signal == yield_signal::barrier || signal == yield_signal::next_item);
             all_done = false;
           }
@@ -90,14 +88,15 @@ public:
     }
 
     // Cleanup
+    _fiber_args.clear();
     _fibers.clear();
   }
 
   void barrier() {
     assert(_current_fiber && "Barrier outside coroutine");
-    fiber<FiberData>* const self = _current_fiber; // _current_fiber can change as we switch
+    fiber* const self = _current_fiber; // _current_fiber can change as we switch
     if (!_fibers_spawned) {
-      assert(self == _fibers[0].get());
+      assert(self == &_fibers[0]);
       _current_fiber = nullptr;
       self->yield(yield_signal::spawn);
       assert(_fibers_spawned);
@@ -109,20 +108,24 @@ public:
     _current_fiber = self;
   }
 
-public:
+private:
   struct FiberData {
     collective_execution_engine* engine;
     sycl::id<Dim> local_id;
     size_t master_offset;
   };
+  using fiber = hipsycl::rt::support::fiber;
+  using yield_signal = hipsycl::rt::support::yield_signal;
 
-private:
+
   sycl::range<Dim> _num_groups;
   sycl::range<Dim> _local_size;
   sycl::id<Dim> _offset;
   bool _fibers_spawned;
-  std::vector<std::unique_ptr<fiber<FiberData>>> _fibers;
-  fiber<FiberData>* _current_fiber;
+  // Use deque to keep pointers stable on emplace_back
+  std::deque<fiber> _fibers;
+  std::deque<FiberData> _fiber_args;
+  fiber* _current_fiber;
   std::function<void(sycl::id<Dim>, sycl::id<Dim>)> _kernel;
   size_t _master_group_position;
   const static_range_decomposition<Dim>& _groups;
@@ -130,9 +133,9 @@ private:
 
 
   // Helper to yield from the current fiber while taking care of _current_fiber value
-  static void yield_to_next(fiber<FiberData>* self) {
+  static void yield_to_next(fiber* self) {
     assert(self);
-    collective_execution_engine* engine = self->args().engine;
+    collective_execution_engine* engine = self->arg<FiberData>()->engine;
     assert(self == engine->_current_fiber);
     engine->_current_fiber = nullptr;
     self->yield(yield_signal::next_item);
@@ -140,8 +143,8 @@ private:
     engine->_current_fiber = self;
   }
 
-  static void master_coro_body(fiber<FiberData>* self) {
-    collective_execution_engine* engine = self->args().engine;
+  static void master_coro_body(fiber* self) {
+    collective_execution_engine* engine = self->arg<FiberData>()->engine;
     engine->_current_fiber = self;
     engine->_groups.for_each_local_element(
       engine->_my_group_region, [engine, self](sycl::id<Dim> group_id) {
@@ -159,15 +162,16 @@ private:
     engine->_current_fiber = nullptr;
   }
 
-  static void worker_coro_body(fiber<FiberData>* self) {
-    collective_execution_engine* engine = self->args().engine;
+  static void worker_coro_body(fiber* self) {
+    FiberData* arg = self->arg<FiberData>();
+    collective_execution_engine* engine = arg->engine;
     engine->_current_fiber = self;
     size_t current_group = 0;
     engine->_groups.for_each_local_element(
       engine->_my_group_region, [&](sycl::id<Dim> group_id) {
-        if (current_group >= self->args().master_offset) {
+        if (current_group >= arg->master_offset) {
           yield_to_next(self);
-          engine->execute_work_item(self->args().local_id, group_id);
+          engine->execute_work_item(arg->local_id, group_id);
         }
         current_group++;
       });
@@ -175,12 +179,11 @@ private:
   }
 
   void spawn_fibers() {
-    _fibers.reserve(_local_size.size());
     bool first = true;
     iterate_range(_local_size, [&](sycl::id<Dim> local_id) {
       if (!first) {
-        FiberData data {  this, local_id, _master_group_position};
-        _fibers.emplace_back(std::make_unique<fiber<FiberData>>(worker_coro_body, data));
+        auto& data = _fiber_args.emplace_back(FiberData{this, local_id, _master_group_position});
+        _fibers.emplace_back(worker_coro_body, &data);
       }
       first = false;
     });

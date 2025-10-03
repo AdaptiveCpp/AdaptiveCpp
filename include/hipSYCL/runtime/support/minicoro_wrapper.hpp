@@ -31,12 +31,11 @@ enum class yield_signal {
     next_item
 };
 
-template<typename arguments_type = void*>
 class fiber {
 public:
     using function_type = std::function<void(fiber*)>;
 
-    explicit fiber(function_type func, const arguments_type& initial_args);
+    explicit fiber(function_type function, void* argument);
 
     fiber(const fiber&) = delete;
     fiber& operator=(const fiber&) = delete;
@@ -47,15 +46,17 @@ public:
     yield_signal resume();
     void yield(yield_signal signal);
 
-    arguments_type& args();
-    const arguments_type& args() const;
+    template<typename T>
+    T* arg() { return reinterpret_cast<T*>(_arg); }
+    template<typename T>
+    const T* arg() const { return reinterpret_cast<const T*>(_arg); }
 
     [[nodiscard]] bool is_alive() const;
 
 private:
     mco_coro* _coro;
     function_type _function;
-    arguments_type _args;
+    void* _arg;
 
     void create_coroutine(std::size_t stack_size);
     [[nodiscard]] fiber_status status() const;

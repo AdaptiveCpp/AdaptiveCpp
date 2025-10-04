@@ -68,16 +68,16 @@ BOOST_AUTO_TEST_CASE(loc_accessor_implicit_conversion){
 
 
   // arguments are read-only
-  auto kernel_function = [](cl::sycl::local_accessor<const float> data) {
+  auto kernel_function = [](sycl::local_accessor<const float> data) {
     // do nothing
   };
 
-  cl::sycl::queue my_queue;
+  sycl::queue my_queue;
 
-  my_queue.submit([&kernel_function](cl::sycl::handler & cgh){
+  my_queue.submit([&kernel_function](sycl::handler & cgh){
     // Allows for read and write
-    const cl::sycl::local_accessor<float> data{10, cgh};
-    cl::sycl::local_accessor<float> data2{10, cgh};
+    const sycl::local_accessor<float> data{10, cgh};
+    sycl::local_accessor<float> data2{10, cgh};
 
     cgh.single_task([=](){
         kernel_function(data);

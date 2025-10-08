@@ -131,11 +131,11 @@ private:
   int hiplike_get_subgroup_size() const {
     __acpp_if_target_hiplike(
       if (get_group_linear_id() ==
-          get_group_linear_range() - 1) {
+          hiplike_num_supgroups() - 1) {
         auto wg_size = __acpp_lsize_x *
           __acpp_lsize_y * __acpp_lsize_z;
 
-        auto num_max_sized_subgroups = get_group_linear_range() - 1;
+        auto num_max_sized_subgroups = hiplike_num_supgroups() - 1;
         return wg_size -
                num_max_sized_subgroups * __acpp_warp_size;
       } else {
@@ -154,7 +154,7 @@ private:
 
     return local_tid / __acpp_warp_size;
   );
-    return 0;
+    return id_type();
   }
 
   ACPP_KERNEL_TARGET
@@ -167,7 +167,7 @@ private:
 
     return (wg_size + sg_size - 1) / sg_size;
   );
-    return 0;
+    return id_type();
   }
 
   ACPP_KERNEL_TARGET

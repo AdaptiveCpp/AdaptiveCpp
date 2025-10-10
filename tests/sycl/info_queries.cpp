@@ -22,6 +22,8 @@ BOOST_AUTO_TEST_CASE(device_queries) {
   std::string device = d.get_info<sycl::info::device::name>();
   BOOST_TEST(device.length() > 0);
   std::cout << "Default-selected queue runs on device: " << device << std::endl;
+
+  BOOST_CHECK_NO_THROW(d.get_info<sycl::info::device::AdaptiveCpp_priority_range>());
   
   // TODO Add tests for more queries
 }

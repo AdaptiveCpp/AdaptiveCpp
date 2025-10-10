@@ -511,6 +511,47 @@ class AdaptiveCpp_coarse_grained_events {};
 
 ```
 
+### `ACPP_EXT_QUEUE_PRIORITY`
+
+This extension introduces a new property which allows assigning a priority to a `sycl::queue`. The runtime will then attempt to prioritize operations submitted to queues with higher priority. The behavior is backend-specific (some backends might do nothing). The available priority range for a device can be queried using the `ACPP_EXT_QUEUE_PROPERTY_PRIORITY_RANGE` extension.
+
+
+#### API Reference
+
+```c++
+namespace sycl::property::queue {
+class AdaptiveCpp_priority {
+public:
+  AdaptiveCpp_priority(int priority);
+};
+}
+```
+
+### `ACPP_EXT_QUEUE_PROPERTY_PRIORITY_RANGE`
+
+Thie extension introduces a new device information descriptor to query the range of acceptable queue priority values which can be used with `ACPP_EXT_QUEUE_PRIORITY`. The behavior is backend specific; typically, lower values indicate higher priority, but that is not guaranteed.
+
+#### API Reference
+
+```c++
+
+namespace sycl::info::device {
+class AdaptiveCpp_priority_range {
+  using return_type = std::pair<int, int>;
+};
+}
+```
+
+#### Example
+
+```c++
+sycl::device dev;
+auto [priority_lowest, priority_highest] = dev.get_info<sycl::info::device::AdaptiveCpp_priority_range>();
+
+sycl::queue high_prio_q{dev, {sycl::property::queue::AdaptiveCpp_priority{priority_highest}}};
+sycl::queue low_prio_q{dev, {sycl::property::queue::AdaptiveCpp_priority{priority_lowest}}};
+```
+
 ### `ACPP_EXT_CG_PROPERTY_*`: Command group properties
 
 AdaptiveCpp supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:

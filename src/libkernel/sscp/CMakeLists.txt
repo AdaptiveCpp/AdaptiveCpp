@@ -25,7 +25,7 @@ function(libkernel_generate_bitcode_library)
     # make overriding easier
     if(CMAKE_SYSROOT)
       set(platform_specific -isysroot ${CMAKE_SYSROOT})
-    else()
+    elseif(CMAKE_OSX_SYSROOT)
       set(platform_specific -isysroot ${CMAKE_OSX_SYSROOT})
     endif()
   endif()

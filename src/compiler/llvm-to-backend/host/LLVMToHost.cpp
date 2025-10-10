@@ -344,7 +344,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     return false;
   }
 
-  auto ReadResult = llvm::MemoryBuffer::getFile(OutputFileName, -1);
+  auto ReadResult = llvm::MemoryBuffer::getFile(OutputFileName);
 
   if (auto Err = ReadResult.getError()) {
     this->registerError("LLVMToHost: Could not read result file" + Err.message());

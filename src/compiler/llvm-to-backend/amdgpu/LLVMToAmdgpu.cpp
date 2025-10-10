@@ -538,7 +538,7 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
   }
 
   auto ReadResult =
-      llvm::MemoryBuffer::getFile(OutputFileName, -1);
+      llvm::MemoryBuffer::getFile(OutputFileName);
 
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToAmdgpu: Could not read result file" + Err.message());

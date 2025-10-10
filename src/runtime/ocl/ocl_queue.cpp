@@ -28,6 +28,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirvFactory.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include <CL/cl.h>
+#include <CL/cl_ext.h>
 
 #endif
 
@@ -108,18 +109,36 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
 class ocl_hardware_manager;
 
-ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index)
+ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index, int priority)
   : _hw_manager{hw_manager}, _device_index{device_index}, _sscp_invoker{this},
     _kernel_cache{kernel_cache::get()} {
 
-  cl_command_queue_properties props = 0;
   ocl_hardware_context *dev_ctx =
       static_cast<ocl_hardware_context *>(hw_manager->get_device(device_index));
   cl::Device cl_dev = dev_ctx->get_cl_device();
   cl::Context cl_ctx = dev_ctx->get_cl_context();
 
   cl_int err;
-  _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
+  if(priority != 0 && dev_ctx->has_cl_khr_priority_hints_extension()) {
+#ifdef CL_QUEUE_PRIORITY_KHR
+    cl_queue_properties clPriority = (priority < 0) ? CL_QUEUE_PRIORITY_HIGH_KHR : CL_QUEUE_PRIORITY_LOW_KHR;
+    cl_queue_properties props[] = {
+      CL_QUEUE_PRIORITY_KHR, clPriority,
+      0
+    };
+    cl_command_queue rawQueue = clCreateCommandQueueWithProperties(cl_ctx(), cl_dev(), props, &err);
+    _queue = cl::CommandQueue(rawQueue);
+#else
+    print_warning(__acpp_here(),
+              error_info{"ocl_queue: Cannot set queue priority, "
+                         "AdaptiveCpp was built with OpenCL headers that don't recognize CL_QUEUE_PRIORITY_KHR"});
+    cl_command_queue_properties props = 0;
+    _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
+#endif
+  } else {
+    cl_command_queue_properties props = 0;
+    _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
+  }
   if(err != CL_SUCCESS) {
     register_error(__acpp_here(),
                    error_info{"ocl_queue: Couldn't construct backend queue",

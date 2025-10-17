@@ -41,7 +41,7 @@ Due to the single-pass nature of AdaptiveCpp's compiler, host and device code ar
 
 ### No compile-time knowledge of targets
 
-Due to the JIT nature, the target device is not known at compile-time. Therefore, it is not possible to specialize code paths for different devices using preprocesor macros.
+Due to the JIT nature, the target device is not known at compile-time. Therefore, it is not possible to specialize code paths for different devices using preprocessor macros.
 Instead, control flow and AdaptiveCpp's JIT reflection and `compile_if` functionality must be used (**Note**: This API is currently available in SYCL and can be used from PCUDA, however, a native PCUDA version will follow in the future).
 
 Another consequence of the JIT nature is that `warpSize` is not `constexpr`, since the target device and its warp size is not known at compile time.
@@ -55,7 +55,7 @@ AdaptiveCpp does not implement CUDA's legacy default stream semantics and only s
 AdaptiveCpp is a portable platform supporting multiple backends that might potentially also be used simultaneously.
 
 * Multiple backends may be available. The OpenMP host backend targeting the CPU is always available.
-* A backend may contain multiple platorms. This is primarily used on backends like OpenCL, where the backend itself might expose multiple available drivers. For example, a system might have the Intel OpenCL implementation for CPU installed as well as the Intel GPU OpenCL implementation.
+* A backend may contain multiple platforms. This is primarily used on backends like OpenCL, where the backend itself might expose multiple available drivers. For example, a system might have the Intel OpenCL implementation for CPU installed as well as the Intel GPU OpenCL implementation.
 * A platform may contain multiple devices.
 
 Because devices from different vendors in general do not know how to talk to each other, in general data transfers are only possible within devices of one platform (and the host).
@@ -345,7 +345,7 @@ pcudaSetDevice(device);
 
 ## Interoperability with SYCL or C++ standard parallelism in device code
 
-When using `--acpp-targets=generic`, all programming models supported by AdaptiveCpp are interchangable arbitrarily in device code.
+When using `--acpp-targets=generic`, all programming models supported by AdaptiveCpp are interchangeable arbitrarily in device code.
 You can mix-and-match code as needed with any of the programming models.
 
 Example:

@@ -14,7 +14,7 @@ Stage 1 IR constants are hard-wired. The following important S1 IR constants exi
 
 Stage 2 IR constants are intended to provide information that requires knowledge of the target device, such as backend, device, and so on. Stage 2 IR constants can also be programmatically added by the user.
 
-After AdaptiveCpp sets the value of an IR constant, it runs constant propagation and dead code elimination passes. This causes if statements depending entirely on IR constants to be trivially optimized away - causing either removal of the code contained in the if brach, or hardwiring the code.
+After AdaptiveCpp sets the value of an IR constant, it runs constant propagation and dead code elimination passes. This causes if statements depending entirely on IR constants to be trivially optimized away - causing either removal of the code contained in the if branch, or hardwiring the code.
 
 #### Stage 1: Kernel extraction
 

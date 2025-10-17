@@ -60,7 +60,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
         __acpp_here(),
         error_info{
             "hip_hardware_manager: HIP backend does not support device "
-            "visibility masks. Use HIP_VISIBILE_DEVICES instead."});
+            "visibility masks. Use HIP_VISIBLE_DEVICES instead."});
   }
 
   int num_devices = 0;

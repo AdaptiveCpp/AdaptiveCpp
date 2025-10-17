@@ -760,7 +760,7 @@ The following 'finalizers' are supported:
 ### `ACPP_EXT_TARGET_NUMA_NODE_PROPERTY`
 This extension allows a user to specify a set of NUMA nodes on which to allocate memory.
 This can be done by using the `AdaptiveCpp_target_numa_node` property on USM allocation functions.
-This extension is aonly available when using the OpenMP backend. Using this property with any other backend will have no effects.
+This extension is only available when using the OpenMP backend. Using this property with any other backend will have no effects.
 
 Example:
 ```

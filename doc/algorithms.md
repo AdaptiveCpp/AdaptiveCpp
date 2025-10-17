@@ -32,7 +32,7 @@ void run_scan(sycl::queue& q, int* device_data_ptr, int* device_output_ptr,
 
 * All algorithms are exclusively supported for the SYCL 2020 USM memory management model (either `device`, `host` or `shared` allocations). The old SYCL `buffer` model is unsupported.
 * All algorithms take a `sycl::queue` to which they submit their operations. Both out-of-order and in-order queues are supported, but we recommend in-order queues for performance and since the library is better tested with in-order queues.
-* All algorithms operate asynchronously, i.e. it is the user's resposibility to synchronize appropriately before results are accessed.
+* All algorithms operate asynchronously, i.e. it is the user's responsibility to synchronize appropriately before results are accessed.
 * All algorithms take an optional `const std::vector<sycl::event>&` argument that can be used to express dependencies.
 * All algorithms return a `sycl::event` which can be used for synchronization. Note: If an algorithm is invoked for a problem size of 0, then for performance reasons it immediately returns a default-constructed `sycl::event` which has a `completed` status. This is the case even if the algorithms has dependencies that are not yet complete!
 * Some algorithms require temporary scratch memory. For performance reasons, this scratch memory is cached. The AdaptiveCpp algorithms library exposes control over allocation lifetime and allocation kind for this scratch memory to users (see below).

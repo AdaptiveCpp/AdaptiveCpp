@@ -36,7 +36,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
         __acpp_here(),
         error_info{
             "cuda_hardware_manager: CUDA backend does not support device "
-            "visibility masks. Use CUDA_VISIBILE_DEVICES instead."});
+            "visibility masks. Use CUDA_VISIBLE_DEVICES instead."});
   }
 
   int num_devices = 0;

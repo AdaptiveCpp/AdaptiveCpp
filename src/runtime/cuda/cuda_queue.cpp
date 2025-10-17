@@ -68,6 +68,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
        {80, 70},
        {86, 71},
        {87, 74},
+       {88, 90},
        {89, 78},
        {90, 80},
        // some variants of 100, 101 need 8.6, some 8.8
@@ -75,6 +76,7 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
        {100, 88},
        {101, 88},
        {103, 88},
+       {110, 90},
        {120, 88},
        {121, 88}};
 
@@ -416,15 +418,24 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& n
   cuda_instrumentation_guard instrumentation{this, op, node.get()};
 #ifndef _WIN32
   cudaError_t err = cudaSuccess;
-  
-  if (op.get_target().is_host()) {
-    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                        cudaCpuDeviceId, get_stream());
-  } else {
-    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                        _dev.get_id(), get_stream());
-  }
 
+  #if CUDART_VERSION >= 13000
+  cudaMemLocation location;
+  if (op.get_target().is_host()) {
+    location.id = 0; // ignored
+    location.type = cudaMemLocationTypeHostNumaCurrent;
+  } else {
+    location.id = _dev.get_id();
+    location.type = cudaMemLocationTypeDevice;
+  }
+  const unsigned int flags = 0;
+  err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                    location, flags, get_stream());
+  #else
+  int location = op.get_target().is_host() ? cudaCpuDeviceId : _dev.get_id();
+  err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                           location, get_stream());
+  #endif
 
   if (err != cudaSuccess) {
     return make_error(__acpp_here(),
@@ -693,16 +704,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       compiler::createLLVMToPtxTranslator(kernel_names);
 
     // Lower kernels to PTX
-    rt::result err;
-    if(kernel_names.size() == 1) {
-      err = glue::jit::dead_argument_elimination::compile_kernel(
-          translator.get(), hcf_object, selected_image_name, _config,
-          binary_configuration_id, _reflection_map, compiled_image);
-    } else {
-      err =
-          glue::jit::compile(translator.get(), hcf_object, selected_image_name,
-                             _config, _reflection_map, compiled_image);
-    }
+    bool enable_dead_arg_elimination = kernel_names.size() == 1;
+    rt::result err = glue::jit::compile_and_store_stats(
+        translator.get(), hcf_object, selected_image_name, _config,
+        binary_configuration_id, _reflection_map, compiled_image,
+        enable_dead_arg_elimination);
 
     if(!err.is_success()) {
       register_error(err);
@@ -732,10 +738,9 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
         << "cuda_queue: Successfully compiled SSCP kernels to module " << exec_obj->get_module()
         << std::endl;
 
-    if(kernel_names.size() == 1)
-      exec_obj->get_jit_output_metadata().kernel_retained_arguments_indices =
-          glue::jit::dead_argument_elimination::
-              retrieve_retained_arguments_mask(binary_configuration_id);
+    bool has_dead_arg_elimination = kernel_names.size() == 1;
+    glue::jit::load_jit_output_metadata(*exec_obj, has_dead_arg_elimination,
+                                        binary_configuration_id);
 
     return exec_obj;
   };
@@ -757,9 +762,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   CUmodule cumodule = static_cast<const cuda_executable_object*>(obj)->get_module();
   assert(cumodule);
 
-  return launch_kernel_from_module(cumodule, kernel_name, num_groups,
+  auto err = launch_kernel_from_module(cumodule, kernel_name, num_groups,
                                    group_size, local_mem_size, _stream,
                                    _arg_mapper.get_mapped_args());
+  on_kernel_launch_complete(kernel_name, obj);
+  return err;
 
 #else
   return make_error(

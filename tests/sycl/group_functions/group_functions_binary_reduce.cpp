@@ -16,8 +16,6 @@
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
 
-using namespace cl;
-
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(group_x_of_local) {

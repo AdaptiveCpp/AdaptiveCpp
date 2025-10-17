@@ -36,7 +36,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
         __acpp_here(),
         error_info{
             "cuda_hardware_manager: CUDA backend does not support device "
-            "visibility masks. Use CUDA_VISIBILE_DEVICES instead."});
+            "visibility masks. Use CUDA_VISIBLE_DEVICES instead."});
   }
 
   int num_devices = 0;
@@ -329,7 +329,18 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
     return 2;
     break;
   case device_uint_property::max_clock_speed:
+#if CUDART_VERSION >= 13000
+    {
+      int clockRate = 0;
+      auto err = cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, _dev);
+      if (err == cudaSuccess)
+        return clockRate / 1000;
+      else
+        return 0;
+    }
+#else
     return _properties->clockRate / 1000;
+#endif
     break;
   case device_uint_property::max_malloc_size:
     return _properties->totalGlobalMem;

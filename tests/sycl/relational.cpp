@@ -18,24 +18,26 @@ BOOST_FIXTURE_TEST_SUITE(rel_tests, reset_device_fixture)
 // list of types classified as "genfloat" in the SYCL standard
 using rel_test_genfloats = boost::mp11::mp_list<
   float,
-  cl::sycl::vec<float, 1>,
-  cl::sycl::vec<float, 2>,
-  cl::sycl::vec<float, 3>,
-  cl::sycl::vec<float, 4>,
-  cl::sycl::vec<float, 8>,
-  cl::sycl::vec<float, 16>,
+  // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
+  // if this is an oversight or intentional.
+  // sycl::vec<float, 1>
+  sycl::vec<float, 2>,
+  sycl::vec<float, 3>,
+  sycl::vec<float, 4>,
+  sycl::vec<float, 8>,
+  sycl::vec<float, 16>,
   double,
-  cl::sycl::vec<double, 1>,
-  cl::sycl::vec<double, 2>,
-  cl::sycl::vec<double, 3>,
-  cl::sycl::vec<double, 4>,
-  cl::sycl::vec<double, 8>,
-  cl::sycl::vec<double, 16>>;
+  // sycl::vec<double, 1>,
+  sycl::vec<double, 2>,
+  sycl::vec<double, 3>,
+  sycl::vec<double, 4>,
+  sycl::vec<double, 8>,
+  sycl::vec<double, 16>>;
 
 namespace {
 
   template<typename DT, int D>
-  using vec = cl::sycl::vec<DT, D>;
+  using vec = sycl::vec<DT, D>;
 
   // utility type traits for generic testing
 
@@ -100,7 +102,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
   using OutType = s::detail::builtin_input_boollike_t<T>;
   using BoolType = s::detail::builtin_input_element_t<OutType>;

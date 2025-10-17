@@ -56,6 +56,7 @@ add_library(acpp-rt SHARED
   hw_model/memcpy.cpp
   serialization/serialization.cpp
   support/reflection.cpp
+  support/minicoro_wrapper.cpp
   pcuda/pcuda_device_topology.cpp
   pcuda/pcuda_error.cpp
   pcuda/pcuda_stream.cpp
@@ -406,4 +407,3 @@ if(WITH_CPU_BACKEND)
       LIBRARY DESTINATION lib/hipSYCL
       ARCHIVE DESTINATION lib/hipSYCL)
 endif()
-

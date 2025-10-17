@@ -18,21 +18,26 @@
 #include <cstdint>
 #include <cstdlib>
 #include <new>
+#include <string_view>
 #include <unistd.h>
+#include <optional>
 
 #include <hipSYCL/algorithms/util/allocation_cache.hpp>
 #include <hipSYCL/sycl/queue.hpp>
 #include <hipSYCL/sycl/device.hpp>
+#include <hipSYCL/sycl/platform.hpp>
 #include <hipSYCL/sycl/context.hpp>
 #include <hipSYCL/sycl/usm.hpp>
 #include <hipSYCL/sycl/usm_query.hpp>
 // Fetch builtin declarations to aid SSCP StdBuiltinRemapperPass for
 // std:: math function support inside kernels.
 #include <hipSYCL/sycl/libkernel/builtin_interface.hpp>
+#include <hipSYCL/common/appdb.hpp>
 
 
 #include "allocation_map.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
 #include "offload_heuristic_db.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/sycl/info/device.hpp"
@@ -57,8 +62,102 @@ inline sycl::queue construct_default_queue() {
         hipsycl::sycl::property::queue::AdaptiveCpp_coarse_grained_events{}}};
 }
 
-class stdpar_tls_runtime {
+inline sycl::queue construct_queue(const sycl::device& dev) {
+  return sycl::queue{dev, hipsycl::sycl::property_list{
+        hipsycl::sycl::property::queue::in_order{},
+        hipsycl::sycl::property::queue::AdaptiveCpp_coarse_grained_events{}}};
+}
+
+class scheduling_monitor {
+public:
+
+  void attach(sycl::queue& q) {
+    auto* executor = q.AdaptiveCpp_inorder_executor();
+    assert(executor);
+    rt::inorder_queue* iq = executor->get_queue();
+    iq->set_kernel_launch_callback(
+        [this](std::string_view kernel_name, const rt::code_object *cb) {
+          bool kernel_was_free_of_indirect_access =
+              cb->get_jit_output_metadata().is_free_of_indirect_access;
+          if (!kernel_was_free_of_indirect_access) {
+            _all_kernels_are_free_of_indirect_access = false;
+            _most_recent_algorithm_was_free_of_indirect_access = false;
+          }
+        });
+  }
+
+  scheduling_monitor() = default;
+  scheduling_monitor(const scheduling_monitor&) = delete;
+  scheduling_monitor& operator=(const scheduling_monitor) = delete;
+  ~scheduling_monitor() {
+    // in case there are any appdb update requests still open
+    finalize_algorithm();
+  }
+
+  bool all_launched_kernels_from_batch_are_free_of_indirect_access() const {
+    return _all_kernels_are_free_of_indirect_access;
+  }
+
+  bool all_launched_kernels_from_algorithm_are_free_of_indirect_access() const {
+    return _most_recent_algorithm_was_free_of_indirect_access;
+  }
+
+  void finalize_batch() {
+    _all_kernels_are_free_of_indirect_access = true;
+    _enqueued_operations_costs.clear();
+    finalize_algorithm();
+  }
+
+  void finalize_algorithm() {
+    if(_update_appdb_algorithm_id.has_value()) {
+      hipsycl::common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_write_access([&](hipsycl::common::db::appdb_data &appdb) {
+        
+        auto& obj = appdb.scheduling_objects[_update_appdb_algorithm_id.value()];
+        obj.is_free_of_indirect_access =
+            _most_recent_algorithm_was_free_of_indirect_access;
+      });
+    }
+    _update_appdb_algorithm_id.reset();
+
+    _most_recent_algorithm_was_free_of_indirect_access = true;
+  }
+
+  // When finalize_algorithm() is called, the information stored in the monitor
+  // will be saved in the appdb with the provided algorithm id as key.
+  void request_sync_to_appdb(std::array<uint64_t, 2> alg_id) {
+    _update_appdb_algorithm_id = alg_id;
+  }
+
+  void set_enqueued_operation_cost(int queue_id, double cost) {
+    if(queue_id >= _enqueued_operations_costs.size())
+      _enqueued_operations_costs.resize(queue_id+1);
+    _enqueued_operations_costs[queue_id] = cost;
+  }
+
+  double get_enqueued_cost(int queue_id) const {
+    if(queue_id < _enqueued_operations_costs.size())
+      return _enqueued_operations_costs[queue_id];
+    return 0.;
+  }
+
 private:
+  bool _all_kernels_are_free_of_indirect_access = true;
+  bool _most_recent_algorithm_was_free_of_indirect_access = true;
+  std::optional<std::array<uint64_t, 2>> _update_appdb_algorithm_id;
+  std::vector<double> _enqueued_operations_costs;
+};
+
+class stdpar_tls_runtime {
+public:
+  struct data_dependency {
+    const void* allocation;
+    sycl::queue* executing_queue;
+  };
+private:
+  static constexpr int num_queues_per_device = 4;
+
   stdpar_tls_runtime()
       : _queue{construct_default_queue()},
         _device_scratch_cache{algorithms::util::allocation_type::device},
@@ -72,6 +171,20 @@ private:
                   ->has(rt::device_support_aspect::
                             work_item_independent_forward_progress))
             _has_independent_work_item_forward_progress = true;
+          
+          _loadbalance_queues.push_back(_queue);
+#ifdef __ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__
+          
+          for(auto& d : _queue.get_device().get_platform().get_devices()) {
+            int target_num_queues = d == _queue.get_device()
+                                        ? num_queues_per_device - 1
+                                        : num_queues_per_device;
+            for (int i = 0; i < target_num_queues; ++i)
+              _loadbalance_queues.push_back(construct_queue(d));
+          }
+          for(auto& q : _loadbalance_queues)
+            _scheduling_monitor.attach(q);
+#endif
         }
 
   ~stdpar_tls_runtime() {
@@ -80,7 +193,12 @@ private:
     _host_scratch_cache.purge();
   }
 
+  // main queue for dispatching work
   sycl::queue _queue;
+  // load-balancing queues if automatic multi-device mode is enabled.
+  // also includes the main queue.
+  std::vector<sycl::queue, libc_allocator<sycl::queue>> _loadbalance_queues;
+
   algorithms::util::allocation_cache _device_scratch_cache;
   algorithms::util::allocation_cache _shared_scratch_cache;
   algorithms::util::allocation_cache _host_scratch_cache;
@@ -88,9 +206,15 @@ private:
   bool _has_independent_work_item_forward_progress = false;
 
   offload_heuristic_db _offload_db;
+
+
+
+  std::vector<data_dependency, libc_allocator<data_dependency>> _dependencies_in_batch;
   std::vector<uint64_t, libc_allocator<uint64_t>> _instrumented_ops_in_batch;
   std::vector<std::size_t, libc_allocator<std::size_t>> _instrumented_op_problem_sizes_in_batch;
   uint64_t _batch_start_timestamp = 0;
+
+  scheduling_monitor _scheduling_monitor;
 
   static std::atomic<std::size_t>& offloading_batch_counter() {
     static std::atomic<std::size_t> batch_counter = 0;
@@ -109,6 +233,13 @@ public:
     return _offload_db;
   }
   
+  void wait() {
+    _outstanding_offloaded_operations = 0;
+    for(auto& q : _loadbalance_queues) {
+      q.wait();
+    }
+  }
+
   sycl::queue& get_queue() {
     return _queue;
   }
@@ -136,6 +267,38 @@ public:
     return offloading_batch_counter().load(std::memory_order_acquire);
   }
 
+  const std::vector<data_dependency, libc_allocator<data_dependency>> &
+  get_current_dependencies() const {
+    return _dependencies_in_batch;
+  }
+
+  std::vector<sycl::queue, libc_allocator<sycl::queue>> &
+  get_available_queues() {
+    return _loadbalance_queues;
+  }
+
+  void add_dependency(const data_dependency& d) {
+    _dependencies_in_batch.push_back((d));
+  }
+
+  const auto& get_scheduling_monitor() const {
+    return _scheduling_monitor;
+  }
+
+  auto& get_scheduling_monitor() {
+    return _scheduling_monitor;
+  }
+
+  int get_queue_index(sycl::queue& lookup_q) const {
+    int current = 0;
+    for(auto& q : _loadbalance_queues) {
+      if(&q == &lookup_q)
+        return current;
+      ++current;
+    }
+    return -1;
+  }
+
   void finalize_offloading_batch() noexcept {
 #ifndef __ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__
     uint64_t batch_end = get_time_now();
@@ -154,6 +317,8 @@ public:
     _instrumented_ops_in_batch.clear();
     _instrumented_op_problem_sizes_in_batch.clear();
 #endif
+    _dependencies_in_batch.clear();
+    _scheduling_monitor.finalize_batch();
     reset_num_outstanding_operations();
     ++offloading_batch_counter();
   }
@@ -335,6 +500,8 @@ class unified_shared_memory {
     // heuristic, touches this value - so it may not be up to date
     // if there is no prefetch!
     int64_t most_recent_offload_batch;
+    // Updated by schedule_to_queue()
+    sycl::queue* most_recent_processing_queue;
   };
 
   using allocation_map_t = allocation_map<allocation_map_payload>;
@@ -387,6 +554,7 @@ public:
         allocation_map_t::value_type v;
         v.allocation_size = n;
         v.most_recent_offload_batch = -1;
+        v.most_recent_processing_queue = nullptr;
         get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
       }
 

@@ -20,7 +20,7 @@ inline void __acpp_stdpar_barrier() noexcept {
   if(num_ops > 0) {
     HIPSYCL_DEBUG_INFO << "[stdpar] Initializing wait for " << num_ops
                        << " operations" << std::endl;
-    rt.get_queue().wait();
+    rt.wait();
     rt.finalize_offloading_batch();
   }
 }

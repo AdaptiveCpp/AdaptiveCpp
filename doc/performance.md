@@ -45,12 +45,14 @@ AdaptiveCpp supports all forms of USM universally on all backends and supported 
 Additionally, SYCL provides the `sycl::buffer`/`sycl::accessor` model.
 
 Generally, SYCL buffers are inferior to USM when it comes to performance:
+
 * **All types of USM have significantly lower host-side runtime overhead compared to buffers**, and can substantially outperform buffers, especially for short running kernels where submission latencies matter. This is especially true when in-order queues are used (See e.g. this paper for details: https://dl.acm.org/doi/fullHtml/10.1145/3648115.3648120)
     * With USM, the programmer can express dependencies statically, while the SYCL buffer-accessor model must figure out dependencies at runtime. Similarly, USM allows to statically express allocation/deallocation and data transfers, while with buffers non-trivial mechanisms in the SYCL runtime need to automatically manage these operations. This can add overhead.
 * Buffer accessors are not lightweight objects, and can increase register pressure in kernels compared to USM pointers.
 * Buffers may behave in unexpected ways that can silently introduce performance issues, for example buffer destructors synchronize in certain cases to wait for work to complete.
 
 For shared USM specifically:
+
 * Performance of shared USM typically depends on memory access patterns and driver quality. Depending on the operating system and hardware, very good performance is also possible with shared USM.
   * On CPU, shared USM is identical to device USM by design, and consequently there is no performance overhead
   * Performance on NVIDIA GPUs is typically excellent
@@ -63,6 +65,7 @@ Shared USM is the most productive memory management model that SYCL has, and can
 
 
 In summary:
+
 * **When control and maximum performance is needed, use device USM (`sycl::malloc_device`)**
 * **When maximum productivity is needed, use shared USM (`sycl::malloc_shared`)**
 * **Never use buffers. They do not bring significant advantages compared to USM, but can introduce substantial drawbacks!**
@@ -99,6 +102,7 @@ Note: Applications that are highly latency-sensitive may notice a slightly incre
 **For peak performance, you should not disable adaptivity, and run the application until the warning above is no longer printed.**
 
 We recommend:
+
 * Experiment with `ACPP_ADAPTIVITY_LEVEL=1` and `ACPP_ADAPTIVITY_LEVEL=2`
 * Experiment with `ACPP_ALLOCATION_TRACKING=1` and `ACPP_ALLOCATION_TRACKING=0`.
 

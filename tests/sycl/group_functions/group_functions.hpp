@@ -23,8 +23,6 @@
 #include <sstream>
 #include <string>
 
-using namespace cl;
-
 #define HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
 
 

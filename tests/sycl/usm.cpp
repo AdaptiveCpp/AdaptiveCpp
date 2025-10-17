@@ -17,8 +17,6 @@
 #include "sycl_test_suite.hpp"
 #include <boost/test/unit_test_suite.hpp>
 
-using namespace cl;
-
 BOOST_FIXTURE_TEST_SUITE(usm_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(allocation_functions) {

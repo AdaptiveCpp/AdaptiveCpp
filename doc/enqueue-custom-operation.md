@@ -12,6 +12,7 @@ Only asynchronous operations operating on the target device from the backend are
 ## host task vs enqueuing custom operations for interoperability
 
 Use a host task when
+
 * You want to execute work on the host
 * You want input data in a well defined state when your function object is evaluated
 * You want to run synchronous backend operations that depend on when they are executed during DAG execution
@@ -19,6 +20,7 @@ Use a host task when
 * You don't mind introducing synchronization between host and device
 
 Use a custom operation when
+
 * You want to submit additional asynchronous tasks to the backend
 * You care about latency.
 

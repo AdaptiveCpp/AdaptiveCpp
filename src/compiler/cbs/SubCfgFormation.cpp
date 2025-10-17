@@ -18,10 +18,16 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Analysis/DominanceFrontier.h>
+#include <llvm/Analysis/IteratedDominanceFrontier.h>
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/CFG.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Dominators.h>
@@ -30,6 +36,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/Value.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Regex.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
@@ -37,8 +44,10 @@
 #include <llvm/Transforms/Utils/Local.h>
 #include <llvm/Transforms/Utils/LoopSimplify.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <functional>
+#include <iterator>
 #include <numeric>
 
 #define DEBUG_SUBCFG_FORMATION
@@ -48,6 +57,14 @@ using namespace hipsycl::compiler;
 using namespace hipsycl::compiler::cbs;
 
 static const std::array<char, 3> DimName{'x', 'y', 'z'};
+
+template <class Instruction> llvm::IRBuilder<> createBuilder(llvm::BasicBlock *BB, Instruction *I) {
+  return llvm::IRBuilder{BB, I->getIterator()};
+}
+
+template <class iterator> llvm::IRBuilder<> createBuilder(llvm::BasicBlock *BB, iterator I) {
+  return llvm::IRBuilder{BB, I};
+}
 
 // gets the load inside F from the global variable called VarName
 llvm::Instruction *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName) {
@@ -113,18 +130,18 @@ std::size_t getRangeDim(llvm::Function &F, bool IsSscp) {
 
   if (!IsSscp) {
     std::size_t Dim = 0;
-    utils::findFunctionsWithStringAnnotationsWithArg(*F.getParent(), [&](llvm::Function *AnnotF,
-                                                                         llvm::StringRef Annotation,
-                                                                         llvm::Constant *Argument) {
-      if (AnnotF == &F) {
-        if (Annotation.compare(CbsKernelDimensionName) == 0) {
-          if (auto GV = llvm::dyn_cast<llvm::GlobalVariable>(Argument)){
-            Dim = GetValue(GV->getInitializer());
-          } else
-            Dim = GetValue(Argument);
-        }
-      }
-    });
+    utils::findFunctionsWithStringAnnotationsWithArg(
+        *F.getParent(),
+        [&](llvm::Function *AnnotF, llvm::StringRef Annotation, llvm::Constant *Argument) {
+          if (AnnotF == &F) {
+            if (Annotation.compare(CbsKernelDimensionName) == 0) {
+              if (auto GV = llvm::dyn_cast<llvm::GlobalVariable>(Argument)) {
+                Dim = GetValue(GV->getInitializer());
+              } else
+                Dim = GetValue(Argument);
+            }
+          }
+        });
     return Dim;
   } else if (auto MD = F.getParent()->getNamedMetadata(SscpAnnotationsName)) {
     for (auto OP : MD->operands()) {
@@ -462,6 +479,10 @@ public:
           &ContInstReplicaMap,
       llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, llvm::Value *ReqdArrayElements,
       VectorizationInfo &VecInfo);
+  void fixSingleSubCfgValuesDF(
+      llvm::DominatorTree &DT,
+      const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
+      llvm::Value *ReqdArrayElements, VectorizationInfo &VecInfo);
   void fixSingleSubCfgValues(
       llvm::DominatorTree &DT,
       const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
@@ -923,6 +944,58 @@ llvm::BasicBlock *SubCFG::createLoadBB(llvm::ValueToValueMapTy &VMap) {
   return LoadBB;
 }
 
+namespace {
+bool isPhiDominated(llvm::Instruction &I, llvm::Instruction *OPI, llvm::DominatorTree &DT) {
+  if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(&I)) {
+    // if a PHI node, we have to check that the incoming values dominate the terminators
+    // of the incoming block..
+    bool FoundIncoming = false;
+    for (auto &Incoming : Phi->incoming_values()) {
+      if (OPI == Incoming.get()) {
+        auto *IncomingBB = Phi->getIncomingBlock(Incoming);
+        if (DT.dominates(OPI, IncomingBB->getTerminator())) {
+          FoundIncoming = true;
+          break;
+        }
+      }
+    }
+    if (FoundIncoming)
+      return true;
+  }
+  return false;
+}
+
+llvm::Instruction *findLeastDominatingLoad(llvm::BasicBlock *CurrentBB, llvm::Instruction *OPI,
+                                           llvm::SmallVectorImpl<llvm::Instruction *> &Loads,
+                                           llvm::BasicBlock *LoadBB, llvm::DominatorTree &DT) {
+  bool Replaced = false;
+  llvm::BasicBlock *NextBB = CurrentBB;
+  do {
+    CurrentBB = NextBB;
+    HIPSYCL_DEBUG_INFO << "    Check block " << CurrentBB->getName() << "\n";
+    if (auto ReplaceWithIt = std::find_if(Loads.begin(), Loads.end(),
+                                          [&CurrentBB](auto *Load) {
+                                            auto check = Load->getParent() == CurrentBB;
+                                            return check;
+                                          });
+        ReplaceWithIt != Loads.end()) {
+      HIPSYCL_DEBUG_INFO << "    Found load in block " << CurrentBB->getName() << ": "
+                         << **ReplaceWithIt << "\n";
+      return *ReplaceWithIt;
+    }
+    NextBB = DT.getNode(CurrentBB)->getIDom()->getBlock();
+  } while (CurrentBB != LoadBB);
+  return nullptr;
+}
+
+llvm::Instruction *findLeastDominatingLoad(llvm::Instruction &I, llvm::Instruction *OPI,
+                                           llvm::SmallVectorImpl<llvm::Instruction *> &Loads,
+                                           llvm::BasicBlock *LoadBB, llvm::DominatorTree &DT) {
+  llvm::BasicBlock *CurrentBB = I.getParent();
+  return findLeastDominatingLoad(CurrentBB, OPI, Loads, LoadBB, DT);
+}
+} // namespace
+
 // if the kernel contained a loop, it is possible, that values inside a single
 // subcfg don't dominate their uses inside the same subcfg. This function
 // identifies and fixes those values.
@@ -936,7 +1009,7 @@ void SubCFG::fixSingleSubCfgValues(
   auto *UniLoadIP = PreHeader_->getTerminator();
   llvm::IRBuilder Builder{LoadIP};
 
-  llvm::DenseMap<llvm::Instruction *, llvm::Instruction *> InstLoadMap;
+  llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 2>> InstLoadMap;
 
   for (auto *BB : NewBlocks_) {
     llvm::SmallVector<llvm::Instruction *, 16> Insts{};
@@ -946,38 +1019,29 @@ void SubCFG::fixSingleSubCfgValues(
       for (auto *OPV : I.operand_values()) {
         // check if all operands dominate the instruction -> otherwise we have to fix it
         if (auto *OPI = llvm::dyn_cast<llvm::Instruction>(OPV); OPI && !DT.dominates(OPI, &I)) {
-          if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(Inst)) {
-            // if a PHI node, we have to check that the incoming values dominate the terminators
-            // of the incoming block..
-            bool FoundIncoming = false;
-            for (auto &Incoming : Phi->incoming_values()) {
-              if (OPV == Incoming.get()) {
-                auto *IncomingBB = Phi->getIncomingBlock(Incoming);
-                if (DT.dominates(OPI, IncomingBB->getTerminator())) {
-                  FoundIncoming = true;
-                  break;
-                }
-              }
-            }
-            if (FoundIncoming)
-              continue;
-          }
+          if (isPhiDominated(I, OPI, DT))
+            continue;
+
           HIPSYCL_DEBUG_INFO << "Instruction not dominated " << I << " operand: " << *OPI << "\n";
 
-          if (auto *Load = InstLoadMap.lookup(OPI))
-            // if the already inserted Load does not dominate I, we must create another load.
-            if (DT.dominates(Load, &I)) {
-              I.replaceUsesOfWith(OPI, Load);
+          if (auto Loads = InstLoadMap.find(OPI); Loads != InstLoadMap.end()) {
+            if (auto ReplaceWith = findLeastDominatingLoad(I, OPI, Loads->second, PreHeader_, DT);
+                ReplaceWith != nullptr) {
+              HIPSYCL_DEBUG_INFO << "  Use already existing load " << *ReplaceWith << " for " << I
+                                 << " operand: " << *OPI << "\n";
+              I.replaceUsesOfWith(OPI, ReplaceWith);
               continue;
             }
+          }
 
           if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(OPI))
             if (auto *MDArrayified = GEP->getMetadata(hipsycl::compiler::MDKind::Arrayified)) {
+              Builder.SetInsertPoint(LoadIP);
               auto *NewGEP = llvm::cast<llvm::GetElementPtrInst>(Builder.CreateInBoundsGEP(
                   GEP->getType(), GEP->getPointerOperand(), ContIdx_, GEP->getName() + "c"));
               NewGEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDArrayified);
               I.replaceUsesOfWith(OPI, NewGEP);
-              InstLoadMap.insert({OPI, NewGEP});
+              InstLoadMap[OPI].push_back(NewGEP);
               continue;
             }
 
@@ -1013,12 +1077,12 @@ void SubCFG::fixSingleSubCfgValues(
           }
 #endif
 
-          auto *Load = utils::loadFromAlloca(Alloca, Idx, NewIP, OPI->getName());
+          llvm::Instruction *Load = utils::loadFromAlloca(Alloca, Idx, NewIP, OPI->getName());
           utils::copyDgbValues(OPI, Load, NewIP);
 
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT
           I.replaceUsesOfWith(OPI, Load);
-          InstLoadMap.insert({OPI, Load});
+          InstLoadMap[OPI].push_back(Load);
 #else
           // if a loop is conditionally split, the first block in a subcfg might have another
           // incoming edge, need to insert a PHI node then
@@ -1034,10 +1098,86 @@ void SubCFG::fixSingleSubCfgValues(
                 PHINode->addIncoming(OPV, PredBB);
 
             I.replaceUsesOfWith(OPI, PHINode);
-            InstLoadMap.insert({OPI, PHINode});
+            InstLoadMap[OPI].push_back(PHINode);
           } else {
-            I.replaceUsesOfWith(OPI, Load);
-            InstLoadMap.insert({OPI, Load});
+            InstLoadMap[OPI].push_back(Load);
+            // This fixes issue 1898
+            // Here, the issue was that an inner loop was split, and the outer loop wasn't split.
+            // All loop indices are uniform in the outer loop.
+            // Therefore, they were loaded only once in the uniload block.
+            // However, when the outer loop takes its backedge (without another barrier),
+            // the outer loop's index is not updated for the first iteration of the inner loop.
+            // Therefore, we should create a PHI node after the backedge of the outer loop
+            // to select between the value loaded in the uniload block and the value from
+            // the backedge of the outer loop.
+
+            // First calculate a dominance frontier for the load (in either load/uniload BB) and OPI
+            // Then use this information to insert PHI nodes at the frontiers
+            // Generally use findLeastDominatingLoad to find the right value to use
+            // in the PHI nodes and for replacing the use in I.
+            if (!DT.dominates(&I, OPI)) {
+              llvm::ForwardIDFCalculator IDF(DT);
+
+              llvm::SmallPtrSet<llvm::BasicBlock *, 16> DefiningBlocks{OPI->getParent(), LoadBB_};
+              IDF.setDefiningBlocks(DefiningBlocks);
+
+              llvm::SmallPtrSet<llvm::BasicBlock *, 16> LiveInBlocks;
+              utils::PtrSetWrapper<decltype(LiveInBlocks)> Wrapper{LiveInBlocks};
+              // The predicate below could probably be way more precise, but this is safe for now.
+              // Todo: if we only use actual live-in blocks, we could reduce the number of PHIs
+              // inserted (unnecessarily).
+              std::copy_if(NewBlocks_.begin(), NewBlocks_.end(),
+                           std::inserter(Wrapper, Wrapper.end()), [&](auto *BB) { return true; });
+              IDF.setLiveInBlocks(LiveInBlocks);
+
+              llvm::SmallVector<llvm::BasicBlock *, 16> NewPhisToInsert;
+              IDF.calculate(NewPhisToInsert);
+
+              llvm::SmallDenseMap<llvm::BasicBlock *, llvm::Instruction *> BBToInst;
+              BBToInst.insert({OPI->getParent(), OPI});
+              BBToInst.insert({Load->getParent(), Load});
+
+              for (auto *DFB : NewPhisToInsert) {
+                assert(std::find(NewBlocks_.begin(), NewBlocks_.end(), DFB) != NewBlocks_.end() &&
+                       "Should be in the subcfg");
+                HIPSYCL_DEBUG_INFO << "[SubCFG] Need PHI in block " << DFB->getName()
+                                   << " for value " << *OPI << " used in " << I << "\n";
+                Builder.SetInsertPoint(DFB, DFB->getFirstInsertionPt());
+                auto *NewPhi = Builder.CreatePHI(OPI->getType(), llvm::pred_size(DFB),
+                                                 OPI->getName() + ".fixdom.phi");
+
+                llvm::SmallVector<llvm::Instruction *, 4> LoadsOrPhis;
+                llvm::transform(BBToInst, std::back_inserter(LoadsOrPhis),
+                                [](auto &Pair) { return Pair.second; });
+
+                for (auto *Pred : llvm::predecessors(DFB)) {
+                  HIPSYCL_DEBUG_INFO << "  Pred: " << Pred->getName() << "\n";
+                  if (BBToInst.find(Pred) != BBToInst.end()) {
+                    HIPSYCL_DEBUG_INFO << "   Adding incoming " << *BBToInst[Pred] << " from "
+                                       << Pred->getName() << "\n";
+                    NewPhi->addIncoming(BBToInst[Pred], Pred);
+                  } else if (auto leastDom =
+                                 findLeastDominatingLoad(Pred, OPI, LoadsOrPhis, PreHeader_, DT)) {
+                    HIPSYCL_DEBUG_INFO << "   Adding incoming2 " << *leastDom << " from "
+                                       << Pred->getName() << "\n";
+                    NewPhi->addIncoming(leastDom, Pred);
+                  } else {
+                    assert(false && "Should have found a dominating value");
+                  }
+                }
+
+                InstLoadMap[OPI].push_back(NewPhi);
+                BBToInst.insert({DFB, NewPhi});
+              }
+              if (auto ReplaceWith =
+                      findLeastDominatingLoad(I, OPI, InstLoadMap[OPI], PreHeader_, DT)) {
+                HIPSYCL_DEBUG_INFO << "   Using " << *ReplaceWith << " for use in " << I << "\n";
+
+                I.replaceUsesOfWith(OPI, ReplaceWith);
+              }
+            } else {
+              I.replaceUsesOfWith(OPI, Load);
+            }
           }
 #endif
         }
@@ -1143,11 +1283,11 @@ bool fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruct
             auto OperandNo = U.getOperandNo();
 #if LLVM_VERSION_MAJOR > 20
             if (!CI->dataOperandHasImpliedAttr(
-                OperandNo, llvm::Attribute::getWithCaptureInfo(
-                      CI->getContext(),llvm::CaptureInfo::none()).getKindAsEnum()) &&
+                    OperandNo,
+                    llvm::Attribute::getWithCaptureInfo(CI->getContext(), llvm::CaptureInfo::none())
+                        .getKindAsEnum()) &&
 #else
-            if (!CI->dataOperandHasImpliedAttr(
-                OperandNo, llvm::Attribute::NoCapture) &&
+            if (!CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::NoCapture) &&
 #endif
                 !CI->dataOperandHasImpliedAttr(OperandNo, llvm::Attribute::StructRet)) {
               HIPSYCL_DEBUG_INFO << "[SubCFG] Found function call that captures " << *I << ": "
@@ -1195,15 +1335,6 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
   return true;
 }
 
-template <class Instruction>
-llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, Instruction *I) {
-  return llvm::IRBuilder{BB, I->getIterator()};
-}
-
-template <class iterator> llvm::IRBuilder<> createLoadBuilder(llvm::BasicBlock *BB, iterator I) {
-  return llvm::IRBuilder{BB, I};
-}
-
 // Widens the allocas in the entry block to array allocas.
 // Replace uses of the original alloca with GEP that indexes the new alloca with
 // \a Idx.
@@ -1249,7 +1380,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
     for (auto &SubCfg : SubCfgs) {
       auto GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
 
-      llvm::IRBuilder LoadBuilder = createLoadBuilder(SubCfg.getLoadBB(), GepIp);
+      llvm::IRBuilder LoadBuilder = createBuilder(SubCfg.getLoadBB(), GepIp);
       auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
           Alloca->getAllocatedType(), Alloca, SubCfg.getContiguousIdx(), I->getName() + "_gep"));
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
@@ -1297,8 +1428,8 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   const auto LocalSize = getLocalSizeValues(F, Dim, IsSscp);
   auto *Entry = &F.getEntryBlock();
-  for(auto LocalSizeV : LocalSize) {
-    if(auto I = llvm::dyn_cast<llvm::Instruction>(LocalSizeV))
+  for (auto LocalSizeV : LocalSize) {
+    if (auto I = llvm::dyn_cast<llvm::Instruction>(LocalSizeV))
       I->moveBefore(Entry->getTerminator());
   }
 

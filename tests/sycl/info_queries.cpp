@@ -11,7 +11,6 @@
 #include <iostream>
 
 #include "sycl_test_suite.hpp"
-using namespace cl;
 
 BOOST_FIXTURE_TEST_SUITE(info_queries, reset_device_fixture)
 

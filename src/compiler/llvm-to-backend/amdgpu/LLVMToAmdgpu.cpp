@@ -304,8 +304,7 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   }
 
   std::string BuiltinBitcodeFile = 
-    common::filesystem::join_path(common::filesystem::get_install_directory(),
-      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-full.bc"});
+    common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-amdgpu-amdhsa-full.bc");
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
@@ -539,7 +538,7 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
   }
 
   auto ReadResult =
-      llvm::MemoryBuffer::getFile(OutputFileName, -1);
+      llvm::MemoryBuffer::getFile(OutputFileName);
 
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToAmdgpu: Could not read result file" + Err.message());

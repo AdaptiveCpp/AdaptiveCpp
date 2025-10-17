@@ -4,6 +4,10 @@
 #define TRACER_MACROS_H
 
 #define ALL_TYPES(MACRO)                                                                           \
+  MACRO(queue_impl_constructor, tracer_function_true_object_t);                                    \
+  MACRO(queue_impl_destructor, tracer_function_true_object_t);                                     \
+  MACRO(dag_node_constructor, tracer_function_true_object_t);                                      \
+  MACRO(dag_node_destructor, tracer_function_true_object_t);                                       \
   MACRO(submit_start, tracer_function_t);                                                          \
   MACRO(submit_end, tracer_function_submit_t);                                                     \
   MACRO(submit_secondary_start, tracer_function_t);                                                \

@@ -26,6 +26,8 @@ typedef void (*tracer_function_submit_t)(void *state, std::size_t event_hash,
                                          hashtype group_node_id, bool in_order);
 typedef void (*tracer_function_wait_t)(void *state, hashtype event);
 typedef void (*tracer_function_depends_on_t)(void *state, hashtype event);
+typedef void (*tracer_function_true_object_t)(void *state, hashtype event);
+
 typedef void (*finalizer_function_t)(void *);
 
 ALL_TYPES(INIT_FUNCTIONS);

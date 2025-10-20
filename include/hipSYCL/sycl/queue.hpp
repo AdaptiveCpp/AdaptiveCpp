@@ -118,9 +118,7 @@ using hipSYCL_priority = AdaptiveCpp_priority;
 class queue : public detail::property_carrying_object {
   struct queue_impl {
     queue_impl(const context &c, const async_handler &h)
-        : ctx{c}, handler{h}, allocation_cache{algorithms::util::allocation_type::device} {
-      TRACER_FUNCTION_VA_ARGS(queue_impl_constructor, this->node_group_id)
-    }
+        : ctx{c}, handler{h}, allocation_cache{algorithms::util::allocation_type::device} {}
 
     ~queue_impl(){TRACER_FUNCTION_VA_ARGS(queue_impl_destructor, this->node_group_id)}
 
@@ -251,6 +249,9 @@ public:
     // add any hints regarding target device.
 
     this->init();
+
+    TRACER_FUNCTION_VA_ARGS(queue_impl_constructor, this->AdaptiveCpp_hash_code(),
+                            this->is_in_order())
   }
 
   ~queue() { this->throw_asynchronous(); }
@@ -415,8 +416,7 @@ public:
 
     event return_event{node, _impl->handler};
 
-    TRACER_FUNCTION_VA_ARGS(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id,
-                            this->is_in_order());
+    TRACER_FUNCTION_VA_ARGS(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id);
 
     return return_event;
   }
@@ -455,7 +455,7 @@ public:
       if (!submission_failed) {
 
         TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
-                                _impl->node_group_id, this->is_in_order());
+                                _impl->node_group_id);
 
         return evt;
       } else {
@@ -463,7 +463,7 @@ public:
         event evt = secondaryQueue.submit(prop_list, cgf);
 
         TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
-                                _impl->node_group_id, this->is_in_order());
+                                _impl->node_group_id);
 
         return evt;
       }
@@ -472,7 +472,7 @@ public:
       event evt = secondaryQueue.submit(prop_list, cgf);
 
       TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
-                              _impl->node_group_id, this->is_in_order());
+                              _impl->node_group_id);
 
       return evt;
     }

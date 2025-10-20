@@ -23,10 +23,11 @@ enum tracer_start_end { START = 0, END = 1 };
 typedef void (*tracer_function_t)(void *state);
 typedef void (*malloc_function_t)(void *state, void *ptr);
 typedef void (*tracer_function_submit_t)(void *state, std::size_t event_hash,
-                                         hashtype group_node_id, bool in_order);
+                                         hashtype group_node_id);
 typedef void (*tracer_function_wait_t)(void *state, hashtype event);
 typedef void (*tracer_function_depends_on_t)(void *state, hashtype event);
-typedef void (*tracer_function_true_object_t)(void *state, hashtype event);
+typedef void (*tracer_function_true_object_t)(void *state, hashtype object_id);
+typedef void (*tracer_function_queue_impl_t)(void *state, hashtype queue_hash, bool is_in_order);
 
 typedef void (*finalizer_function_t)(void *);
 

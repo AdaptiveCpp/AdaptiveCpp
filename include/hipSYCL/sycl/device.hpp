@@ -800,6 +800,17 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, reference_count)
   return 1;
 }
 
+template<>
+inline typename info::device::AdaptiveCpp_priority_range::return_type
+sycl::device::get_info<info::device::AdaptiveCpp_priority_range>() const {
+  return {
+    get_rt_device()->get_property(
+      rt::device_uint_property::queue_priority_range_low),
+    get_rt_device()->get_property(
+          rt::device_uint_property::queue_priority_range_high)
+  };
+}
+
 namespace detail {
 
 inline rt::device_id extract_rt_device(const device &d) {

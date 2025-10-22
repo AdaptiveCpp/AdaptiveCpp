@@ -48,6 +48,19 @@ int device_arch_string_to_int(const std::string& device_name) {
   return std::stoi(substr, nullptr, 16);
 }
 
+std::pair<int,int> get_stream_priority_bound() {
+  int lowest, highest;
+  auto err = hipDeviceGetStreamPriorityRange(&lowest, &highest);
+  if(err != hipSuccess){
+    register_error(
+        __acpp_here(),
+        error_info{"hip_hardware_manager: Could not query stream priority range",
+                   error_code{"HIP", err}});
+    return {0, 0};
+  }
+  return {lowest, highest};
+}
+
 }
 
 hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
@@ -441,6 +454,12 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     return _numeric_architecture;
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::hip);
+    break;
+  case device_uint_property::queue_priority_range_low:
+    return get_stream_priority_bound().first;
+    break;
+  case device_uint_property::queue_priority_range_high:
+    return get_stream_priority_bound().second;
     break;
   }
   assert(false && "Invalid device property");

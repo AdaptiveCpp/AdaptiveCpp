@@ -99,7 +99,10 @@ enum class device_uint_property {
 
   vendor_id,
   architecture,
-  backend_id
+  backend_id,
+
+  queue_priority_range_low,
+  queue_priority_range_high
 };
 
 enum class device_uint_list_property {

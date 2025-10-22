@@ -468,6 +468,10 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::level_zero);
     break;
+  case device_uint_property::queue_priority_range_low:
+  case device_uint_property::queue_priority_range_high:
+    return 0;
+    break;
   }
   assert(false && "Invalid device property");
   std::terminate();

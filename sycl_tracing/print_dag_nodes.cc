@@ -1,5 +1,6 @@
 #include "hipSYCL/sycl/tracer_utils.hpp"
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -10,6 +11,7 @@
 #include <vector>
 
 using timepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+using timepoint_dur = std::chrono::duration<double, std::micro>;
 
 template <typename T> struct TD;
 
@@ -19,9 +21,10 @@ struct dag;
 struct event_node {
   using hashtype = decltype(std::hash<void *>{}(nullptr));
   hashtype id = 0;
-  timepoint time_created;
+  timepoint_dur time_created;
+  std::shared_ptr<timepoint_dur> time_submitted = nullptr;
   std::shared_ptr<queue_t> parent_queue = nullptr;
-  std::shared_ptr<dag> parent_dag = nullptr;
+  dag *parent_dag = nullptr;
   std::vector<std::shared_ptr<event_node>> dependecy_events{};
   bool complete = false;
   bool valid = false;
@@ -67,12 +70,6 @@ template <> struct std::hash<queue_t> {
   }
 };
 
-std::ostream &operator<<(std::ostream &os, event_node event) {
-  os << "id: " << event.id << " queue_id: " << event.parent_queue->id
-     << " waited_for: " << event.complete;
-  return os;
-};
-
 struct dag {
   std::unordered_set<std::shared_ptr<queue_t>>
       all_queues; // All queue that have ever existed in the program
@@ -81,6 +78,51 @@ struct dag {
   std::unordered_map<event_node::hashtype, std::shared_ptr<event_node>> valid_events;
   std::unordered_set<std::shared_ptr<event_node>> incompleted_events;
   std::vector<std::shared_ptr<event_node>> current_dependcies;
+  timepoint time_created;
+
+  std::ofstream outfile;
+
+  dag(std::string filename)
+      : outfile(filename), time_created(std::chrono::high_resolution_clock::now()) {}
+};
+
+std::ostream &operator<<(std::ostream &os, event_node event) {
+
+  if (event.time_submitted.get()) {
+
+    os << "{\"name\": \"Event" << event.id << event.time_created.count() << "\""
+       << ", \"cat\": " << (event.complete ? "\"Complete\"" : "\"Incomplete\"")
+       << ", \"ph\": \"B\","
+       << "\"ts\":" << event.time_created.count() << ", \"pid\":" << event.parent_queue->id
+       << ", \"tid\":" << 1 << "}," << std::endl;
+
+    os << "{\"name\": \"Event" << event.id << event.time_created.count() << "\""
+       << ", \"cat\": " << (event.complete ? "\"Complete\"" : "\"Incomplete\"")
+       << ", \"ph\": \"E\","
+       << "\"ts\":" << event.time_submitted->count() << ", \"pid\":" << event.parent_queue->id
+       << ", \"tid\":" << 1 << "}," << std::endl;
+
+    for (auto dep_event : event.dependecy_events) {
+
+      auto first_time_point =
+          (dep_event->time_created.count() + dep_event->time_submitted->count()) / 2;
+
+      auto second_time_point = (event.time_created.count() + event.time_submitted->count()) / 2;
+
+      os << "{\"name\": \"dependency" << event.id << event.time_created.count() << "_"
+         << dep_event->id << dep_event->time_created.count() << "\","
+         << "\"cat\":\"dependency\", \"id\" : 1, \"ph\":\"s\", \"ts\":" << first_time_point
+         << ", \"pid\":" << dep_event->parent_queue->id << ", \"tid\": 1 " << "}," << std::endl;
+
+      os << "{\"name\": \"dependency" << event.id << event.time_created.count() << "_"
+         << dep_event->id << dep_event->time_created.count() << "\","
+         << "\"cat\":\"dependency\", \"id\" : 1,  \"ph\":\"t\", \"ts\":" << second_time_point
+         << ", \"pid\":" << event.parent_queue->id << ", \"tid\": 1 "
+         << "}," << std::endl;
+    }
+  }
+
+  return os;
 };
 
 void event_node::set_waited_for() {
@@ -120,11 +162,18 @@ extern "C" {
 void wait_function_queue(void *usr_state, event_node::hashtype queue_id) {
   dag *dagraph = (dag *)usr_state;
 
-  auto queue = dagraph->valid_queues.find(queue_id)->second;
+  std::cout << "While waiting the queue_id is: " << queue_id << std::endl;
 
-  while (queue->incomplete_events.size() > 0) {
-    auto event_it = queue->incomplete_events.begin();
-    (*event_it)->set_waited_for();
+  auto queue_it = dagraph->valid_queues.find(queue_id);
+  if (queue_it == dagraph->valid_queues.end()) {
+    std::cout << "This queue is not registered" << std::endl;
+  } else {
+
+    auto queue = queue_it->second;
+    while (queue->incomplete_events.size() > 0) {
+      auto event_it = queue->incomplete_events.begin();
+      (*event_it)->set_waited_for();
+    }
   }
 }
 
@@ -140,6 +189,9 @@ void wait_function_event(void *usr_state, event_node::hashtype event_id) {
 }
 
 void queue_impl_construction(void *usr_state, event_node::hashtype queue_id, bool is_in_order) {
+
+  std::cout << "At construction the queue id is: " << queue_id << std::endl;
+
   auto *dag_ptr = (dag *)usr_state;
   auto shared_queue =
       std::make_shared<queue_t>(queue_t{.id = queue_id,
@@ -165,9 +217,11 @@ void queue_impl_destruction(void *usr_state, event_node::hashtype queue_id) {
 
 void dag_node_constructor(void *usr_state, event_node::hashtype event_hash) {
   auto *dag_ptr = (dag *)usr_state;
-  auto shared_event = std::make_shared<event_node>(
-      event_node{.id = event_hash, .time_created = std::chrono::high_resolution_clock::now()});
+  auto shared_event = std::make_shared<event_node>(event_node{
+      .id = event_hash,
+      .time_created = std::chrono::high_resolution_clock::now() - (dag_ptr->time_created)});
 
+  shared_event->parent_dag = dag_ptr;
   dag_ptr->all_events.insert(shared_event);
 
   {
@@ -202,14 +256,24 @@ void submit_end_function(void *usr_state, event_node::hashtype event_hash,
   auto dag_ptr = (dag *)usr_state;
   auto queue = dag_ptr->valid_queues[queue_id];
   auto event = dag_ptr->valid_events[event_hash];
+  event->time_submitted = std::make_shared<timepoint_dur>(
+      std::chrono::high_resolution_clock::now() - dag_ptr->time_created);
 
   // Setting up criss cross dependencies
   dag_ptr->incompleted_events.insert(event);
   queue->incomplete_events.insert(event);
   event->parent_queue = dag_ptr->valid_queues[queue_id];
+
+  if (queue->is_in_order && (queue->most_recent_event)) {
+    // std::cout << "This queue is an in order queue and has a most recent event" << std::endl;
+    dag_ptr->current_dependcies.push_back(queue->most_recent_event);
+  }
+
   queue->most_recent_event = event;
   event->dependecy_events = std::move(dag_ptr->current_dependcies);
   dag_ptr->current_dependcies.clear();
+
+  // dag_ptr->outfile <<
 }
 
 void depends_on_end_function(void *usr_state, event_node::hashtype event_hash) {
@@ -218,16 +282,34 @@ void depends_on_end_function(void *usr_state, event_node::hashtype event_hash) {
   dag_ptr->current_dependcies.push_back(event);
 }
 
+void finalize(void *usr_state) {
+  dag *dag_ptr = (dag *)usr_state;
+  for (auto event : dag_ptr->all_events) {
+    dag_ptr->outfile << *event;
+  }
+
+  dag_ptr->outfile << std::endl;
+  dag_ptr->outfile << "]} " << std::endl;
+
+  dag_ptr->outfile.close();
+}
+
 void init_register() {
-  void *usr_state = new dag;
+  void *usr_state = new dag("Event_trace.json");
+  ((dag *)usr_state)->outfile << "{" << std::endl;
+  ((dag *)usr_state)->outfile << "  \"traceEvents\":[" << std::endl;
   //   init_submit_start(queue_submit_start_function);
+  init_queue_impl_constructor(queue_impl_construction);
+  init_queue_impl_destructor(queue_impl_destruction);
+  init_dag_node_constructor(dag_node_constructor);
+  init_dag_node_destructor(dag_node_destructor);
   init_submit_end(submit_end_function);
   init_wait_queue_end(wait_function_queue);
   init_wait_event_end(wait_function_event);
   //   init_depends_on_start(depends_on_start_function);
   init_depends_on_end(depends_on_end_function);
   init_states(usr_state);
-  //   init_finalize(finalize);
+  init_finalize(finalize);
 }
 
 #ifdef __cplusplus

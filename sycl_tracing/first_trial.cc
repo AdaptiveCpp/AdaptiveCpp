@@ -33,10 +33,11 @@ int main() {
   q.wait();
 
   q.memcpy(numbers_device, numbers.data(), sizeof(int) * 100);
-  q.wait();
   q.memset(numbers_device, 0, sizeof(int) * 100);
   q.wait();
+  //  q.wait();
   auto e = q.fill(numbers_device, 42, 100);
+  // e.wait();
 
   q.copy(numbers_device, numbers.data(), 100);
 
@@ -51,6 +52,8 @@ int main() {
        }
      });
    }).wait();
+
+  // q.wait();
 
   q.parallel_for(sycl::range<1>(10), [=](sycl::id<1> I) { const int i = 0; }).wait();
 

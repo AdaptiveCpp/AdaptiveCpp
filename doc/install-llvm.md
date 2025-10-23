@@ -14,9 +14,9 @@ If you are using Ubuntu or Debian, we can also recommend the package repositorie
 Install
 
 * clang (including development headers)
-* LLVM (including development headers)
+* LLVM (including development headers and llc/opt tools)
 * libomp (including development headers)
-* lld (only for the ROCm backend)
+* lld
 
 For example, the required steps to install clang 16 on an Ubuntu system are:
 ```

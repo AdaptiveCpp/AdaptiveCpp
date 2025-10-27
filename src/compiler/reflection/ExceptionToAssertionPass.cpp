@@ -227,7 +227,6 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
       Call->eraseFromParent();
   }
 
-  M.print(llvm::errs(), nullptr);
   return llvm::PreservedAnalyses::none();
 }
 

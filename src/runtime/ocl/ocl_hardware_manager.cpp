@@ -20,6 +20,7 @@
 #include <CL/opencl.hpp>
 #include <cstddef>
 #include <array>
+// #include <limits>
 #include <optional>
 
 
@@ -179,6 +180,8 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
 
   if(platform_name == "Intel(R) OpenCL Graphics" || platform_name == "Intel(R) OpenCL")
     _has_intel_extension_profile = true;
+  std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
+  _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
 }
 
 bool ocl_hardware_context::is_cpu() const {
@@ -212,6 +215,11 @@ std::string ocl_hardware_context::get_device_arch() const {
 bool ocl_hardware_context::has_intel_extension_profile() const {
   return _has_intel_extension_profile;
 }
+
+bool ocl_hardware_context::has_cl_khr_priority_hints_extension() const {
+  return _has_cl_khr_priority_hints_extension;
+}
+
 
 bool ocl_hardware_context::has(device_support_aspect aspect) const {
   switch (aspect) {
@@ -289,6 +297,21 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
   case device_uint_property::max_compute_units:
     return static_cast<std::size_t>(
         info_query<CL_DEVICE_MAX_COMPUTE_UNITS, cl_uint>(_dev));
+    break;
+  case device_uint_property::max_work_group_range0:
+    return static_cast<std::size_t>(
+        std::numeric_limits<int>::max());
+    break;
+  case device_uint_property::max_work_group_range1:
+    return static_cast<std::size_t>(
+        std::numeric_limits<int>::max());
+    break;
+  case device_uint_property::max_work_group_range2:
+    return static_cast<std::size_t>(
+        std::numeric_limits<int>::max());
+    break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(
@@ -475,6 +498,13 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
     break;
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::ocl);
+    break;
+  case device_uint_property::queue_priority_range_low:
+    // cl_khr_priority_hints extension only has "low" and "high", so we map them to 1 and -1
+    return _has_cl_khr_priority_hints_extension ? 1 : 0;
+    break;
+  case device_uint_property::queue_priority_range_high:
+    return _has_cl_khr_priority_hints_extension ? -1 : 0;
     break;
   }
   assert(false && "Invalid device property");

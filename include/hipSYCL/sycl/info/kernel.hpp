@@ -24,12 +24,12 @@ class program;
 namespace info {
 
 namespace kernel {
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(function_name, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(function_name, std::string);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(num_args, detail::u_int);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(context, sycl::context);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(program, sycl::program);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(attributes, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(attributes, std::string);
 };
 
 namespace kernel_device_specific {

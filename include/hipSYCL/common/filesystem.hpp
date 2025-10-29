@@ -26,6 +26,7 @@ namespace common {
 namespace filesystem {
 
 ACPP_COMMON_EXPORT std::string get_install_directory();
+ACPP_COMMON_EXPORT std::string get_lib_directory();
 // returns path to running program.
 // if filename/directory are not null, stores the filename and 
 // containing directory in them.

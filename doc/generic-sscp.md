@@ -7,13 +7,14 @@
 The SSCP kernel extraction relies on the concept of what we refer to as IR constants. IR constants are global variables, that are non-const and without defined value when parsing the code, but will be turned into constants later during the processing of LLVM IR. This is a similar idea to e.g. SYCL 2020 specialization constants, and indeed specialization constants could be implemented on top of IR constants.
 
 Stage 1 IR constants are hard-wired. The following important S1 IR constants exist:
+
 * A string containing the device LLVM IR bitcode
 * Whether the LLVM module contains the host code
 * Whether the LLVM module contains the device code.
 
 Stage 2 IR constants are intended to provide information that requires knowledge of the target device, such as backend, device, and so on. Stage 2 IR constants can also be programmatically added by the user.
 
-After AdaptiveCpp sets the value of an IR constant, it runs constant propagation and dead code elimination passes. This causes if statements depending entirely on IR constants to be trivially optimized away - causing either removal of the code contained in the if brach, or hardwiring the code.
+After AdaptiveCpp sets the value of an IR constant, it runs constant propagation and dead code elimination passes. This causes if statements depending entirely on IR constants to be trivially optimized away - causing either removal of the code contained in the if branch, or hardwiring the code.
 
 #### Stage 1: Kernel extraction
 
@@ -28,6 +29,7 @@ The final LLVM IR device bitcode is then embedded into a stage 1 IR constant str
 #### Stage 2: llvm-to-backend
 
 During stage 2, the `llvm-to-backend` infrastructure is responsible for turning the generic LLVM IR into something that a backend can actually execute. This means in particular:
+
 - Flavoring the LLVM IR such that the appropriate LLVM backend can handle the code; e.g. by correctly mapping address spaces, attaching information to mark kernels as entry points, correctly setting target triple, data layout, and function calling conventions etc.
 - Mapping `__acpp_sscp_*` builtins to backend builtins. This typically happens by linking backend-specific bitcode libraries.
 - Running optimization passes on the finalized IR.

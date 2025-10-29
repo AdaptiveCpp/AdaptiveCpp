@@ -141,7 +141,12 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-i128:128:128-f32:32:32-"
       "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64";
 
+#if LLVM_VERSION_MAJOR > 20
+  M.setTargetTriple(llvm::Triple(Triple));
+#else
   M.setTargetTriple(Triple);
+#endif
+
   M.setDataLayout(DataLayout);
 
   // Initialize libdevice parameters. These values are < 0 in case no explicit
@@ -177,10 +182,9 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   replaceBrokenLLVMIntrinsics(M);
 
-  std::string BuiltinBitcodeFile = 
-    common::filesystem::join_path(common::filesystem::get_install_directory(),
-      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-ptx-full.bc"});
-  
+  std::string BuiltinBitcodeFile =
+      common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-ptx-full.bc");
+
   std::string LibdeviceFile = getDeviceLibPath();
   HIPSYCL_DEBUG_INFO << "LLVMToPtx: Using libdevice at " << LibdeviceFile << "\n";
 
@@ -286,7 +290,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
     return false;
   }
   
-  auto ReadResult = llvm::MemoryBuffer::getFile(OutputFileName, -1);
+  auto ReadResult = llvm::MemoryBuffer::getFile(OutputFileName);
   
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToPtx: Could not read result file" + Err.message());

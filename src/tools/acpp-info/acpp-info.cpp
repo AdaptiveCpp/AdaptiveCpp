@@ -115,6 +115,10 @@ void list_device_details(rt::device_id dev, rt::backend *b,
   print_info(#name, hw->get_property(rt::device_uint_list_property::name), 2);
 
   PRINT_DEVICE_UINT_PROPERTY(max_compute_units);
+  PRINT_DEVICE_UINT_PROPERTY(max_work_group_range0);
+  PRINT_DEVICE_UINT_PROPERTY(max_work_group_range1);
+  PRINT_DEVICE_UINT_PROPERTY(max_work_group_range2);
+  PRINT_DEVICE_UINT_PROPERTY(max_work_group_range_size);
   PRINT_DEVICE_UINT_PROPERTY(max_global_size0);
   PRINT_DEVICE_UINT_PROPERTY(max_global_size1);
   PRINT_DEVICE_UINT_PROPERTY(max_global_size2);

@@ -20,26 +20,24 @@ using rel_test_genfloats = boost::mp11::mp_list<
   float,
   // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
   // if this is an oversight or intentional.
-  //cl::sycl::vec<float, 1>
-  cl::sycl::vec<float, 2>,
-  cl::sycl::vec<float, 3>,
-  cl::sycl::vec<float, 4>,
-  cl::sycl::vec<float, 8>,
-  cl::sycl::vec<float, 16>,
+  // sycl::vec<float, 1>
+  sycl::vec<float, 2>,
+  sycl::vec<float, 3>,
+  sycl::vec<float, 4>,
+  sycl::vec<float, 8>,
+  sycl::vec<float, 16>,
   double,
-  //cl::sycl::vec<double, 1>,
-  cl::sycl::vec<double, 2>,
-  cl::sycl::vec<double, 3>,
-  cl::sycl::vec<double, 4>,
-  cl::sycl::vec<double, 8>,
-  cl::sycl::vec<double, 16>>;
-
-
+  // sycl::vec<double, 1>,
+  sycl::vec<double, 2>,
+  sycl::vec<double, 3>,
+  sycl::vec<double, 4>,
+  sycl::vec<double, 8>,
+  sycl::vec<double, 16>>;
 
 namespace {
 
   template<typename DT, int D>
-  using vec = cl::sycl::vec<DT, D>;
+  using vec = sycl::vec<DT, D>;
 
   // utility type traits for generic testing
 
@@ -71,6 +69,8 @@ namespace {
   auto get_subvector(const vec<DT, 16> &v) {
     if constexpr(D==0) {
       return v.template swizzle<0>();
+    } else if constexpr(D==1) {
+      return vec<DT, 1>{v.template swizzle<0>()};
     } else if constexpr(D==2) {
       return vec<DT, 2>{v.template swizzle<0,1>()};
     } else if constexpr(D==3) {
@@ -102,10 +102,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
 
-  namespace s = cl::sycl;
+  namespace s = sycl;
 
-  using IntType = typename std::conditional_t<std::is_same_v<DT, float>, int32_t, int64_t>;
-  using OutType = typename s::detail::builtin_type_traits<T>::template alternative_data_type<IntType>;
+  using OutType = s::detail::builtin_input_boollike_t<T>;
+  using BoolType = s::detail::builtin_input_element_t<OutType>;
 
   constexpr int FUN_COUNT = 5;
 
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
 		     -1.0, 17.0, -4.0, -2.0, 3.0};
     inputs[0] = get_subvector<DT, D>(v);
     for(int i = 0; i < FUN_COUNT; ++i) {
-      outputs[i] = OutType{IntType{0}};
+      outputs[i] = OutType{BoolType{0}};
     }
   }
 

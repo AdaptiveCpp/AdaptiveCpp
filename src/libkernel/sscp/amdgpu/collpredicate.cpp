@@ -32,7 +32,7 @@ bool __acpp_sscp_work_group_none(bool pred){
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_sub_group_all(bool pred){
-    return __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_and, pred);
+    return __ockl_wfall_i32(pred);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
@@ -42,6 +42,5 @@ bool __acpp_sscp_sub_group_any(bool pred){
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_sub_group_none(bool pred){
-    bool result_or = __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_or, pred);
-    return !result_or;
+    return !__ockl_wfany_i32(pred);
 }

@@ -117,6 +117,9 @@ bool try_retrieve_settings_variable(const std::string& name, T& out) {
   return false;
 }
 
+bool get_default_enable_allocation_tracking();
+void force_default_enable_allocation_tracking(bool v);
+
 
 }
 }

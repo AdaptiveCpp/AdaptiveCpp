@@ -42,6 +42,7 @@ void trim(std::string& str) {
 bool is_number(const std::string& str){
   return str.find_first_not_of("0123456789") == std::string::npos;
 }
+
 }
 
 visibility_mask_t::mapped_type parse_device_visibility_mask(const std::string& str) {

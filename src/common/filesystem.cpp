@@ -53,33 +53,41 @@ inline T random_number() {
 
 }
 
-std::string get_install_directory() {
+
+std::string get_lib_directory() {
 
   std::vector<fs::path> paths;
 #ifndef _WIN32
   Dl_info info;
   if (dladdr(reinterpret_cast<void*>(&get_install_directory), &info)) {
     auto lib_path = fs::path{info.dli_fname}.parent_path();
-    if(lib_path.has_parent_path())
-      paths.emplace_back(lib_path.parent_path());
+    paths.emplace_back(lib_path);
   }
   
 #else
-  if(HMODULE handle = GetModuleHandleA(HIPSYCL_COMMON_LIBRARY_NAME))
+  std::string library_name = HIPSYCL_COMMON_LIBRARY_NAME + std::string{".dll"};
+  if(HMODULE handle = GetModuleHandleA(library_name.c_str()))
   {
     std::vector<char> path_buffer(MAX_PATH);
     if(GetModuleFileNameA(handle, path_buffer.data(), path_buffer.size()))
     {
       auto lib_path = fs::path{path_buffer.data()}.parent_path();
-      if(lib_path.has_parent_path())
-        paths.emplace_back(lib_path.parent_path());
+      paths.emplace_back(lib_path);
     }
   }
   
 #endif
-  if(paths.empty() || !fs::is_directory(paths.back()))
-    return fs::path{HIPSYCL_INSTALL_PREFIX}.string();
+  if(paths.empty() || !fs::is_directory(paths.back())) {
+    return join_path(HIPSYCL_INSTALL_PREFIX, "lib");
+  }
   return paths.back().string();
+}
+
+std::string get_install_directory() {
+  auto lib_path = fs::path{get_lib_directory()};
+  if(lib_path.has_parent_path())
+    return lib_path.parent_path().string();
+  return lib_path.string();
 }
 
 

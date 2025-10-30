@@ -67,7 +67,7 @@ public:
     }
   }
 
-  static void wait(const vector_class<event> &eventList)
+  static void wait(const std::vector<event> &eventList)
   {
     rt::runtime_keep_alive_token requires_runtime;
     // Only need a at most a single flush,
@@ -93,7 +93,7 @@ public:
     glue::throw_asynchronous_errors(_handler);
   }
 
-  static void wait_and_throw(const vector_class<event> &eventList)
+  static void wait_and_throw(const std::vector<event> &eventList)
   {
     wait(eventList);
 

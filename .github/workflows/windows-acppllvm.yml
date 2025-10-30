@@ -10,8 +10,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: ['18', '20']
-        base_compiler: ['18.1']
+        clang_version: ['19', '20']
+        base_compiler: ['19']
         cuda: ['12.6.1']
         cuda_or_rocm: ['cuda']
         os: ['windows-2022']
@@ -23,7 +23,7 @@ jobs:
     - name: Use MSVC Command prompt
       uses: ilammy/msvc-dev-cmd@v1
     - name: Install LLVM and Clang
-      uses: KyleMayes/install-llvm-action@v2.0.5
+      uses: KyleMayes/install-llvm-action@v2.0.7
       with:
         version: "${{matrix.base_compiler}}"
     - name: ccache
@@ -107,7 +107,7 @@ jobs:
           -DLLVM_ADAPTIVECPP_LINK_INTO_TOOLS=ON `
           -DWITH_OPENCL_BACKEND=OFF `
           -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
-          -DBoost_COMPILER="clangw18" `
+          -DBoost_COMPILER="clangw${{matrix.base_compiler}}" `
           -DLLVM_TOOL_BUGPOINT_BUILD=OFF `
           -DOPENMP_ENABLE_LIBOMPTARGET=OFF `
           -DLLVM_INCLUDE_TESTS=OFF `
@@ -132,8 +132,8 @@ jobs:
           -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/AdaptiveCpp" `
           "$env:GITHUB_WORKSPACE/AdaptiveCpp/tests" `
           -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
-          -DBoost_COMPILER="clangw18" `
-          -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw18\\\"'
+          -DBoost_COMPILER="clangw${{matrix.base_compiler}}" `
+          -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw${{matrix.base_compiler}}\\\"'
         ninja
     - name: run CPU tests
       run: |
@@ -148,8 +148,8 @@ jobs:
           -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/AdaptiveCpp" `
           "$env:GITHUB_WORKSPACE/AdaptiveCpp/tests" `
           -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
-          -DBoost_COMPILER="clangw18" `
-          -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw18\\\"'
+          -DBoost_COMPILER="clangw${{matrix.base_compiler}}" `
+          -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw${{matrix.base_compiler}}\\\"'
 
         ninja -j2
     - name: run SSCP CPU tests

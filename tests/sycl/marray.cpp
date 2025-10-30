@@ -14,7 +14,6 @@
 #include <type_traits>
 
 #include "sycl_test_suite.hpp"
-using namespace cl;
 
 BOOST_FIXTURE_TEST_SUITE(marray_tests, reset_device_fixture)
 

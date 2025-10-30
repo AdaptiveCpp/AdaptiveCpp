@@ -13,7 +13,9 @@
 #include "hipSYCL/runtime/hip/hip_event_pool.hpp"
 #include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
+#include "hipSYCL/runtime/hip/hip_device_manager.hpp"
 #include "hipSYCL/runtime/error.hpp"
+
 #include <exception>
 #include <cstdlib>
 #include <limits>
@@ -46,6 +48,19 @@ int device_arch_string_to_int(const std::string& device_name) {
   return std::stoi(substr, nullptr, 16);
 }
 
+std::pair<int,int> get_stream_priority_bound() {
+  int lowest, highest;
+  auto err = hipDeviceGetStreamPriorityRange(&lowest, &highest);
+  if(err != hipSuccess){
+    register_error(
+        __acpp_here(),
+        error_info{"hip_hardware_manager: Could not query stream priority range",
+                   error_code{"HIP", err}});
+    return {0, 0};
+  }
+  return {lowest, highest};
+}
+
 }
 
 hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
@@ -58,7 +73,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
         __acpp_here(),
         error_info{
             "hip_hardware_manager: HIP backend does not support device "
-            "visibility masks. Use HIP_VISIBILE_DEVICES instead."});
+            "visibility masks. Use HIP_VISIBLE_DEVICES instead."});
   }
 
   int num_devices = 0;
@@ -79,6 +94,27 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
     _devices.emplace_back(dev);
   }
 
+  for (int dev = 0; dev < num_devices; ++dev) {
+    hip_device_manager::get().activate_device(dev);
+
+    for (int peer_dev = 0; peer_dev < num_devices; ++peer_dev) {
+      if (peer_dev != dev) {
+        int can_access;
+        err = hipDeviceCanAccessPeer(&can_access, dev, peer_dev);
+
+        if (err == hipSuccess && can_access) {
+          err = hipDeviceEnablePeerAccess(peer_dev, 0);
+
+          if (err != hipSuccess && err != hipErrorPeerAccessAlreadyEnabled) {
+            print_warning(
+              __acpp_here(),
+              error_info{"hip_hardware_manager: Could not enable peer access",
+                error_code{"HIP", err}});
+          }
+        }
+      }
+    }
+  }
 }
 
 
@@ -258,6 +294,18 @@ hip_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_compute_units:
     return _properties->multiProcessorCount;
     break;
+    case device_uint_property::max_work_group_range0:
+    return _properties->maxGridSize[0];
+    break;
+  case device_uint_property::max_work_group_range1:
+    return _properties->maxGridSize[1];
+    break;
+  case device_uint_property::max_work_group_range2:
+    return _properties->maxGridSize[2];
+    break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
+    break;
   case device_uint_property::max_global_size0:
     return static_cast<std::size_t>(_properties->maxThreadsDim[0]) *
                                     _properties->maxGridSize[0];
@@ -406,6 +454,12 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     return _numeric_architecture;
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::hip);
+    break;
+  case device_uint_property::queue_priority_range_low:
+    return get_stream_priority_bound().first;
+    break;
+  case device_uint_property::queue_priority_range_high:
+    return get_stream_priority_bound().second;
     break;
   }
   assert(false && "Invalid device property");

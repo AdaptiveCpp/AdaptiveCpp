@@ -27,6 +27,7 @@
 #include <atomic>
 #include <fstream>
 #include <string>
+#include <algorithm>
 
 namespace hipsycl {
 namespace glue {
@@ -397,51 +398,61 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                  refl_map, output);
 }
 
-namespace dead_argument_elimination {
-// Compiles with dead-argument-elimination for the kernels, and saves
-// the retained argument mask in the appdb. This only works for single-kernel
-// compilations!
-inline rt::result compile_kernel(compiler::LLVMToBackendTranslator *translator,
-                                 rt::hcf_object_id hcf_object,
-                                 const std::string &image_name,
-                                 const rt::kernel_configuration &config,
-                                 rt::kernel_configuration::id_type binary_id,
-                                 const reflection_map &refl_map,
-                                 std::string &output) {
-
-  assert(translator->getKernels().size() == 1);
+// Compiles kernels and stores information (e.g. dead-arg-elimination mask) in appdb.
+// Dead-arg-elimination is only supported if a single kernel is compiled.
+inline rt::result compile_and_store_stats(
+    compiler::LLVMToBackendTranslator *translator, rt::hcf_object_id hcf_object,
+    const std::string &image_name, const rt::kernel_configuration &config,
+    rt::kernel_configuration::id_type binary_id, const reflection_map &refl_map,
+    std::string &output, bool enable_dead_arg_elimination = true) {
 
   rt::result err = rt::make_success();
 
   common::filesystem::persistent_storage::get()
       .get_this_app_db()
       .read_write_access([&](common::db::appdb_data &appdb) {
+        auto& binary_appdb_entry = appdb.kernels[binary_id];
         std::vector<int> *retained_args =
-            &(appdb.kernels[binary_id].retained_argument_indices);
+            &(binary_appdb_entry.retained_argument_indices);
 
-        translator->enableDeadArgumentElminiation(translator->getKernels()[0],
-                                                  retained_args);
+        if(enable_dead_arg_elimination && translator->getKernels().size() == 1)
+          translator->enableDeadArgumentElminiation(translator->getKernels()[0],
+                                                    retained_args);
         err = compile(translator, hcf_object, image_name, config, refl_map,
                       output);
+
+        if(err.is_success()) {
+          const auto& stats = translator->getCompiledKernelStats();
+          bool all_are_free_of_indirect_access =
+              std::all_of(stats.begin(), stats.end(), [](auto &S) -> bool {
+                return S.IsFreeOfIndirectAccess;
+              });
+          binary_appdb_entry.is_free_of_indirect_access =
+              all_are_free_of_indirect_access;
+        }
       });
 
   return err;
 }
 
-inline std::vector<int>
-retrieve_retained_arguments_mask(rt::kernel_configuration::id_type binary_id) {
-  return common::filesystem::persistent_storage::get().get_this_app_db().read_access(
+template <class CodeObjectT>
+void load_jit_output_metadata(CodeObjectT &exec_obj,
+                              bool has_dead_arg_elimination,
+                              rt::kernel_configuration::id_type binary_id) {
+  auto& md = exec_obj.get_jit_output_metadata();
+  
+  common::filesystem::persistent_storage::get().get_this_app_db().read_access(
       [&](const common::db::appdb_data &appdb) {
         auto it = appdb.kernels.find(binary_id);
         if(it != appdb.kernels.end()) {
-          return it->second.retained_argument_indices;
-        } else {
-          return std::vector<int>{};
+          if (has_dead_arg_elimination) {
+            md.kernel_retained_arguments_indices =
+                it->second.retained_argument_indices;
+          }
+          md.is_free_of_indirect_access = it->second.is_free_of_indirect_access;
         }
       });
 }
-}
-
 }
 }
 }

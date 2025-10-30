@@ -53,6 +53,7 @@ using hcf_object_id = std::size_t;
 
 struct jit_output_metadata {
   std::optional<std::vector<int>> kernel_retained_arguments_indices;
+  bool is_free_of_indirect_access = false;
 };
 
 class code_object {

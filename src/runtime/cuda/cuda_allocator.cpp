@@ -147,8 +147,15 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
 result cuda_allocator::mem_advise(const void *addr, std::size_t num_bytes,
                             int advise) const {
 #ifndef _WIN32
+  #if CUDART_VERSION >= 13000
+  cudaMemLocation location;
+  location.id = _dev;
+  location.type = cudaMemLocationTypeDevice;
+  #else
+  int location = _dev;
+  #endif
   cudaError_t err = cudaMemAdvise(addr, num_bytes,
-                                  static_cast<cudaMemoryAdvise>(advise), _dev);
+                                  static_cast<cudaMemoryAdvise>(advise), location);
   if(err != cudaSuccess) {
     return make_error(
       __acpp_here(),

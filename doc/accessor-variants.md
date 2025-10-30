@@ -3,6 +3,7 @@
 ## Terminology
 
 In the following, we will use the following terminology:
+
 * A *placeholder* accessor is an accessor that was constructed without providing a SYCL `handler` object. Placeholder need to be bound to a `handler` by calling `handler::require()` at a later point.
 * A *ranged* accessor is an accessor that is constructed by specifying an access range consisting of a `sycl::range` and optionally a `sycl::id` describing the access offset. Ranged accessors may be used if only a subset of the buffer is accessed.
 * An *unranged* accessor is an accessor that is not a ranged accessor.
@@ -10,6 +11,7 @@ In the following, we will use the following terminology:
 ## Motivation
 
 SYCL accessors need to store several different kinds of information, depending on their use case. In general, this includes:
+
 * A data pointer
 * The n-dimensional shape of the allocation
 * the access offset and access range
@@ -48,6 +50,7 @@ For example, an unranged accessor does not have to store access offset and an ad
 With SYCL 2020 deduction guides and C++17 class template argument deduction, these additional template parameters can even be deduced automatically.
 
 AdaptiveCpp introduces the following accessor variants, which are described by the `sycl::accessor_variant` enumeration:
+
 * `ranged_placeholder` - ranged placeholder accessor.
 * `unranged_placeholder` - unranged placeholder accessor
 * `ranged` - ranged non-placeholder accessor
@@ -102,6 +105,7 @@ However, note that using distinct accessor variants might potentially break cert
 ## Constructing AdaptiveCpp accessor variants
 
 hipSYCL accessor variants can be constructed in the following way:
+
 1. By explicitly setting the `accessor_variant` template parameter of the accessor to a value that differs from the standard `access::placeholder::false_t` and `access::placeholder::true_t`.
 2. By using the `sycl::raw_accessor`, `sycl::ranged_accessor`, `sycl::unranged_accessor`, `sycl::ranged_placeholder_accessor`, `sycl::unranged_placeholder_accessor` type aliases (see API reference below)
 3. For raw accessors, by using the new `read_only_raw`, `read_write_raw` and `write_only_raw` deduction tags
@@ -150,6 +154,7 @@ There are certain restrictions with respect to the functionality of individual a
 
 ### Conversion rules
 Two accessor objects of different accessor variant can be implicitly converted, unless one of the following conditions is met:
+
 * the source accessor is a raw accessor. In that case the destination accessor would expose more information than the source could provide.
 * the destination accessor is unranged for a ranged source accessor, or a standard SYCL 2020 accessor. In that case, the destination accessor might expose access to regions of the buffer that are not guaranteed to be in a consistent state on the target device, if they are outside of the original access range of the source accessor.
 * the destination accessor is a placeholder accessor for a non-placeholder source accessor.
@@ -160,6 +165,7 @@ The opposite direction is currently allowed for compatibility reasons, but might
 ### Raw accessors
 
 Raw accessors additionally obey the following restrictions:
+
 * They cannot be constructed as placeholders
 * They do not expose range and size queries
 * They only expose `operator[]` for 0 and 1-dimensional accessors

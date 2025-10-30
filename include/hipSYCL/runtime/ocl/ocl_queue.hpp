@@ -32,7 +32,7 @@ class ocl_hardware_manager;
 class ocl_queue : public inorder_queue
 {
 public:
-  ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index);
+  ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index, int priority = 0);
   
   ocl_queue(const ocl_queue&) = delete;
   ocl_queue& operator=(const ocl_queue&) = delete;

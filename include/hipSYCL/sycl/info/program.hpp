@@ -26,7 +26,7 @@ namespace program
 {
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(context, sycl::context);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(devices, vector_class<sycl::device>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(devices, std::vector<sycl::device>);
 };
 
 } // info

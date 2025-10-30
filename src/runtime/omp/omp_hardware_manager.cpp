@@ -136,6 +136,18 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     // use this.
     return omp_get_num_procs();
     break;
+    case device_uint_property::max_work_group_range0:
+    return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::max_work_group_range1:
+    return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::max_work_group_range2:
+    return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
+    break;
   case device_uint_property::max_global_size0:
     return std::numeric_limits<std::size_t>::max();
     break;
@@ -283,6 +295,10 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::omp);
+    break;
+  case device_uint_property::queue_priority_range_low:
+  case device_uint_property::queue_priority_range_high:
+    return 0;
     break;
   }
   assert(false && "Invalid device property");

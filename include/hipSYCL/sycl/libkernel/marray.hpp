@@ -95,7 +95,7 @@ public:
   }
 
   marray& operator=(const marray<DataT, NumElements>& rhs) = default;
-  marray& operator=(const DataT& rhs) {
+  constexpr marray& operator=(const DataT& rhs) {
     for(int i = 0; i < NumElements; ++i) {
       _data[i] = rhs;
     }

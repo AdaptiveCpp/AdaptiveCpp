@@ -124,6 +124,14 @@ bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::s
   return true;
 }
 
+// From a string like gfxABC:flag+:flag2- only returns gfxABC
+std::string discardConfigurationFromTargetName(const std::string& TargetDevice) {
+  auto ColonPos = TargetDevice.find(":");
+  if(ColonPos != std::string::npos)
+    return TargetDevice.substr(0, ColonPos);
+  return TargetDevice;
+}
+
 }
 
 
@@ -132,12 +140,9 @@ bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::s
 class RocmDeviceLibs {
 private:
   static std::string extractISAAsString(const std::string &TargetDevice) {
-    std::string Result = TargetDevice;
     // First remove the subtarget in strings like gfxABC:xnack-:sramecc-
     // So, find first : and throw away the stuff afterwards to obtain gfxABC
-    auto ColonPos = Result.find(":");
-    if(ColonPos != std::string::npos)
-      Result = Result.substr(0, ColonPos);
+    std::string Result = discardConfigurationFromTargetName(TargetDevice);
 
     // Remove gfx prefix
     if(Result.find("gfx") != 0)
@@ -398,8 +403,20 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
     bcfile.write(Bitcode.data(), Bitcode.size());
   }
   const std::string OptPath = getOptPath();
+  
+  llvm::SmallVector<llvm::StringRef, 16> OptInvocation {
+    OptPath,
+    "-O3", 
+    InputFileName, 
+    "-o", OptOutputFileName};
+
+  std::string OptTargetFlag = "--mcpu="+discardConfigurationFromTargetName(TargetDevice);
+  if(!TargetDevice.empty())
+    OptInvocation.push_back(OptTargetFlag);
+
+
   int OptR =
-      llvm::sys::ExecuteAndWait(OptPath, {OptPath, "-O3", InputFileName, "-o", OptOutputFileName});
+      llvm::sys::ExecuteAndWait(OptPath, OptInvocation);
   if(OptR != 0) {
     this->registerError("LLVMToAmdgpu: opt invocation failed with exit code " +
                         std::to_string(OptR));

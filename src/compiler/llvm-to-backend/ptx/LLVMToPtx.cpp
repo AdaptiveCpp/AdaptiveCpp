@@ -243,9 +243,11 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while flushing" << InputStream.error().message() << '\n'; }
   }
 
+  std::string PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
+
   const std::string OptPath = getOptPath();
-  int OptR =
-      llvm::sys::ExecuteAndWait(OptPath, {OptPath, "-O3", InputFileName, "-o", OptOutputFileName});
+  int OptR = llvm::sys::ExecuteAndWait(
+      OptPath, {OptPath, PtxTargetArg, "-O3", InputFileName, "-o", OptOutputFileName});
 
   if(OptR != 0) {
     this->registerError("LLVMToPtx: opt invocation failed with exit code " +
@@ -256,7 +258,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   const std::string LLCPath = getLLCPath();
 
   std::string PtxVersionArg = "--mattr=+ptx" + std::to_string(PtxVersion);
-  std::string PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
+  
   llvm::SmallVector<llvm::StringRef, 16> Invocation{LLCPath,
                                                     "--mtriple=nvptx64-nvidia-cuda",
                                                     "--march=nvptx64",

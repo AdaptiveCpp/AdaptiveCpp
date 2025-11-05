@@ -172,6 +172,9 @@ namespace device {
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(partition_type_property, partition_property);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(partition_type_affinity_domain, partition_affinity_domain);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
+
+  // Macros do not handle types with commans in them, so we do things manually
+  struct AdaptiveCpp_priority_range { using return_type = std::pair<int, int>; };
 };
 
 } // namespace info
@@ -186,6 +189,7 @@ namespace device{
 }
 }
 }
+
 } // namespace sycl
 } // namespace hipsycl
 

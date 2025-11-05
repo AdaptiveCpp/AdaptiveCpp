@@ -120,7 +120,7 @@ public:
   accessor_iterator() = default;
 
   reference operator*() const {
-    return (*acc_ptr)[id_from_linear()];
+    return this->reference_helper();
   }
 
   accessor_iterator &operator++() {
@@ -222,6 +222,7 @@ private:
             sycl::accessor_variant> friend class sycl::accessor;
   template <typename, int,
             sycl::access_mode> friend class sycl::host_accessor;
+  template <typename, int> friend class sycl::local_accessor;
 
   const Accessor *acc_ptr = nullptr;
 
@@ -237,10 +238,22 @@ private:
     return accessor_iterator{acc_ptr};
   }
 
-  static accessor_iterator make_end(const Accessor *acc_ptr) {
+  static accessor_iterator make_end(const Accessor *acc_ptr, size_t size) {
     auto end = accessor_iterator{acc_ptr};
-    end.linear_id = acc_ptr->get_range().size();    
+    end.linear_id = size;    
     return end;
+  }
+
+  template<int D = Dimensions,
+             std::enable_if_t<D == 0, bool> = true>
+  reference reference_helper() const {
+    return *acc_ptr;
+  }
+
+  template<int D = Dimensions,
+             std::enable_if_t<D != 0, bool> = true>
+  reference reference_helper() const {
+    return (*acc_ptr)[id_from_linear()];
   }
 
   /* Computes a sycl::id corresponding to the current linear id.
@@ -254,8 +267,9 @@ private:
      linear id within the whole accessor.
    */
   sycl::id<Dimensions> id_from_linear() const {
-    if constexpr (Dimensions == 1)
+    if constexpr (Dimensions == 1) {
       return linear_id;
+    }
 
     if constexpr (Dimensions == 2) {
       const auto range = acc_ptr->get_range();
@@ -263,7 +277,7 @@ private:
       auto z = linear_id % range[1];
 
       return {y, z};
-   }
+    }
 
     if constexpr (Dimensions == 3) {
       const auto range = acc_ptr->get_range();
@@ -683,19 +697,19 @@ inline constexpr sycl::access_mode default_access_mode() {
   return std::is_const_v<T> ? access_mode::read : access_mode::read_write;
 }
 
-template <target accessTarget, typename value_type>
+template <target accessTarget, typename value_type, access::decorated IsDecorated>
 struct multi_ptr_for_target {
   using type = void*;
 };
 
-template <typename value_type>
-struct multi_ptr_for_target<target::device, value_type> {
-  using type = global_ptr<value_type>;
+template <typename value_type, access::decorated IsDecorated>
+struct multi_ptr_for_target<target::device, value_type, IsDecorated> {
+  using type = global_ptr<value_type, IsDecorated>;
 };
 
-template <typename value_type>
-struct multi_ptr_for_target<target::local, value_type> {
-  using type = local_ptr<value_type>;
+template <typename value_type, access::decorated IsDecorated>
+struct multi_ptr_for_target<target::local, value_type, IsDecorated> {
+  using type = local_ptr<value_type, IsDecorated>;
 };
     
 } // detail
@@ -760,8 +774,7 @@ class HIPSYCL_EMPTY_BASES accessor
 
   // Need to be friends with other accessors for implicit
   // conversion rules
-  template <class Data2, int Dim2, access_mode M2, target Tgt2,
-            access::placeholder P2>
+  template <class, int, access_mode, target, access::placeholder>
   friend class accessor;
 
   template <class AccessorType>
@@ -826,7 +839,7 @@ public:
   using reference = value_type &;
   using const_reference = const dataT &;
   template <access::decorated IsDecorated>
-  using accessor_ptr = typename detail::multi_ptr_for_target<accessTarget, value_type>::type;
+  using accessor_ptr = typename detail::multi_ptr_for_target<accessTarget, value_type, IsDecorated>::type;
   using iterator = detail::accessor_iterator<value_type, dimensions, accessor>;
   using const_iterator = detail::accessor_iterator<const value_type, dimensions, accessor>;
   using reverse_iterator = std::reverse_iterator<iterator>;
@@ -990,11 +1003,11 @@ public:
         detail::accessor::conditional_buffer_pointer_storage<
             has_buffer_pointer>{other},
         detail::accessor::conditional_access_range_storage<has_access_range,
-                                                           dimensions>{
-            detail::accessor::access_range<dimensions>{other.get_offset(),
-                                                       other.get_range()}},
+                                                           adj_dimensions>{
+            detail::accessor::access_range<adj_dimensions>{other.get_offset_unchecked(),
+                                                       other.get_range_unchecked()}},
         detail::accessor::conditional_buffer_range_storage<has_buffer_range,
-                                                           dimensions>{other},
+                                                           adj_dimensions>{other},
         detail::accessor::conditional_accessor_properties_storage<
             has_accessor_properties>{other} {}
 
@@ -1010,11 +1023,11 @@ public:
         detail::accessor::conditional_buffer_pointer_storage<
             has_buffer_pointer>{other},
         detail::accessor::conditional_access_range_storage<has_access_range,
-                                                           dimensions>{
-            detail::accessor::access_range<dimensions>{other.get_offset(),
-                                                       other.get_range()}},
+                                                           adj_dimensions>{
+            detail::accessor::access_range<adj_dimensions>{other.get_offset_unchecked(),
+                                                       other.get_range_unchecked()}},
         detail::accessor::conditional_buffer_range_storage<has_buffer_range,
-                                                           dimensions>{other},
+                                                           adj_dimensions>{other},
         detail::accessor::conditional_accessor_properties_storage<
             has_accessor_properties>{other} {}
 
@@ -1098,7 +1111,25 @@ public:
   size_t get_count() const noexcept
   { return 1; }
 
-  /* void swap(accessor &other); */
+  void swap(accessor &other) {
+    std::swap(*this, other);
+  }
+
+  /* Available only when: (AccessMode != access_mode::atomic &&
+                           AccessMode != access_mode::read && Dimensions == 0) */
+  template<access::mode M = accessmode, int D = dimensions, std::enable_if_t<M != access_mode::atomic && M != access_mode::read && D == 0, bool> = false>
+  const accessor& operator=(const value_type& other) const {
+    *get_pointer() = other;
+    return *this;
+  }
+
+  /* Available only when: (AccessMode != access_mode::atomic &&
+                           AccessMode != access_mode::read && Dimensions == 0) */
+  template<access::mode M = accessmode, int D = dimensions, std::enable_if_t<M != access_mode::atomic && M != access_mode::read && D == 0, bool> = false>
+  const accessor& operator=(value_type&& other) const {
+    *get_pointer() = std::move(other);
+    return *this;
+  }
 
   template <bool IsAllowed = has_size_queries,
             std::enable_if_t<IsAllowed, int> = 0>
@@ -1126,15 +1157,7 @@ public:
   template <int D = dimensions, bool IsAllowed = has_size_queries,
             std::enable_if_t<(D > 0 && IsAllowed), int> = 0>
   ACPP_UNIVERSAL_TARGET range<dimensions> get_range() const noexcept {
-    if constexpr(has_access_range) {
-      return this->detail::accessor::conditional_access_range_storage<
-          has_access_range, dimensions>::ptr()->range;
-    } else if constexpr(has_buffer_range) {
-      return this->detail::accessor::conditional_buffer_range_storage<
-          has_buffer_range, dimensions>::get();
-    } else {
-      return sycl::range<dimensions>{};
-    }
+    return this->get_range_unchecked();
   }
 
   /* Available only when: dimensions > 0 */
@@ -1143,12 +1166,7 @@ public:
   ACPP_UNIVERSAL_TARGET
   id<dimensions> get_offset() const noexcept
   {
-    if constexpr(!has_access_range) {
-      return sycl::id<dimensions>{};
-    } else {
-      return this->detail::accessor::conditional_access_range_storage<
-          has_access_range, dimensions>::ptr()->offset;
-    }
+    return this->get_offset_unchecked();
   }
   
   template<int D = dimensions,
@@ -1280,7 +1298,7 @@ public:
   }
 
   iterator end() const noexcept {
-    return iterator::make_end(this);
+    return iterator::make_end(this, this->size());
   }
 
   const_iterator cbegin() const noexcept {
@@ -1288,7 +1306,7 @@ public:
   }
 
   const_iterator cend() const noexcept {
-    return const_iterator::make_end(this);
+    return const_iterator::make_end(this, this->size());
   }
 
   reverse_iterator rbegin() const noexcept {
@@ -1311,6 +1329,29 @@ private:
   ACPP_UNIVERSAL_TARGET
   static constexpr int get_dimensions() noexcept{
     return dimensions;
+  }
+
+  ACPP_UNIVERSAL_TARGET range<adj_dimensions> get_range_unchecked() const noexcept {
+    if constexpr(has_access_range) {
+      return this->detail::accessor::conditional_access_range_storage<
+          has_access_range, adj_dimensions>::ptr()->range;
+    } else if constexpr(has_buffer_range) {
+      return this->detail::accessor::conditional_buffer_range_storage<
+          has_buffer_range, adj_dimensions>::get();
+    } else {
+      return sycl::range<adj_dimensions>{};
+    }
+  }
+
+  ACPP_UNIVERSAL_TARGET
+  id<adj_dimensions> get_offset_unchecked() const noexcept
+  {
+    if constexpr(!has_access_range) {
+      return sycl::id<adj_dimensions>{};
+    } else {
+      return this->detail::accessor::conditional_access_range_storage<
+          has_access_range, adj_dimensions>::ptr()->offset;
+    }
   }
 
   // Only valid until the embedded pointer has been initialized
@@ -1854,6 +1895,19 @@ public:
     return *_impl.get_pointer();
   }
 
+  /* Available only when: (AccessMode != access_mode::read && Dimensions == 0) */
+  template<access::mode M = accessMode, int D = dimensions, std::enable_if_t<M != access_mode::read && D == 0, bool> = false>
+  const host_accessor& operator=(const value_type& other) const {
+    *get_pointer() = other;
+    return *this;
+  }
+
+  template<access::mode M = accessMode, int D = dimensions, std::enable_if_t<M != access_mode::read && D == 0, bool> = false>
+  const host_accessor& operator=(value_type&& other) const {
+    *get_pointer() = std::move(other);
+    return *this;
+  }
+
   /* Available only when: (dimensions > 0) */
   template<int D = dimensions,
             std::enable_if_t<(D > 0), bool> = true>
@@ -1884,7 +1938,7 @@ public:
   }
 
   iterator end() const noexcept {
-    return iterator::make_end(this);
+    return iterator::make_end(this, this->size());
   }
 
   const_iterator cbegin() const noexcept {
@@ -1892,7 +1946,7 @@ public:
   }
 
   const_iterator cend() const noexcept {
-    return const_iterator::make_end(this);
+    return const_iterator::make_end(this, this->size());
   }
 
   reverse_iterator rbegin() const noexcept {
@@ -2172,7 +2226,7 @@ public:
   }
 
   iterator end() const noexcept {
-    return iterator::make_end(this);
+    return iterator::make_end(this, this->size());
   }
 
   const_iterator cbegin() const noexcept {
@@ -2180,7 +2234,7 @@ public:
   }
 
   const_iterator cend() const noexcept {
-    return const_iterator::make_end(this);
+    return const_iterator::make_end(this, this->size());
   }
 
   reverse_iterator rbegin() const noexcept {
@@ -2340,6 +2394,7 @@ public:
     return _num_elements;
   }
 
+  /* Available only when: (Dimensions == 0) */
   template<int D = dimensions, std::enable_if_t<D == 0, bool> = false>
   ACPP_KERNEL_TARGET
   operator reference() const
@@ -2347,16 +2402,23 @@ public:
     return *detail::local_memory::get_ptr<dataT>(_addr);
   }
 
+  /* Available only when: (!std::is_const_v<DataT> && Dimensions == 0) */
   template<int D = dimensions, std::enable_if_t<!std::is_const_v<dataT> && D == 0, bool> = false>
+  ACPP_KERNEL_TARGET
   const local_accessor& operator=(const value_type& other) const {
-    *get_multi_ptr() = other;
+    *get_pointer() = other;
+    return *this;
   }
 
+  /* Available only when: (!std::is_const_v<DataT> && Dimensions == 0) */
   template<int D = dimensions, std::enable_if_t<!std::is_const_v<dataT> && D == 0, bool> = false>
+  ACPP_KERNEL_TARGET
   const local_accessor& operator=(value_type&& other) const {
-    *get_multi_ptr() = other;
+    *get_pointer() = std::move(other);
+    return *this;
   }
 
+  /* Available only when: (Dimensions > 0) */
   template<int D = dimensions, std::enable_if_t<(D > 0), bool> = false>
   ACPP_KERNEL_TARGET
   reference operator[](id<dimensions> index) const
@@ -2365,6 +2427,7 @@ public:
         detail::linear_id<dimensions>::get(index, _num_elements));
   }
 
+  /* Available only when: (Dimensions == 1) */
   template<int D = dimensions, std::enable_if_t<D == 1, bool> = false>
   ACPP_KERNEL_TARGET
   reference operator[](size_t index) const
@@ -2372,7 +2435,7 @@ public:
     return *(detail::local_memory::get_ptr<dataT>(_addr) + index);
   }
 
-  /* Available only when: dimensions > 1 */
+  /* Available only when: (Dimensions > 1) */
   template<int D = dimensions, std::enable_if_t<(D > 1), bool> = false>
   ACPP_KERNEL_TARGET
   detail::accessor::local_subscript_proxy<dataT, dimensions>
@@ -2409,7 +2472,7 @@ public:
   }
 
   iterator end() const noexcept {
-    return iterator::make_end(this);
+    return iterator::make_end(this, this->size());
   }
 
   const_iterator cbegin() const noexcept {
@@ -2417,7 +2480,7 @@ public:
   }
 
   const_iterator cend() const noexcept {
-    return const_iterator::make_end(this);
+    return const_iterator::make_end(this, this->size());
   }
 
   reverse_iterator rbegin() const noexcept {

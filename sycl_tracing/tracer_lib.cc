@@ -1,6 +1,7 @@
 #include "hipSYCL/sycl/tracer_utils.hpp"
 #include <boost/stacktrace.hpp>
 #include <chrono>
+#include <cstddef>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -38,7 +39,7 @@ struct state_t {
   }
 };
 
-static state_t my_state("outfile.json");
+// static state_t my_state("outfile.json");
 
 void start(void *state_ptr, int num, std::string type) {
   state_t &state = *((state_t *)state_ptr);
@@ -85,7 +86,7 @@ void end(void *state_ptr, int num, std::string type) {
 }
 
 auto submission_start = [](void *usr_state) { start(usr_state, 0, "submission"); };
-auto submission_end = [](void *usr_state, void *evt, void *ptr) {
+auto submission_end = [](void *usr_state, std::size_t evt, std::size_t ptr) {
   end(usr_state, 0, "submission");
 };
 auto single_task_start = [](void *usr_state) { start(usr_state, 1, "single_task"); };
@@ -99,7 +100,7 @@ auto parallel_for_work_group_end = [](void *usr_state) {
   end(usr_state, 3, "parallel_for_work_group");
 };
 auto wait_start = [](void *usr_state) { start(usr_state, 4, "wait"); };
-auto wait_end = [](void *usr_state) { end(usr_state, 4, "wait"); };
+auto wait_end = [](void *usr_state, std::size_t id) { end(usr_state, 4, "wait"); };
 auto memcpy_start = [](void *usr_state) { start(usr_state, 5, "memcpy"); };
 auto memcpy_end = [](void *usr_state) { end(usr_state, 5, "memcpy"); };
 auto memset_start = [](void *usr_state) { start(usr_state, 6, "memset"); };
@@ -123,16 +124,16 @@ auto free_end = [](void *usr_state, void *ptr) { end(usr_state, 13, "sycl::free"
 
 auto finalize = [](void *usr_state) { delete (state_t *)usr_state; };
 
-const auto i = std::atexit(
-    []() { std::cout << "Hello World from inside the std::atexit function" << std::endl; });
-
 void init_register() {
 
   auto tracer_start_time = std::chrono::high_resolution_clock::now();
 
-  my_state.start_timer = tracer_start_time;
+  // my_state.start_timer = tracer_start_time;
 
   state_t *state = new state_t{"outfile.json"};
+
+  state->start_timer = tracer_start_time;
+
   state->outfile << "{ \"traceEvents\": [" << std::endl;
 
   init_states(state);
@@ -143,7 +144,8 @@ void init_register() {
   init_memcpy_start(memcpy_start);
   init_memcpy_end(memcpy_end);
   init_wait_start(wait_start);
-  init_wait_end(wait_end);
+  init_wait_event_end(wait_end);
+  init_wait_queue_end(wait_end);
   init_single_task_start(single_task_start);
   init_single_task_end(single_task_end);
   init_parallel_for_start(parallel_for_start);
@@ -158,7 +160,7 @@ void init_register() {
   init_malloc_device_end(malloc_device_end);
   init_malloc_host_start(malloc_host_start);
   init_malloc_host_end(malloc_host_end);
-  init_malloc_shared_start(malloc_host_start);
+  init_malloc_shared_start(malloc_shared_start);
   init_malloc_shared_end(malloc_shared_end);
   init_free_start(free_start);
   init_free_end(free_end);

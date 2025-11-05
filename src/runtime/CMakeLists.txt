@@ -66,6 +66,7 @@ add_library(acpp-rt SHARED
   pcuda/pcuda_event.cpp
  )
 
+target_link_libraries(sycl_tracer PUBLIC acpp-common)
 target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
 target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
 target_link_libraries(acpp-rt PUBLIC acpp-common sycl_tracer)

@@ -2,7 +2,6 @@
 
 #include "tracer_utils.hpp"
 #include <chrono>
-#include <dlfcn.h>
 #include <vector>
 
 #ifndef TRACER_UTILS_INTERNAL_H

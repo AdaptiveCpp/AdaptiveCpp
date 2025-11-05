@@ -1,12 +1,12 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
-#include <dlfcn.h>
 #include <iostream>
 #include <list>
 #include <sstream>
 #include <unordered_map>
 
+#include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/sycl/tracer_utils.hpp"
 #include "hipSYCL/sycl/tracer_utils_internal.hpp"
 
@@ -54,29 +54,28 @@ void tracer_funcs::initialize_tracer() {
 
     for (std::string single_lib; std::getline(path_stream, single_lib, ':');) {
       // std::cout << "Library: " << single_lib << std::endl;
-
-      void *so_lib = dlopen(single_lib.c_str(), RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
+      std::string message{};
+      void *so_lib = hipsycl::common::load_library(single_lib, message);
+      if (!message.empty())
+        std::cout << message << std::endl;
 
       if (so_lib) {
         // std::cout << "found library" << std::endl;
+        std::string message{};
         so_libraries.push_back(so_lib);
         tracer_functs_initialize_t tracer_func_initializer =
-            (tracer_functs_initialize_t)dlsym(so_lib, "init_register");
+            (tracer_functs_initialize_t)hipsycl::common::get_symbol_from_library(
+                so_lib, "init_register", message);
+
+        if (!message.empty())
+          std::cout << message << std::endl;
 
         init_funcs.push_back(tracer_func_initializer);
 
         if (tracer_func_initializer) {
           tracer_func_initializer();
           this->set_tracer_equal_num();
-        } else {
-          std::cerr << "Could not find "
-                       "void tracer_func_initializer(start_end) in "
-                       "library "
-                    << single_lib << std::endl;
         }
-      } else {
-        std::cout << "Warning: could not find library " << single_lib << std::endl;
-        std::cerr << dlerror() << std::endl;
       }
     }
   }

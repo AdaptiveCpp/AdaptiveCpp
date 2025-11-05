@@ -1,6 +1,6 @@
-#include <dlfcn.h>
 
 #include "hipSYCL/sycl/tracer_utils.hpp"
+#include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/sycl/tracer_utils_internal.hpp"
 
 #ifdef __cplusplus

@@ -1,5 +1,6 @@
 // #pragma once
 
+#include "hipSYCL/common/export.hpp"
 #include "tracer_macros.h"
 #include <chrono>
 #include <vector>
@@ -7,7 +8,7 @@
 #ifndef TRACER_UTILS_H
 #define TRACER_UTILS_H
 
-#define INIT_FUNCTIONS(type, arg_type) void init_##type(arg_type);
+#define INIT_FUNCTIONS(type, arg_type) void ACPP_COMMON_EXPORT init_##type(arg_type);
 
 template <typename T> struct TD;
 

@@ -1,5 +1,6 @@
 // #pragma once
 
+#include "hipSYCL/common/export.hpp"
 #include "tracer_utils.hpp"
 #include <chrono>
 #include <vector>
@@ -11,10 +12,9 @@ namespace Tracer_utils {
 
 using time_point = std::chrono::high_resolution_clock::time_point;
 
-struct tracer_funcs {
+ACPP_COMMON_EXPORT struct tracer_funcs {
 
   void initialize_tracer();
-
   void run_finalizers();
   void set_tracer_equal_num();
   void clear_all();
@@ -25,15 +25,15 @@ struct tracer_funcs {
 
 typedef void (*tracer_functs_initialize_t)();
 
-void initialize_tracers_from_env();
+ACPP_COMMON_EXPORT void initialize_tracers_from_env();
 
-void set_tracer_equal_num(tracer_funcs &);
+ACPP_COMMON_EXPORT void set_tracer_equal_num(tracer_funcs &);
 
-void finalize_tracing();
+ACPP_COMMON_EXPORT void finalize_tracing();
 
-extern tracer_funcs tracer_state;
+ACPP_COMMON_EXPORT extern tracer_funcs tracer_state;
 
-void tracer_function(char *function_name, tracer_start_end state);
+ACPP_COMMON_EXPORT void tracer_function(char *function_name, tracer_start_end state);
 
 }; // namespace Tracer_utils
 

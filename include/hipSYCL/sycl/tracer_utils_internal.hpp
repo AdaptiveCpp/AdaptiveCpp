@@ -12,7 +12,7 @@ namespace Tracer_utils {
 
 using time_point = std::chrono::high_resolution_clock::time_point;
 
-ACPP_COMMON_EXPORT struct tracer_funcs {
+struct ACPP_COMMON_EXPORT tracer_funcs {
 
   void initialize_tracer();
   void run_finalizers();

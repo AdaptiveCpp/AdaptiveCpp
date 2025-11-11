@@ -1,12 +1,14 @@
 // #pragma once
 
 #include "hipSYCL/common/export.hpp"
-#include "tracer_utils.hpp"
 #include <chrono>
 #include <vector>
 
 #ifndef TRACER_UTILS_INTERNAL_H
 #define TRACER_UTILS_INTERNAL_H
+
+#define MYLIB_EXPORTS
+#include "tracer_utils.hpp"
 
 namespace Tracer_utils {
 
@@ -33,7 +35,7 @@ ACPP_COMMON_EXPORT void finalize_tracing();
 
 ACPP_COMMON_EXPORT void tracer_function(char *function_name, tracer_start_end state);
 
-extern tracer_funcs tracer_state;
+MYLIB_API extern tracer_funcs tracer_state;
 
 }; // namespace Tracer_utils
 

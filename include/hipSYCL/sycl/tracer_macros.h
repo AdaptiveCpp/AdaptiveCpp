@@ -54,4 +54,14 @@
 #define TRACER_FUNCTION2ARG(type, arg2) TRACER_FUNCTION_VA_ARGS(type, arg2)
 #define TRACER_FUNCTION3ARG(type, arg2, arg3) TRACER_FUNCTION_VA_ARGS(type, arg2, arg3)
 
+#ifndef _WIN32
+#define MYLIB_API
+#else
+#ifdef MYLIB_EXPORTS
+#define MYLIB_API __declspec(dllexport)
+#else
+#define MYLIB_API __declspec(dllimport)
 #endif
+#endif
+
+#endif // TRACER_MACROS_H

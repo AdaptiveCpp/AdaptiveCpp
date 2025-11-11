@@ -121,6 +121,36 @@ if(is_ipo_supported)
   set_property(TARGET acpp-rt PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
 
+set(HIPSYCL_SYCL_TOOLING_LIB_NAME "sycl_tracer")
+if(WIN32)
+  set_target_properties(sycl_tracer PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  if(ACPP_LLVM_COMPONENT AND MSVC)
+    target_compile_options(sycl_tracer PRIVATE /EHs)
+  endif()
+
+  # ensure actual output and expected are equivalent
+  set_target_properties(sycl_tracer PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_SYCL_TOOLING_LIB_NAME})
+  if(MinGW)
+    set(HIPSYCL_SYCL_TOOLING_LIB_NAME "lib${HIPSYCL_SYCL_TOOLING_LIB_NAME}.dll" PARENT_SCOPE)
+  else()
+    set(HIPSYCL_SYCL_TOOLING_LIB_NAME "${HIPSYCL_SYCL_TOOLING_LIB_NAME}.dll" PARENT_SCOPE)
+  endif()
+else()
+  target_link_libraries(sycl_tracer PRIVATE dl std::filesystem)
+
+  # ensure actual output and expected are equivalent
+  set_target_properties(sycl_tracer PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_SYCL_TOOLING_LIB_NAME})
+  if(NOT APPLE)
+    set(HIPSYCL_SYCL_TOOLING_LIB_NAME "lib${HIPSYCL_SYCL_TOOLING_LIB_NAME}.so" PARENT_SCOPE)
+  else()
+    set(HIPSYCL_SYCL_TOOLING_LIB_NAME "lib${HIPSYCL_SYCL_TOOLING_LIB_NAME}.dylib" PARENT_SCOPE)
+  endif()
+endif()
+if(is_ipo_supported)
+  set_property(TARGET sycl_tracer PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+endif()
+
+
 install(TARGETS acpp-rt sycl_tracer
         EXPORT install_exports
         INCLUDES DESTINATION include/AdaptiveCpp

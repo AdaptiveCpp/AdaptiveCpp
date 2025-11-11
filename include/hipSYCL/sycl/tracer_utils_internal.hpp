@@ -1,14 +1,12 @@
 // #pragma once
 
 #include "hipSYCL/common/export.hpp"
+#include "tracer_utils.hpp"
 #include <chrono>
 #include <vector>
 
 #ifndef TRACER_UTILS_INTERNAL_H
 #define TRACER_UTILS_INTERNAL_H
-
-#define MYLIB_EXPORTS
-#include "tracer_utils.hpp"
 
 namespace Tracer_utils {
 

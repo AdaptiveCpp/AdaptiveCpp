@@ -8,6 +8,8 @@
 
 #include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/sycl/tracer_utils.hpp"
+
+#define MYLIB_EXPORTS
 #include "hipSYCL/sycl/tracer_utils_internal.hpp"
 
 #define EQUALIZE_HELPER(type)                                                                      \

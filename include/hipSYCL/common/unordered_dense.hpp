@@ -501,6 +501,7 @@ struct base_table_type_set {};
 // linear and thus there is one more indirection necessary for indexing.
 template <typename T, typename Allocator = std::allocator<T>, size_t MaxSegmentSizeBytes = 4096>
 class segmented_vector {
+private:
     template <bool IsConst>
     class iter_t;
 

@@ -133,7 +133,9 @@ class queue : public detail::property_carrying_object
         : ctx{c}, handler{h}, allocation_cache{
                                   algorithms::util::allocation_type::device} {}
 
-    rt::runtime_keep_alive_token requires_runtime;  
+    ~queue_impl(){TRACER_FUNCTION_VA_ARGS(queue_impl_destructor, this->node_group_id)}
+
+    rt::runtime_keep_alive_token requires_runtime;
     detail::queue_submission_hooks_ptr hooks;
 
     rt::execution_hints default_hints;
@@ -141,8 +143,9 @@ class queue : public detail::property_carrying_object
     async_handler handler;
     bool is_in_order = false;
     bool is_retargetable = false;
-    // if this is true, in-order queues will be emulated by storing the most recent
-    // event from a submission, and adding that as dependency for the next event.
+    // if this is true, in-order queues will be emulated by storing the most
+    // recent event from a submission, and adding that as dependency for the
+    // next event.
     bool needs_in_order_emulation = true;
     
 

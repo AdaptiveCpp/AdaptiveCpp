@@ -11,27 +11,29 @@
 #ifndef HIPSYCL_RUNTIME_HPP
 #define HIPSYCL_RUNTIME_HPP
 
-#include "backend.hpp"
 #include "dag_manager.hpp"
-#include "hipSYCL/sycl/tracer_utils_internal.hpp"
+#include "backend.hpp"
 #include "settings.hpp"
 
-#include <iostream>
 #include <memory>
-#include <mutex>
+#include <iostream>
 
 namespace hipsycl {
 namespace rt {
 
-class runtime {
+class runtime
+{
 public:
+
   runtime();
 
   ~runtime();
 
-  dag_manager &dag() { return _dag_manager; }
+  dag_manager& dag()
+  { return _dag_manager; }
 
-  const dag_manager &dag() const { return _dag_manager; }
+  const dag_manager& dag() const
+  { return _dag_manager; }
 
   backend_manager &backends() { return _backends; }
 
@@ -42,12 +44,12 @@ private:
   // when the dag_manager is destructed!
   backend_manager _backends;
   dag_manager _dag_manager;
-
-  static std::atomic<int> counter;
-  static std::once_flag init_once;
 };
 
-} // namespace rt
-} // namespace hipsycl
+
+
+}
+}
+
 
 #endif

@@ -143,9 +143,8 @@ class queue : public detail::property_carrying_object
     async_handler handler;
     bool is_in_order = false;
     bool is_retargetable = false;
-    // if this is true, in-order queues will be emulated by storing the most
-    // recent event from a submission, and adding that as dependency for the
-    // next event.
+    // if this is true, in-order queues will be emulated by storing the most recent
+    // event from a submission, and adding that as dependency for the next event.
     bool needs_in_order_emulation = true;
     
 

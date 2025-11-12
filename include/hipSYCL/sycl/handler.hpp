@@ -308,8 +308,8 @@ public:
 
     TRACER_FUNCTION1ARG(parallel_for_start)
 
-    if (numWorkItems.size() == 0)
-      AdaptiveCpp_enqueue_custom_operation([](auto &) {});
+    if(numWorkItems.size() == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
     else {
       auto invoker = [&](auto&& kernel, auto&&... reductions){
@@ -350,17 +350,18 @@ public:
     TRACER_FUNCTION1ARG(parallel_for_end)
   }
 
+  template <typename KernelName = __acpp_unnamed_kernel,
+            typename... ReductionsAndKernel, int dimensions>
+  void parallel_for(range<dimensions> numWorkItems,
+                    id<dimensions> workItemOffset,
+                    const ReductionsAndKernel &... redu_kernel) {
 
-template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAndKernel,
-            int dimensions>
-  void parallel_for(range<dimensions> numWorkItems, id<dimensions> workItemOffset,
-                    const ReductionsAndKernel &...redu_kernel) {
 
 
     TRACER_FUNCTION1ARG(parallel_for_start)
 
-    if (numWorkItems.size() == 0)
-      AdaptiveCpp_enqueue_custom_operation([](auto &) {});
+    if(numWorkItems.size() == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
     else {
       auto invoker = [&](auto&& kernel, auto&& ... reductions) {
@@ -384,13 +385,15 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
 
     TRACER_FUNCTION1ARG(parallel_for_start)
 
-    if (numWorkItems == 0)
-      AdaptiveCpp_enqueue_custom_operation([](auto &) {});
+    if(numWorkItems == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
     else {
       auto invoker = [&](auto&& kernel, auto&& ... reductions) {
         this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
-            workItemOffset, numWorkItems, get_preferred_group_size<1>(), kernel, reductions...);
+          workItemOffset, numWorkItems,
+          get_preferred_group_size<1>(),
+          kernel, reductions...);
       };
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
@@ -433,17 +436,19 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
   }
   */
 
-  template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAndKernel,
-            int dimensions>
-  void parallel_for_work_group(range<dimensions> numWorkGroups, range<dimensions> workGroupSize,
-                               const ReductionsAndKernel &...redu_kernel) {
 
     TRACER_FUNCTION1ARG(parallel_for_work_group_start)
 
-    auto invoker = [&](auto &&kernel, auto &&...reductions) {
-      this->submit_kernel<KernelName, rt::kernel_type::hierarchical_parallel_for>(
-          sycl::id<dimensions>{}, numWorkGroups * workGroupSize, workGroupSize, kernel,
-          reductions...);
+  template <typename KernelName = __acpp_unnamed_kernel,
+            typename... ReductionsAndKernel, int dimensions>
+  void parallel_for_work_group(range<dimensions> numWorkGroups,
+                               range<dimensions> workGroupSize,
+                               const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto &&kernel, auto &&... reductions) {
+      this->submit_kernel<KernelName,
+                          rt::kernel_type::hierarchical_parallel_for>(
+          sycl::id<dimensions>{}, numWorkGroups * workGroupSize, workGroupSize,
+          kernel, reductions...);
     };
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
@@ -504,7 +509,8 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
     TRACER_FUNCTION1ARG(copy_end)
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt, accessor_variant variant>
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src, T *dest) {
 
     TRACER_FUNCTION1ARG(copy_start)
@@ -514,7 +520,8 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
     TRACER_FUNCTION1ARG(copy_end)
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt, accessor_variant variant>
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
   void copy(const T *src, accessor<T, dim, mode, tgt, variant> dest) {
 
     TRACER_FUNCTION1ARG(copy_start)
@@ -524,8 +531,9 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
     TRACER_FUNCTION1ARG(copy_end)
   }
 
-  template <typename T, int dim, access::mode srcMode, access::mode dstMode, access::target srcTgt,
-            access::target destTgt, accessor_variant VariantSrc, accessor_variant VariantDest>
+  template <typename T, int dim, access::mode srcMode, access::mode dstMode,
+            access::target srcTgt, access::target destTgt,
+            accessor_variant VariantSrc, accessor_variant VariantDest>
   void copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
             accessor<T, dim, dstMode, destTgt, VariantDest> dest) {
 
@@ -570,8 +578,6 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
     rt::dag_node_ptr node = create_task(std::move(explicit_copy), _execution_hints);
 
     _command_group_nodes.push_back(node);
-
-    TRACER_FUNCTION1ARG(copy_end)
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -605,13 +611,13 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
     static_assert(tgt != access::target::host_image,
                   "host_image targets are unsupported");
 
-    TRACER_FUNCTION1ARG(fill_start)
 
     static_assert(mode != access::mode::read, "Filling read-only accessors is not allowed.");
     static_assert(tgt != access::target::host_image, "host_image targets are unsupported");
 
     this->submit_kernel<__acpp_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
-        sycl::id<dim>{}, get_range(dest), get_preferred_group_size<dim>(),
+        sycl::id<dim>{}, get_range(dest),
+        get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
 
     TRACER_FUNCTION1ARG(fill_end)
@@ -710,7 +716,7 @@ template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAnd
 
     TRACER_FUNCTION1ARG(memset_start)
 
-    if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
                       "handler: explicit memset() is unsupported for queues "
                       "not bound to devices"};

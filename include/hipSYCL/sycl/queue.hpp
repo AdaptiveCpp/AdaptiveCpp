@@ -11,7 +11,6 @@
 #ifndef HIPSYCL_QUEUE_HPP
 #define HIPSYCL_QUEUE_HPP
 
-#include "exception.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/glue/error.hpp"
@@ -23,7 +22,6 @@
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/sycl/backend.hpp"
-#include "tracer_macros.h"
 #include "types.hpp"
 #include "exception.hpp"
 
@@ -349,8 +347,8 @@ public:
 
     TRACER_FUNCTION1ARG(wait_start);
 
-    if (_impl->is_in_order) {
-      if (_impl->needs_in_order_emulation) {
+    if(_impl->is_in_order) {
+      if(_impl->needs_in_order_emulation) {
         rt::dag_node_ptr most_recent_event = nullptr;
         {
           std::lock_guard<std::mutex> lock{_impl->lock};
@@ -478,11 +476,11 @@ public:
   }
 
   template <typename T>
-  event submit(T cgf, queue &secondaryQueue, const property_list &prop_list = {}) {
-
 
     TRACER_FUNCTION1ARG(submit_secondary_start);
 
+  event submit(T cgf, queue &secondaryQueue,
+               const property_list &prop_list = {}) {
     try {
 
       size_t num_errors_begin =
@@ -543,9 +541,9 @@ public:
   bool khr_empty() const {
     // Need flush-sync in case there are any non-instant nodes
     _impl->requires_runtime.get()->dag().flush_and_gc();
-    if (is_in_order()) {
-      if (!_impl->needs_in_order_emulation) {
-        rt::inorder_executor *executor = AdaptiveCpp_inorder_executor();
+    if(is_in_order()) {
+      if(!_impl->needs_in_order_emulation) {
+        rt::inorder_executor* executor = AdaptiveCpp_inorder_executor();
         assert(executor);
 
         rt::inorder_queue_status status;

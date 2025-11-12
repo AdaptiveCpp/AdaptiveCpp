@@ -342,12 +342,20 @@ public:
       };
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+
+
     }
 
     TRACER_FUNCTION1ARG(parallel_for_end)
   }
 
+
+template <typename KernelName = __acpp_unnamed_kernel, typename... ReductionsAndKernel,
+            int dimensions>
+  void parallel_for(range<dimensions> numWorkItems, id<dimensions> workItemOffset,
                     const ReductionsAndKernel &...redu_kernel) {
+
 
     TRACER_FUNCTION1ARG(parallel_for_start)
 

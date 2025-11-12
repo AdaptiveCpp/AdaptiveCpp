@@ -329,7 +329,8 @@ public:
             typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
-
+    
+    TRACER_FUNCTION1ARG(parallel_for_start)
     if(numWorkItems == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
@@ -437,13 +438,15 @@ public:
   */
 
 
-    TRACER_FUNCTION1ARG(parallel_for_work_group_start)
 
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
                                const ReductionsAndKernel &... redu_kernel) {
+    
+    TRACER_FUNCTION1ARG(parallel_for_work_group_start);
+
     auto invoker = [&](auto &&kernel, auto &&... reductions) {
       this->submit_kernel<KernelName,
                           rt::kernel_type::hierarchical_parallel_for>(
@@ -578,6 +581,8 @@ public:
     rt::dag_node_ptr node = create_task(std::move(explicit_copy), _execution_hints);
 
     _command_group_nodes.push_back(node);
+
+    TRACER_FUNCTION1ARG(copy_end);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -606,6 +611,7 @@ public:
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
+
     static_assert(mode != access::mode::read,
                   "Filling read-only accessors is not allowed.");
     static_assert(tgt != access::target::host_image,
@@ -614,6 +620,9 @@ public:
 
     static_assert(mode != access::mode::read, "Filling read-only accessors is not allowed.");
     static_assert(tgt != access::target::host_image, "host_image targets are unsupported");
+
+
+    TRACER_FUNCTION1ARG(fill_start);
 
     this->submit_kernel<__acpp_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         sycl::id<dim>{}, get_range(dest),

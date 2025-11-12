@@ -286,6 +286,10 @@ public:
     // add any hints regarding target device.
 
     this->init();
+
+    TRACER_FUNCTION_VA_ARGS(queue_impl_constructor, this->AdaptiveCpp_hash_code(),
+                            this->is_in_order())
+
   }
 
   ~queue() {
@@ -480,10 +484,12 @@ public:
 
   template <typename T>
 
-    TRACER_FUNCTION1ARG(submit_secondary_start);
 
   event submit(T cgf, queue &secondaryQueue,
                const property_list &prop_list = {}) {
+
+
+    TRACER_FUNCTION1ARG(submit_secondary_start);
     try {
 
       size_t num_errors_begin =

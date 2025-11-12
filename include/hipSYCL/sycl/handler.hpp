@@ -405,16 +405,16 @@ public:
 
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
-  void parallel_for(nd_range<dimensions> executionRange,
+  void parallel_for(nd_range<dimensions> executionRange, 
+                    const ReductionsAndKernel &... redu_kernel) {
+
 
     TRACER_FUNCTION1ARG(parallel_for_start)
 
-                    const ReductionsAndKernel &... redu_kernel) {
     auto invoker = [&](auto&& kernel, auto&& ... reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
         executionRange.get_offset(), executionRange.get_global_range(),
-        executionRange.get_local_range(),
-        kernel, reductions...);
+        executionRange.get_local_range(), kernel, reductions...);
     };
 
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
@@ -491,22 +491,27 @@ public:
   //------ Explicit copy operations API
 
 
-    TRACER_FUNCTION1ARG(copy_start)
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src, std::shared_ptr<T> dest) {
+
+
+    TRACER_FUNCTION1ARG(copy_start)
+
     copy_ptr(src, dest);
 
     TRACER_FUNCTION1ARG(copy_end)
   }
 
 
-    TRACER_FUNCTION1ARG(copy_start)
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(std::shared_ptr<T> src, accessor<T, dim, mode, tgt, variant> dest) {
+
+    TRACER_FUNCTION1ARG(copy_start)
+    
     copy_ptr(src, dest);
 
     TRACER_FUNCTION1ARG(copy_end)
@@ -538,11 +543,11 @@ public:
             access::target srcTgt, access::target destTgt,
             accessor_variant VariantSrc, accessor_variant VariantDest>
   void copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
-
-    TRACER_FUNCTION1ARG(copy_start)
-
             accessor<T, dim, dstMode, destTgt, VariantDest> dest)
   {
+
+
+    TRACER_FUNCTION1ARG(copy_start)
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
 

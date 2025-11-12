@@ -15,15 +15,24 @@
 namespace hipsycl {
 namespace rt {
 
-runtime::runtime() : _dag_manager{this} {
-  HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********" << std::endl;
+runtime::runtime()
+: _dag_manager{this}
+{
+  HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
+                      << std::endl;
+
   Tracer_utils::tracer_state.initialize_tracer();
 }
 
-runtime::~runtime() {
-  HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********" << std::endl;
+runtime::~runtime()
+{
+  HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********"
+                      << std::endl;
+
   Tracer_utils::tracer_state.run_finalizers();
 }
 
-} // namespace rt
-} // namespace hipsycl
+
+
+}
+}

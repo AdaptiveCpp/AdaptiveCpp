@@ -406,11 +406,11 @@ public:
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
-                    const ReductionsAndKernel &...redu_kernel) {
 
     TRACER_FUNCTION1ARG(parallel_for_start)
 
-    auto invoker = [&](auto &&kernel, auto &&...reductions) {
+                    const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
         executionRange.get_offset(), executionRange.get_global_range(),
         executionRange.get_local_range(),
@@ -436,8 +436,6 @@ public:
                                  kernelFunc);
   }
   */
-
-
 
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
@@ -492,21 +490,23 @@ public:
 
   //------ Explicit copy operations API
 
-  template <typename T, int dim, access::mode mode, access::target tgt, accessor_variant variant>
-  void copy(accessor<T, dim, mode, tgt, variant> src, shared_ptr_class<T> dest) {
 
     TRACER_FUNCTION1ARG(copy_start)
 
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void copy(accessor<T, dim, mode, tgt, variant> src, std::shared_ptr<T> dest) {
     copy_ptr(src, dest);
 
     TRACER_FUNCTION1ARG(copy_end)
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt, accessor_variant variant>
-  void copy(shared_ptr_class<T> src, accessor<T, dim, mode, tgt, variant> dest) {
 
     TRACER_FUNCTION1ARG(copy_start)
 
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void copy(std::shared_ptr<T> src, accessor<T, dim, mode, tgt, variant> dest) {
     copy_ptr(src, dest);
 
     TRACER_FUNCTION1ARG(copy_end)
@@ -538,10 +538,11 @@ public:
             access::target srcTgt, access::target destTgt,
             accessor_variant VariantSrc, accessor_variant VariantDest>
   void copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
-            accessor<T, dim, dstMode, destTgt, VariantDest> dest) {
 
     TRACER_FUNCTION1ARG(copy_start)
 
+            accessor<T, dim, dstMode, destTgt, VariantDest> dest)
+  {
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
 
@@ -611,15 +612,12 @@ public:
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
-
     static_assert(mode != access::mode::read,
                   "Filling read-only accessors is not allowed.");
     static_assert(tgt != access::target::host_image,
                   "host_image targets are unsupported");
 
 
-    static_assert(mode != access::mode::read, "Filling read-only accessors is not allowed.");
-    static_assert(tgt != access::target::host_image, "host_image targets are unsupported");
 
 
     TRACER_FUNCTION1ARG(fill_start);

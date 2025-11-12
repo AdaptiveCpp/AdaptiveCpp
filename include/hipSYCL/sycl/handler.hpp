@@ -405,7 +405,7 @@ public:
 
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
-  void parallel_for(nd_range<dimensions> executionRange, 
+  void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
 
 
@@ -414,7 +414,8 @@ public:
     auto invoker = [&](auto&& kernel, auto&& ... reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
         executionRange.get_offset(), executionRange.get_global_range(),
-        executionRange.get_local_range(), kernel, reductions...);
+        executionRange.get_local_range(),
+        kernel, reductions...);
     };
 
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);

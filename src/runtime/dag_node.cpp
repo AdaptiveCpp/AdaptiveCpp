@@ -18,6 +18,8 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
 
+
+
 namespace hipsycl {
 namespace rt {
 
@@ -36,7 +38,10 @@ dag_node::dag_node(const execution_hints &hints,
   TRACER_FUNCTION_VA_ARGS(dag_node_constructor, std::hash<void *>{}(this));
 }
 
-dag_node::~dag_node() {}
+dag_node::~dag_node() {
+ TRACER_FUNCTION_VA_ARGS(dag_node_destructor, std::hash<void *>{}(this));
+
+}
 
 bool dag_node::is_submitted() const { return _is_submitted; }
 

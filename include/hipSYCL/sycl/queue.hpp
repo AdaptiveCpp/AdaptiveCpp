@@ -400,10 +400,11 @@ public:
   typename Param::return_type get_info() const;
 
 
-    TRACER_FUNCTION1ARG(submit_start)
 
   template <typename T>
   event submit(const property_list& prop_list, T cgf) {
+
+    TRACER_FUNCTION1ARG(submit_start)
     std::lock_guard<std::mutex> lock{_impl->lock};
 
     rt::execution_hints hints = _impl->default_hints;
@@ -475,6 +476,10 @@ public:
   event submit(T cgf) {
     return submit(property_list{}, cgf);
   }
+
+  template <typename T>
+  event submit(T cgf, queue &secondaryQueue, const property_list &prop_list = {}) {
+
 
     TRACER_FUNCTION1ARG(submit_secondary_start);
 

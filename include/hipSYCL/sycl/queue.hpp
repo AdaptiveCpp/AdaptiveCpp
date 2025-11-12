@@ -524,7 +524,8 @@ public:
       if(!submission_failed) {
         return evt;
       } else {
-
+        
+        event evt = secondaryQueue.submit(prop_list, cgf);
         TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
                                 _impl->node_group_id);
 

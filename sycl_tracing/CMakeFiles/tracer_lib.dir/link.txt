@@ -1,1 +1,0 @@
-acpp -fPIC -DDEBUGMODE -g -shared -Wl,-soname,libtracer_lib.so -o libtracer_lib.so CMakeFiles/tracer_lib.dir/tracer_lib.cc.o  -lboost_stacktrace_addr2line -ldl -lbacktrace 

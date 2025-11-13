@@ -1,18 +1,18 @@
 # Sycl callback tooling 
 
-In order to allow the tracing and benchmarking and simple debugging sycl applications, this fork of AdaptiveCpp experimantally supports a callback registration mechanism.  
+To enable tracing, benchmarking, and simple debugging of sycl applications, this fork of AdaptiveCpp experimentally supports a callback mechanism.  
 
 
 ## Usage: 
 
 ### Registering Callbacks (User side)
-The user can start tracers by setting the environment variable `SYCL_TOOL_LIBRARY` to the a of paths to tooling libraries separated by a colon `:`. 
+The user can start tracers by setting the environment variable `SYCL_TOOL_LIBRARY` to the paths to tooling libraries separated by a colon `:`. 
 
 ### Implementation of Callbacks (Tooling side)
 A tracer can be implemented as a dynamically loaded library. (shared object `.so` on Linux, dynamic link library `.dll` on Windows and `.dylib` on macos). The implementer then has the option to define one or more of the supported callbacks. Furthermore, a function with the signature `void init_register()` must be defined. This function is called when the library is loaded and can be used to initialize the tracer. The loading utility assumes unmangled C function names, so the implementer must ensure that the `init_register`-function name is not mangled (e.g. by using `extern "C"` in a C++ declaration). Within the `init_register`-function the implementer can register the desired callbacks by calling the function
 `init_##CallbackName(void (*callback)(...))`, where `CallbackName` is the name of the callback to register and `callback` is a pointer to the function implementing the callback. For example, to register a callback for the `submit_start` event, the implementer would call `init_submit_start(&my_submit_start_callback);` within the `init_register`-function, where `my_submit_start_callback` is a function with the signature `void my_submit_start_callback(void* state)`. Furthermore, the function call `void init_state(void* state)` can be used to register a pointer to a user defined state. This pointer is then passed as the first argument to all the callbacks. This can be used to maintain state information across multiple callback invocations. The implementer can then typecast the `state` pointer to the appropriate type within the callback implementations.
 
-**Note**: It is recommended that the tracer state is allocated on the heap, i.e. using `new` or `malloc` as stack allocated states may cause undefined behavior during shutdown of the the program. The state can be created within the `init_register`-function. 
+**Note**: It is recommended that the tracer state is allocated on the heap, i.e. using `new` or `malloc` as stack-allocated states may cause undefined behavior during shutdown of the program. The state can be created within the `init_register`-function. 
 
 Example of a simple tracer implementation:
 
@@ -43,7 +43,7 @@ extern "C" {
 }
 ```
 
-For a complete list of supported callbacks, signatures and their description see the table in seciont [Callback Signatures and Trace Records](#callback-signatures-and-trace-records).
+For a complete list of supported callbacks, signatures, and their description, see the table in section [Callback Signatures and Trace Records](#callback-signatures-and-trace-records).
 
 
 ## Callback Signatures and Trace Records
@@ -87,9 +87,8 @@ The following callbacks are supported:
 | free_end                      | `void(void* state, void* ptr)`                         | Called at the end of a <br>free operation|
 | finalize                      | `void(void* state)`                                    | Called at the shutdown of the SYCL runtime|
 
-Furthermore, for the initialization and finalization of the tracing tools, there is a callback (`void init_register()`) which is called at the loading of the library. 
-If multiple tooling libraries are loaded, the order of initialization is the same as the order of the path list in the `SYCL_TOOL_LIBRARY` environment variable. The order of the finalization is the inverse order of initialization. 
+If multiple tooling libraries are loaded, the order of initialization is the same as the order of the path list in the `SYCL_TOOL_LIBRARY` environment variable. The order of finalization is the inverse order of initialization. 
 
-**Note**: In AdaptiveCpp the SYCL runtime is a singleton associated with the existence of a sycl::queue, i.e. the runtime exists as long as there is at least one sycl::queue. 
-If no sycl::queue is created, the runtime is not initialized and thus the tooling library is not loaded. Furthermore, if there us a point in the program, at which there is no sycl::queue, the runtime is finalized and the tracers are finalized as well. When a queue is created again, the runtime is reinitialized and so is the tracer.
+**Note**: In AdaptiveCpp, the SYCL runtime is a singleton associated with the existence of a sycl::queue, i.e. the runtime exists as long as there is at least one sycl::queue. 
+If no sycl::queue is created, the runtime is not initialized and thus the tooling library is not loaded. Furthermore, if there is a point in the program at which there is no sycl::queue, the runtime is finalized and the tracers are finalized as well. When a queue is created again, the runtime is reinitialized and so is the tracer.
 

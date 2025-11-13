@@ -50,42 +50,42 @@ For a complete list of supported callbacks, signatures, and their description, s
 
 The following callbacks are supported:
 
-| Callback Name                 | Signature                                              | Description                           |
+| Callback Name                 | Signature                                              | Description (Called at...)            |
 |-------------------------------|--------------------------------------------------------|---------------------------------------|
-| queue_impl_constructor        | `void(void* state, size_t queue_hash, bool is_inorder)`| Called at Construction of SYCL queue  |
-| queue_impl_destructor         | `void(void* state, size_t queue_id)`                   | Called at Destruction of SYCL queue   |
-| dag_node_construction         | `void(void* state, size_t node_id)`                    | Called at Construction of a SYCL event|
-| dag_node_destruction          | `void(void* state, size_t node_id)`                    | Called at Destruction of a SYCL event |
-| submit_start                  | `void(void* state)`                                    | Called at the start of a queue::submit <br>operation|
-| submit_end                    | `void(void* state, size_t event_hash, size_t queue_id)`| Called at the end of a queue::submit operation <br>(but not at submission with secondaryQueue, see below)|
-| submit_secondary_start        | `void(void* state)`                                    | Called at the start of a <br>secondary submit operation|
-| submit_secondary_end          | `void(void* state, size_t event_hash, size_t queue_id)`| Called at the end of a <br>secondary submit operation|
-| parallel_for_start            | `void(void* state)`                                    | Called at the start of a <br>parallel_for operation|
-| parallel_for_end              | `void(void* state)`                                    | Called at the end of a <br>parallel_for operation|
-| parallel_for_work_group_start | `void(void* state)`                                    | Called at the start of a <br>parallel_for_work_group operation|
-| parallel_for_work_group_end   | `void(void* state)`                                    | Called at the end of a <br>parallel_for_work_group operation|
-| single_task_start             | `void(void* state)`                                    | Called at the start of a <br>single_task operation|
-| single_task_end               | `void(void* state)`                                    | Called at the end of a <br>single_task operation|
-| memcpy_start                  | `void(void* state)`                                    | Called at the start of a <br>memcpy operation|
-| memcpy_end                    | `void(void* state)`                                    | Called at the end of a <br>memcpy operation|
-| wait_start                    | `void(void* state)`                                    | Called at the start of a <br>wait operation|
-| wait_queue_end                | `void(void* state, size_t queue_id)`                   | Called at the end of a <br>queue::wait operation|
-| wait_event_end                | `void(void* state, size_t event_id)`                   | Called at the end of an <br>event::wait operation|
-| memset_start                  | `void(void* state)`                                    | Called at the start of a <br>memset operation|
-| memset_end                    | `void(void* state)`                                    | Called at the end of a <br>memset operation|
-| fill_start                    | `void(void* state)`                                    | Called at the start of a <br>fill operation|
-| fill_end                      | `void(void* state)`                                    | Called at the end of a <br>fill operation|
-| copy_start                    | `void(void* state)`                                    | Called at the start of a <br>copy operation|
-| copy_end                      | `void(void* state)`                                    | Called at the end of a <br>copy operation|
-| malloc_device_start           | `void(void* state)`                                    | Called at the start of a <br>malloc_device operation|
-| malloc_device_end             | `void(void* state, void* ptr)`                         | Called at the end of a <br>malloc_device operation|
-| malloc_host_start             | `void(void* state)`                                    | Called at the start of a <br>malloc_host operation|
-| malloc_host_end               | `void(void* state, void* ptr)`                         | Called at the end of a <br>malloc_host operation|
-| malloc_shared_start           | `void(void* state)`                                    | Called at the start of a <br>malloc_shared operation|
-| malloc_shared_end             | `void(void* state, void* ptr)`                         | Called at the end of a <br>malloc_shared operation|
-| free_start                    | `void(void* state)`                                    | Called at the start of a <br>free operation|
-| free_end                      | `void(void* state, void* ptr)`                         | Called at the end of a <br>free operation|
-| finalize                      | `void(void* state)`                                    | Called at the shutdown of the SYCL runtime|
+| queue_impl_constructor        | `void(void* state, size_t queue_hash, bool is_inorder)`| Construction of SYCL queue  |
+| queue_impl_destructor         | `void(void* state, size_t queue_id)`                   | Destruction of SYCL queue   |
+| dag_node_construction         | `void(void* state, size_t node_id)`                    | Construction of a SYCL event|
+| dag_node_destruction          | `void(void* state, size_t node_id)`                    | Destruction of a SYCL event |
+| submit_start                  | `void(void* state)`                                    | the start of a queue::submit <br>operation|
+| submit_end                    | `void(void* state, size_t event_hash, size_t queue_id)`| the end of a queue::submit operation <br>(but not at submission with secondaryQueue, see below)|
+| submit_secondary_start        | `void(void* state)`                                    | start of a secondary submit operation|
+| submit_secondary_end          | `void(void* state, size_t event_hash, size_t queue_id)`| end of a secondary submit operation|
+| parallel_for_start            | `void(void* state)`                                    | start of a parallel_for operation|
+| parallel_for_end              | `void(void* state)`                                    | end of a parallel_for operation|
+| parallel_for_work_group_start | `void(void* state)`                                    | start of a parallel_for_work_group operation|
+| parallel_for_work_group_end   | `void(void* state)`                                    | end of a parallel_for_work_group operation|
+| single_task_start             | `void(void* state)`                                    | start of a single_task operation|
+| single_task_end               | `void(void* state)`                                    | end of a single_task operation|
+| memcpy_start                  | `void(void* state)`                                    | start of a memcpy operation|
+| memcpy_end                    | `void(void* state)`                                    | end of a memcpy operation|
+| wait_start                    | `void(void* state)`                                    | start of a wait operation|
+| wait_queue_end                | `void(void* state, size_t queue_id)`                   | end of a queue::wait operation|
+| wait_event_end                | `void(void* state, size_t event_id)`                   | end of an event::wait operation|
+| memset_start                  | `void(void* state)`                                    | start of a memset operation|
+| memset_end                    | `void(void* state)`                                    | end of a memset operation|
+| fill_start                    | `void(void* state)`                                    | start of a fill operation|
+| fill_end                      | `void(void* state)`                                    | end of a fill operation|
+| copy_start                    | `void(void* state)`                                    | start of a copy operation|
+| copy_end                      | `void(void* state)`                                    | end of a copy operation|
+| malloc_device_start           | `void(void* state)`                                    | start of a malloc_device operation|
+| malloc_device_end             | `void(void* state, void* ptr)`                         | end of a malloc_device operation|
+| malloc_host_start             | `void(void* state)`                                    | start of a malloc_host operation|
+| malloc_host_end               | `void(void* state, void* ptr)`                         | end of a malloc_host operation|
+| malloc_shared_start           | `void(void* state)`                                    | start of a malloc_shared operation|
+| malloc_shared_end             | `void(void* state, void* ptr)`                         | end of a malloc_shared operation|
+| free_start                    | `void(void* state)`                                    | start of a free operation|
+| free_end                      | `void(void* state, void* ptr)`                         | end of a free operation|
+| finalize                      | `void(void* state)`                                    | shutdown of the SYCL runtime|
 
 If multiple tooling libraries are loaded, the order of initialization is the same as the order of the path list in the `SYCL_TOOL_LIBRARY` environment variable. The order of finalization is the inverse order of initialization. 
 

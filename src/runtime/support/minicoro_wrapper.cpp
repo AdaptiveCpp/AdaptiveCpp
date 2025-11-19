@@ -23,6 +23,7 @@
  */
 #include <stdlib.h>
 #define MCO_ALLOC(size) malloc(size)
+#define MCO_DEALLOC(ptr, size) free(ptr)
 #define MINICORO_IMPL
 #include "minicoro.h"
 

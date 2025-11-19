@@ -54,8 +54,8 @@ The following callbacks are supported:
 |-------------------------------|--------------------------------------------------------|---------------------------------------|
 | queue_impl_constructor        | `void(void* state, size_t queue_hash, bool is_inorder)`| Construction of SYCL queue  |
 | queue_impl_destructor         | `void(void* state, size_t queue_id)`                   | Destruction of SYCL queue   |
-| dag_node_construction         | `void(void* state, size_t node_id)`                    | Construction of a SYCL event|
-| dag_node_destruction          | `void(void* state, size_t node_id)`                    | Destruction of a SYCL event |
+| dag_node_constructor          | `void(void* state, size_t node_id)`                    | Construction of a SYCL event|
+| dag_node_destructor           | `void(void* state, size_t node_id)`                    | Destruction of a SYCL event |
 | submit_start                  | `void(void* state)`                                    | the start of a queue::submit <br>operation|
 | submit_end                    | `void(void* state, size_t event_hash, size_t queue_id)`| the end of a queue::submit operation <br>(but not at submission with secondaryQueue, see below)|
 | submit_secondary_start        | `void(void* state)`                                    | start of a secondary submit operation|

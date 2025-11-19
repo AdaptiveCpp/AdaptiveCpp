@@ -22,6 +22,14 @@
 
 BOOST_FIXTURE_TEST_SUITE(accessor_tests, reset_device_fixture)
 
+struct test_move_only {
+  test_move_only() = default;
+  test_move_only(const test_move_only&) = delete;
+  test_move_only(test_move_only&&) = default;
+  test_move_only& operator=(const test_move_only&) = delete;
+  test_move_only& operator=(test_move_only&&) = default;
+  ~test_move_only() = default;
+};
 
 BOOST_AUTO_TEST_CASE(local_accessors) {
   constexpr size_t local_size = 256;
@@ -166,21 +174,27 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
   });
 
   // host_accessor is default-constructible, copy-constructible, copy-assignable, equality-comparable, swappable
+  s::host_accessor<int, 0> ha0;
   s::host_accessor<int, 1> ha1;
   s::host_accessor<int, 2> ha2;
   s::host_accessor<int, 3> ha3;
+  s::host_accessor<int, 0> ha0_copy = ha0;
   s::host_accessor<int, 1> ha1_copy = ha1;
   s::host_accessor<int, 2> ha2_copy = ha2;
   s::host_accessor<int, 3> ha3_copy = ha3;
+  ha0 = ha0_copy;
   ha1 = ha1_copy;
   ha2 = ha2_copy;
   ha3 = ha3_copy;
+  (void) (ha0 == ha0_copy);
   (void) (ha1 == ha1_copy);
   (void) (ha2 == ha2_copy);
   (void) (ha3 == ha3_copy);
+  (void) (ha0 != ha0_copy);
   (void) (ha1 != ha1_copy);
   (void) (ha2 != ha2_copy);
   (void) (ha3 != ha3_copy);
+  ha0.swap(ha0_copy);
   ha1.swap(ha1_copy);
   ha2.swap(ha2_copy);
   ha3.swap(ha3_copy);
@@ -213,6 +227,43 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     });
   });
 
+  // accessor is default-constructible, copy-constructible, copy-assignable, equality-comparable, swappable
+  s::accessor<int, 0> a0;
+  s::accessor<int, 1> a1;
+  s::accessor<int, 2> a2;
+  s::accessor<int, 3> a3;
+  s::accessor<int, 0> a0_copy = a0;
+  s::accessor<int, 1> a1_copy = a1;
+  s::accessor<int, 2> a2_copy = a2;
+  s::accessor<int, 3> a3_copy = a3;
+  a0 = a0_copy;
+  a1 = a1_copy;
+  a2 = a2_copy;
+  a3 = a3_copy;
+  (void) (a0 == a0_copy);
+  (void) (a1 == a1_copy);
+  (void) (a2 == a2_copy);
+  (void) (a3 == a3_copy);
+  (void) (a0 != a0_copy);
+  (void) (a1 != a1_copy);
+  (void) (a2 != a2_copy);
+  (void) (a3 != a3_copy);
+  a0.swap(a0_copy);
+  a1.swap(a1_copy);
+  a2.swap(a2_copy);
+  a3.swap(a3_copy);
+
+  s::buffer<int, 1> buf_single1(1);
+  s::buffer<test_move_only, 1> buf_single2(1);
+  queue.submit([&](s::handler& cgh) {
+    s::accessor<int, 0> test1{buf_single1, cgh};
+    s::accessor<test_move_only, 0> test2{buf_single2, cgh};
+    cgh.single_task<class accessor_api_device_accessors_zero_dim>([=](){
+      test1 = static_cast<int>(5);
+      test2 = test_move_only{};
+    });
+  });
+
   // Test local accessors
   queue.submit([&](s::handler& cgh) {
     s::local_accessor<int, 1> acc_a(32, cgh);
@@ -227,24 +278,39 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
   });
 
   // local_accessor is default-constructible, copy-constructible, copy-assignable, equality-comparable, swappable
+  s::local_accessor<int, 0> la0;
   s::local_accessor<int, 1> la1;
   s::local_accessor<int, 2> la2;
   s::local_accessor<int, 3> la3;
+  s::local_accessor<int, 0> la0_copy = la0;
   s::local_accessor<int, 1> la1_copy = la1;
   s::local_accessor<int, 2> la2_copy = la2;
   s::local_accessor<int, 3> la3_copy = la3;
+  la0 = la0_copy;
   la1 = la1_copy;
   la2 = la2_copy;
   la2 = la2_copy;
+  (void) (la0 == la0_copy);
   (void) (la1 == la1_copy);
   (void) (la2 == la2_copy);
   (void) (la3 == la3_copy);
+  (void) (la0 != la0_copy);
   (void) (la1 != la1_copy);
   (void) (la2 != la2_copy);
   (void) (la3 != la3_copy);
+  la0.swap(la0_copy);
   la1.swap(la1_copy);
   la2.swap(la2_copy);
   la3.swap(la3_copy);
+
+  queue.submit([&](s::handler& cgh) {
+    s::local_accessor<int, 0> test1{cgh};
+    s::local_accessor<test_move_only, 0> test2{cgh};
+    cgh.parallel_for(sycl::nd_range(sycl::range{1}, sycl::range{1}), [=](sycl::nd_item<1> it){
+      test1 = static_cast<int>(5);
+      test2 = test_move_only{};
+    });
+  });
 
   // Test max_size
   {

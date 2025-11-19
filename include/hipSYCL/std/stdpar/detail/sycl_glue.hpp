@@ -667,7 +667,15 @@ private:
   }
 
   unified_shared_memory()
-      : _is_initialized{false}, _memory_pool{nullptr} {}
+      : _is_initialized{false}, _memory_pool{nullptr} {
+    // disable allocation tracking for stdpar since
+    // it might have negative perf effects (users can override)
+    //
+    // This assumes that the stdpar runtime starts up before
+    // the AdaptiveCpp runtime, which is going to be the case
+    // due to early malloc/free calls.
+    hipsycl::common::settings::force_default_enable_allocation_tracking(false);
+  }
   
   ~unified_shared_memory() {
     if(_memory_pool) {

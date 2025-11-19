@@ -102,7 +102,7 @@ std::string ocl_backend::get_name() const {
 std::unique_ptr<backend_executor>
 ocl_backend::create_inorder_executor(device_id dev, int priority) {
   std::unique_ptr<inorder_queue> q =
-      std::make_unique<ocl_queue>(&_hw_manager, dev.get_id());
+      std::make_unique<ocl_queue>(&_hw_manager, dev.get_id(), priority);
 
   return std::make_unique<inorder_executor>(std::move(q));
 }

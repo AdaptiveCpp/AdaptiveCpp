@@ -44,6 +44,16 @@ void trim(std::string& str) {
   str.erase(str.find_last_not_of("\t\n\v\f\r ") + 1);
 }
 
+bool default_allocation_tracking = true;
+
+}
+
+bool get_default_enable_allocation_tracking() {
+  return __atomic_load_n(&default_allocation_tracking, __ATOMIC_RELAXED);
+}
+
+void force_default_enable_allocation_tracking(bool v) {
+  __atomic_store_n(&default_allocation_tracking, v, __ATOMIC_RELAXED);
 }
 
 void settings_config_file::load_file(const std::string& filename) {

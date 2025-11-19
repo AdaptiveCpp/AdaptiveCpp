@@ -79,7 +79,7 @@ target_include_directories(acpp-rt
 set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "acpp-rt")
 if(WIN32)
   set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
-  if(ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(acpp-rt PRIVATE /EHs)
   endif()
 
@@ -143,7 +143,7 @@ if(WITH_CUDA_BACKEND)
     set_property(TARGET rt-backend-cuda PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-cuda PRIVATE /EHs)
   endif()
 
@@ -193,7 +193,7 @@ if(WITH_ROCM_BACKEND)
     set_property(TARGET rt-backend-hip PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-hip PRIVATE /EHs)
   endif()
 
@@ -227,7 +227,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
     set_property(TARGET rt-backend-ze PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-ze PRIVATE /EHs)
   endif()
 
@@ -282,7 +282,7 @@ if(WITH_OPENCL_BACKEND)
     set_property(TARGET rt-backend-ocl PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
   
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-ocl PRIVATE /EHs)
   endif()
 
@@ -383,7 +383,7 @@ if(WITH_CPU_BACKEND)
     set_property(TARGET rt-backend-omp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
   
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-omp PRIVATE /EHs)
   endif()
 

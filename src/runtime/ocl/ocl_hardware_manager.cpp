@@ -180,6 +180,8 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
 
   if(platform_name == "Intel(R) OpenCL Graphics" || platform_name == "Intel(R) OpenCL")
     _has_intel_extension_profile = true;
+  std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
+  _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
 }
 
 bool ocl_hardware_context::is_cpu() const {
@@ -213,6 +215,11 @@ std::string ocl_hardware_context::get_device_arch() const {
 bool ocl_hardware_context::has_intel_extension_profile() const {
   return _has_intel_extension_profile;
 }
+
+bool ocl_hardware_context::has_cl_khr_priority_hints_extension() const {
+  return _has_cl_khr_priority_hints_extension;
+}
+
 
 bool ocl_hardware_context::has(device_support_aspect aspect) const {
   switch (aspect) {
@@ -493,8 +500,11 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
     return static_cast<int>(backend_id::ocl);
     break;
   case device_uint_property::queue_priority_range_low:
+    // cl_khr_priority_hints extension only has "low" and "high", so we map them to 1 and -1
+    return _has_cl_khr_priority_hints_extension ? 1 : 0;
+    break;
   case device_uint_property::queue_priority_range_high:
-    return 0;
+    return _has_cl_khr_priority_hints_extension ? -1 : 0;
     break;
   }
   assert(false && "Invalid device property");

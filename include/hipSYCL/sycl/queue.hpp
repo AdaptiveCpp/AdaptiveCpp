@@ -1047,6 +1047,12 @@ public:
     return _impl->node_group_id;
   }
 
+  std::shared_ptr<rt::inorder_executor>
+  AdaptiveCpp_extract_inorder_executor() const {
+    return std::static_pointer_cast<rt::inorder_executor>(
+        _impl->dedicated_inorder_executor);
+  }
+
   rt::inorder_executor* AdaptiveCpp_inorder_executor() const {
     if(!_impl->dedicated_inorder_executor)
       return nullptr;

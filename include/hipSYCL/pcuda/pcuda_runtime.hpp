@@ -28,7 +28,7 @@ class event;
 }
 
 typedef enum pcudaError : int {
-  pcudaSuccess,
+  pcudaSuccess = 0,
   pcudaErrorMissingConfiguration,
   pcudaErrorMemoryAllocation,
   pcudaErrorInitializationError,

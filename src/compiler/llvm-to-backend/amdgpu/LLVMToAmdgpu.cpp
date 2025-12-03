@@ -73,56 +73,6 @@ std::string getRocmClang(const std::string& RocmPath) {
   return ClangPath;
 }
 
-#if LLVM_VERSION_MAJOR < 16
-template<class T>
-using optional_t = llvm::Optional<T>;
-#else
-template<class T>
-using optional_t = std::optional<T>;
-#endif
-
-bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::string> &Invocation,
-                      std::string &Out) {
-
-  bool Create = true;
-  auto consumeError = [&](std::error_code EC) {
-    if(EC) {
-      if(Create)
-        HIPSYCL_DEBUG_WARNING << "LLVMToAmdgpu: Could not create temp file: " << EC.message() << "\n";
-      else
-        HIPSYCL_DEBUG_WARNING << "LLVMToAmdgpu: Could not delete temp file: " << EC.message() << "\n";
-      return false;
-    }
-    return true;
-  };
-
-  llvm::SmallVector<char> OutputFile;
-  if(!consumeError(llvm::sys::fs::createTemporaryFile("acpp-sscp-query", "txt", OutputFile, llvm::sys::fs::OF_None))) return false;
-  std::string OutputFilename = OutputFile.data();
-  
-  Create = false;
-  AtScopeExit DestroyOutputFile([&]() { consumeError(llvm::sys::fs::remove(OutputFilename)); });
-
-  llvm::SmallVector<llvm::StringRef> InvocationRef;
-  for(const auto& S: Invocation)
-    InvocationRef.push_back(S);
-
-  llvm::SmallVector<optional_t<llvm::StringRef>> Redirections;
-  std::string RedirectedOutputFile = OutputFilename;
-  Redirections.push_back(optional_t<llvm::StringRef>{});
-  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
-  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
-
-  int R = llvm::sys::ExecuteAndWait(Program, InvocationRef, {}, Redirections); 
-  if(R != 0)
-    return false;
-
-  auto ReadResult =
-    llvm::MemoryBuffer::getFile(OutputFilename, true);
-  
-  Out = ReadResult.get()->getBuffer();
-  return true;
-}
 
 // From a string like gfxABC:flag+:flag2- only returns gfxABC
 std::string discardConfigurationFromTargetName(const std::string& TargetDevice) {
@@ -131,6 +81,7 @@ std::string discardConfigurationFromTargetName(const std::string& TargetDevice) 
     return TargetDevice.substr(0, ColonPos);
   return TargetDevice;
 }
+
 
 }
 

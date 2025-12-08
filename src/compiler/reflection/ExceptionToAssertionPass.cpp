@@ -143,7 +143,7 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     newCall->setCallingConv(Call->getCallingConv());
     newCall->setDebugLoc(Call->getDebugLoc());
     //Call->replaceAllUsesWith(newCall);
-    llvm::Instruction *terminator = Builder.CreateUnreachable();
+    //llvm::Instruction *terminator = Builder.CreateUnreachable();
   }    
 
   //remove all invokes and calls to __cxa_throw

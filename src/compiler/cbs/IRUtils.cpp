@@ -17,6 +17,7 @@
 #include <llvm/Analysis/RegionInfo.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DebugInfo.h>
+#include <llvm/IR/DebugProgramInstruction.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/IntrinsicInst.h>
@@ -493,14 +494,19 @@ llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
 
 // bring along the llvm.dbg.value intrinsics when cloning values
 void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
-  // llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
-  // llvm::findDbgValues(DbgValues, From);
-  // if (!DbgValues.empty()) {
-  //   auto *DbgValue = DbgValues.back();
-  //   llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
-  //   DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(),
-  //                                      DbgValue->getDebugLoc(), InsertBefore);
-  // }
+#if LLVM_VERSION_MAJOR < 22
+  llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
+  llvm::findDbgValues(DbgValues, From);
+#else
+  llvm::SmallVector<llvm::DbgVariableRecord *, 1> DbgValues;
+  llvm::findDbgValues(From, DbgValues);
+#endif
+  if (!DbgValues.empty()) {
+    auto *DbgValue = DbgValues.back();
+    llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
+    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(),
+                                       DbgValue->getDebugLoc(), llvmutils::makeInsertionPoint(InsertBefore));
+  }
 }
 
 void dropDebugLocation(llvm::Instruction &I) {

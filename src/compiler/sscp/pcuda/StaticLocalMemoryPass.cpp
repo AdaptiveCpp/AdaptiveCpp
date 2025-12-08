@@ -128,7 +128,7 @@ llvm::PreservedAnalyses StaticLocalMemoryPass::run(llvm::Module &M,
                   }
                   if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(VarArg)) {
                     llvm::GlobalVariable* GV = createLocalMemGV(AI->getAllocatedType(), LocalMemAS, &F);
-                    llvm::Value *CastToGenericAS = new llvm::AddrSpaceCastInst{GV, AI->getType(), "", AI};
+                    llvm::Value *CastToGenericAS = new llvm::AddrSpaceCastInst{GV, AI->getType(), "", llvmutils::makeInsertionPoint(AI)};
                     AI->replaceUsesWithIf(CastToGenericAS, [&](llvm::Use& U){
                       if(auto* CB = llvm::dyn_cast<llvm::CallBase>(U.getUser())) {
                         auto* Callee = CB->getCalledFunction();

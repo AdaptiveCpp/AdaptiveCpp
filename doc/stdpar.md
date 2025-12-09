@@ -10,7 +10,6 @@ C++ standard parallelism offload currently is only supported in conjunction with
 ## Using accelerated C++ standard parallelism
 
 Offloading of C++ standard parallelism is enabled using `--acpp-stdpar`. This flag does not by itself imply a target or compilation flow, which will have to be provided in addition using the normal `--acpp-targets` argument. C++ standard parallelism is expected to work with any of our clang compiler-based compilation flows, such as `omp.accelerated`, `cuda`, `hip` or the generic SSCP compiler (`--acpp-targets=generic`). It is not currently supported in library-only compilation flows. The focus of testing currently is the generic SSCP compiler.
-AdaptiveCpp by default uses some experimental heuristics to determine if a problem is worth offloading. These heuristics are currently very simplistic and might not work well for you. They can be disabled using `--acpp-stdpar-unconditional-offload`.
 
 
 ## Algorithms and policies supported for offloading
@@ -156,6 +155,7 @@ This replacement is performed using a special compiler transformation. This comp
 
 The backend used to perform USM allocations is the backend managing the executing device as described in the previous section.
 
+AdaptiveCpp can emit automatic asynchronous prefetches to memory that is used in kernels (similarly to `sycl::queue::prefetch`). This hints to the driver that a certain memory region is about to be needed on device, which can result in more efficient data migration. By default, AdaptiveCpp emits a prefetch the first time it is used by a kernel. However, other modes are available as well. The desired prefetch mode can be controlled using the `ACPP_STDPAR_PREFETCH_MODE` environment variable ([environment variables supported by AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/doc/env_variables.md#environment-variables-used-by-adaptivecpp). For latency-sensitive applications you might want to disable prefetching (`ACPP_STDPAR_PREFETCH_MODE=never`) since it can add a small amount of host-side overhead.
 
 ## Scope and visibility of replaced functions
 
@@ -174,7 +174,7 @@ It is not recommended to use USM shared allocations from direct calls to `sycl::
 
 ### Systems with system-level USM support
 
-If you are on a system that supports system-level USM, i.e. a system where every CPU pointer returned from regular memory allocations or even stack pointers can directly be used on GPUs (such as on AMD MI300 or Grace-Hopper), the compiler transformation to turn heap allocations to SYCL USM shared allocations is unnecessary. In this case, you may want to request the compiler to assume system-level USM and disable the compiler transformations regarding SYCL shared USM allocations using `--acpp-stdpar-system-usm`.
+If you are on a system that supports system-level USM, i.e. a system where every CPU pointer returned from regular memory allocations or even stack pointers can directly be used on GPUs (such as on AMD MI300 or Grace-Hopper), the compiler transformation to turn heap allocations to SYCL USM shared allocations is unnecessary. In this case, you may want to request the compiler to assume system-level USM and disable the compiler transformations regarding SYCL shared USM allocations using `--acpp-stdpar-system-usm`. **Note however that `--acpp-stdpar-system-usm` may have negative impact on some optimizations, including synchronization elision and MQS.**
 
 ## Functionality supported in device code
 

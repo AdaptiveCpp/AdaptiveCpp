@@ -13,6 +13,17 @@
 
 #include "hipSYCL/runtime/support/minicoro_wrapper.hpp"
 
+/**
+ * Defines MCO_ALLOC as malloc to avoid performance issues when the compiler
+ * issues a malloc + memset for a calloc. The coroutines allocate more space
+ * than they touch. Hence if the compiler issues a malloc + memset then all the
+ * requested space written to and hence allocated in physical memory which is
+ * slow. See AdaptiveCpp GitHub issue 1931. @edubart advises that this
+ * substitution is safe.
+ */
+#include <stdlib.h>
+#define MCO_ALLOC(size) malloc(size)
+#define MCO_DEALLOC(ptr, size) free(ptr)
 #define MINICORO_IMPL
 #include "minicoro.h"
 

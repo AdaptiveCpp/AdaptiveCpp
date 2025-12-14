@@ -250,6 +250,20 @@ HIPSYCL_BUILTIN float __acpp_atomic_fetch_add(
 }
 
 template <access::address_space S>
+HIPSYCL_BUILTIN float __acpp_unsafe_atomic_fetch_add(float *addr, float x,
+                                                 memory_order order,
+                                                 memory_scope scope) noexcept {
+  return __acpp_atomic_fetch_add<S>( addr, x, order, scope);
+}
+
+template <access::address_space S>
+HIPSYCL_BUILTIN double __acpp_unsafe_atomic_fetch_add(double *addr, double x,
+                                                  memory_order order,
+                                                  memory_scope scope) noexcept {
+  return __acpp_atomic_fetch_add<S>(addr, x,order, scope);
+}
+
+template <access::address_space S>
 HIPSYCL_BUILTIN double __acpp_atomic_fetch_add(
     double *addr, double x, memory_order order, memory_scope scope) noexcept {
   

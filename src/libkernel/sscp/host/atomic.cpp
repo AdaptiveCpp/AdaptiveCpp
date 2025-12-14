@@ -265,9 +265,6 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_xor_i64(
 }
 
 
-
-// TODO: It seems that at least on gfx90a, there are additional unsafe atomic
-// operations that can yield a performance improvement. Should we expose those?
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_add_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
@@ -328,6 +325,17 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
   return __atomic_fetch_add(ptr, x, builtin_memory_order(order));
 }
 
+HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_unsafe_atomic_fetch_add_f32(
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+    __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
+    return  __acpp_sscp_atomic_fetch_add_f32(as, order, scope, ptr, x);
+}
+
+HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_unsafe_atomic_fetch_add_f64(
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+    __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
+    return  __acpp_sscp_atomic_fetch_add_f64(as, order, scope, ptr, x);
+}
 
 
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_sub_i8(

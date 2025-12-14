@@ -435,6 +435,21 @@ HIPSYCL_DEFINE_HIPLIKE_ATOMIC_INTEGRAL_NONNATIVE_OVERLOADS_AGNOSTIC(
 
 // *********************** atomic add ****************************
 
+template <access::address_space S>
+HIPSYCL_BUILTIN float __acpp_unsafe_atomic_fetch_add(float *addr, float x,
+                                                 memory_order order,
+                                                 memory_scope scope) noexcept {
+  return unsafeAtomicAdd( addr, x);
+}
+
+template <access::address_space S>
+HIPSYCL_BUILTIN double __acpp_unsafe_atomic_fetch_add(double *addr, double x,
+                                                  memory_order order,
+                                                  memory_scope scope) noexcept {
+  return unsafeAtomicAdd( addr, x);
+}
+
+
 template <access::address_space S, class T>
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_atomic_fetch_add(
     T *addr, T x, memory_order order, memory_scope scope) noexcept {

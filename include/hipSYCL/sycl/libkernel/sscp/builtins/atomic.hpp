@@ -202,6 +202,15 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x);
 
+// Only has an effect when targeting gfx90a amdgcn
+// For other targets it will just call the regulare atomic_fetch
+HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_unsafe_atomic_fetch_add_f32(
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+    __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x);
+
+HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_unsafe_atomic_fetch_add_f64(
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+    __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x);
 
 
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_sub_i8(

@@ -16,7 +16,7 @@
   HIPSYCL_SSCP_CONVERGENT_BUILTIN                                                                  \
   __acpp_##input_type __acpp_sscp_sub_group_broadcast_##fn_suffix(__acpp_int32 sender,             \
                                                                   __acpp_##input_type x) {         \
-    return __acpp_sscp_sub_group_select_##fn_suffix(x, sender);                                    \
+    return __builtin_amdgcn_readlane(x, sender);                                                   \
   }
 
 #define ACPP_WORKGROUP_BCAST(fn_suffix, input_type)                                                \

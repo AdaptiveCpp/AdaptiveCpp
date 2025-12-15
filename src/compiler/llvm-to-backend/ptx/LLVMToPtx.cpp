@@ -111,7 +111,10 @@ static constexpr std::array IntrinsicReplacementMap = {
   IntrinsicMapping{"llvm.log2.f64", "__acpp_sscp_log2_f64"},
   IntrinsicMapping{"llvm.log10.f32", "__acpp_sscp_log10_f32"},
   IntrinsicMapping{"llvm.log10.f64", "__acpp_sscp_log10_f64"},
-  // asin seems fine (presumably acos and atan as well)
+  // asin seems fine (presumably acos well?)
+  // atan at least with LLVM 20 needs remapping
+  IntrinsicMapping{"llvm.atan.f32", "__acpp_sscp_atan_f32"},
+  IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"}
   // sqrt seems fine
 };
 

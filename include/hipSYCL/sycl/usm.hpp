@@ -80,7 +80,7 @@ inline void *malloc_device(size_t num_bytes, const device &dev,
   rt::allocation_hints hints = create_hints_from_proplist(propList);
   auto rpointer = rt::allocate_device(detail::select_device_allocator(dev), 0, num_bytes, hints);
 
-  TRACER_FUNCTION2ARG(malloc_device_end, rpointer);
+  TRACER_FUNCTION2ARG_END(malloc_device_end, rpointer);
 
   return rpointer;
 }
@@ -143,7 +143,7 @@ inline void *malloc_host(std::size_t num_bytes, const context &ctx,
   rt::allocation_hints hints = create_hints_from_proplist(propList);
   auto return_pointer = rt::allocate_host(detail::select_usm_allocator(ctx), 0, num_bytes, hints);
 
-  TRACER_FUNCTION2ARG(malloc_host_end, return_pointer);
+  TRACER_FUNCTION2ARG_END(malloc_host_end, return_pointer);
 
   return return_pointer;
 }
@@ -173,7 +173,7 @@ inline void *malloc_shared(std::size_t num_bytes, const device &dev,
   auto return_pointer =
       rt::allocate_shared(detail::select_usm_allocator(ctx, dev), num_bytes, hints);
 
-  TRACER_FUNCTION2ARG(malloc_shared_end, return_pointer);
+  TRACER_FUNCTION2ARG_END(malloc_shared_end, return_pointer);
 
   return return_pointer;
 }
@@ -339,7 +339,7 @@ inline void free(void *ptr, const sycl::context &ctx) {
   if (ptr != nullptr)
     rt::deallocate(detail::select_usm_allocator(ctx), ptr);
 
-  TRACER_FUNCTION2ARG(free_end, ptr);
+  TRACER_FUNCTION2ARG_END(free_end, ptr);
 
   return;
 }

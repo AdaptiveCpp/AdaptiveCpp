@@ -388,7 +388,7 @@ public:
       _impl->requires_runtime.get()->dag().wait(_impl->node_group_id);
     }
 
-    TRACER_FUNCTION2ARG(wait_queue_end, _impl->node_group_id)
+    TRACER_FUNCTION2ARG_END(wait_queue_end, _impl->node_group_id)
   }
 
   void wait_and_throw() {
@@ -470,7 +470,7 @@ public:
 
     event return_event{node, _impl->handler};
 
-    TRACER_FUNCTION_VA_ARGS(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id);
+    TRACER_FUNCTION_VA_ARGS_END(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id);
 
     return return_event;
   }
@@ -517,7 +517,7 @@ public:
             });
       }
 
-        TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+        TRACER_FUNCTION_VA_ARGS_END(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
                                 _impl->node_group_id);
 
       if(!submission_failed) {
@@ -525,7 +525,7 @@ public:
       } else {
         
         event evt = secondaryQueue.submit(prop_list, cgf);
-        TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+        TRACER_FUNCTION_VA_ARGS_END(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
                                 _impl->node_group_id);
 
         return evt;
@@ -534,7 +534,7 @@ public:
 
       event evt = secondaryQueue.submit(prop_list, cgf);
 
-      TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+      TRACER_FUNCTION_VA_ARGS_END(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
                               _impl->node_group_id);
 
       return evt;

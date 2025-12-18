@@ -280,7 +280,7 @@ public:
     if(e._node) {
       _requirements.add_node_requirement(e._node);
     }
-    TRACER_FUNCTION2ARG(depends_on_end, e.AdaptiveCpp_hash_code());
+    TRACER_FUNCTION2ARG_END(depends_on_end, e.AdaptiveCpp_hash_code());
   }
 
   void depends_on(const std::vector<event> &events) {
@@ -298,7 +298,7 @@ public:
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
       sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
 
-    TRACER_FUNCTION1ARG(single_task_end);
+    TRACER_FUNCTION1ARG_END(single_task_end);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -322,7 +322,7 @@ public:
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
     }
 
-    TRACER_FUNCTION1ARG(parallel_for_end)
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -348,7 +348,7 @@ public:
 
     }
 
-    TRACER_FUNCTION1ARG(parallel_for_end)
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -375,7 +375,7 @@ public:
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
     }
 
-    TRACER_FUNCTION1ARG(parallel_for_end)
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -400,7 +400,7 @@ public:
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
     }
 
-    TRACER_FUNCTION1ARG(parallel_for_end)
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -420,7 +420,7 @@ public:
 
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
-    TRACER_FUNCTION1ARG(parallel_for_end)
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   // Hierarchical kernel dispatch API
@@ -454,7 +454,7 @@ public:
     };
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
 
-    TRACER_FUNCTION1ARG(parallel_for_work_group_end)
+    TRACER_FUNCTION1ARG_END(parallel_for_work_group_end)
   }
 
   // Scoped parallelism API
@@ -502,7 +502,7 @@ public:
 
     copy_ptr(src, dest);
 
-    TRACER_FUNCTION1ARG(copy_end)
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
 
 
@@ -515,7 +515,7 @@ public:
     
     copy_ptr(src, dest);
 
-    TRACER_FUNCTION1ARG(copy_end)
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -526,7 +526,7 @@ public:
 
     copy_ptr(src, dest);
 
-    TRACER_FUNCTION1ARG(copy_end)
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -537,7 +537,7 @@ public:
 
     copy_ptr(src, dest);
 
-    TRACER_FUNCTION1ARG(copy_end)
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
 
   template <typename T, int dim, access::mode srcMode, access::mode dstMode,
@@ -589,7 +589,7 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    TRACER_FUNCTION1ARG(copy_end);
+    TRACER_FUNCTION1ARG_END(copy_end);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -633,7 +633,7 @@ public:
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
 
-    TRACER_FUNCTION1ARG(fill_end)
+    TRACER_FUNCTION1ARG_END(fill_end)
   }
 
   // ------ USM functions ------
@@ -688,7 +688,7 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    TRACER_FUNCTION1ARG(memcpy_end)
+    TRACER_FUNCTION1ARG_END(memcpy_end)
   }
   
   template <typename T>
@@ -722,7 +722,7 @@ public:
           detail::kernels::fill_kernel_usm{typed_ptr, pattern});
     }
 
-    TRACER_FUNCTION1ARG(fill_end)
+    TRACER_FUNCTION1ARG_END(fill_end)
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
@@ -741,7 +741,7 @@ public:
 
     _command_group_nodes.push_back(node);
 
-    TRACER_FUNCTION1ARG(memset_end)
+    TRACER_FUNCTION1ARG_END(memset_end)
   }
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {

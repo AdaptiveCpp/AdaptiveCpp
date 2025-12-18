@@ -50,9 +50,19 @@
       Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], ##__VA_ARGS__);     \
   }
 
+#define TRACER_FUNCTION_VA_ARGS_END(type, ...)                                                     \
+  for (int i = Tracer_utils::tracer_state.size - 1; i >= 0; i--) {                                 \
+    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
+      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], ##__VA_ARGS__);     \
+  }
+
 #define TRACER_FUNCTION1ARG(type) TRACER_FUNCTION_VA_ARGS(type)
 #define TRACER_FUNCTION2ARG(type, arg2) TRACER_FUNCTION_VA_ARGS(type, arg2)
 #define TRACER_FUNCTION3ARG(type, arg2, arg3) TRACER_FUNCTION_VA_ARGS(type, arg2, arg3)
+
+#define TRACER_FUNCTION1ARG_END(type) TRACER_FUNCTION_VA_ARGS_END(type)
+#define TRACER_FUNCTION2ARG_END(type, arg2) TRACER_FUNCTION_VA_ARGS_END(type, arg2)
+#define TRACER_FUNCTION3ARG_END(type, arg2, arg3) TRACER_FUNCTION_VA_ARGS_END(type, arg2, arg3)
 
 #ifndef _WIN32
 #define MYLIB_API

@@ -8,13 +8,16 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
+
+#define CL_TARGET_OPENCL_VERSION 300
+#define CL_ENABLE_BETA_EXTENSIONS
+
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
 #include "hipSYCL/runtime/ocl/ocl_usm.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 
 #include <CL/opencl.hpp>
-#include <CL/cl.h>
 #include <CL/cl_ext.h>
 #include <memory>
 
@@ -317,7 +320,242 @@ private:
   bool _is_cpu = false;
 };
 
+class ocl_usvm_khr : public ocl_usm {
+public:
+  ocl_usvm_khr(ocl_hardware_manager *hw_mgr, int device_index,
+              const cl::Platform &platform, const cl::Device &dev,
+              const cl::Context &ctx)
+      : _ctx{ctx}, _dev{dev}, _hw_mgr{hw_mgr}, _device_index{device_index} {
 
+    std::string str;
+    cl_int err = dev.getInfo(CL_DEVICE_EXTENSIONS, &str);
+
+    if (err != CL_SUCCESS ||
+        (str.find("cl_khr_unified_svm") == std::string::npos)) {
+      return;
+    }
+
+    cl_platform_id id = platform.cl::detail::Wrapper<cl_platform_id>::get();
+
+    initialize_func(_alloc, "clSVMAllocWithPropertiesKHR", id);
+    initialize_func(_free, "clSVMFreeWithPropertiesKHR", id);
+    initialize_func(_pointer_info, "clGetSVMPointerInfoKHR", id);
+
+    // TODO - Update to OpenCL-C++ bindings when available
+    size_t size;
+    err = clGetDeviceInfo(_dev.get(), CL_DEVICE_SVM_TYPE_CAPABILITIES_KHR, 0, nullptr,
+                    &size);
+    _svm_caps.resize(size / sizeof(cl_svm_capabilities_khr));
+    err = clGetDeviceInfo(_dev.get(), CL_DEVICE_SVM_TYPE_CAPABILITIES_KHR, size,
+                    _svm_caps.data(), nullptr);
+    for (size_t i = 0; i < _svm_caps.size(); i++) {
+      if ((_svm_caps[i] & CL_SVM_TYPE_MACRO_SYSTEM_KHR) ==
+          CL_SVM_TYPE_MACRO_SYSTEM_KHR) {
+       _system_svm_type_index  = static_cast<int32_t>(i);
+      } else if ((_svm_caps[i] & CL_SVM_TYPE_MACRO_DEVICE_KHR) ==
+                 CL_SVM_TYPE_MACRO_DEVICE_KHR) {
+       _device_svm_type_index  = static_cast<int32_t>(i);
+      } else if ((_svm_caps[i] & CL_SVM_TYPE_MACRO_HOST_KHR) ==
+                 CL_SVM_TYPE_MACRO_HOST_KHR) {
+        _host_svm_type_index = static_cast<int32_t>(i);
+      } else if ((_svm_caps[i] &
+                  CL_SVM_TYPE_MACRO_SINGLE_DEVICE_SHARED_KHR) ==
+                 CL_SVM_TYPE_MACRO_SINGLE_DEVICE_SHARED_KHR) {
+        _single_device_shared_svm_type_index = static_cast<int32_t>(i);
+      }
+    }
+
+    // Device must support at least one of these capabilities to use this
+    // ocl_usvm_khr implementation, otherwise can can fallback to ocl_usm_svm
+    _is_available = (_system_svm_type_index != -1) ||
+               (_device_svm_type_index != -1) ||
+               (_host_svm_type_index != -1) ||
+               (_single_device_shared_svm_type_index != -1);
+  }
+
+  bool is_available() const override {
+    return _is_available;
+  }
+
+  bool has_usm_device_allocations() const override {
+    if(_device_svm_type_index == -1)
+      return false;
+    const auto& caps = _svm_caps[_device_svm_type_index];
+    return (caps & CL_SVM_TYPE_MACRO_DEVICE_KHR) == CL_SVM_TYPE_MACRO_DEVICE_KHR;
+  }
+
+  bool has_usm_host_allocations() const override {
+    if(_host_svm_type_index == -1)
+      return false;
+
+    const auto& caps = _svm_caps[_host_svm_type_index];
+    return (caps & CL_SVM_TYPE_MACRO_HOST_KHR) == CL_SVM_TYPE_MACRO_HOST_KHR;
+  }
+
+  bool has_usm_atomic_host_allocations() const override {
+    if(_host_svm_type_index == -1)
+      return false;
+
+    const auto& caps = _svm_caps[_host_svm_type_index];
+    return caps & CL_SVM_CAPABILITY_DEVICE_ATOMIC_ACCESS_KHR;
+  }
+
+  bool has_usm_shared_allocations() const override {
+    if(_single_device_shared_svm_type_index == -1)
+      return false;
+
+    const auto& caps = _svm_caps[_single_device_shared_svm_type_index];
+    return (caps & CL_SVM_TYPE_MACRO_SINGLE_DEVICE_SHARED_KHR) == CL_SVM_TYPE_MACRO_SINGLE_DEVICE_SHARED_KHR;
+  }
+
+  bool has_usm_atomic_shared_allocations() const override {
+    if(_single_device_shared_svm_type_index == -1)
+      return false;
+
+    const auto& caps = _svm_caps[_single_device_shared_svm_type_index];
+    return caps & CL_SVM_CAPABILITY_DEVICE_ATOMIC_ACCESS_KHR;
+  }
+
+  bool has_usm_system_allocations() const override {
+    if (_system_svm_type_index == -1)
+      return false;
+
+    const auto& caps = _svm_caps[_system_svm_type_index];
+    return (caps & CL_SVM_TYPE_MACRO_SYSTEM_KHR) == CL_SVM_TYPE_MACRO_SYSTEM_KHR;
+  }
+
+  void* malloc_host(std::size_t size, std::size_t alignment, cl_int& err) override {
+    if(!_alloc) {
+      err = CL_INVALID_PLATFORM;
+      return nullptr;
+    }
+
+    cl_svm_alloc_properties_khr props[] = {CL_SVM_ALLOC_ALIGNMENT_KHR, alignment, 0};
+    return _alloc(_ctx.get(), props, _host_svm_type_index, size, &err);
+  }
+
+  void* malloc_device(std::size_t size, std::size_t alignment, cl_int& err) override {
+    if(!_alloc) {
+      err = CL_INVALID_PLATFORM;
+      return nullptr;
+    }
+
+    cl_svm_alloc_properties_khr props[] = {CL_SVM_ALLOC_ALIGNMENT_KHR, alignment,
+                                           CL_SVM_ALLOC_ASSOCIATED_DEVICE_HANDLE_KHR,
+                                           reinterpret_cast<cl_svm_alloc_properties_khr>(_dev.get()),
+	                                   0};
+    return _alloc(_ctx.get(), props, _device_svm_type_index, size, &err);
+  }
+
+  void* malloc_shared(std::size_t size, std::size_t alignment, cl_int& err) override {
+    if(!_alloc) {
+      err = CL_INVALID_PLATFORM;
+      return nullptr;
+    }
+
+    cl_svm_alloc_properties_khr props[] = {CL_SVM_ALLOC_ALIGNMENT_KHR, alignment,
+                                           CL_SVM_ALLOC_ASSOCIATED_DEVICE_HANDLE_KHR,
+                                           reinterpret_cast<cl_svm_alloc_properties_khr>(_dev.get()),
+	                                   0};
+    return _alloc(_ctx.get(), props, _single_device_shared_svm_type_index, size, &err);
+  }
+
+  cl_int free(void* ptr) override {
+    if(!_free) {
+      return CL_INVALID_PLATFORM;
+    }
+    return _free(_ctx.get(), nullptr, 0, ptr);
+  }
+
+  cl_int get_alloc_info(const void* ptr, pointer_info& out) override {
+    if(!_pointer_info) {
+      return CL_INVALID_PLATFORM;
+    }
+
+    out.is_from_host_backend = false;
+    out.dev = _hw_mgr->get_device_id(_device_index);
+    cl_uint type_index;
+    cl_int err = _pointer_info(_ctx.get(), _dev.get(), ptr, CL_SVM_INFO_TYPE_INDEX_KHR,
+                                 sizeof(type_index), &type_index, nullptr);
+    if (err != CL_SUCCESS) {
+      return err;
+    } else if (CL_UINT_MAX == type_index) {
+      return CL_INVALID_MEM_OBJECT;
+    }
+
+    out.is_optimized_host = (type_index == _host_svm_type_index);
+    out.is_usm = (type_index == _single_device_shared_svm_type_index);
+
+    return CL_SUCCESS;
+  }
+
+  cl_int enqueue_memcpy(cl::CommandQueue &queue, void *dst,
+                                const void *src, std::size_t size,
+                                const std::vector<cl::Event> &wait_events,
+                                cl::Event *evt_out) override {
+    return queue.enqueueMemcpySVM(dst, src, false, size, &wait_events, evt_out);
+  }
+
+  cl_int enqueue_memset(cl::CommandQueue &queue, void *ptr,
+                                cl_int pattern, std::size_t bytes,
+                                const std::vector<cl::Event> &wait_events,
+                                cl::Event *out) override {
+    unsigned char pattern_byte = static_cast<char>(pattern);
+    return queue.enqueueMemFillSVM(ptr, pattern_byte, bytes, &wait_events, out);
+  }
+
+  cl_int enqueue_prefetch(cl::CommandQueue &queue, const void *ptr,
+                          std::size_t bytes,
+                          cl_mem_migration_flags flags,
+                          const std::vector<cl::Event> &wait_events,
+                          cl::Event *event) override {
+    // Seems there is a bug in CommandQueue::enqueueMigrateSVM, so we directly
+    // call the OpenCL function
+    cl_event tmp;
+    cl_int err = ::clEnqueueSVMMigrateMem(
+        queue.get(), 1, &ptr, &bytes, flags, wait_events.size(),
+        (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
+        (event != nullptr) ? &tmp : nullptr);
+
+    if(event != nullptr && err == CL_SUCCESS) {
+      *event = tmp;
+    }
+    return err;
+  }
+
+  cl_int enable_indirect_usm_access(cl::Kernel& k) override {
+    return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_INDIRECT_ACCESS_KHR, cl_bool{true});
+  }
+
+private:
+  template <class Func>
+  void initialize_func(Func &out, const char *name, cl_platform_id id) {
+    out = (Func)clGetExtensionFunctionAddressForPlatform(id, name);
+    if (!out) {
+      print_error(
+          __acpp_here(),
+          error_info{"ocl_usvm_khr: Platform advertises cl_khr_unified_svm support, but "
+                     "extracting function address for " +
+                     std::string{name} + " failed."});
+    }
+  }
+
+  bool _is_available = false;
+  clSVMFreeWithPropertiesKHR_fn _free = nullptr;
+  clSVMAllocWithPropertiesKHR_fn _alloc = nullptr;
+  clGetSVMPointerInfoKHR_fn _pointer_info = nullptr;
+
+  int32_t _device_svm_type_index = -1;
+  int32_t _host_svm_type_index = -1;
+  int32_t _single_device_shared_svm_type_index = -1;
+  int32_t _system_svm_type_index = -1;
+  std::vector<cl_svm_capabilities_khr> _svm_caps;
+
+  cl::Context _ctx;
+  cl::Device _dev;
+  ocl_hardware_manager* _hw_mgr;
+  int _device_index;
+};
 
 class ocl_usm_svm : public ocl_usm {
 public:
@@ -492,6 +730,16 @@ ocl_usm::from_fine_grained_system_svm(ocl_hardware_manager* hw_mgr, int dev_id) 
       static_cast<ocl_hardware_context *>(hw_mgr->get_device(dev_id));
   int platform_id = ctx->get_platform_id();
   return std::make_unique<ocl_usm_svm>(
+      hw_mgr, dev_id, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
+      ctx->get_cl_context());
+}
+
+std::unique_ptr<ocl_usm>
+ocl_usm::from_usvm_khr(ocl_hardware_manager* hw_mgr, int dev_id) {
+  ocl_hardware_context *ctx =
+      static_cast<ocl_hardware_context *>(hw_mgr->get_device(dev_id));
+  int platform_id = ctx->get_platform_id();
+  return std::make_unique<ocl_usvm_khr>(
       hw_mgr, dev_id, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
       ctx->get_cl_context());
 }

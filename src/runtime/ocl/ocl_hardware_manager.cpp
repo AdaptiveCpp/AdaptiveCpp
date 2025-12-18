@@ -586,13 +586,20 @@ cl::Context ocl_hardware_context::get_cl_context() const {
 }
 
 void ocl_hardware_context::init_allocator(ocl_hardware_manager *mgr) {
-  _usm_provider = ocl_usm::from_intel_extension(mgr, _dev_id);
+  // Priority of USM providers:
+  // 1) cl_khr_unified_svm extension
+  // 2) cl_intel_unified_shared_memory extension
+  // 3) fine-grained system SVM
+  _usm_provider = ocl_usm::from_usvm_khr(mgr, _dev_id);
+  if(!_usm_provider->is_available()) {
+    _usm_provider = ocl_usm::from_intel_extension(mgr, _dev_id);
+  }
   if(!_usm_provider->is_available()) {
     // Try SVM fine-grained system as an alternative
     _usm_provider = ocl_usm::from_fine_grained_system_svm(mgr, _dev_id);
     if(_usm_provider->is_available()) {
       HIPSYCL_DEBUG_WARNING << "OpenCL device " << get_device_name()
-                            << " does not support Intel USM extensions; "
+                            << " does not support Intel USM or KHR USVM extensions; "
                                "falling back to fine-grained system SVM. USM "
                                "pointer info queries have limited support."
                             << std::endl;

@@ -48,7 +48,7 @@ void tracer_funcs::initialize_tracer() {
 
   // If the init has not run yet, we initialize and set the flag
 
-  std::cout << "Hello World from inside the tracer_funcs constructor" << std::endl;
+  // std::cout << "Hello World from inside the tracer_funcs constructor" << std::endl;
 
   if (const char *env_p = std::getenv("SYCL_TOOL_LIBRARY")) {
     std::string path(env_p);
@@ -85,7 +85,7 @@ void tracer_funcs::initialize_tracer() {
 
 void tracer_funcs::run_finalizers() {
 
-  std::cout << "Hello World from inside the tracer_funcs finalizer stuff" << std::endl;
+  // std::cout << "Hello World from inside the tracer_funcs finalizer stuff" << std::endl;
   for (int i = this->size - 1; i >= 0; i--)
     if (this->finalize[i] != nullptr)
       this->finalize[i](this->states[i]);

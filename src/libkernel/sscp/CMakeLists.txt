@@ -30,9 +30,14 @@ function(libkernel_generate_bitcode_library)
     endif()
   endif()
 
+  set(target_flag "")
+  if(triple)
+    set(target_flag -target ${triple})
+  endif()
+
   add_custom_command(
       OUTPUT ${target_output_file}
-      COMMAND ${CLANG_EXECUTABLE_PATH} -target ${triple} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
+      COMMAND ${CLANG_EXECUTABLE_PATH} ${target_flag} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
                     -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific} -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${target_depends}
       VERBATIM)

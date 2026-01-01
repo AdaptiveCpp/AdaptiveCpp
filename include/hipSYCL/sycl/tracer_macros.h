@@ -20,7 +20,8 @@
   MACRO(single_task_end, tracer_function_t);                                                       \
   MACRO(memcpy_start, tracer_function_t);                                                          \
   MACRO(memcpy_end, tracer_function_t);                                                            \
-  MACRO(wait_start, tracer_function_t);                                                            \
+  MACRO(wait_queue_start, tracer_function_t);                                                      \
+  MACRO(wait_event_start, tracer_function_t);                                                      \
   MACRO(wait_queue_end, tracer_function_wait_t);                                                   \
   MACRO(wait_event_end, tracer_function_wait_t);                                                   \
   MACRO(memset_start, tracer_function_t);                                                          \

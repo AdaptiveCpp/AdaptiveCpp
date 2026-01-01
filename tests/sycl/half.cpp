@@ -16,9 +16,9 @@
 BOOST_FIXTURE_TEST_SUITE(half_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(half_arithmetic) {
-  
+
   auto tolerance = boost::test_tools::tolerance(0.0001);
-  
+
   namespace s = sycl;
 
   s::queue q;
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(half_arithmetic) {
       acc[3] = acc[1] - acc[0];
     });
   }).wait();
-   
+
   float f1 = 1.0f;
   float f2 = 2.0f;
   float reference [num_tests];
@@ -62,10 +62,17 @@ using half_test_types =
 BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   namespace s = sycl;
   auto tolerance = boost::test_tools::tolerance(0.0001);
-  
+
   s::queue q;
   T a{1};
   s::half b{2.0f};
+
+  if constexpr(std::is_same_v<T, double>) {
+    if (!q.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
 
   constexpr std::size_t num_ops = 4;
   s::buffer<s::half, 1> buff_T{s::range{num_ops}}; // T as lhs operand
@@ -73,7 +80,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   q.submit([&](s::handler& cgh){
     s::accessor acc_half{buff_half, cgh};
     s::accessor acc_T{buff_T, cgh};
-    cgh.single_task([=](){      
+    cgh.single_task([=](){
       acc_T[0] = a + b;
       acc_T[1] = a - b;
       acc_T[2] = a * b;
@@ -88,7 +95,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
 
   T f1{1};
   float f2 = 2.0f;
-  
+
   float reference_T [num_ops]; // T as lhs operand
   reference_T[0] = f1 + f2;
   reference_T[1] = f1 - f2;
@@ -100,16 +107,16 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   reference_half[1] = f2 - f1;
   reference_half[2] = f2 * f1;
   reference_half[3] = f2 / f1;
-  
+
   s::host_accessor hacc_half{buff_half};
   s::host_accessor hacc_T{buff_T};
   for(int i = 0; i < num_ops; ++i){
     float current_reference_half = reference_half[i];
     float current_reference_T = reference_T[i];
-    
+
     float current_computed_half = hacc_half[i];
     float current_computed_T = hacc_T[i];
-    
+
     BOOST_TEST(current_reference_half == current_computed_half, tolerance);
     BOOST_TEST(current_reference_T == current_computed_T, tolerance);
   }
@@ -118,7 +125,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
 
 BOOST_AUTO_TEST_CASE(half_unary_operators){
 
-  namespace s = sycl; 
+  namespace s = sycl;
   namespace tt = boost::test_tools;
 
   // build inputs and allocate outputs
@@ -127,15 +134,15 @@ BOOST_AUTO_TEST_CASE(half_unary_operators){
   s::half input{1.0};
 
   constexpr std::size_t NUM_OPS = 2;
-  s::buffer<s::half, 1> buff_half{s::range{NUM_OPS}}; 
+  s::buffer<s::half, 1> buff_half{s::range{NUM_OPS}};
 
-  // run functions 
+  // run functions
 
   queue.submit([&](s::handler& cgh) {
     s::accessor acc_half{buff_half, cgh};
     cgh.single_task([=](){
       acc_half[0] = +input;
-      acc_half[1] = -input; 
+      acc_half[1] = -input;
     });
   }).wait();
 
@@ -143,7 +150,7 @@ BOOST_AUTO_TEST_CASE(half_unary_operators){
   float reference[NUM_OPS];
   reference[0] = +f1;
   reference[1] = -f1;
- 
+
   // check results
 
   s::host_accessor hacc_half{buff_half};
@@ -154,4 +161,4 @@ BOOST_AUTO_TEST_CASE(half_unary_operators){
   }
 }
 
-BOOST_AUTO_TEST_SUITE_END()    
+BOOST_AUTO_TEST_SUITE_END()

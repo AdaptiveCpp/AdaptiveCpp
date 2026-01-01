@@ -167,7 +167,7 @@ T initialize_type(elementType<T> init) {
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 ACPP_KERNEL_TARGET
 T get_offset(size_t margin, size_t divisor = 1) {
-  
+
   if (std::numeric_limits<T>::max() <= margin) {
     return T{};
   }
@@ -254,6 +254,12 @@ template<int CallingLine, typename T, typename DataGenerator, typename TestedFun
 void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
   sycl::queue    queue;
+  if constexpr(std::is_same_v<T, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
   std::vector<size_t> local_sizes  = {25, 144, 256};
   std::vector<size_t> global_sizes = {100, 576, 1024};
   // currently only groupsizes between 128 and 256 are supported for HIP
@@ -303,6 +309,12 @@ template<int CallingLine, typename T, typename DataGenerator, typename TestedFun
 void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
   sycl::queue    queue;
+  if constexpr(std::is_same_v<T, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
 
   std::vector<size_t> local_sizes  = {5, 12, 16};
   std::vector<size_t> global_sizes = {10, 24, 32};

@@ -38,7 +38,7 @@ unsigned long long t_to_int(T x) {
   } else {
     result = static_cast<unsigned long long>(x);
   }
-  
+
   return result;
 }
 
@@ -49,6 +49,19 @@ using exchange_test_types =
 BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
                               exchange_test_types) {
   sycl::queue q;
+  if constexpr(std::is_same_v<Type, double>) {
+    if (!q.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
+  if constexpr(sizeof(Type) == 8) {
+    if (!q.get_device().has(sycl::aspect::atomic64)) {
+      BOOST_TEST_MESSAGE("Skipping test for 64-bit atomics since device has no atomic64 support");
+      return;
+    }
+  }
 
   Type initial = int_to_t<Type>(0);
   sycl::buffer<Type> b{&initial, sycl::range{1}};
@@ -66,7 +79,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
       // stores.
       if constexpr(!std::is_floating_point_v<Type>)
         r.store(int_to_t<Type>(x+2));
-      
+
       r.exchange(int_to_t<Type>(x+1));
     });
   });
@@ -80,8 +93,20 @@ template <class T, class AtomicOp, class Verifier>
 void atomic_device_reduction_test(AtomicOp op, Verifier v,
                                   std::string_view type_name, std::string_view op_name,
                                   std::function<int(int)> init = [](int t) { return -t; }) {
-  
+
   sycl::queue q;
+  if constexpr(std::is_same_v<T, double>) {
+    if (!q.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+  if constexpr(sizeof(T) == 8) {
+    if (!q.get_device().has(sycl::aspect::atomic64)) {
+      BOOST_TEST_MESSAGE("Skipping test for 64-bit atomics since device has no atomic64 support");
+      return;
+    }
+  }
 
   const std::size_t size = 2048;
   sycl::buffer<T> b{sycl::range{size}};
@@ -254,7 +279,7 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 #ifndef ACPP_LIBKERNEL_CUDA_NVCXX // nvc++ has some issue with this test
 BOOST_AUTO_TEST_CASE(atomic_fence) {
   // This is mainly a compile-test. Testing atomic memory semantics is hard...
-  
+
   sycl::queue q;
   int* data = sycl::malloc_shared<int>(1, q);
   *data = 0;

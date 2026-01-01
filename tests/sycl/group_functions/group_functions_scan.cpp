@@ -551,6 +551,20 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
   if(!sycl::queue{}.get_device().is_host()) {
+    if constexpr(std::is_same_v<T, double>) {
+      if (!sycl::queue{}.get_device().has(sycl::aspect::fp64)) {
+        BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+        return;
+      }
+    }
+
+    if constexpr(sizeof(T) == 8) {
+      if (!sycl::queue{}.get_device().has(sycl::aspect::atomic64)) {
+        BOOST_TEST_MESSAGE("Skipping test for 64-bit subgroup since device has no atomic64 support");
+        return;
+      }
+    }
+
     const size_t   elements_per_thread = 1;
     const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
                                   size_t global_size) {

@@ -237,6 +237,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
   // build inputs
 
   s::queue queue;
+
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
@@ -304,6 +312,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
   // build inputs
 
   s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   s::buffer<T> buf{{FUN_COUNT + 2}};
   DT input_scalar = 3.5f;
   DT mix_input_1 = 0.5f;
@@ -486,6 +501,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs) {
   // build inputs
 
   s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
@@ -551,6 +573,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo) {
   // build inputs
 
   s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
@@ -608,6 +637,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats) {
   // build inputs
 
   s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
     auto acc = buf.template get_access<s::access::mode::write>();
@@ -663,6 +699,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_int, T,
   // build inputs and allocate outputs
 
   s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   s::buffer<T> in{{1}};
   s::buffer<T> out{{FUN_COUNT}};
   {
@@ -713,6 +756,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
   // build inputs and allocate outputs
 
   s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   s::buffer<T> float_in{{1}};
   s::buffer<IntType> int_in{{1}};
   s::buffer<T> out{{FUN_COUNT}};

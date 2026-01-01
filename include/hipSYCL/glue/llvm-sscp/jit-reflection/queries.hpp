@@ -20,7 +20,8 @@ enum class compiler_backend : int {
   spirv = 0,
   ptx = 1,
   amdgpu = 2,
-  host = 3
+  host = 3,
+  metal = 4,
 };
 
 namespace vendor_id {

@@ -30,13 +30,13 @@ void test_scalar_reduction(sycl::queue &q, const T& identity,
 
   for(std::size_t i = 0; i < num_elements;++i)
     test_data[i] = gen(i);
-  
+
   h(test_data, output_data);
   q.wait();
 
   T expected_result =
       std::accumulate(test_data, test_data + num_elements, identity, op);
-  
+
   if constexpr(std::is_floating_point_v<T>) {
     BOOST_TEST(expected_result == *output_data, tolerance);
   } else {
@@ -65,7 +65,7 @@ struct input_generator <T, sycl::multiplies<T>> {
 
     if(i % 100 == 0)
       return static_cast<T>(2);
-    
+
     return static_cast<T>(1);
   }
 };
@@ -74,9 +74,15 @@ template<class T, class BinaryOp, int Line>
 class reduction_kernel;
 
 template<class T, class BinaryOp>
-void test_single_reduction(std::size_t input_size, std::size_t local_size, 
+void test_single_reduction(std::size_t input_size, std::size_t local_size,
                           const T& identity, BinaryOp op){
   sycl::queue q;
+  if constexpr(std::is_same_v<T, double>) {
+    if (!q.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
 
   auto input_gen = [&](std::size_t i){
     return input_generator<T,BinaryOp>{}(i);
@@ -115,6 +121,12 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
 template<class T>
 void test_two_reductions(std::size_t input_size, std::size_t local_size){
   sycl::queue q;
+  if constexpr(std::is_same_v<T, double>) {
+    if (!q.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
 
   std::size_t num_reductions = 2;
 
@@ -203,17 +215,17 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     if(outputs[i])
       sycl::free(outputs[i], q);
   }
-  
+
 }
 
 
-using all_test_types = boost::mp11::mp_list<char, unsigned int, int, long long, float, 
+using all_test_types = boost::mp11::mp_list<char, unsigned int, int, long long, float,
   double>;
 
-using large_test_types = boost::mp11::mp_list<unsigned int, int, long long, float, 
+using large_test_types = boost::mp11::mp_list<unsigned int, int, long long, float,
   double>;
 
-using very_large_test_types = boost::mp11::mp_list<unsigned int, long long, float, 
+using very_large_test_types = boost::mp11::mp_list<unsigned int, long long, float,
   double>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(single_kernel_single_scalar_reduction, T, all_test_types) {
@@ -248,11 +260,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
 BOOST_AUTO_TEST_CASE(accessor_reduction) {
   sycl::queue q;
   sycl::buffer<int> values_buff{1024};
-  { 
+  {
     sycl::host_accessor a{values_buff};
     std::iota(a.get_pointer(), a.get_pointer() + 1024, 0);
   }
-  
+
   sycl::buffer<int> sum_buff{1};
   sycl::buffer<int> max_buff{1};
 
@@ -278,7 +290,7 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
                        max.combine(values_acc[idx]);
                      });
   });
-  
+
   BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }
@@ -287,11 +299,11 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
 BOOST_AUTO_TEST_CASE(buffer_reduction) {
   sycl::queue q;
   sycl::buffer<int> values_buff{1024};
-  { 
+  {
     sycl::host_accessor a{values_buff};
     std::iota(a.get_pointer(), a.get_pointer() + 1024, 0);
   }
-  
+
   sycl::buffer<int> sum_buff{1};
   sycl::buffer<int> max_buff{1};
 
@@ -314,7 +326,7 @@ BOOST_AUTO_TEST_CASE(buffer_reduction) {
                        max.combine(values_acc[idx]);
                      });
   });
-  
+
   BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }

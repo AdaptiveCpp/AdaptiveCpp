@@ -60,11 +60,11 @@ public:
 
   // Implemented in device_selector.hpp
   device();
-  
+
   template <class DeviceSelector>
   explicit device(const DeviceSelector &deviceSelector);
 
-  bool is_host() const 
+  bool is_host() const
   {
     return is_cpu();
   }
@@ -99,8 +99,14 @@ public:
       // fp16 is only partially supported in hipSYCL
       return false;
     } else if(asp == aspect::fp64) {
+      if (get_backend() == rt::backend_id::metal) {
+        return false;
+      }
       return true;
     } else if(asp == aspect::atomic64) {
+      if (get_backend() == rt::backend_id::metal) {
+        return false;
+      }
       return true;
     } else if(asp == aspect::image) {
       return false;
@@ -136,12 +142,12 @@ public:
     if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
 #endif
-    
+
 #if defined(__ACPP_ENABLE_CUDA_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::cuda)
       return true;
 #endif
-    
+
 #if defined(__ACPP_ENABLE_HIP_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::hip)
       return true;
@@ -245,7 +251,7 @@ public:
 
   friend bool operator!=(const device& lhs, const device &rhs)
   { return !(lhs == rhs); }
-  
+
   backend get_backend() const noexcept {
     return _device_id.get_backend();
   }
@@ -304,7 +310,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, device_type) {
 
 /// \todo Return different id for amd and nvidia
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
-{ 
+{
   return get_rt_device()->get_property(
       rt::device_uint_property::vendor_id);
 }
@@ -742,7 +748,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, aspects)
                         aspect::usm_system_allocations};
 
   std::vector<aspect> result;
-  
+
   for(auto asp : aspects) {
     if(this->has(asp)){
       result.push_back(asp);

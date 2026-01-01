@@ -1,5 +1,5 @@
 
-set(LLVM_TO_BACKEND_INCLUDE_DIRS 
+set(LLVM_TO_BACKEND_INCLUDE_DIRS
   ../../../include
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${ACPP_BINARY_ROOT}/include)
@@ -52,7 +52,7 @@ function(create_llvm_based_library)
   endif()
   # We need symbolic functions for stdpar
   target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
-  
+
   if(NOT LLVM_ENABLE_EH)
     target_compile_options(${target} PRIVATE -fno-exceptions)
   endif()
@@ -63,9 +63,9 @@ function(create_llvm_based_library)
   if(ACPP_LLVM_COMPONENT)
     add_dependencies(${target} intrinsics_gen)
   endif()
-  
+
   set(install_subdir hipSYCL/llvm-to-backend)
-  install(TARGETS ${target} 
+  install(TARGETS ${target}
     RUNTIME DESTINATION bin/${install_subdir}
     LIBRARY DESTINATION lib/${install_subdir}
     ARCHIVE DESTINATION lib/${install_subdir})
@@ -105,7 +105,7 @@ function(create_llvm_to_backend_tool)
 
   set(target ${CREATE_LLVM_TOOL_TARGET})
   set(sources ${CREATE_LLVM_TOOL_SOURCES})
- 
+
   add_executable(${target}-tool ${sources})
 
   target_include_directories(${target}-tool PRIVATE
@@ -153,8 +153,8 @@ if(WITH_SSCP_COMPILER)
   create_llvm_based_library(
     ${MODE}
     TARGET llvm-to-backend
-    SOURCES 
-      LLVMToBackend.cpp 
+    SOURCES
+      LLVMToBackend.cpp
       AddressSpaceInferencePass.cpp
       KnownGroupSizeOptPass.cpp
       KnownPtrParamAlignmentOptPass.cpp
@@ -167,7 +167,7 @@ if(WITH_SSCP_COMPILER)
       )
 
   target_compile_definitions(llvm-to-backend PRIVATE
-    -DACPP_CLANG_PATH="${CLANG_INSTALLED_PATH}" 
+    -DACPP_CLANG_PATH="${CLANG_INSTALLED_PATH}"
   )
   target_link_libraries(llvm-to-backend PUBLIC
     acpp-common
@@ -175,8 +175,8 @@ if(WITH_SSCP_COMPILER)
 
   if(WITH_LLVM_TO_SPIRV)
     add_hipsycl_llvm_backend(
-      BACKEND spirv 
-      LIBRARY spirv/LLVMToSpirv.cpp 
+      BACKEND spirv
+      LIBRARY spirv/LLVMToSpirv.cpp
       TOOL spirv/LLVMToSpirvTool.cpp)
 
     # Install LLVM-SPIRV translator for llvm-to-spirv
@@ -218,14 +218,14 @@ if(WITH_SSCP_COMPILER)
     add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
     target_compile_definitions(llvm-to-spirv PRIVATE
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
-    
-    
+
+
   endif()
 
   if(WITH_LLVM_TO_PTX)
     add_hipsycl_llvm_backend(
-      BACKEND ptx 
-      LIBRARY ptx/LLVMToPtx.cpp 
+      BACKEND ptx
+      LIBRARY ptx/LLVMToPtx.cpp
       TOOL ptx/LLVMToPtxTool.cpp)
 
     target_compile_definitions(llvm-to-ptx PRIVATE
@@ -235,14 +235,14 @@ if(WITH_SSCP_COMPILER)
 
   if(WITH_LLVM_TO_AMDGPU_AMDHSA)
     add_hipsycl_llvm_backend(
-      BACKEND amdgpu 
-      LIBRARY amdgpu/LLVMToAmdgpu.cpp 
+      BACKEND amdgpu
+      LIBRARY amdgpu/LLVMToAmdgpu.cpp
       TOOL amdgpu/LLVMToAmdgpuTool.cpp)
 
     target_compile_definitions(llvm-to-amdgpu PRIVATE
       -DACPP_ROCM_PATH="${ROCM_PATH}"
       -DACPP_ROCM_DEVICE_LIBS_PATH="${ROCM_DEVICE_LIBS_PATH}")
-    
+
     find_program(HIPCC_PATH hipcc HINTS ${ROCM_PATH}/bin)
     if(HIPCC_PATH)
       target_compile_definitions(llvm-to-amdgpu PRIVATE
@@ -250,7 +250,7 @@ if(WITH_SSCP_COMPILER)
     endif()
 
     find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)
-   
+
     if(HIPRTC_LIBRARY)
       message(STATUS "Found hipRTC: ${HIPRTC_LIBRARY}")
 
@@ -296,6 +296,18 @@ if(WITH_SSCP_COMPILER)
       -DACPP_LLC_ADDITIONAL_FLAGS="${HOST_ADDITIONAL_LLC_FLAGS}"
       -DACPP_OPT_ADDITIONAL_FLAGS="${HOST_ADDITIONAL_OPT_FLAGS}")
     target_link_libraries(llvm-to-host PRIVATE acpp-clang-cbs)
+  endif()
+
+  if(WITH_LLVM_TO_METAL)
+    add_hipsycl_llvm_backend(
+      BACKEND metal
+      LIBRARY
+        metal/LLVMToMetal.cpp
+        metal/HLExtractionPass.cpp
+        metal/HLTree.cpp
+        metal/Emitter.cpp
+        metal/ExternalFunction.cpp
+      TOOL metal/LLVMToMetalTool.cpp)
   endif()
 
 endif()

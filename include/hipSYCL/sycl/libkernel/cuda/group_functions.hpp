@@ -79,7 +79,7 @@ template <typename T, typename BinaryOperation>
 __device__ T __acpp_reduce_over_group(sub_group g, T x,
                                          BinaryOperation binary_op) {
   const size_t       lid        = g.get_local_linear_id();
-  const size_t       lrange     = g.get_local_linear_range();
+  const size_t       lrange     = __acpp_warp_size;
   const unsigned int activemask = __ballot_sync(0xffffffff, 1);
 
   auto local_x = x;

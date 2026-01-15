@@ -104,6 +104,100 @@ std::string getOptPath() {
   return path;
 }
 
+std::string getLibSleefDir() {
+  static std::string path;
+  if (!path.empty())
+    return path;
+
+  const auto lib_path = common::filesystem::get_lib_directory();
+
+#ifdef SLEEF_AVAILABLE
+  std::string lib_sleef_redistributable_path =
+      common::filesystem::join_path(lib_path, LIB_SLEEF_NAME);
+  std::string lib_sleef_path = common::filesystem::join_path(LIB_SLEEF_DIR, LIB_SLEEF_NAME);
+
+  if (common::filesystem::exists(lib_sleef_redistributable_path)) {
+    path = lib_path;
+  } else if (common::filesystem::exists(lib_sleef_path)) {
+    path = replacePathPlaceholders(LIB_SLEEF_DIR);
+  }
+#endif
+
+  return path;
+}
+
+std::string getLibAmathDir() {
+  static std::string path;
+  if (!path.empty())
+    return path;
+
+  const auto lib_path = common::filesystem::get_lib_directory();
+
+#ifdef AMATH_AVAILABLE
+  std::string lib_amath_redistributable_path =
+      common::filesystem::join_path(lib_path, LIB_AMATH_NAME);
+  std::string lib_amath_path = common::filesystem::join_path(LIB_AMATH_DIR, LIB_AMATH_NAME);
+
+  if (common::filesystem::exists(lib_amath_redistributable_path)) {
+    path = lib_path;
+  } else if (common::filesystem::exists(lib_amath_path)) {
+    path = replacePathPlaceholders(LIB_AMATH_DIR);
+  }
+#endif
+
+  return path;
+}
+
+std::string getLibSvmlDir() {
+  static std::string path;
+  if (!path.empty())
+    return path;
+
+  const auto lib_path = common::filesystem::get_lib_directory();
+
+#ifdef SVML_AVAILABLE
+  std::string lib_svml_redistributable_path =
+      common::filesystem::join_path(lib_path, LIB_SVML_NAME);
+  std::string lib_svml_path = common::filesystem::join_path(LIB_SVML_DIR, LIB_SVML_NAME);
+
+  std::string lib_intlc_redistributable_path =
+      common::filesystem::join_path(lib_path, LIB_INTLC_NAME);
+  std::string lib_intlc_path = common::filesystem::join_path(LIB_SVML_DIR, LIB_INTLC_NAME);
+
+  if (common::filesystem::exists(lib_svml_redistributable_path) &&
+      common::filesystem::exists(lib_intlc_redistributable_path)) {
+    path = lib_path;
+  } else if (common::filesystem::exists(lib_svml_path) &&
+             common::filesystem::exists(lib_intlc_path)) {
+    path = replacePathPlaceholders(LIB_SVML_DIR);
+  }
+#endif
+
+  return path;
+}
+
+std::string getLibMvecDir() {
+  static std::string path;
+  if (!path.empty())
+    return path;
+
+  const auto lib_path = common::filesystem::get_lib_directory();
+
+#ifdef LIBMVEC_AVAILABLE
+  std::string lib_mvec_redistributable_path =
+      common::filesystem::join_path(lib_path, LIB_MVEC_NAME);
+  std::string lib_mvec_path = common::filesystem::join_path(LIB_MVEC_DIR, LIB_MVEC_NAME);
+
+  if (common::filesystem::exists(lib_mvec_redistributable_path)) {
+    path = lib_path;
+  } else if (common::filesystem::exists(lib_mvec_path)) {
+    path = replacePathPlaceholders(LIB_MVEC_DIR);
+  }
+#endif
+
+  return path;
+}
+
 std::string getBitcodePath() {
 #ifndef _WIN32
   return common::filesystem::join_path(common::filesystem::get_lib_directory(),

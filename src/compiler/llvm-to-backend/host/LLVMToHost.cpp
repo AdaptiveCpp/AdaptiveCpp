@@ -339,6 +339,118 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     LlcOutputFileName,
                                                     };
 #endif
+
+  std::string mathVecLib =
+      getEnvironmentVariableOrDefault<std::string>("MATH_VECTOR_LIBRARY", DEFAULT_MATH_VEC_LIB);
+  std::transform(mathVecLib.begin(), mathVecLib.end(), mathVecLib.begin(), ::toupper);
+
+  std::string sleefDir;
+  std::string amathDir;
+  std::string svmlDir;
+  std::string mvecDir;
+
+  if (mathVecLib.empty() || mathVecLib == "0" || mathVecLib == "NO") {
+    HIPSYCL_DEBUG_INFO << "LLVMToHost: MATH_VECTOR_LIBRARY is set to " << mathVecLib
+                       << ". Compiling kernel without math vector library" << "\n";
+
+  } else {
+
+    if (mathVecLib == "SLEEF") {
+#ifdef SLEEF_AVAILABLE
+      sleefDir = getLibSleefDir();
+      if (!sleefDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(sleefDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(sleefDir);
+        LldInvocation.push_back("-lsleefgnuabi");
+        OptInvocation.push_back("-vector-library=sleefgnuabi");
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using SLEEF found at " << sleefDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToHost: Could not find libsleef. Kernel will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting SLEEF but AdaptiveCpp was compiled without "
+                               "its support. Kernel will be compiled without it.\n";
+#endif
+
+    } else if (mathVecLib == "ARMPL") {
+#ifdef ARMPL_AVAILABLE
+      amathDir = getLibAmathDir();
+      if (!amathDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(amathDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(amathDir);
+        LldInvocation.push_back("-lamath");
+        OptInvocation.push_back("-vector-library=ArmPL");
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using ARMPL found at " << amathDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToHost: Could not find libamath. Kernel will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting ARMPL but AdaptiveCpp was compiled without "
+                               "its support. Kernel will be compiled without it.\n";
+#endif
+
+    } else if (mathVecLib == "SVML") {
+#ifdef SVML_AVAILABLE
+      svmlDir = getLibSvmlDir();
+      if (!svmlDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(svmlDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(svmlDir);
+        LldInvocation.push_back("-lsvml");
+        LldInvocation.push_back("-lintlc");
+        OptInvocation.push_back("-vector-library=SVML");
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using SVML found at " << svmlDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING << "LLVMToHost: Could not find libsvml and libintlc library. Kernel "
+                                 "will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting SVML but AdaptiveCpp was compiled without "
+                               "its support. Kernel will be compiled without it.\n";
+#endif
+
+    } else if (mathVecLib == "LIBMVEC") {
+#ifdef LIBMVEC_AVAILABLE
+      mvecDir = getLibMvecDir();
+      if (!mvecDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(mvecDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(mvecDir);
+        LldInvocation.push_back("-lmvec");
+#if LLVM_VERSION_MAJOR > 20
+        OptInvocation.push_back("-vector-library=LIBMVEC");
+#else
+        OptInvocation.push_back("-vector-library=LIBMVEC-X86");
+#endif
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using LIBMVEC found at " << mvecDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToHost: Could not find libmvec. Kernel will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting LIBMVEC but AdaptiveCpp was compiled "
+                               "without its support. Kernel will be compiled without it.\n";
+#endif
+
+    } else {
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Invalid value for ACPP_S2_MATH_VECTOR_LIBRARY: "
+                            << mathVecLib << "\n"
+                            << "Valid options are: NO, LIBMVEC, SLEEF, ARMPL, SVML." << "\n";
+    }
+  }
+
   const llvm::StringRef AdditionalLlcFlags = ACPP_LLC_ADDITIONAL_FLAGS;
   const llvm::StringRef AdditionalOptFlags = ACPP_OPT_ADDITIONAL_FLAGS;
   AdditionalLlcFlags.split(LlcInvocation, ' ', -1, false);
@@ -383,6 +495,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     return false;
   }
 
+  HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
   R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, NULLOPT, Redirects);
 
   if (R != 0) {

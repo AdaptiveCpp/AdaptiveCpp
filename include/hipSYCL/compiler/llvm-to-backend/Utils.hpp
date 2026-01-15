@@ -12,6 +12,8 @@
 #define HIPSYCL_LLVM_TO_BACKEND_UTILS_HPP
 
 #include <atomic>
+#include <optional>
+#include <sstream>
 
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/common/debug.hpp"
@@ -344,10 +346,40 @@ private:
   llvm::SmallDenseMap<llvm::Type*, llvm::Type*> PointerWrapperTypes;
 };
 
+template<class T>
+std::optional<T> getEnvironmentVariable(const std::string& Name) {
+  std::string EnvName = Name;
+  std::transform(EnvName.begin(), EnvName.end(), EnvName.begin(), ::toupper);
+
+  if(const char* EnvVal = std::getenv(("ACPP_S2_"+EnvName).c_str())) {
+    T val;
+    std::stringstream sstr{std::string{EnvVal}};
+    sstr >> val;
+    if (!sstr.fail() && !sstr.bad()) {
+      return val;
+    }
+  }
+  return {};
+}
+
+template<class T>
+T getEnvironmentVariableOrDefault(const std::string& Name,
+                                      const T& Default) {
+  std::optional<T> v = getEnvironmentVariable<T>(Name);
+  if(v.has_value()) {
+    return v.value();
+  }
+  return Default;
+}
+
 std::string getClangPath();
 std::string getLLCPath();
 std::string getLLDPath();
 std::string getOptPath();
+std::string getLibSvmlDir();
+std::string getLibSleefDir();
+std::string getLibArmplDir();
+std::string getLibMvecDir();
 std::string getBitcodePath();
 std::string getRedistPackageBitcodePath(const std::string& backend);
 

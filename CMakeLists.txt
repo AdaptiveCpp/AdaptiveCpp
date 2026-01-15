@@ -748,7 +748,12 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${NUMA_LIBRARY}\" : \"/\",
   \"${LLVM_LIBRARY}\" : \"/\",
   \"${OpenMP_omp_LIBRARY}\" : \"/\",
-  \"${OpenMP_gomp_LIBRARY}\" : \"/\"
+  \"${OpenMP_gomp_LIBRARY}\" : \"/\",
+  \"${LIBSLEEF}\" : \"/\",
+  \"${LIBMVEC}\" : \"/\",
+  \"${LIBAMATH}\" : \"/\",
+  \"${LIBSVML}\" : \"/\",
+  \"${LIBINTLC}\" : \"/\"
 }
 ")
 

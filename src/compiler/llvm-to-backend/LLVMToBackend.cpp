@@ -55,32 +55,6 @@ namespace compiler {
 
 namespace {
 
-template<class T>
-std::optional<T> getEnvironmentVariable(const std::string& Name) {
-  std::string EnvName = Name;
-  std::transform(EnvName.begin(), EnvName.end(), EnvName.begin(), ::toupper);
-
-  if(const char* EnvVal = std::getenv(("ACPP_S2_"+EnvName).c_str())) {
-    T val;
-    std::stringstream sstr{std::string{EnvVal}};
-    sstr >> val;
-    if (!sstr.fail() && !sstr.bad()) {
-      return val;
-    }
-  }
-  return {};
-}
-
-template<class T>
-T getEnvironmentVariableOrDefault(const std::string& Name,
-                                      const T& Default) {
-  std::optional<T> v = getEnvironmentVariable<T>(Name);
-  if(v.has_value()) {
-    return v.value();
-  }
-  return Default;
-}
-
 void printModuleToFile(llvm::Module& M, const std::string& File,
                       const std::string& Header){
 

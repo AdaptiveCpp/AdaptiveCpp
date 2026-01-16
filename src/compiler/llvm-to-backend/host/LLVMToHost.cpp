@@ -341,7 +341,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 #endif
 
   std::string mathVecLib =
-      getEnvironmentVariableOrDefault<std::string>("MATH_VECTOR_LIBRARY", DEFAULT_MATH_VEC_LIB);
+      getEnvironmentVariableOrDefault<std::string>("VECTOR_MATH_LIBRARY", DEFAULT_VEC_MATH_LIB);
   std::transform(mathVecLib.begin(), mathVecLib.end(), mathVecLib.begin(), ::toupper);
 
   std::string sleefDir;
@@ -349,9 +349,9 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   std::string svmlDir;
   std::string mvecDir;
 
-  if (mathVecLib.empty() || mathVecLib == "0" || mathVecLib == "NO") {
-    HIPSYCL_DEBUG_INFO << "LLVMToHost: MATH_VECTOR_LIBRARY is set to " << mathVecLib
-                       << ". Compiling kernel without math vector library" << "\n";
+  if (mathVecLib.empty() || mathVecLib == "NONE") {
+    HIPSYCL_DEBUG_INFO << "LLVMToHost: ACPP_S2_VECTOR_MATH_LIBRARY is set to " << mathVecLib
+                       << ". Compiling kernel without vector math library" << "\n";
 
   } else {
 
@@ -445,9 +445,9 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 #endif
 
     } else {
-      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Invalid value for ACPP_S2_MATH_VECTOR_LIBRARY: "
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Invalid value for ACPP_S2_VECTOR_MATH_LIBRARY: "
                             << mathVecLib << "\n"
-                            << "Valid options are: NO, LIBMVEC, SLEEF, ARMPL, SVML." << "\n";
+                            << "Valid options are: NONE, LIBMVEC, SLEEF, ARMPL, SVML." << "\n";
     }
   }
 

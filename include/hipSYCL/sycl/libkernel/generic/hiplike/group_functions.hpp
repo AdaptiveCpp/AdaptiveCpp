@@ -218,9 +218,9 @@ __device__ T __acpp_shift_group_right(
   scratch[lid] = x;
   __acpp_group_barrier(g);
 
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   return scratch[target_lid];
 }
@@ -473,9 +473,9 @@ __device__ T __acpp_permute_group_by_xor(
   scratch[lid] = x;
   __acpp_group_barrier(g);
 
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   return scratch[target_lid];
 }
@@ -502,9 +502,9 @@ __device__ T __acpp_select_from_group(
   scratch[lid] = x;
   __acpp_group_barrier(g);
 
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   return scratch[target_lid];
 }

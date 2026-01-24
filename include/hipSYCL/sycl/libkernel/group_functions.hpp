@@ -277,7 +277,7 @@ template <typename Group, typename InPtr, typename OutPtr, typename T,
 HIPSYCL_BUILTIN OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                                                    T init, BinaryOperation binary_op) {
   static_assert(std::is_same_v<decltype(binary_op(init, *first)), T>);
-  static constexpr auto identity = known_identity_v<BinaryOperation, T>;
+  constexpr auto identity = known_identity_v<BinaryOperation, T>;
 
   size_t num_elements = last - first;
   T carry_over = init;
@@ -319,7 +319,7 @@ HIPSYCL_BUILTIN OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, Ou
   using value_type = typename std::iterator_traits<OutPtr>::value_type;
   static_assert(std::is_same_v<decltype(binary_op(*first, *first)), value_type>);
   
-  static constexpr auto identity = known_identity_v<BinaryOperation, value_type>;
+  constexpr auto identity = known_identity_v<BinaryOperation, value_type>;
   return joint_exclusive_scan(g, first, last, result, identity, binary_op);
 }
 
@@ -330,7 +330,7 @@ template <typename Group, typename InPtr, typename OutPtr, typename T,
 HIPSYCL_BUILTIN OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                                                    BinaryOperation binary_op, T init) {
   static_assert(std::is_same_v<decltype(binary_op(init, *first)), T>);
-  static constexpr auto identity = known_identity_v<BinaryOperation, T>;
+  constexpr auto identity = known_identity_v<BinaryOperation, T>;
 
   size_t num_elements = last - first;
   T carry_over = init;
@@ -371,7 +371,7 @@ HIPSYCL_BUILTIN OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, Ou
   using value_type = typename std::iterator_traits<OutPtr>::value_type;
   static_assert(std::is_same_v<decltype(binary_op(*first, *first)), value_type>);
   
-  static constexpr auto identity = known_identity_v<BinaryOperation, value_type>;
+  constexpr auto identity = known_identity_v<BinaryOperation, value_type>;
   return joint_inclusive_scan(g, first, last, result, binary_op, identity);
 }
 

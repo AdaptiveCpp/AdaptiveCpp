@@ -425,6 +425,8 @@ HIPSYCL_SSCP_MAP_GROUP_BINARY_OPERATION(sycl::logical_and,
 HIPSYCL_SSCP_MAP_GROUP_BINARY_OPERATION(sycl::logical_or,
                                         __acpp_sscp_algorithm_op::logical_or)
 
+// This assumes that sycl::plus, sycl::multiplies, and so on
+// are aliases to their std equivalents.
 HIPSYCL_SSCP_MAP_GROUP_BINARY_OPERATION(std::plus,
                                         __acpp_sscp_algorithm_op::plus)
 HIPSYCL_SSCP_MAP_GROUP_BINARY_OPERATION(std::multiplies,

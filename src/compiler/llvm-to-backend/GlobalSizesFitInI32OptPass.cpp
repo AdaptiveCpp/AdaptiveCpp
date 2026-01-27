@@ -40,7 +40,7 @@ bool insertRangeAssumptionForBuiltinCalls(llvm::Module &M, llvm::StringRef Built
 
     for(auto* U : F->users()) {
       if(auto* C = llvm::dyn_cast<llvm::CallInst>(U)) {
-        auto NextInst = llvmutils::makeInsertionPoint(C->getNextNonDebugInstruction());
+        auto NextInst = llvmutils::makeInsertionPoint(llvmutils::getNextNonDebugInstruction(C));
 
         auto *GreaterEqualMin = llvm::ICmpInst::Create(
             llvm::Instruction::OtherOps::ICmp, llvm::ICmpInst::Predicate::ICMP_SGE, C,
@@ -58,8 +58,8 @@ bool insertRangeAssumptionForBuiltinCalls(llvm::Module &M, llvm::StringRef Built
             "", NextInst);
         
 
-        llvm::SmallVector<llvm::Value*> CallArgGreaterEqualMin{GreaterEqualMin};
-        llvm::SmallVector<llvm::Value*> CallArgLesserThanMax{LesserThanMax};
+        llvm::SmallVector<llvm::Value*> CallArgGreaterEqualMin(1, GreaterEqualMin);
+        llvm::SmallVector<llvm::Value*> CallArgLesserThanMax(1, LesserThanMax);
         llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgGreaterEqualMin,
                                             "", NextInst);
         llvm::CallInst::Create(llvm::FunctionCallee(AssumeIntrinsic), CallArgLesserThanMax,

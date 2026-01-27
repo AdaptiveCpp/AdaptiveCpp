@@ -31,7 +31,7 @@ inline void sscp_barrier(access::fence_space space) {
     __acpp_sscp_work_group_barrier(memory_scope::work_group,
                                       memory_order::seq_cst);
   } else {
-    __acpp_sscp_work_group_barrier(memory_scope::device,
+    __acpp_sscp_work_group_barrier(memory_scope::work_group,
                                       memory_order::seq_cst);
   }
 }

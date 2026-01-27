@@ -80,7 +80,7 @@ __device__ T __acpp_reduce_over_group(sub_group g, T x,
 
   auto lid = g.get_local_linear_id();
 
-  size_t lrange = g.get_local_range().size();
+  size_t lrange = __acpp_warp_size;
 
   __acpp_group_barrier(g);
 

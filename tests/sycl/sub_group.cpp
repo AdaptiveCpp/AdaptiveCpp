@@ -15,7 +15,39 @@
 
 BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
 
+BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
+  namespace s = sycl;
+  s::queue q;
 
+  const auto dev = q.get_device();
+  const auto sg_sizes = dev.get_info<s::info::device::sub_group_sizes>();
+  BOOST_TEST_REQUIRE(!sg_sizes.empty());
+
+  const size_t WG = 97; // Is not divisible by 2^n
+
+  auto* res = s::malloc_shared<size_t>(WG, q);
+  q.parallel_for(s::nd_range<1>(WG, WG), [=](s::nd_item<1> it) {
+      res[it.get_local_linear_id()] = it.get_sub_group().get_local_linear_range();
+  }).wait();
+
+  size_t SG = 0;
+  for (size_t i = 0; i < WG; ++i) SG = std::max(SG, res[i]);
+
+  size_t remain = WG % SG;
+  size_t cntSG = 0, cntR = 0, cntOther = 0;
+
+  for (size_t i = 0; i < WG; ++i) {
+    if (res[i] == SG) ++cntSG;
+    else if(res[i] == remain) ++cntR;
+    else ++cntOther;
+  }
+
+  BOOST_TEST(cntOther == 0);
+  BOOST_TEST(cntSG == WG - remain);
+  BOOST_CHECK_EQUAL(cntR, remain);
+
+  s::free(res, q);
+}
 
 BOOST_AUTO_TEST_CASE(sub_group) {
   namespace s = sycl;

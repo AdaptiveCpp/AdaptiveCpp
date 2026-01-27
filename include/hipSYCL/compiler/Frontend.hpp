@@ -150,7 +150,11 @@ inline std::string buildKernelName(clang::RecordDecl* D, clang::MangleContext *M
   assert(D);
   assert(Mangler);
   auto DeclName = buildKernelNameFromRecordType(
+#if LLVM_VERSION_MAJOR < 22
       Mangler->getASTContext().getTypeDeclType(D), Mangler);
+#else
+      Mangler->getASTContext().getCanonicalTagType(D), Mangler);
+#endif
   return "__acpp_kernel_" + DeclName;
 }
 

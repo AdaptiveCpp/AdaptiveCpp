@@ -52,6 +52,13 @@ function(create_llvm_based_library)
   endif()
   # We need symbolic functions for stdpar
   target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
+  
+  if(NOT LLVM_ENABLE_EH)
+    target_compile_options(${target} PRIVATE -fno-exceptions)
+  endif()
+  if(NOT LLVM_ENABLE_RTTI)
+    target_compile_options(${target} PRIVATE -fno-rtti)
+  endif()
 
   if(ACPP_LLVM_COMPONENT)
     add_dependencies(${target} intrinsics_gen)

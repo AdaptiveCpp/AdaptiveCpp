@@ -35,10 +35,8 @@ BOOST_AUTO_TEST_CASE(queue_wait) {
 }
 
 BOOST_AUTO_TEST_CASE(queue_memcpy_host_to_host) {
-  try {
-    sycl::queue q{sycl::aspect_selector(std::vector{sycl::aspect::usm_host_allocations}),
-                  sycl::property::queue::in_order{}};
-
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().has(sycl::aspect::usm_host_allocations)) {
     auto source = sycl::malloc_host(sizeof(int), q);
     auto dest = malloc(sizeof(int));
 
@@ -46,8 +44,6 @@ BOOST_AUTO_TEST_CASE(queue_memcpy_host_to_host) {
 
     sycl::free(source, q);
     free(dest);
-  } catch (sycl::exception e) {
-    BOOST_CHECK(true); // Skip the test if host USM not available
   }
 }
 

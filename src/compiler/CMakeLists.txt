@@ -71,7 +71,8 @@ endif()
 
 #MATH VECTOR LIBRARY
 if( APPLE OR WIN32)
-    message( WARNING "Usage of vector math library for JIT compilation is not supported on windows and Apple")
+  message( WARNING "Usage of vector math library for JIT compilation is not supported on windows and Apple")
+  set(DEFAULT_VEC_MATH_LIB "NONE" CACHE INTERNAL "")
 else()
 
   #LIBMVEC
@@ -201,10 +202,10 @@ else()
 endif()
 
 if(DEFAULT_VEC_MATH_LIB)
-  add_definitions(-DDEFAULT_VEC_MATH_LIB="${DEFAULT_VEC_MATH_LIB}")
+  set(DEFAULT_VEC_MATH_LIB "${DEFAULT_VEC_MATH_LIB}" CACHE INTERNAL "")
   message(STATUS "Will Use ${DEFAULT_VEC_MATH_LIB} as default vector math library")
 else()
-  add_definitions(-DDEFAULT_VEC_MATH_LIB="NONE")
+  set(DEFAULT_VEC_MATH_LIB "NONE" CACHE INTERNAL "")
   message(STATUS "Will not use any vector math library for JIT compilation")
 endif()
 

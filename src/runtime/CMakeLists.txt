@@ -364,6 +364,8 @@ if(WITH_CPU_BACKEND)
     target_include_directories(rt-backend-omp PRIVATE ${NUMA_INCLUDE_DIR})
   endif()
 
+  target_compile_definitions(rt-backend-omp PRIVATE -DDEFAULT_VEC_MATH_LIB="${DEFAULT_VEC_MATH_LIB}")
+
   target_include_directories(rt-backend-omp PRIVATE
     ${HIPSYCL_SOURCE_DIR}/include 
     ${ACPP_BINARY_ROOT}/include

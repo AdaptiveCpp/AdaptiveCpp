@@ -340,22 +340,18 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     };
 #endif
 
-  std::string mathVecLib =
-      getEnvironmentVariableOrDefault<std::string>("VECTOR_MATH_LIBRARY", DEFAULT_VEC_MATH_LIB);
-  std::transform(mathVecLib.begin(), mathVecLib.end(), mathVecLib.begin(), ::toupper);
-
   std::string sleefDir;
   std::string amathDir;
   std::string svmlDir;
   std::string mvecDir;
 
-  if (mathVecLib.empty() || mathVecLib == "NONE") {
-    HIPSYCL_DEBUG_INFO << "LLVMToHost: ACPP_S2_VECTOR_MATH_LIBRARY is set to " << mathVecLib
-                       << ". Compiling kernel without vector math library" << "\n";
+  if (VectorMathLibary.empty() || VectorMathLibary == "NONE") {
+    HIPSYCL_DEBUG_INFO << "LLVMToHost: ACPP_OMP_VECTOR_MATH_LIBRARY is set to \"" << VectorMathLibary
+                       << "\". Compiling kernel without vector math library" << "\n";
 
   } else {
 
-    if (mathVecLib == "SLEEF") {
+    if (VectorMathLibary == "SLEEF") {
 #ifdef SLEEF_AVAILABLE
       sleefDir = getLibSleefDir();
       if (!sleefDir.empty()) {
@@ -376,7 +372,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                "its support. Kernel will be compiled without it.\n";
 #endif
 
-    } else if (mathVecLib == "ARMPL") {
+    } else if (VectorMathLibary == "ARMPL") {
 #ifdef ARMPL_AVAILABLE
       amathDir = getLibAmathDir();
       if (!amathDir.empty()) {
@@ -397,7 +393,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                "its support. Kernel will be compiled without it.\n";
 #endif
 
-    } else if (mathVecLib == "SVML") {
+    } else if (VectorMathLibary == "SVML") {
 #ifdef SVML_AVAILABLE
       svmlDir = getLibSvmlDir();
       if (!svmlDir.empty()) {
@@ -419,7 +415,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                "its support. Kernel will be compiled without it.\n";
 #endif
 
-    } else if (mathVecLib == "LIBMVEC") {
+    } else if (VectorMathLibary == "LIBMVEC") {
 #ifdef LIBMVEC_AVAILABLE
       mvecDir = getLibMvecDir();
       if (!mvecDir.empty()) {
@@ -445,8 +441,8 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 #endif
 
     } else {
-      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Invalid value for ACPP_S2_VECTOR_MATH_LIBRARY: "
-                            << mathVecLib << "\n"
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Invalid value for ACPP_OMP_VECTOR_MATH_LIBRARY: "
+                            << VectorMathLibary << "\n"
                             << "Valid options are: NONE, LIBMVEC, SLEEF, ARMPL, SVML." << "\n";
     }
   }
@@ -516,6 +512,11 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 }
 
 bool LLVMToHostTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
+  if (Option == "host-vector-math-library") {
+    VectorMathLibary = Value;
+    std::transform(VectorMathLibary.begin(), VectorMathLibary.end(), VectorMathLibary.begin(), ::toupper);
+    return true;
+  }
   return false;
 }
 

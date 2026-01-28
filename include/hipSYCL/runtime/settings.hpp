@@ -71,7 +71,8 @@ enum class setting {
   jitopt_iads_relative_threshold,
   jitopt_iads_relative_eviction_threshold,
   jitopt_iads_relative_threshold_min_data,
-  enable_allocation_tracking
+  enable_allocation_tracking,
+  omp_vector_math_library
 };
 
 template <setting S> struct setting_trait {};
@@ -110,6 +111,7 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_threshold_min_data,
                               "jitopt_iads_relative_threshold_min_data",
                               std::size_t)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::enable_allocation_tracking, "allocation_tracking", bool)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::omp_vector_math_library, "omp_vector_math_library", std::string)
 
 class settings
 {
@@ -154,6 +156,8 @@ public:
       return _jitopt_iads_relative_eviction_threshold;
     } else if constexpr(S == setting::enable_allocation_tracking) {
       return _enable_allocation_tracking;
+    } else if constexpr(S == setting::omp_vector_math_library) {
+      return _omp_vector_math_library;
     }
     return typename setting_trait<S>::type{};
   }
@@ -207,6 +211,8 @@ public:
     _enable_allocation_tracking =
         get_configuration_or_default<setting::enable_allocation_tracking>(
             common::settings::get_default_enable_allocation_tracking());
+    _omp_vector_math_library =
+        get_configuration_or_default<setting::omp_vector_math_library>(std::string{});
   }
 
 private:
@@ -238,6 +244,7 @@ private:
   double _jitopt_iads_relative_eviction_threshold;
   std::size_t _jitopt_iads_relative_threshold_min_data;
   bool _enable_allocation_tracking;
+  std::string _omp_vector_math_library;
 };
 
 }

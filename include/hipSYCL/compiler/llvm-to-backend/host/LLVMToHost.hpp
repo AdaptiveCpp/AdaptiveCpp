@@ -36,6 +36,7 @@ protected:
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
 private:
   std::vector<std::string> KernelNames;
+  std::string VectorMathLibary;
 };
 
 }

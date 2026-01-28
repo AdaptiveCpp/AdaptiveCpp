@@ -40,6 +40,7 @@ jobs:
         cmake ../llvm/llvm -GNinja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/install  \
+              -DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)" \
               -DLLVM_TARGETS_TO_BUILD="AArch64" \
               -DLLVM_ENABLE_PROJECTS="clang;lld" \
               -DLLVM_ENABLE_RUNTIMES="compiler-rt" \

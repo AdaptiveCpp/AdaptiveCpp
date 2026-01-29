@@ -232,6 +232,7 @@ BOOST_AUTO_TEST_CASE(allocations_in_kernels) {
 }
 BOOST_AUTO_TEST_CASE(memcpy) {
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  sycl::queue ooo_q;
 
   std::size_t test_size = 4096;
   std::vector<int> initial_data(test_size);
@@ -348,6 +349,23 @@ BOOST_AUTO_TEST_CASE(memcpy) {
 
     sycl::free(shared_mem, q);
     sycl::free(shared_mem2, q);
+  }
+  // memcpy host->host, out-of-order queue
+  {
+    int *mem = sycl::malloc_host<int>(test_size, ooo_q);
+    int *mem2 = sycl::malloc_host<int>(test_size, ooo_q);
+
+    for (std::size_t i = 0; i < test_size; ++i)
+      mem[i] = initial_data[i];
+    
+    q.memcpy(mem2, mem, sizeof(int) * test_size);
+    q.wait();
+
+    for (std::size_t i = 0; i < test_size; ++i)
+      BOOST_TEST(mem2[i] == initial_data[i]);
+    
+    sycl::free(mem, ooo_q);
+    sycl::free(mem2, ooo_q);
   }
 }
 BOOST_AUTO_TEST_CASE(usm_fill) {

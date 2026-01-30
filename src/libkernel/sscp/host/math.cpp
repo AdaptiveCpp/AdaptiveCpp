@@ -195,9 +195,11 @@ HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(log1p)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(logb)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN3_NAME(mad,fmaf,fma)
 
-#if !defined(_WIN32) && !defined(__APPLE__) && defined(__GLIBC__) && __GLIBC_PREREQ(2, 25)
+#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(__GLIBC__) || __GLIBC_PREREQ(2, 25)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(maxmag,fmaxmagf,fmaxmag)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(minmag,fmaxmagf,fmaxmag)
+#endif
 #endif
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_modf_f32(float x, float* y ) {

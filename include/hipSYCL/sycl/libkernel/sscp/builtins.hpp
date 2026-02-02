@@ -454,7 +454,7 @@ HIPSYCL_BUILTIN T __acpp_clamp(T x, T minval, T maxval) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __acpp_degrees(T x) noexcept {
-  return (180.f / M_PI) * x;
+  return static_cast<T>(180.0 / M_PI) * x;
 }
 
 // __acpp_max() and __acpp_min() are handled by the overloads from the
@@ -467,7 +467,7 @@ HIPSYCL_BUILTIN T __acpp_mix(T x, T y, T a) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __acpp_radians(T x) noexcept {
-  return (M_PI / 180.f) * x;
+  return static_cast<T>(M_PI / 180.0) * x;
 }
 
 template<class T>

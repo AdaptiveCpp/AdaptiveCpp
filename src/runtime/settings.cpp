@@ -199,5 +199,27 @@ std::istream &operator>>(std::istream &istr, default_selector_behavior& out) {
   return istr;
 }
 
+std::istream &operator>>(std::istream &istr, jitopt_host_vector_math_library& out) {
+  std::string str;
+  istr >> str;
+
+  std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+
+  if (str == "NONE")
+    out = jitopt_host_vector_math_library::none;
+  else if (str == "SVML")
+    out = jitopt_host_vector_math_library::svml;
+  else if (str == "ARMPL")
+    out = jitopt_host_vector_math_library::armpl;
+  else if (str == "SLEEF")
+    out = jitopt_host_vector_math_library::sleef;
+  else if (str == "LIBMVEC")
+    out = jitopt_host_vector_math_library::libmvec;
+  else
+    out = jitopt_host_vector_math_library::invalid;
+
+  return istr;
+}
+
 }
 }

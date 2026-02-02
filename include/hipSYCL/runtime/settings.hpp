@@ -24,6 +24,15 @@ namespace rt {
 
 enum class scheduler_type { direct, unbound };
 enum class default_selector_behavior { strict, multigpu, system };
+enum class jitopt_host_vector_math_library {
+  empty = 0,
+  invalid = 1,
+  none = 2,
+  sleef = 3,
+  svml = 4,
+  armpl = 5,
+  libmvec = 6
+};
 
 struct device_visibility_condition{
   int device_index_equality = -1;
@@ -50,7 +59,7 @@ bool has_device_visibility_mask(const visibility_mask_t& mask, backend_id backen
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, visibility_mask_t &out);
 std::istream &operator>>(std::istream &istr, default_selector_behavior& out);
-
+std::istream &operator>>(std::istream &istr, jitopt_host_vector_math_library& out);
 
 enum class setting {
   debug_level,
@@ -72,7 +81,7 @@ enum class setting {
   jitopt_iads_relative_eviction_threshold,
   jitopt_iads_relative_threshold_min_data,
   enable_allocation_tracking,
-  omp_vector_math_library
+  jitopt_host_vector_math_library
 };
 
 template <setting S> struct setting_trait {};
@@ -111,7 +120,7 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_threshold_min_data,
                               "jitopt_iads_relative_threshold_min_data",
                               std::size_t)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::enable_allocation_tracking, "allocation_tracking", bool)
-HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::omp_vector_math_library, "omp_vector_math_library", std::string)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_host_vector_math_library, "jitopt_host_vector_math_library", jitopt_host_vector_math_library)
 
 class settings
 {
@@ -156,8 +165,8 @@ public:
       return _jitopt_iads_relative_eviction_threshold;
     } else if constexpr(S == setting::enable_allocation_tracking) {
       return _enable_allocation_tracking;
-    } else if constexpr(S == setting::omp_vector_math_library) {
-      return _omp_vector_math_library;
+    } else if constexpr(S == setting::jitopt_host_vector_math_library) {
+      return _jitopt_host_vector_math_library;
     }
     return typename setting_trait<S>::type{};
   }
@@ -211,8 +220,9 @@ public:
     _enable_allocation_tracking =
         get_configuration_or_default<setting::enable_allocation_tracking>(
             common::settings::get_default_enable_allocation_tracking());
-    _omp_vector_math_library =
-        get_configuration_or_default<setting::omp_vector_math_library>(std::string{});
+    _jitopt_host_vector_math_library =
+        get_configuration_or_default<setting::jitopt_host_vector_math_library>(
+            jitopt_host_vector_math_library::empty);
   }
 
 private:
@@ -244,7 +254,7 @@ private:
   double _jitopt_iads_relative_eviction_threshold;
   std::size_t _jitopt_iads_relative_threshold_min_data;
   bool _enable_allocation_tracking;
-  std::string _omp_vector_math_library;
+  jitopt_host_vector_math_library _jitopt_host_vector_math_library;
 };
 
 }

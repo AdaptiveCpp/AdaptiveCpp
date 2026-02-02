@@ -469,12 +469,11 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   for(const auto& opt : kernel_info->get_compilation_options())
     _config.set_build_option(opt.first, opt.second);
 
-  std::string omp_vector_math_library =
-      application::get_settings().get<setting::omp_vector_math_library>();
-  if(omp_vector_math_library.empty())
-    omp_vector_math_library = DEFAULT_VEC_MATH_LIB;
+  jitopt_host_vector_math_library host_veclib =
+      application::get_settings().get<setting::jitopt_host_vector_math_library>();
+
   _config.set_build_option(kernel_build_option::host_vector_math_library,
-      omp_vector_math_library);
+      static_cast<int>(host_veclib));
 
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(_config);

@@ -77,7 +77,7 @@ std::vector<ExternalFunctionInfo> generateSimpleMathFunctions() {
     "exp", "exp2", "exp10",
     "log", "log2", "log10",
     "sqrt", "rsqrt",
-    "floor", "ceil", "round", "trunc",
+    "floor", "ceil", "round", "trunc", "rint",
     "fabs", "ldexp",
     "ctz", "clz", "popcount",
     "copysign", "fma", "isnan", "isinf",

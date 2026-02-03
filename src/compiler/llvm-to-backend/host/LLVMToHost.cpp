@@ -70,6 +70,44 @@ std::string get_macos_version() {
   return std::string{buff};
 }
 
+std::string get_macos_sdk_path() {
+  auto xcrun = llvm::sys::findProgramByName("xcrun");
+  if(!xcrun) return {};
+
+  llvm::SmallVector<char, 64> tmpFile;
+  int fd = -1;
+  if(auto ec = llvm::sys::fs::createTemporaryFile("acpp-xcrun", "txt", fd, tmpFile))
+    return {};
+  llvm::StringRef tmpName(tmpFile.data());
+
+  // xcrun --show-sdk-path > tmp
+  llvm::SmallVector<std::optional<llvm::StringRef>, 3> redirects;
+  redirects.push_back(std::nullopt);      // stdin
+  redirects.push_back(tmpName);           // stdout -> file
+  redirects.push_back(std::nullopt);      // stderr
+
+  llvm::SmallVector<llvm::StringRef, 4> args{
+    *xcrun, "--show-sdk-path"
+  };
+
+  int rc = llvm::sys::ExecuteAndWait(*xcrun, args, std::nullopt, redirects);
+  if(rc != 0) {
+    llvm::sys::fs::remove(tmpName);
+    return {};
+  }
+
+  auto bufOrErr = llvm::MemoryBuffer::getFile(tmpName);
+  llvm::sys::fs::remove(tmpName);
+  if(!bufOrErr) return {};
+
+  std::string s = bufOrErr.get()->getBuffer().str();
+
+  // trim whitespace/newline
+  while(!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ' || s.back() == '\t'))
+    s.pop_back();
+  return s;
+}
+
 }
 
 #endif
@@ -110,7 +148,7 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
           ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
-      
+
 #ifdef _WIN32
       // Windows exceptions..
       F->setPersonalityFn(nullptr);
@@ -211,7 +249,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     llvm::raw_fd_ostream InputStream{InputFD, true};
 
     llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
-    
+
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while writing" << InputStream.error().message() << '\n'; }
     InputStream.flush();
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while flushing" << InputStream.error().message() << '\n'; }
@@ -259,7 +297,13 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
 
 #ifdef __APPLE__
-  std::string os_version = get_macos_version();
+  static std::string os_version = get_macos_version();
+  static std::string sdk_path   = get_macos_sdk_path();
+  if (sdk_path.empty()) {
+    this->registerError("LLVMToHost: Could not determine macOS SDK path or version: "
+                        "ensure that Xcode command line tools are installed (run xcode-select --install).");
+    return false;
+  }
   llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
                                                     "-dynamic",
                                                     "-dylib",
@@ -271,9 +315,11 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 #endif                                              // TODO Figure out platform version programmatically
                                                     "-platform_version","macos", os_version, os_version,
                                                     "-mllvm", "-enable-linkonceodr-outlining",
+                                                    "-syslibroot", sdk_path,
                                                     "-o",
                                                     OutputFileName,
                                                     LlcOutputFileName,
+                                                    "-lSystem", // needed to prevent error 'missing LC_LOAD_DYLIB (must link with at least libSystem.dylib'
                                                     };
 #elif defined(_WIN32)
   std::string LldOutputFlag = "/out:"+OutputFileName.str();

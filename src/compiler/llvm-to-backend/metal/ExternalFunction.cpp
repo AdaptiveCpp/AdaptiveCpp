@@ -154,6 +154,8 @@ std::vector<ExternalFunctionInfo> generateLLVMIntrinsics() {
     {"ctpop", "popcount", -1},
     {"umin", "min", 2},
     {"umax", "max", 2},
+    {"maxnum", "fmax", 2},
+    {"minnum", "fmin", 2},
     {"atan2", "atan2", 2},
     {"atan", "atan", 1},
     {"copysign", "copysign", 2},

@@ -29,11 +29,11 @@ namespace rt {
 class metal_allocator : public backend_allocator
 {
 public:
-  enum class UsmAllocType {
-    Shared = 0,
-    Private = 1,
-    Host = 2,
-    Undefined = 3
+  enum class usm_alloc_type {
+    shared = 0,
+    device = 1,
+    host = 2,
+    undefined = 3
   };
 
   metal_allocator(MTL::Device* device, const device_id &id);
@@ -61,17 +61,17 @@ public:
   virtual device_id get_device() const override;
 
   // Returns the Metal buffer and offset for a given USM pointer
-  std::tuple<MTL::Buffer*, size_t, UsmAllocType> get_usm_block(const void* ptr) const;
+  std::tuple<MTL::Buffer*, size_t, usm_alloc_type> get_usm_block(const void* ptr) const;
 private:
   MTL::Device* _device = nullptr;
   device_id _device_id;
 
-  struct UsmBlock {
+  struct usm_block {
     MTL::Buffer* buffer;
     size_t size;
-    UsmAllocType alloc_type;
+    usm_alloc_type alloc_type;
   };
-  std::map<void*, UsmBlock> _ptr_to_block;
+  std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
 };
 

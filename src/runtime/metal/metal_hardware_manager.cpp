@@ -491,11 +491,11 @@ std::string metal_hardware_context::get_driver_version() const {
     std::string version;
     version = NS::ProcessInfo::processInfo()->operatingSystemVersionString()->utf8String();
 
-    struct FeatureSetName {
+    struct feature_set_name {
         uint64_t value;
         const char* name;
     };
-    static const FeatureSetName known_features[] = {
+    static const feature_set_name known_features[] = {
         {0, "iOS_GPUFamily1_v1"},
         {1, "iOS_GPUFamily2_v1"},
         {2, "iOS_GPUFamily1_v2"},
@@ -587,11 +587,11 @@ std::string metal_hardware_context::get_driver_version() const {
     }
 
     // GPUFamily support
-    struct GPUFamilyName {
+    struct gpu_family_name {
         int64_t value;
         const char* name;
     };
-    static const GPUFamilyName known_families[] = {
+    static const gpu_family_name known_families[] = {
         {1001, "Apple1"}, {1002, "Apple2"}, {1003, "Apple3"}, {1004, "Apple4"}, {1005, "Apple5"},
         {1006, "Apple6"}, {1007, "Apple7"}, {1008, "Apple8"}, {1009, "Apple9"}, {1010, "Apple10"},
         {2001, "Mac1"}, {2002, "Mac2"},

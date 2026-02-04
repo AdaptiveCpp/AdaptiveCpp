@@ -215,8 +215,10 @@ std::istream &operator>>(std::istream &istr, jitopt_host_vector_math_library& ou
     out = jitopt_host_vector_math_library::sleef;
   else if (str == "LIBMVEC")
     out = jitopt_host_vector_math_library::libmvec;
-  else
-    out = jitopt_host_vector_math_library::invalid;
+  else{
+    istr.setstate(std::ios_base::failbit);
+    std::cout << "'" << str << "' is not a valid vector math library option. Valid option are: none, svml, armpl, sleef, libmvec." << std::endl;
+  }
 
   return istr;
 }

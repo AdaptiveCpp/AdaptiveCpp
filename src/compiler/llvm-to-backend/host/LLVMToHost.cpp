@@ -445,24 +445,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 #endif
       break;
 
-    case host_vector_math_library::invalid:
-      [[fallthrough]];
     default:
-      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Invalid option for ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY. "
-                            << "Available options are: none"
-#ifdef LIBMVEC_AVAILABLE
-                            << ", libmvec"
-#endif
-#ifdef SVML_AVAILABLE
-                            << ", svml"
-#endif
-#ifdef SLEEF_AVAILABLE
-                            << ", sleef"
-#endif
-#ifdef ARMPL_AVAILABLE
-                            << ", armpl"
-#endif
-                            << ".\n";
       break;
 
   }

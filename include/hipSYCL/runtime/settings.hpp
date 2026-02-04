@@ -26,12 +26,11 @@ enum class scheduler_type { direct, unbound };
 enum class default_selector_behavior { strict, multigpu, system };
 enum class jitopt_host_vector_math_library {
   empty = 0,
-  invalid = 1,
-  none = 2,
-  sleef = 3,
-  svml = 4,
-  armpl = 5,
-  libmvec = 6
+  none = 1,
+  sleef = 2,
+  svml = 3,
+  armpl = 4,
+  libmvec = 5
 };
 
 struct device_visibility_condition{

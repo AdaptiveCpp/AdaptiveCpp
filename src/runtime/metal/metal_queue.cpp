@@ -306,9 +306,8 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
 }
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_event() {
-    return std::make_shared<
-        queue_completion_event<std::shared_ptr<signal_channel>, metal_node_event>>(
-        this);
+    // TODO: Metal backend doesn't support coarse-grained events yet
+    return insert_event();
 }
 
 result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {

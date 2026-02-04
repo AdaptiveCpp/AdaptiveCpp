@@ -911,28 +911,6 @@ inline T __acpp_sscp_sub_group_permute(T value, uint32_t mask) {
       .exactMatch = false,
     },
     {
-      .name = "__acpp_sscp_sub_group_permute",
-      .code = R"__(
-template<typename T>
-inline T __acpp_sscp_sub_group_permute(T value, uint32_t mask) {
-  if constexpr(sizeof(T) <= 4) {
-    return simd_shuffle_xor(value, mask);
-  } else {
-    union {
-      T value;
-      uint32_t parts[sizeof(T) / 4];
-    } in, out;
-    in.value = value;
-    for (size_t i = 0; i < sizeof(T) / 4; ++i) {
-      out.parts[i] = simd_shuffle_xor(in.parts[i], mask);
-    }
-    return out.value;
-  }
-}
-)__",
-      .exactMatch = false,
-    },
-    {
       .name = "__acpp_sscp_sub_group_select",
       .code = R"__(
 template<typename T>

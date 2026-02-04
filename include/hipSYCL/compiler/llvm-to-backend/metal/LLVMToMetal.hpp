@@ -15,6 +15,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_set>
 
 namespace hipsycl {
 namespace compiler {
@@ -43,6 +44,7 @@ protected:
 
 private:
   std::vector<std::string> KernelNames;
+  std::unordered_set<std::string> ActualKernelNames;
 };
 
 } // namespace compiler

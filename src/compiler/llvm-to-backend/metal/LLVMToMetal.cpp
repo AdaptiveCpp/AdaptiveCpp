@@ -66,6 +66,7 @@ namespace compiler {
 LLVMToMetalTranslator::LLVMToMetalTranslator(const std::vector<std::string>& KernelNames)
   : LLVMToBackendTranslator{static_cast<int>(sycl::AdaptiveCpp_jit::compiler_backend::metal), KernelNames, KernelNames}
   , KernelNames(KernelNames)
+  , ActualKernelNames(KernelNames.begin(), KernelNames.end())
 { }
 
 LLVMToMetalTranslator::~LLVMToMetalTranslator() = default;
@@ -87,7 +88,7 @@ AddressSpaceMap LLVMToMetalTranslator::getAddressSpaceMap() const
 }
 
 bool LLVMToMetalTranslator::isKernelAfterFlavoring(llvm::Function& F) {
-  return true;
+  return ActualKernelNames.count(F.getName().str()) > 0;
 }
 
 bool LLVMToMetalTranslator::prepareBackendFlavor(llvm::Module& M) {
@@ -159,7 +160,8 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
 }
 
 void LLVMToMetalTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {
-
+  ActualKernelNames.erase(From->getName().str());
+  ActualKernelNames.insert(To->getName().str());
 }
 
 

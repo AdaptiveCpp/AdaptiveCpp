@@ -16,6 +16,7 @@
 
 #include <string>
 #include <fstream>
+#include <optional>
 
 namespace hipsycl {
 namespace rt {
@@ -199,21 +200,21 @@ std::istream &operator>>(std::istream &istr, default_selector_behavior& out) {
   return istr;
 }
 
-std::istream &operator>>(std::istream &istr, jitopt_host_vector_math_library& out) {
+std::istream &operator>>(std::istream &istr, std::optional<jitopt_host_vector_math_library>& out) {
   std::string str;
   istr >> str;
 
-  std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+  std::transform(str.begin(), str.end(), str.begin(), ::tolower);
 
-  if (str == "NONE")
+  if (str == "none")
     out = jitopt_host_vector_math_library::none;
-  else if (str == "SVML")
+  else if (str == "svml")
     out = jitopt_host_vector_math_library::svml;
-  else if (str == "ARMPL")
+  else if (str == "armpl")
     out = jitopt_host_vector_math_library::armpl;
-  else if (str == "SLEEF")
+  else if (str == "sleef")
     out = jitopt_host_vector_math_library::sleef;
-  else if (str == "LIBMVEC")
+  else if (str == "libmvec")
     out = jitopt_host_vector_math_library::libmvec;
   else{
     istr.setstate(std::ios_base::failbit);

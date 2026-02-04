@@ -19,18 +19,18 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
+#include <optional>
 namespace hipsycl {
 namespace rt {
 
 enum class scheduler_type { direct, unbound };
 enum class default_selector_behavior { strict, multigpu, system };
 enum class jitopt_host_vector_math_library {
-  empty = 0,
-  none = 1,
-  sleef = 2,
-  svml = 3,
-  armpl = 4,
-  libmvec = 5
+  none = 0,
+  sleef = 1,
+  svml = 2,
+  armpl = 3,
+  libmvec = 4
 };
 
 struct device_visibility_condition{
@@ -58,7 +58,7 @@ bool has_device_visibility_mask(const visibility_mask_t& mask, backend_id backen
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, visibility_mask_t &out);
 std::istream &operator>>(std::istream &istr, default_selector_behavior& out);
-std::istream &operator>>(std::istream &istr, jitopt_host_vector_math_library& out);
+std::istream &operator>>(std::istream &istr, std::optional<hipsycl::rt::jitopt_host_vector_math_library>& out);
 
 enum class setting {
   debug_level,
@@ -119,7 +119,9 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_iads_relative_threshold_min_data,
                               "jitopt_iads_relative_threshold_min_data",
                               std::size_t)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::enable_allocation_tracking, "allocation_tracking", bool)
-HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_host_vector_math_library, "jitopt_host_vector_math_library", jitopt_host_vector_math_library)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::jitopt_host_vector_math_library,
+                              "jitopt_host_vector_math_library",
+                              std::optional<jitopt_host_vector_math_library>)
 
 class settings
 {
@@ -221,7 +223,7 @@ public:
             common::settings::get_default_enable_allocation_tracking());
     _jitopt_host_vector_math_library =
         get_configuration_or_default<setting::jitopt_host_vector_math_library>(
-            jitopt_host_vector_math_library::empty);
+            std::optional<jitopt_host_vector_math_library>{});
   }
 
 private:
@@ -253,7 +255,7 @@ private:
   double _jitopt_iads_relative_eviction_threshold;
   std::size_t _jitopt_iads_relative_threshold_min_data;
   bool _enable_allocation_tracking;
-  jitopt_host_vector_math_library _jitopt_host_vector_math_library;
+  std::optional<jitopt_host_vector_math_library> _jitopt_host_vector_math_library;
 };
 
 }

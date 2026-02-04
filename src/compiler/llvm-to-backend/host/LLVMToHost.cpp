@@ -517,10 +517,6 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 bool LLVMToHostTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if (Option == "host-vector-math-library") {
     VectorMathLibary = static_cast<host_vector_math_library>(std::stoi(Value));
-
-    if(VectorMathLibary == host_vector_math_library::empty)
-      VectorMathLibary = host_vector_math_library::DEFAULT_VEC_MATH_LIB;
-
     return true;
   }
   return false;

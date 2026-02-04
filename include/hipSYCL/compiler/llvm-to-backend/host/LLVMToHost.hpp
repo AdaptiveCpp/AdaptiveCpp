@@ -21,12 +21,11 @@ namespace hipsycl {
 namespace compiler {
 
 enum class host_vector_math_library {
-  empty = 0,
-  none = 1,
-  sleef = 2,
-  svml = 3,
-  armpl = 4,
-  libmvec = 5
+  none = 0,
+  sleef = 1,
+  svml = 2,
+  armpl = 3,
+  libmvec = 4
 };
 
 class LLVMToHostTranslator : public LLVMToBackendTranslator{
@@ -45,7 +44,7 @@ protected:
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
 private:
   std::vector<std::string> KernelNames;
-  host_vector_math_library VectorMathLibary = host_vector_math_library::none;
+  host_vector_math_library VectorMathLibary = host_vector_math_library::DEFAULT_VEC_MATH_LIB;
 };
 
 }

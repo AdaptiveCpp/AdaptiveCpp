@@ -117,33 +117,21 @@ bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 }
 
 bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) {
-  llvm::PassBuilder PB;
-  llvm::LoopAnalysisManager LAM;
-  llvm::FunctionAnalysisManager FAM;
-  llvm::CGSCCAnalysisManager CGAM;
-  llvm::ModuleAnalysisManager MAM;
-
-  PB.registerModuleAnalyses(MAM);
-  PB.registerCGSCCAnalyses(CGAM);
-  PB.registerFunctionAnalyses(FAM);
-  PB.registerLoopAnalyses(LAM);
-  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
-  /* structureed passes */
-  llvm::FunctionPassManager FPM;
-
-  FPM.addPass(llvm::PromotePass());
-  FPM.addPass(llvm::LowerSwitchPass());
-  FPM.addPass(llvm::LoopSimplifyPass());
-  FPM.addPass(llvm::LCSSAPass());
-  FPM.addPass(llvm::DCEPass());
-  FPM.addPass(llvm::ADCEPass());
-  FPM.addPass(llvm::StructurizeCFGPass());
-  FPM.addPass(llvm::SimplifyCFGPass());
-  llvm::ModulePassManager MPM;
-  MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
-  MPM.run(FlavoredModule, MAM);
-  /* */
+  withPassBuilder([&](auto& PB, auto& LAM, auto& FAM, auto& CGAM, auto& MAM) {
+    llvm::FunctionPassManager FPM;
+    FPM.addPass(llvm::PromotePass());
+    FPM.addPass(llvm::LowerSwitchPass());
+    FPM.addPass(llvm::LoopSimplifyPass());
+    FPM.addPass(llvm::LCSSAPass());
+    FPM.addPass(llvm::DCEPass());
+    FPM.addPass(llvm::ADCEPass());
+    FPM.addPass(llvm::StructurizeCFGPass());
+    FPM.addPass(llvm::SimplifyCFGPass());
+    llvm::ModulePassManager MPM;
+    MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+    MPM.run(FlavoredModule, MAM);
+    return 0;
+  });
 
   std::unordered_set<std::string> kernelNames(KernelNames.begin(), KernelNames.end());
   MetalEmitter emitter(FlavoredModule, kernelNames);

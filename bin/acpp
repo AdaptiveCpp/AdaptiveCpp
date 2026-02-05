@@ -2056,7 +2056,7 @@ class compiler:
       elif backend == "hip.explicit-multipass":
         self._multipass_backends.append(
           hip_multipass_invocation(config, config.targets["hip.explicit-multipass"]))
-      elif backend == 'sscp' or backend == 'generic' or backend == 'metal':
+      elif backend == 'sscp' or backend == 'generic':
         self._backends.append(llvm_sscp_invocation(config, config.targets[backend]))
       else:
         raise RuntimeError("Unknown backend: " + backend)

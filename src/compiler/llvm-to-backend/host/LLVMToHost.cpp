@@ -375,7 +375,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
       break;
 
     case host_vector_math_library::armpl:
-#ifdef ARMPL_AVAILABLE
+#ifdef AMATH_AVAILABLE
       amathDir = getLibAmathDir();
       if (!amathDir.empty()) {
         LldInvocation.push_back("-L");

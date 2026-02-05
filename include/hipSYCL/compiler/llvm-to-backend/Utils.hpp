@@ -378,7 +378,7 @@ std::string getLLDPath();
 std::string getOptPath();
 std::string getLibSvmlDir();
 std::string getLibSleefDir();
-std::string getLibArmplDir();
+std::string getLibAmathDir();
 std::string getLibMvecDir();
 std::string getBitcodePath();
 std::string getRedistPackageBitcodePath(const std::string& backend);

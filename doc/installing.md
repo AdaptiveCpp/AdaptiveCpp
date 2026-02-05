@@ -16,9 +16,10 @@ In order to successfully build and install AdaptiveCpp, the following dependenci
 
 * python 3 (for the `acpp` compiler driver)
 * `cmake`
-* the Boost C++ libraries (in particular, `boost.test` for the unit tests)
+* the Boost C++ libraries (only `boost.test` for the unit tests)
     * it may be helpful to set the `BOOST_ROOT` `cmake` variable to the path to the root directory of Boost you wish to use if `cmake` does not find it automatically
     * **Note for boost 1.78 users:** There seems to be a bug in the build system for boost 1.78, causing the compiled fiber and context libraries not to be copied to the installation directory. You will have to copy these libraries manually to the installation directory. In binary packages from some distribution repositories this issue is fixed. You might be only affected when building boost manually from source.
+    * **Note for boost 1.87 and 1.88 users**: When compiling SYCL applications that use `Boost.Math`, these versions incorrectly enable SYCL-specific code paths, which can cause compilation errors. Use Boost < 1.87 or >= 1.89 instead.
 
 In addition, the various supported [compilation flows](compilation.md) and programming models have additional requirements:
 

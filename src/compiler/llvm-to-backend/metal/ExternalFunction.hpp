@@ -66,6 +66,7 @@ private:
   std::optional<std::string> emitWorkgroupScanCall(const llvm::CallInst* CI, std::string& errorStr);
   std::optional<std::string> emitWorkgroupExclusiveScanCall(const llvm::CallInst* CI, std::string& errorStr);
   std::optional<std::string> emitWorkgroupReduceCall(const llvm::CallInst* CI, std::string& errorStr);
+  std::optional<std::string> emitMetalInlineCall(const llvm::CallInst* CI, std::string& errorStr);
 };
 
 } // namespace compiler

@@ -58,10 +58,26 @@ static constexpr std::array math_builtins = {
 
 // these are remapped for f32 and f64
 static constexpr std::array remapped_llvm_math_builtins = {
-  "sin", "cos", "sqrt"
+  "sin", "cos", "tan", "sqrt",
+  "asin", "acos", "atan", "atan2",
+  "sinh", "cosh", "tanh",
+  "log", "log2", "log10",
+  "exp", "exp2", "exp10",
+  "ldexp",
+  "fabs", "floor", "ceil",
+  "copysign"
 };
 
 using builtin_mapping = std::array<const char*, 2>;
+
+// LLVM math intrinsics where the ACPP name differs from the LLVM name
+// Format: {llvm_name, acpp_name}
+// llvm.<llvm_name>.f32 -> __acpp_sscp_<acpp_name>_f32
+static constexpr std::array remapped_llvm_math_builtins_renamed = {
+  builtin_mapping{"maxnum", "fmax"},
+  builtin_mapping{"minnum", "fmin"},
+  builtin_mapping{"fmuladd", "fma"},
+};
 // We may want to complete this with soft-float functions defined here:
 // https://gcc.gnu.org/onlinedocs/gccint/Soft-float-library-routines.html
 static constexpr std::array explicitly_mapped_builtins = {
@@ -137,6 +153,12 @@ llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
     std::string builtin_name = std::string{B};
     Replacements["llvm." + builtin_name + ".f32"] = "__acpp_sscp_" + builtin_name + "_f32";
     Replacements["llvm." + builtin_name + ".f64"] = "__acpp_sscp_" + builtin_name + "_f64";
+  }
+  for(const auto& mapping : remapped_llvm_math_builtins_renamed) {
+    std::string llvm_name = std::string{mapping[0]};
+    std::string acpp_name = std::string{mapping[1]};
+    Replacements["llvm." + llvm_name + ".f32"] = "__acpp_sscp_" + acpp_name + "_f32";
+    Replacements["llvm." + llvm_name + ".f64"] = "__acpp_sscp_" + acpp_name + "_f64";
   }
 
   for(const auto& B: Replacements) {

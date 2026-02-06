@@ -11,6 +11,7 @@
 #include "ExternalFunction.hpp"
 
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Instructions.h>
 
 #include <algorithm>
@@ -46,107 +47,6 @@ std::vector<ExternalFunctionInfo> generateIdFunctions(const std::string& baseNam
   };
 }
 
-std::vector<ExternalFunctionInfo> generateHalfOps() {
-  const std::vector<std::pair<std::string, std::string>> ops = {
-    {"add", "+"},
-    {"sub", "-"},
-    {"mul", "*"},
-    {"div", "/"},
-  };
-
-  std::vector<ExternalFunctionInfo> functions;
-  for (const auto& [name, symbol] : ops) {
-    std::string code = "inline ushort __acpp_sscp_half_" + name + "(ushort a, ushort b) { ";
-    code += " return as_type<ushort>(as_type<half>(a) " + symbol + " as_type<half>(b)); }\n";
-    functions.push_back(ExternalFunctionInfo{
-      .name = "__acpp_sscp_half_" + name,
-      .code = code,
-    });
-  }
-  return functions;
-}
-
-std::vector<ExternalFunctionInfo> generateSimpleMathFunctions() {
-  // warning: atan2(0, 0) is nan in metal, but in C:
-  // atan2(±0, −0) returns ±π
-  // atan2(±0, +0) returns ±0.
-  const std::vector<std::string> funcNames = {
-    "tan", "asin", "acos", "atan", "atan2",
-    "sinh", "cosh", "tanh",
-    "cos", "sin",
-    "exp", "exp2", "exp10",
-    "log", "log2", "log10",
-    "sqrt", "rsqrt",
-    "floor", "ceil", "round", "trunc", "rint",
-    "fabs", "ldexp",
-    "ctz", "clz", "popcount",
-    "copysign", "fma", "isnan", "isinf",
-    "isfinite", "isnormal", "signbit",
-    "fmin", "fmax", "fmod", "fdim",
-  };
-
-  std::vector<ExternalFunctionInfo> result;
-  for (const auto& func : funcNames) {
-    result.push_back({
-      .name = "__acpp_sscp_" + func,
-      .replacement = func,
-      .exactMatch = false
-    });
-  }
-
-  result.push_back({
-    .name = "__acpp_sscp_hypot_f32",
-    .code = R"__(
-  inline float __acpp_sscp_hypot_f32(float x, float y) {
-    return length(float2(x, y));
-  }
-)__",
-  });
-  result.push_back({
-    .name = "__acpp_sscp_mad",
-    .replacement = "fma",
-    .exactMatch = false,
-  });
-  result.push_back({
-    .name = "__acpp_sscp_rootn_f32",
-    .code = R"__(
-inline float __acpp_sscp_rootn_f32(float x, int n) {
-  if (n == 0) return NAN;
-
-  if (x < 0.0f) {
-    if ((n & 1) == 0)
-        return NAN;
-    return -pow(-x, 1.0f / float(n));
-  }
-
-  return pow(x, 1.0f / float(n));
-}
-)__",
-  });
-  result.push_back({
-    .name = "__acpp_sscp_expm1_f32",
-    .code = R"__(
-inline float __acpp_sscp_expm1_f32(float x) {
-  float u = exp(x);
-  if (u == 1.0f) return x;
-  if (u - 1.0f == -1.0f) return -1.0f;
-  return (u - 1.0f) * x / log(u);
-}
-)__",
-  });
-  result.push_back({
-    .name = "__acpp_sscp_log1p_f32",
-    .code = R"__(
-inline float __acpp_sscp_log1p_f32(float x) {
-  float u = 1.0f + x;
-  if (u == 1.0f) return x;
-  return log(u) * x / (u - 1.0f);
-}
-)__",
-  });
-  return result;
-}
-
 std::vector<ExternalFunctionInfo> generateLLVMIntrinsics() {
   const std::vector<std::tuple<std::string, std::string, int>> intrinsics = {
     {"ctlz", "clz", 1},
@@ -154,14 +54,6 @@ std::vector<ExternalFunctionInfo> generateLLVMIntrinsics() {
     {"ctpop", "popcount", -1},
     {"umin", "min", 2},
     {"umax", "max", 2},
-    {"maxnum", "fmax", 2},
-    {"minnum", "fmin", 2},
-    {"atan2", "atan2", 2},
-    {"atan", "atan", 1},
-    {"copysign", "copysign", 2},
-    {"floor", "floor", 1},
-    {"fabs", "fabs", 1},
-    {"fmuladd", "fma", 3},
   };
 
   std::vector<ExternalFunctionInfo> result;
@@ -194,6 +86,58 @@ std::vector<ExternalFunctionInfo> generateIgnorableIntrinsics() {
     });
   }
   return result;
+}
+
+std::optional<uint64_t> getConstU64(llvm::Value* V) {
+  if (auto* C = llvm::dyn_cast<llvm::ConstantInt>(V)) {
+    return C->getZExtValue();
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> extractStringConstant(llvm::Value* V, std::string& errorStr) {
+  llvm::GlobalVariable* GV = nullptr;
+
+  // Handle either direct GlobalVariable or ConstantExpr that refers to one
+  if (auto* gv = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
+    GV = gv;
+  } else if (auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
+    if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
+      GV = llvm::dyn_cast<llvm::GlobalVariable>(CE->getOperand(0));
+    }
+  }
+
+  if (!GV || !GV->hasInitializer()) {
+    errorStr = "Argument must be a string constant";
+    return std::nullopt;
+  }
+
+  auto* CDA = llvm::dyn_cast<llvm::ConstantDataArray>(GV->getInitializer());
+  if (!CDA || !CDA->isString()) {
+    errorStr = "Argument must be a string constant";
+    return std::nullopt;
+  }
+
+  std::string result = CDA->getAsString().str();
+  if (!result.empty() && result.back() == '\0') {
+    result.pop_back();
+  }
+  return result;
+}
+
+struct EmitContext {
+  const llvm::Function* F;
+  std::string name;
+};
+
+std::optional<EmitContext> initEmitContext(const llvm::CallInst* CI, std::string& errorStr) {
+  errorStr.clear();
+  const llvm::Function* F = CI ? CI->getCalledFunction() : nullptr;
+  if (!F) {
+    errorStr = "CallInst has no called function";
+    return std::nullopt;
+  }
+  return EmitContext{F, F->getName().str()};
 }
 
 std::vector<ExternalFunctionInfo> initExternalFunctionTable() {
@@ -456,28 +400,6 @@ inline T __acpp_sscp_abs(T value) {
       .exactMatch = false,
       .deps = {"__as_signed"},
       .argsCount = 1,
-    },
-
-    {
-      .name = "__acpp_sscp_pow_f32",
-      .code = R"__(
-inline float __acpp_sscp_pow_f32(float base, float exp) {
-  return pow(base, exp);
-})__",
-    },
-    {
-      .name = "__acpp_sscp_powr_f32",
-      .code = R"__(
-inline float __acpp_sscp_powr_f32(float base, float exp) {
-  return pow(base, exp);
-})__",
-    },
-    {
-      .name = "__acpp_sscp_pown_f32",
-      .code = R"__(
-inline float __acpp_sscp_pown_f32(float base, int exp) {
-  return pow(base, exp);
-})__",
     },
     {
       .name = "__acpp_sscp_work_group_inclusive",
@@ -1180,8 +1102,6 @@ inline float __acpp_atomic_fetch_max(device atomic_float* addr_bits, float opera
   append(generateIdFunctions("__acpp_sscp_get_num_groups", "threadgroups_per_grid"));
   append(generateIdFunctions("__acpp_sscp_get_local_id", "thread_position_in_threadgroup"));
   append(generateIdFunctions("__acpp_sscp_get_local_size", "threads_per_threadgroup"));
-  append(generateHalfOps());
-  append(generateSimpleMathFunctions());
   append(generateLLVMIntrinsics());
   append(generateIgnorableIntrinsics());
 
@@ -1262,6 +1182,15 @@ void ExternalFunctionMapper::initializeMap() {
     }
   };
   externalFunctions.push_back(memoryFenceInfo);
+
+  ExternalFunctionInfo metalInlineInfo = {
+    .name = "__acpp_metal_inline",
+    .exactMatch = false,
+    .customCallEmitter = [this](const llvm::CallInst* CI, std::string& errorStr) -> std::optional<std::string> {
+      return emitMetalInlineCall(CI, errorStr);
+    }
+  };
+  externalFunctions.push_back(metalInlineInfo);
 
   ExternalFunctionInfo subgroupScanInfo = {
     .name = "__acpp_sscp_sub_group_inclusive_scan",
@@ -1936,6 +1865,57 @@ std::optional<std::string> ExternalFunctionMapper::emitWorkgroupReduceCall(const
 
   errorStr = "Unsupported op for __acpp_sscp_work_group_reduce";
   return std::nullopt;
+}
+
+std::optional<std::string> ExternalFunctionMapper::emitMetalInlineCall(const llvm::CallInst* CI, std::string& errorStr) {
+  auto ctx = initEmitContext(CI, errorStr);
+  if (!ctx) return std::nullopt;
+
+  if (ctx->name.find("__acpp_metal_inline") == std::string::npos) {
+    errorStr = "Not a metal inline function";
+    return std::nullopt;
+  }
+
+  if (CI->arg_size() < 1) {
+    errorStr = "__acpp_metal_inline: expected at least 1 argument (function name)";
+    return std::nullopt;
+  }
+
+  // Extract first argument as string constant (function name)
+  auto funcName = extractStringConstant(CI->getArgOperand(0), errorStr);
+  if (!funcName) {
+    errorStr = "__acpp_metal_inline: " + errorStr;
+    return std::nullopt;
+  }
+
+  std::string result;
+  if (funcName->find("%s") != std::string::npos) {
+    // expand printf-style format string with arguments
+    size_t pos = 0;
+    int arg = 1;
+    while (pos != std::string::npos && arg < CI->arg_size()) {
+      auto next = funcName->find("%s", pos);
+      result += funcName->substr(pos, next == std::string::npos ? std::string::npos : next - pos);
+      llvm::Value* argValue = CI->getArgOperand(arg++);
+      result += exprMapper(argValue);
+      pos = next == std::string::npos ? std::string::npos : next + 2;
+    }
+    result += funcName->substr(pos);
+    return result;
+  } else {
+    result = *funcName + "(";
+
+    for (unsigned i = 1; i < CI->arg_size(); ++i) {
+      if (i > 1) {
+        result += ", ";
+      }
+      llvm::Value* arg = CI->getArgOperand(i);
+      result += exprMapper(arg);
+    }
+
+    result += ")";
+  }
+  return result;
 }
 
 } // namespace hipsycl

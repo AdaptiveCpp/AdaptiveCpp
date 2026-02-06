@@ -96,20 +96,16 @@ bool LLVMToMetalTranslator::prepareBackendFlavor(llvm::Module& M) {
 }
 
 bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
-  // TODO: check layout
-#if LLVM_VERSION_MAJOR > 20
-  M.setTargetTriple(llvm::Triple("spir64-unknown-unknown"));
-#else
-  M.setTargetTriple("spir64-unknown-unknown");
-#endif
-  M.setDataLayout(
-    "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:"
-    "1024-A4-n8:16:32:64");
-
   AddressSpaceMap ASMap = getAddressSpaceMap();
 
   AddressSpaceInferencePass ASIPass{ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
+
+  std::string BuiltinBitcodeFile =
+      common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-metal-full.bc");
+
+  if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
+    return false;
 
   llvm::StripDebugInfo(M);
 
@@ -134,6 +130,11 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
   });
 
   std::unordered_set<std::string> kernelNames(KernelNames.begin(), KernelNames.end());
+
+#ifdef ACPP_PRINT_IR_BEFORE_EMIT
+  FlavoredModule.print(llvm::errs(), nullptr);
+#endif
+
   MetalEmitter emitter(FlavoredModule, kernelNames);
   bool success = emitter.emit(out);
   if (!success) {
@@ -141,6 +142,7 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
                   emitter.errorMessage().value_or("unknown error"));
     return false;
   }
+
 #ifdef ACPP_PRINT_METAL_CODE
   std::cerr << "Generated Metal code:\n" << out << std::endl;
 #endif

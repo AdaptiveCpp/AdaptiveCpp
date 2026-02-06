@@ -598,6 +598,11 @@ bool MetalEmitter::emitInstruction(const Instruction& I, int level) {
     } else if (auto* SI = dyn_cast<SExtInst>(CI)) {
       auto destSigned = getSignedType(CI->getDestTy());
       os << indent(level) << name << " = as_type<" << destType << ">((" << destSigned << ")__as_signed(" << src << ")); " << "// " << instToString(I) << "\n";
+    } else if (CI->getOpcode() == Instruction::SIToFP) { // signed integer to float
+      os << indent(level) << name << " = (" << destType << ") " << "__as_signed(" << src << "); " << "// " << instToString(I) << "\n";
+    } else if (CI->getOpcode() == Instruction::FPToSI) { // float to signed integer
+      auto destSigned = getSignedType(CI->getDestTy());
+      os << indent(level) << name << " = (" << destSigned << ") " << src << "; " << "// " << instToString(I) << "\n";
     } else if (srcType == "uint4" && destType == "uint") {
       os << indent(level) << name << " = " << src << ".x; " << "// " << instToString(I) << "\n";
     } else if (srcType == "uint" && destType == "uint4") {

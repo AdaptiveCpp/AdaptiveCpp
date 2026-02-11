@@ -27,6 +27,7 @@ class stream {
 public:
   static pcudaError_t create(stream *&out, pcuda_runtime *, rt::device_id dev,
                              unsigned int flags, int priority);
+  static pcudaError_t create(stream *&out, std::shared_ptr<inorder_executor> exec);
   static pcudaError_t destroy(stream* s, pcuda_runtime*);
   static pcudaError_t wait_all(device_id dev);
   inorder_queue* get_queue() const;

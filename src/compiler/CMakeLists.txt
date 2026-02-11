@@ -69,6 +69,146 @@ if(WITH_ACCELERATED_CPU)
   add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)
 endif()
 
+#MATH VECTOR LIBRARY
+if( APPLE OR WIN32)
+  message( WARNING "Usage of vector math library for JIT compilation is not supported on windows and Apple")
+  add_definitions(-DDEFAULT_VEC_MATH_LIB=none)
+else()
+
+  #LIBMVEC
+  find_library(LIBMVEC NAMES mvec)
+
+  if(LIBMVEC)
+    
+    #Check that libmvec is recent enough
+    include(CheckFunctionExists)
+    set(CMAKE_REQUIRED_LIBRARIES "${LIBMVEC}")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+      CHECK_FUNCTION_EXISTS("_ZGVnN2v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    else()
+      CHECK_FUNCTION_EXISTS("_ZGVdN8v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    endif()
+    unset(CMAKE_REQUIRED_LIBRARIES)
+
+    #Check clang support libmvec
+    set(CLANG_SUPPORT_LIBMVEC true)
+    if(${LLVM_VERSION_MAJOR} LESS 21)
+
+      #Only clang 21+ support libmvec on aarch64
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+        set(CLANG_SUPPORT_LIBMVEC false)
+      endif()
+    endif()
+  endif()
+
+  if(LIBMVEC AND LIBMVEC_HAS_REQUIRED_SYMBOLS AND CLANG_SUPPORT_LIBMVEC)
+    get_filename_component(LIB_MVEC_DIR "${LIBMVEC}" DIRECTORY)
+    get_filename_component(LIB_MVEC_NAME_WE "${LIBMVEC}" NAME_WE)
+    get_filename_component(LIB_MVEC_NAME "${LIBMVEC}" NAME)
+
+    add_definitions(-DLIBMVEC_AVAILABLE)
+    add_definitions(-DLIB_MVEC_DIR="${LIB_MVEC_DIR}")
+    add_definitions(-DLIB_MVEC_NAME_WE="${LIB_MVEC_NAME_WE}")
+    add_definitions(-DLIB_MVEC_NAME="${LIB_MVEC_NAME}")
+    set(DEFAULT_VEC_MATH_LIB libmvec)
+
+    message( STATUS "LIBMVEC found at ${LIBMVEC}")
+  elseif(NOT LIBMVEC)
+    message(STATUS "LIBMVEC was not found")
+  elseif(NOT LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    message(STATUS "LIBMVEC found at ${LIBMVEC}, but does not provide required functions (likely too old)")
+  elseif(NOT CLANG_SUPPORT_LIBMVEC)
+    message(STATUS "LIBMVEC was found at "${LIBMVEC}", but the detected LLVM version (${LLVM_VERSION_MAJOR}) does not support LIBMVEC.")
+  endif()
+
+  #SLEEF
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBSLEEF NAMES sleef)
+
+    if(LIBSLEEF)
+      get_filename_component(LIB_SLEEF_DIR "${LIBSLEEF}" DIRECTORY)
+      get_filename_component(LIB_SLEEF_NAME_WE "${LIBSLEEF}" NAME_WE)
+      get_filename_component(LIB_SLEEF_NAME "${LIBSLEEF}" NAME)
+
+      add_definitions(-DSLEEF_AVAILABLE)
+      add_definitions(-DLIB_SLEEF_DIR="${LIB_SLEEF_DIR}")
+      add_definitions(-DLIB_SLEEF_NAME_WE="${LIB_SLEEF_NAME_WE}")
+      add_definitions(-DLIB_SLEEF_NAME="${LIB_SLEEF_NAME}")
+      set(DEFAULT_VEC_MATH_LIB sleef)
+
+      message( STATUS "SLEEF found at ${LIBSLEEF}")
+    else()
+      message( STATUS "SLEEF was not found")
+    endif()
+  else()
+    message( STATUS "SLEEF not available on X86")
+  endif()
+
+  #AMATH
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBAMATH NAMES amath)
+
+    if(LIBAMATH)
+      get_filename_component(LIB_AMATH_DIR "${LIBAMATH}" DIRECTORY)
+      get_filename_component(LIB_AMATH_NAME_WE "${LIBAMATH}" NAME_WE)
+      get_filename_component(LIB_AMATH_NAME "${LIBAMATH}" NAME)
+
+      add_definitions(-DAMATH_AVAILABLE)
+      add_definitions(-DLIB_AMATH_DIR="${LIB_AMATH_DIR}")
+      add_definitions(-DLIB_AMATH_NAME_WE="${LIB_AMATH_NAME_WE}")
+      add_definitions(-DLIB_AMATH_NAME="${LIB_AMATH_NAME}")
+      set(DEFAULT_VEC_MATH_LIB armpl)
+
+      message( STATUS "AMATH found at ${LIBAMATH}")
+    else()
+      message( STATUS "AMATH was not found")
+    endif()
+  else()
+    message( STATUS "AMATH not available on X86")
+  endif()
+
+  #SVML
+  if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBSVML NAMES svml)
+    find_library(LIBINTLC NAMES intlc)
+
+    if(LIBSVML AND LIBINTLC )
+      get_filename_component(LIB_SVML_DIR "${LIBSVML}" DIRECTORY)
+      get_filename_component(LIB_SVML_NAME_WE "${LIBSVML}" NAME_WE)
+      get_filename_component(LIB_SVML_NAME "${LIBSVML}" NAME)
+
+      add_definitions(-DSVML_AVAILABLE)
+      add_definitions(-DLIB_SVML_DIR="${LIB_SVML_DIR}")
+      add_definitions(-DLIB_SVML_NAME_WE="${LIB_SVML_NAME_WE}")
+      add_definitions(-DLIB_SVML_NAME="${LIB_SVML_NAME}")
+
+      get_filename_component(LIB_INTLC_DIR "${LIBINTLC}" DIRECTORY)
+      get_filename_component(LIB_INTLC_NAME_WE "${LIBINTLC}" NAME_WE)
+      get_filename_component(LIB_INTLC_NAME "${LIBINTLC}" NAME)
+
+      add_definitions(-DLIB_INTLC_DIR="${LIB_INTLC_DIR}")
+      add_definitions(-DLIB_INTLC_NAME_WE="${LIB_INTLC_NAME_WE}")
+      add_definitions(-DLIB_INTLC_NAME="${LIB_INTLC_NAME}")
+    
+      set(DEFAULT_VEC_MATH_LIB svml)
+
+      message( STATUS "SVML found at ${LIBSVML} (INTLC found at ${LIBINTLC})")
+    else()
+      message( STATUS "SVML was not found")
+    endif()
+  else()
+    message( STATUS "SVML not available on AArch64")
+  endif()
+endif()
+
+if(DEFAULT_VEC_MATH_LIB)
+  add_definitions(-DDEFAULT_VEC_MATH_LIB=${DEFAULT_VEC_MATH_LIB})
+  message(STATUS "Will Use ${DEFAULT_VEC_MATH_LIB} as default vector math library")
+else()
+  add_definitions(-DDEFAULT_VEC_MATH_LIB=none)
+  message(STATUS "Will not use any vector math library for JIT compilation")
+endif()
+
 if(WITH_ACCELERATED_CPU OR WITH_SSCP_COMPILER)
   set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp
     cbs/SplitterAnnotationAnalysis.cpp

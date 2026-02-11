@@ -50,6 +50,7 @@
 #include <omp.h>
 
 #include <memory>
+#include <optional>
 
 namespace hipsycl {
 namespace rt {
@@ -468,6 +469,12 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     _config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
     _config.set_build_option(opt.first, opt.second);
+
+  std::optional<jitopt_host_vector_math_library> host_veclib =
+      application::get_settings().get<setting::jitopt_host_vector_math_library>();
+  if(host_veclib.has_value())
+    _config.set_build_option(kernel_build_option::host_vector_math_library,
+        static_cast<int>(*host_veclib));
 
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(_config);

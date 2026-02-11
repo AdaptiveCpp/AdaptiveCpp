@@ -26,7 +26,8 @@ public:
       {"ptx-version", kernel_build_option::ptx_version},
       {"ptx-target-device", kernel_build_option::ptx_target_device},
       {"amdgpu-target-device", kernel_build_option::amdgpu_target_device},
-      {"spirv-dynamic-local-mem-allocation-size", kernel_build_option::spirv_dynamic_local_mem_allocation_size}
+      {"spirv-dynamic-local-mem-allocation-size", kernel_build_option::spirv_dynamic_local_mem_allocation_size},
+      {"host-vector-math-library", kernel_build_option::host_vector_math_library}
     };
 
     _flags = {

@@ -23,6 +23,7 @@ jobs:
         mkdir build && cd build
         cmake .. \
         -DWITH_OPENCL_BACKEND=OFF \
+        -DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)" \
         -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests

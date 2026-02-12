@@ -57,15 +57,6 @@ private:
   PrefixMap map;
 
   void initializeMap();
-  std::optional<std::string> emitAtomicCall(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitMemoryFenceCall(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitSubgroupScanCall(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitSubgroupExclusiveScanCall(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitSubgroupReduceCall(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitSubgroupBarrier(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitWorkgroupScanCall(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitWorkgroupExclusiveScanCall(const llvm::CallInst* CI, std::string& errorStr);
-  std::optional<std::string> emitWorkgroupReduceCall(const llvm::CallInst* CI, std::string& errorStr);
   std::optional<std::string> emitMetalInlineCall(const llvm::CallInst* CI, std::string& errorStr);
 };
 

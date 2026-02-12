@@ -128,6 +128,62 @@ struct __struct_ptr_to_constant {
 struct __struct_ptr_to_thread {
   thread void* value;
 };
+
+template<typename To, typename From>
+struct __atomic_pointer_type {};
+
+template<typename To>
+struct __atomic_pointer_type<To, device void*> {
+  using type = device atomic<To>*;
+};
+
+template<typename To>
+struct __atomic_pointer_type<To, threadgroup void*> {
+  using type = threadgroup atomic<To>*;
+};
+
+template<typename To>
+struct __atomic_pointer_type<To, thread void*> {
+  using type = thread atomic<To>*;
+};
+
+template<typename To, typename From>
+inline typename __atomic_pointer_type<To, From>::type __atomic_pointer_cast(From ptr) {
+  return (typename __atomic_pointer_type<To, From>::type)(ptr);
+}
+
+template<typename To, typename From>
+struct __pointer_type {};
+
+template<typename To>
+struct __pointer_type<To, device void*> {
+  using type = device To*;
+};
+
+template<typename To>
+struct __pointer_type<To, threadgroup void*> {
+  using type = threadgroup To*;
+};
+
+template<typename To>
+struct __pointer_type<To, thread void*> {
+  using type = thread To*;
+};
+
+template<typename To, typename From>
+inline typename __pointer_type<To, From>::type __pointer_cast(From ptr) {
+  return (typename __pointer_type<To, From>::type)(ptr);
+}
+
+uint __simd_size [[threads_per_simdgroup]];
+uint __simd_group_id [[simdgroup_index_in_threadgroup]];
+uint __simd_lane_id [[thread_index_in_simdgroup]];
+
+uint3 __acpp_sscp_get_group_id [[threadgroup_position_in_grid]];
+uint3 __acpp_sscp_get_num_groups [[threadgroups_per_grid]];
+uint3 __acpp_sscp_get_local_id [[thread_position_in_threadgroup]];
+uint3 __acpp_sscp_get_local_size [[threads_per_threadgroup]];
+
 )__";
 
   emitTypes();
@@ -530,16 +586,8 @@ bool MetalEmitter::emitInstruction(const Instruction& I, int level) {
     std::string ptr = emitExpr(SI->getPointerOperand());
     std::string val = emitExpr(SI->getValueOperand());
     std::string elemType = mapType(SI->getValueOperand()->getType());
-    std::string addrSpace;
-
-    if (SI->getPointerOperandType()->isPointerTy()) {
-      // Do NOT trust pointer operand type if it went through addrspacecast-to-generic.
-      unsigned physAS = getPhysicalPointerAddressSpace(SI->getPointerOperand());
-      addrSpace = getAddressSpaceKeyword(physAS);
-    } else {
-      errorMsg = "Error: Store to non-pointer type";
-      return false;
-    }
+    unsigned physAS = getPhysicalPointerAddressSpace(SI->getPointerOperand());
+    std::string addrSpace = getAddressSpaceKeyword(physAS);
 
     if (SI->getValueOperand()->getType()->isPointerTy()) {
       // ** type, need to use struct slot hack to dereference pointer to pointer
@@ -1279,6 +1327,9 @@ unsigned MetalEmitter::getPhysicalPointerAddressSpace(const Value* V) {
   }
 
   // If the value is an addrspacecast, get the original address space
+  if (auto* Alloca = dyn_cast<AllocaInst>(V)) {
+    return (inferredPtrAS[V] = 5 /* private */);
+  }
   if (auto* ASC = dyn_cast<AddrSpaceCastInst>(V)) {
     return (inferredPtrAS[V] = getPhysicalPointerAddressSpace(ASC->getOperand(0)));
   }
@@ -1382,7 +1433,7 @@ void MetalEmitter::analyzeCallInsts() {
           mapType(Arg.getType());
         }
         const StringRef calleeName = Callee->getName();
-        if (calleeName == "__acpp_sscp_get_dynamic_local_memory") {
+        if (calleeName == "__acpp_sscp_metal_symbol_local_memory" || calleeName == "__acpp_sscp_metal_symbol_local_memory_size") {
           needsDynamicLocalMemory.insert(&F);
         } else if (!Callee->isDeclaration()) {
           calls[&F].push_back(Callee);

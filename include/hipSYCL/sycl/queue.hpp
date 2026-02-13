@@ -893,6 +893,20 @@ public:
     });
   }
 
+  event khr_prefetch_host(void *ptr, std::size_t num_bytes) {
+    return prefetch_host(ptr, num_bytes);
+  }
+
+  event khr_prefetch_host(void *ptr, std::size_t num_bytes,
+                          event dependency) {
+    return prefetch_host(ptr, num_bytes, dependency);
+  }
+
+  event khr_prefetch_host(void *ptr, std::size_t num_bytes,
+                      const std::vector<event> &dependencies) {
+    return prefetch_host(ptr, num_bytes, dependencies);
+  }
+
   event mem_advise(const void *addr, std::size_t num_bytes, int advice) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.mem_advise(addr, num_bytes, advice);

@@ -75,6 +75,8 @@ private:
   void collectVariablesInfo(const llvm::Function& F);
   unsigned getPhysicalPointerAddressSpace(const llvm::Value* V);
   const llvm::Value* stripToRootObject(const llvm::Value* V);
+  std::unordered_map<llvm::Function*, std::vector<llvm::Function*>> buildCallGraph();
+  std::vector<llvm::Function*> topologicalSort(const std::unordered_map<llvm::Function*, std::vector<llvm::Function*>>& callGraph);
 
   MetalEmitterOptions opt;
 

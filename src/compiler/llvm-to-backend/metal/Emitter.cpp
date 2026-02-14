@@ -189,19 +189,18 @@ uint3 __acpp_sscp_get_local_size [[threads_per_threadgroup]];
   emitTypes();
   emitIntrinsicHelpers();
 
-  for (Function& F : M) {
-    if (F.isDeclaration()) {
-      continue;
-    }
+  auto callGraph = buildCallGraph();
+  auto sortedFunctions = topologicalSort(callGraph);
 
+  for (Function* F : sortedFunctions) {
     HLExtractionPass hlPass;
-    hlPass.run(F, FAM);
+    hlPass.run(*F, FAM);
     if (!hlPass.tree) {
-      errorMsg = "Failed to extract HL tree for " + F.getName().str();
+      errorMsg = "Failed to extract HL tree for " + F->getName().str();
       return false;
     }
 
-    if (!emitFunction(F, *hlPass.tree)) {
+    if (!emitFunction(*F, *hlPass.tree)) {
       return false;
     }
   }
@@ -1502,6 +1501,75 @@ void MetalEmitter::collectVariablesInfo(const Function& F) {
       }
     }
   }
+}
+
+std::unordered_map<Function*, std::vector<Function*>> MetalEmitter::buildCallGraph() {
+  std::unordered_map<Function*, std::vector<Function*>> callGraph;
+
+  for (Function& F : M) {
+    if (F.isDeclaration()) {
+      continue;
+    }
+
+    for (BasicBlock& BB : F) {
+      for (Instruction& I : BB) {
+        auto* CI = dyn_cast<CallInst>(&I);
+        if (!CI) {
+          continue;
+        }
+
+        Function* Callee = CI->getCalledFunction();
+        if (!Callee || Callee->isDeclaration()) {
+          continue;
+        }
+
+        callGraph[&F].push_back(Callee);
+      }
+    }
+  }
+
+  return callGraph;
+}
+
+std::vector<Function*> MetalEmitter::topologicalSort(const std::unordered_map<Function*, std::vector<Function*>>& callGraph) {
+  std::vector<Function*> result;
+  std::unordered_set<Function*> visited;
+  std::unordered_set<Function*> inStack;
+
+  std::function<bool(Function*)> visit = [&](Function* F) -> bool {
+    if (inStack.count(F)) {
+      return true;
+    }
+    if (visited.count(F)) {
+      return true;
+    }
+
+    inStack.insert(F);
+
+    auto it = callGraph.find(F);
+    if (it != callGraph.end()) {
+      for (Function* Callee : it->second) {
+        if (!visit(Callee)) {
+          return false;
+        }
+      }
+    }
+
+    inStack.erase(F);
+    visited.insert(F);
+    result.push_back(F);
+
+    return true;
+  };
+
+  for (Function& F : M) {
+    if (F.isDeclaration()) {
+      continue;
+    }
+    visit(&F);
+  }
+
+  return result;
 }
 
 } // namespace compiler

@@ -306,7 +306,6 @@ if(WITH_SSCP_COMPILER)
         metal/HLExtractionPass.cpp
         metal/HLTree.cpp
         metal/Emitter.cpp
-        metal/ExternalFunction.cpp
       TOOL metal/LLVMToMetalTool.cpp)
   endif()
 

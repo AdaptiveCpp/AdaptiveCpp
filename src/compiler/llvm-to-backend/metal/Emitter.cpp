@@ -68,28 +68,63 @@ std::string instToString(const llvm::Instruction& I) {
   return rso.str();
 }
 
+std::optional<uint64_t> getConstU64(llvm::Value* V) {
+  if (auto* C = llvm::dyn_cast<llvm::ConstantInt>(V)) {
+    return C->getZExtValue();
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> extractStringConstant(llvm::Value* V, std::string& errorStr) {
+  llvm::GlobalVariable* GV = nullptr;
+
+  // Handle either direct GlobalVariable or ConstantExpr that refers to one
+  if (auto* gv = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
+    GV = gv;
+  } else if (auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
+    if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
+      GV = llvm::dyn_cast<llvm::GlobalVariable>(CE->getOperand(0));
+    }
+  }
+
+  if (!GV || !GV->hasInitializer()) {
+    errorStr = "Argument must be a string constant";
+    return std::nullopt;
+  }
+
+  auto* CDA = llvm::dyn_cast<llvm::ConstantDataArray>(GV->getInitializer());
+  if (!CDA || !CDA->isString()) {
+    errorStr = "Argument must be a string constant";
+    return std::nullopt;
+  }
+
+  std::string result = CDA->getAsString().str();
+  if (!result.empty() && result.back() == '\0') {
+    result.pop_back();
+  }
+  return result;
+}
+
+struct EmitContext {
+  const llvm::Function* F;
+  std::string name;
+};
+
+std::optional<EmitContext> initEmitContext(const llvm::CallInst* CI, std::string& errorStr) {
+  errorStr.clear();
+  const llvm::Function* F = CI ? CI->getCalledFunction() : nullptr;
+  if (!F) {
+    errorStr = "CallInst has no called function";
+    return std::nullopt;
+  }
+  return EmitContext{F, F->getName().str()};
+}
+
 } // namespace
 
 MetalEmitter::MetalEmitter(Module& M, const std::unordered_set<std::string>& kernelNames, const MetalEmitterOptions& opt)
   : M(M), kernelNames(kernelNames), opt(opt)
   , addressSpaceMap{opt.addressSpaceMap}
-  , externalFunctionMapper(
-    [this](const Value* V) -> std::string {
-      unsigned AS = getPhysicalPointerAddressSpace(V);
-      auto it = addressSpaceMap.find(AS);
-      if (it != addressSpaceMap.end()) {
-        return it->second;
-      } else {
-        return std::string("unknown_address_space");
-      }
-    },
-    [this](const Value* V) -> std::string {
-      return emitExpr(V);
-    },
-    [this](const Type* T) -> std::string {
-      return mapType(T);
-    }
-  )
 {
 }
 
@@ -295,11 +330,84 @@ void MetalEmitter::emitIntrinsicHelpers() {
     }
   }
 
-  for (const auto& funcInfo : externalFunctionMapper.getUsedFunctions()) {
-    if (funcInfo->code) {
-      os << funcInfo->code.value() << "\n\n";
-    }
+  os << R"__(
+  inline char __as_signed(uchar value) {
+    return as_type<char>(value);
   }
+
+  inline short __as_signed(ushort value) {
+    return as_type<short>(value);
+  }
+
+  inline int __as_signed(uint value) {
+    return as_type<int>(value);
+  }
+
+  inline long __as_signed(ulong value) {
+    return as_type<long>(value);
+  }
+
+  inline bool __as_signed(bool value) {
+    return value;
+  }
+)__";
+
+  os << R"__(
+struct i48u {
+  packed_ushort3 w;
+  i48u() : w(packed_ushort3(0,0,0)) {}
+  explicit i48u(packed_ushort3 ww) : w(ww) {}
+  explicit i48u(ushort x) : w(packed_ushort3(x, 0, 0)) {}
+  explicit i48u(uint x)
+  : w(packed_ushort3((ushort)(x & 0xffffu),
+                     (ushort)((x >> 16) & 0xffffu),
+                     0))
+  {}
+  explicit i48u(ulong x)
+  : w(packed_ushort3((ushort)(x & 0xfffful),
+                     (ushort)((x >> 16) & 0xfffful),
+                     (ushort)((x >> 32) & 0xfffful)))
+  {}
+
+  friend inline i48u operator|(i48u a, i48u b) {
+    return i48u(packed_ushort3((ushort)(a.w[0] | b.w[0]),
+                               (ushort)(a.w[1] | b.w[1]),
+                               (ushort)(a.w[2] | b.w[2])));
+  }
+
+  friend inline i48u operator<<(i48u a, uint bits) {
+    uint s = bits >> 4; // /16
+    if ((bits & 0xFu) != 0) {
+      ulong x = a.to_ulong();
+      x = (x << bits) & 0x0000FFFFFFFFFFFFul;
+      return i48u(x);
+    }
+    if (s == 0) return a;
+    if (s == 1) return i48u(packed_ushort3(0, a.w[0], a.w[1]));
+    if (s == 2) return i48u(packed_ushort3(0, 0, a.w[0]));
+    return i48u(); // >=48 => 0
+  }
+
+  friend inline i48u operator>>(i48u a, uint bits) {
+    uint s = bits >> 4; // /16
+    if ((bits & 0xFu) != 0) {
+      ulong x = a.to_ulong();
+      x = (x >> bits);
+      return i48u(x);
+    }
+    if (s == 0) return a;
+    if (s == 1) return i48u(packed_ushort3(a.w[1], a.w[2], 0));
+    if (s == 2) return i48u(packed_ushort3(a.w[2], 0, 0));
+    return i48u(); // >=48 => 0
+  }
+
+  inline ulong to_ulong() const {
+    return (ulong)w[0] | ((ulong)w[1] << 16) | ((ulong)w[2] << 32);
+  }
+};
+)__";
+
+  os << "\n";
 }
 
 bool MetalEmitter::emitArgStruct(Function& F) {
@@ -695,10 +803,13 @@ bool MetalEmitter::emitInstruction(const Instruction& I, int level) {
   }
 
   if (auto *IV = dyn_cast<InsertValueInst>(&I)) {
+    std::string res = emitExpr(IV);
     std::string aggr = emitExpr(IV->getAggregateOperand());
     std::string val = emitExpr(IV->getInsertedValueOperand());
     Type* aggrType = IV->getAggregateOperand()->getType();
-    os << indent(level) << aggr;
+    auto typeName = mapType(aggrType);
+    os << indent(level) << res << " = " << aggr << "; " << "// " << instToString(I) << "\n";
+    os << indent(level) << res;
     for (unsigned idx : IV->getIndices()) {
       if (aggrType->isStructTy()) {
         os << ".field" << idx;
@@ -1033,44 +1144,15 @@ bool MetalEmitter::emitCallInstruction(const CallInst* CI, const std::string& na
 
   std::string calleeName = callee->getName().str();
 
+  if (calleeName.find("__acpp_sscp_metal") == 0) {
+    return emitMetalInlineCall(CI, name, level);
+  }
+
   int argsSize = CI->arg_size();
   if (callee->isDeclaration()) {
-    auto* funcInfo = externalFunctionMapper.getFunctionInfo(calleeName);
-    if (!funcInfo) {
-      errorMsg = "Error: No mapping found for external function: " + calleeName + "\n";
-      return false;
-    }
-    if (funcInfo->ignore) {
-      // function is ignored - do nothing
-      return true;
-    }
-    if (funcInfo->customCallEmitter) {
-      std::string errorStr;
-      auto callExpr = funcInfo->customCallEmitter(CI, errorStr);
-      if (!errorStr.empty()) {
-        errorMsg = errorStr;
-        return false;
-      }
-      if (!CI->getType()->isVoidTy()) {
-        os << indent(level) << name << " = " << *callExpr << ";\n";
-      } else {
-        os << indent(level) << *callExpr << ";\n";
-      }
-      return true;
-    }
-
-    calleeName = funcInfo->replacement ? *funcInfo->replacement : funcInfo->name;
-    if (funcInfo->convertToVar) {
-      // treat as variable
-      os << indent(level) << name << " = " << calleeName << ";\n";
-      return true;
-    }
     auto returnType = callee->getReturnType();
     if (returnType->isStructTy()) {
       calleeName += "<" + mapType(returnType) + ">";
-    }
-    if (funcInfo->argsCount >= 0) {
-      argsSize = funcInfo->argsCount;
     }
   }
 
@@ -1125,6 +1207,12 @@ std::string MetalEmitter::emitExpr(const Value* V) {
   }
 
   if (isa<UndefValue>(V) || isa<PoisonValue>(V)) {
+    if (V->getType()->isPointerTy()) {
+      return "/* undef */ nullptr";
+    }
+    if (V->getType()->isStructTy()) {
+      return "/* undef */ {}";
+    }
     return "/* undef */ 0";
   }
 
@@ -1232,11 +1320,6 @@ std::string MetalEmitter::mapType(const Type* T) {
     } else if (bitWidth == 32) {
       return typeCache[T] = "uint";
     } else if (bitWidth == 48) {
-      auto* info = externalFunctionMapper.getFunctionInfo("i48u"); // mark used
-      if (!info) {
-        errorMsg = "Error: i48u type used but no mapping found\n";
-        return "";
-      }
       return typeCache[T] = "i48u";
     } else if (bitWidth == 64) {
       return typeCache[T] = "ulong";
@@ -1409,26 +1492,13 @@ void MetalEmitter::analyzeCallInsts() {
 
     for (BasicBlock& BB : F) {
       for (Instruction& I : BB) {
+        mapType(I.getType()); // for cache all types and emit anon structs declarations
         auto *CI = dyn_cast<CallInst>(&I);
         if (!CI) {
           continue;
         }
         Function *Callee = CI->getCalledFunction();
         if (!Callee) {
-          continue;
-        }
-        bool ignoreCallee = false;
-        if (Callee->isDeclaration()) {
-          auto* info = externalFunctionMapper.getFunctionInfo(Callee->getName(). str());
-          if (info && info->ignore) {
-            ignoreCallee = true;
-          }
-          if (info && info->needsLocalMemory) {
-            needsDynamicLocalMemory.insert(&F);
-            needsDynamicLocalMemory.insert(Callee);
-          }
-        }
-        if (ignoreCallee) {
           continue;
         }
         // add return type and args to cache
@@ -1576,6 +1646,82 @@ std::vector<Function*> MetalEmitter::topologicalSort(const std::unordered_map<Fu
   }
 
   return result;
+}
+
+bool MetalEmitter::emitMetalInlineCall(const llvm::CallInst* CI, const std::string& name, int level) {
+  std::string errorStr;
+  auto ctx = initEmitContext(CI, errorStr);
+  if (!ctx) {
+    errorMsg = errorStr;
+    return false;
+  }
+
+  if (ctx->name.find("__acpp_sscp_metal") == std::string::npos) {
+    errorMsg = "Not a metal function";
+    return false;
+  }
+
+  bool is_symbol = ctx->name.find("__acpp_sscp_metal_symbol") == 0;
+
+  if (CI->arg_size() < 1) {
+    errorMsg = "__acpp_sscp_metal: expected at least 1 argument (function name / constant)";
+    return false;
+  }
+
+  if (is_symbol && CI->arg_size() != 1) {
+    errorMsg = "__acpp_sscp_metal_symbol: expected at least 1 arguments (symbol name constant)";
+    return false;
+  }
+
+  // Extract first argument as string constant (function name)
+  auto funcName = extractStringConstant(CI->getArgOperand(0), errorStr);
+  if (!funcName) {
+    errorMsg = "__acpp_sscp_metal: " + errorStr;
+    return false;
+  }
+
+  if (is_symbol) {
+    if (!CI->getType()->isVoidTy()) {
+      os << indent(level) << name << " = " << *funcName << ";\n";
+    } else {
+      os << indent(level) << *funcName << ";\n";
+    }
+    return true;
+  }
+
+  std::string result;
+  if (funcName->find("%s") != std::string::npos) {
+    // expand printf-style format string with arguments
+    size_t pos = 0;
+    int arg = 1;
+    while (pos != std::string::npos && arg < CI->arg_size()) {
+      auto next = funcName->find("%s", pos);
+      result += funcName->substr(pos, next == std::string::npos ? std::string::npos : next - pos);
+      llvm::Value* argValue = CI->getArgOperand(arg++);
+      result += emitExpr(argValue);
+      pos = next == std::string::npos ? std::string::npos : next + 2;
+    }
+    result += funcName->substr(pos);
+  } else {
+    result = *funcName + "(";
+
+    for (unsigned i = 1; i < CI->arg_size(); ++i) {
+      if (i > 1) {
+        result += ", ";
+      }
+      llvm::Value* arg = CI->getArgOperand(i);
+      result += emitExpr(arg);
+    }
+
+    result += ")";
+  }
+
+  if (!CI->getType()->isVoidTy()) {
+    os << indent(level) << name << " = " << result << ";\n";
+  } else {
+    os << indent(level) << result << ";\n";
+  }
+  return true;
 }
 
 } // namespace compiler

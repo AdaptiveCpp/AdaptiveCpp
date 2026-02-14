@@ -14,9 +14,9 @@
 #include <string>
 #include <unordered_set>
 #include <sstream>
+#include <map>
 
 #include "HLTree.hpp"
-#include "ExternalFunction.hpp"
 
 namespace llvm {
 class Module;
@@ -77,6 +77,7 @@ private:
   const llvm::Value* stripToRootObject(const llvm::Value* V);
   std::unordered_map<llvm::Function*, std::vector<llvm::Function*>> buildCallGraph();
   std::vector<llvm::Function*> topologicalSort(const std::unordered_map<llvm::Function*, std::vector<llvm::Function*>>& callGraph);
+  bool emitMetalInlineCall(const llvm::CallInst* CI, const std::string& name, int level);
 
   MetalEmitterOptions opt;
 
@@ -102,8 +103,6 @@ private:
   std::unordered_set<const llvm::Function*> needsDynamicLocalMemory;
   int inputStructCounter = 0;
   std::string inputStructName;
-
-  ExternalFunctionMapper externalFunctionMapper;
 
   std::ostringstream os;
   std::optional<std::string> errorMsg;

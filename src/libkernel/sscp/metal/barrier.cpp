@@ -39,7 +39,7 @@ __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
       __acpp_sscp_metal_symbol_barrier("threadgroup_barrier(mem_flags::mem_device)");
       break;
     default:
-      __builtin_trap();
+      __acpp_sscp_metal_symbol_barrier("__builtin_trap()");
       break;
   }
 
@@ -59,7 +59,7 @@ __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
       }
       break;
     default:
-      __builtin_trap();
+      __acpp_sscp_metal_symbol_barrier("__builtin_trap()");
       break;
   }
 }
@@ -100,7 +100,7 @@ __acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
       }
       break;
     default:
-      __builtin_trap();
+      __acpp_sscp_metal_symbol_barrier("__builtin_trap()");
       break;
   }
 }

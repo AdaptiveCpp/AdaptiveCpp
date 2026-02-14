@@ -12,17 +12,17 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/assert.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_metal_symbol_assert(const char* s);
+
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_assert_fail(const char *assertion,
                                                   const char *file,
                                                   __acpp_uint32 line,
                                                   const char *function) {
-  __builtin_trap();
-  __builtin_unreachable();
+  __acpp_sscp_metal_symbol_assert("__builtin_trap()");
 }
 
 HIPSYCL_SSCP_BUILTIN void
 __acpp_sscp_glibcxx_assert_fail(const char *file, __acpp_int32 line,
                                 const char *function, const char *assertion) {
-  __builtin_trap();
-  __builtin_unreachable();
+  __acpp_sscp_metal_symbol_assert("__builtin_trap()");
 }

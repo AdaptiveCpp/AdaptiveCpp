@@ -21,7 +21,7 @@
 using namespace hipsycl::sycl::detail::metal_builtins;
 
 #define X(type) \
-HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_exclusive_scan_##type(__acpp_sscp_algorithm_op op, type value) { \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_exclusive_scan_##type(__acpp_sscp_algorithm_op op, type value, type unused_init) { \
   switch (op) { \
   case __acpp_sscp_algorithm_op::plus: \
     return __acpp_sscp_sub_group_exclusive_scan<__acpp_sscp_algorithm_op::plus>(value); \
@@ -36,7 +36,7 @@ SCAN_TYPES
 #undef X
 
 template<__acpp_sscp_algorithm_op op, typename T>
-inline T __acpp_sscp_work_group_exclusive_scan(T value) {
+inline T __acpp_sscp_work_group_exclusive_scan(T value, T init) {
   auto* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
   const uint subgroup_size = __acpp_sscp_get_subgroup_max_size();
   const uint lx = __acpp_sscp_get_local_id_x();
@@ -68,14 +68,6 @@ inline T __acpp_sscp_work_group_exclusive_scan(T value) {
     }
   };
 
-  auto identity = [&]() {
-    if constexpr(op == __acpp_sscp_algorithm_op::plus) {
-      return T{0};
-    } else {
-      return T{1};
-    }
-  };
-
   const uint group_base = group_id * subgroup_size;
   uint active = 0;
   if(group_base < local_size) {
@@ -85,12 +77,12 @@ inline T __acpp_sscp_work_group_exclusive_scan(T value) {
   const uint last_lane = (active > 0) ? (active - 1u) : 0u;
 
   T v = value;
-  if(lane_id >= active) v = identity();
+  if(lane_id >= active) v = init;
 
   const T incl = prefix_incl_op(v);
 
   T excl = __acpp_sscp_metal_shuffle_up(incl, 1); // lane i gets incl(i-1)
-  if(lane_id == 0) excl = identity();
+  if(lane_id == 0) excl = init;
 
   if(lane_id == last_lane) scratch[group_id] = incl;
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
@@ -109,13 +101,13 @@ inline T __acpp_sscp_work_group_exclusive_scan(T value) {
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
 
     if(lid < ngroups) {
-      T add = (lid >= subgroup_size) ? scratch[subgroup_size - 1u] : identity();
+      T add = (lid >= subgroup_size) ? scratch[subgroup_size - 1u] : init;
       scratch[lid] = binary_op(scratch[lid], add);
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
   } else {
     for(uint offset = 1; offset < ngroups; offset <<= 1) {
-      T addend = identity();
+      T addend = init;
       if(lid < ngroups && lid >= offset) addend = scratch[lid - offset];
 
       __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
@@ -127,17 +119,17 @@ inline T __acpp_sscp_work_group_exclusive_scan(T value) {
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
   }
 
-  const T group_offset = (group_id > 0) ? scratch[group_id - 1] : identity();
+  const T group_offset = (group_id > 0) ? scratch[group_id - 1] : init;
   return binary_op(excl, group_offset);
 }
 
 #define X(type) \
-HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_exclusive_scan_##type(__acpp_sscp_algorithm_op op, type value) { \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_exclusive_scan_##type(__acpp_sscp_algorithm_op op, type value, type init) { \
   switch (op) { \
   case __acpp_sscp_algorithm_op::plus: \
-    return __acpp_sscp_work_group_exclusive_scan<__acpp_sscp_algorithm_op::plus>(value); \
+    return __acpp_sscp_work_group_exclusive_scan<__acpp_sscp_algorithm_op::plus>(value, init); \
   case __acpp_sscp_algorithm_op::multiply: \
-    return __acpp_sscp_work_group_exclusive_scan<__acpp_sscp_algorithm_op::multiply>(value); \
+    return __acpp_sscp_work_group_exclusive_scan<__acpp_sscp_algorithm_op::multiply>(value, init); \
   default: \
     __builtin_trap(); \
     return 0;\

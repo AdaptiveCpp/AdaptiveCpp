@@ -1026,6 +1026,10 @@ void MetalEmitter::emitGEPInstruction(const GetElementPtrInst* GEP, const std::s
 
 bool MetalEmitter::emitCallInstruction(const CallInst* CI, const std::string& name, int level) {
   Function *callee = CI->getCalledFunction();
+  if (!callee) {
+    errorMsg = "Error: Indirect call not supported: " + instToString(*CI);
+    return false;
+  }
 
   std::string calleeName = callee->getName().str();
 

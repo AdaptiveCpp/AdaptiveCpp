@@ -331,7 +331,9 @@ bool MetalEmitter::emitSignature(Function& F) {
   if (isKernel) {
     os << "[[kernel]] ";
   }
-  os << "void " << F.getName().str() << " (";
+
+  std::string returnType = isKernel ? "void" : mapType(F.getReturnType());
+  os << returnType << " " << F.getName().str() << " (";
 
   bool first = true;
   int bufIdx = 0;

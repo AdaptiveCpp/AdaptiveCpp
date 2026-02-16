@@ -18,7 +18,7 @@ Install
 * libomp (including development headers)
 * lld
 
-For example, the required steps to install clang 16 on an Ubuntu system are:
+For example, the required steps to install clang 20 on an Ubuntu system are:
 ```
 wget https://apt.llvm.org/llvm.sh #Convenience script that sets up the repositories
 chmod +x llvm.sh

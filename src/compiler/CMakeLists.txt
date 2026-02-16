@@ -118,7 +118,7 @@ else()
   elseif(NOT LIBMVEC_HAS_REQUIRED_SYMBOLS)
     message(STATUS "LIBMVEC found at ${LIBMVEC}, but does not provide required functions (likely too old)")
   elseif(NOT CLANG_SUPPORT_LIBMVEC)
-    message(STATUS "LIBMVEC was found at "${LIBMVEC}", but the detected LLVM version (${LLVM_VERSION_MAJOR}) does not support LIBMVEC.")
+    message(STATUS "LIBMVEC was found at ${LIBMVEC}, but the detected LLVM version (${LLVM_VERSION_MAJOR}) does not support LIBMVEC.")
   endif()
 
   #SLEEF

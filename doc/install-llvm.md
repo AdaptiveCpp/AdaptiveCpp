@@ -81,7 +81,9 @@ Verify from the cmake that the selected `clang++` and include headers match the 
 ...
 -- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-16/cmake/
 -- Selecting clang: /usr/bin/clang++-16
--- Using clang include directory: /usr/include/clang/16.0.1/include/..
+-- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-20/cmake
+-- Selecting clang: /usr/lib/llvm-20/bin/clang++
+-- Using clang include directory: /usr/lib/llvm-20/lib/clang/20/include/..
 ...
 ```
 

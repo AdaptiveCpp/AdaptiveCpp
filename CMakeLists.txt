@@ -365,7 +365,7 @@ if(BUILD_CLANG_PLUGIN)
         message(STATUS "Found ROCm clang: ${ROCM_CLANG_PATH}")
         execute_process(COMMAND ${ROCM_CLANG_PATH} "--version"
           OUTPUT_VARIABLE ROCM_CLANG_VERBOSE_OUTPUT)
-        string(REGEX MATCH "clang version ([0-9]+).([0-9]+).([0-9]+)" ROCM_CLANG_VERSION ${ROCM_CLANG_VERBOSE_OUTPUT})
+        string(REGEX MATCH "clang version ([0-9]+)\\.([0-9]+)\\.([0-9]+)" ROCM_CLANG_VERSION ${ROCM_CLANG_VERBOSE_OUTPUT})
         if(ROCM_CLANG_VERSION)
           set(ROCM_LLVM_MAJOR ${CMAKE_MATCH_1})
           set(ROCM_LLVM_MINOR ${CMAKE_MATCH_2})
@@ -387,7 +387,7 @@ if(BUILD_CLANG_PLUGIN)
       # by Linux distributions as they may be missing the roc-* identifier in the output :(
       execute_process(COMMAND ${CLANG_EXECUTABLE_PATH} "--version"
         OUTPUT_VARIABLE CLANG_VERBOSE_OUTPUT)
-      string(REGEX MATCH "clang version [0-9]+.[0-9]+.[0-9]+ \\(.+ roc-([0-9]+).([0-9]+).([0-9]+)" AMD_CLANG_VERSION ${CLANG_VERBOSE_OUTPUT})
+      string(REGEX MATCH "clang version [0-9]+\\.[0-9]+\\.[0-9]+[a-zA-Z]* \\(.+ roc-([0-9]+)\\.([0-9]+)\\.([0-9]+)" AMD_CLANG_VERSION ${CLANG_VERBOSE_OUTPUT})
 
       if(AMD_CLANG_VERSION)
         set(ROCM_VERSION_MAJOR ${CMAKE_MATCH_1})

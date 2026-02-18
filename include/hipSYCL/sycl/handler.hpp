@@ -688,7 +688,7 @@ public:
     _command_group_nodes.push_back(node);
   }
 
-  void khr_prefetch_host(const void *ptr, std::size_t num_bytes) {
+  void khr_prefetch_host(void *ptr, std::size_t num_bytes) {
     prefetch_host(ptr, num_bytes);
   }
 

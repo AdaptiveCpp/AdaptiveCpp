@@ -79,8 +79,6 @@ If AdaptiveCpp does not automatically configure the build for the desired clang/
 Verify from the cmake that the selected `clang++` and include headers match the LLVM that you have requested. Example output:
 ```
 ...
--- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-16/cmake/
--- Selecting clang: /usr/bin/clang++-16
 -- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-20/cmake
 -- Selecting clang: /usr/lib/llvm-20/bin/clang++
 -- Using clang include directory: /usr/lib/llvm-20/lib/clang/20/include/..

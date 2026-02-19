@@ -214,10 +214,10 @@ uint __simd_size [[threads_per_simdgroup]];
 uint __simd_group_id [[simdgroup_index_in_threadgroup]];
 uint __simd_lane_id [[thread_index_in_simdgroup]];
 
-uint3 __acpp_sscp_get_group_id [[threadgroup_position_in_grid]];
-uint3 __acpp_sscp_get_num_groups [[threadgroups_per_grid]];
-uint3 __acpp_sscp_get_local_id [[thread_position_in_threadgroup]];
-uint3 __acpp_sscp_get_local_size [[threads_per_threadgroup]];
+uint3 __acpp_sscp_metal_group_id [[threadgroup_position_in_grid]];
+uint3 __acpp_sscp_metal_num_groups [[threadgroups_per_grid]];
+uint3 __acpp_sscp_metal_local_id [[thread_position_in_threadgroup]];
+uint3 __acpp_sscp_metal_local_size [[threads_per_threadgroup]];
 
 )__";
 
@@ -473,11 +473,11 @@ bool MetalEmitter::emitSignature(Function& F) {
     }
 
     if (isKernel) {
-      os << "threadgroup void* __acpp_sscp_get_dynamic_local_memory [[threadgroup(0)]], ";
-      os << "constant uint& __acpp_sscp_dynamic_local_memory_size [[buffer(" << bufIdx++ << ")]]";
+      os << "threadgroup void* __acpp_sscp_metal_dynamic_local_memory [[threadgroup(0)]], ";
+      os << "constant uint& __acpp_sscp_metal_dynamic_local_memory_size [[buffer(" << bufIdx++ << ")]]";
     } else {
-      os << "threadgroup void* __acpp_sscp_get_dynamic_local_memory, ";
-      os << "uint __acpp_sscp_dynamic_local_memory_size";
+      os << "threadgroup void* __acpp_sscp_metal_dynamic_local_memory, ";
+      os << "uint __acpp_sscp_metal_dynamic_local_memory_size";
     }
   }
 
@@ -1167,8 +1167,8 @@ bool MetalEmitter::emitCallInstruction(const CallInst* CI, const std::string& na
     if (argsSize > 0) {
       callExpr += ", ";
     }
-    callExpr += "__acpp_sscp_get_dynamic_local_memory, ";
-    callExpr += "__acpp_sscp_dynamic_local_memory_size";
+    callExpr += "__acpp_sscp_metal_dynamic_local_memory, ";
+    callExpr += "__acpp_sscp_metal_dynamic_local_memory_size";
   }
   callExpr += ")";
 

@@ -41,14 +41,14 @@ public:
   virtual ~metal_sscp_code_object_invoker(){}
 
   virtual result submit_kernel(const kernel_operation& op,
-                               hcf_object_id hcf_object,
-                               const rt::range<3> &num_groups,
-                               const rt::range<3> &group_size,
-                               unsigned local_mem_size, void **args,
-                               std::size_t *arg_sizes, std::size_t num_args,
-                               std::string_view kernel_name,
-                               const rt::hcf_kernel_info* kernel_info,
-                               const kernel_configuration& config) override;
+    hcf_object_id hcf_object,
+    const rt::range<3> &num_groups,
+    const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args,
+    std::size_t *arg_sizes, std::size_t num_args,
+    std::string_view kernel_name,
+    const rt::hcf_kernel_info* kernel_info,
+    const kernel_configuration& config) override;
 private:
   metal_inorder_queue* _queue;
 };
@@ -76,10 +76,10 @@ public:
   virtual result query_status(inorder_queue_status& status);
 
   virtual result submit_sscp_kernel_from_code_object(hcf_object_id hcf_object,
-      std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
-      const rt::range<3> &num_groups, const rt::range<3> &group_size,
-      unsigned local_mem_size, void **args, std::size_t *arg_sizes,
-      std::size_t num_args, const kernel_configuration &config);
+    std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const kernel_configuration &config);
 
   virtual ~metal_inorder_queue();
 

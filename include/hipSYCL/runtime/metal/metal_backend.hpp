@@ -39,8 +39,8 @@ public:
   std::unique_ptr<backend_executor>
   create_inorder_executor(device_id dev, int priority) override;
 private:
-    mutable metal_hardware_manager _hw;
-    mutable lazily_constructed_executor<multi_queue_executor> _executor;
+  mutable metal_hardware_manager _hw;
+  mutable lazily_constructed_executor<multi_queue_executor> _executor;
 };
 
 } // namespace rt

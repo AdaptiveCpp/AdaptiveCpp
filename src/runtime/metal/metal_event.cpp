@@ -14,7 +14,7 @@ namespace hipsycl {
 namespace rt {
 
 metal_node_event::metal_node_event()
-    : _signal_channel{std::make_shared<signal_channel>()} {}
+  : _signal_channel{std::make_shared<signal_channel>()} {}
 
 metal_node_event::~metal_node_event() {}
 

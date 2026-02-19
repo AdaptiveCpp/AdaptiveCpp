@@ -36,7 +36,7 @@ result build_metal_library_from_source(MTL::Library*& library,
   options->setOptimizationLevel(MTL::LibraryOptimizationLevel::LibraryOptimizationLevelSize);
 
   NS::String* sourceString = NS::String::string(source.c_str(),
-                                                 NS::UTF8StringEncoding);
+                                                NS::UTF8StringEncoding);
 
   library = device->newLibrary(sourceString, options.get(), &error);
 

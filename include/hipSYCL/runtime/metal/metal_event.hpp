@@ -19,7 +19,7 @@ namespace hipsycl {
 namespace rt {
 
 class metal_node_event
-    : public inorder_queue_event<std::shared_ptr<signal_channel>> {
+  : public inorder_queue_event<std::shared_ptr<signal_channel>> {
 public:
   metal_node_event();
   ~metal_node_event();

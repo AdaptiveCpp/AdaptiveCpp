@@ -28,61 +28,61 @@ namespace rt {
 
 
 metal_backend::metal_backend()
-    : _executor([this](){
-        return std::make_unique<multi_queue_executor>(*this, [this](device_id dev) {
-            return std::unique_ptr<metal_inorder_queue>(_hw.make_queue(dev.get_id()));
-        });
-    })
+  : _executor([this](){
+    return std::make_unique<multi_queue_executor>(*this, [this](device_id dev) {
+      return std::unique_ptr<metal_inorder_queue>(_hw.make_queue(dev.get_id()));
+    });
+  })
 {
 }
 
 
 api_platform metal_backend::get_api_platform() const {
-    return api_platform::metal;
+  return api_platform::metal;
 }
 hardware_platform metal_backend::get_hardware_platform() const {
-    return hardware_platform::metal;
+  return hardware_platform::metal;
 }
 backend_id metal_backend::get_unique_backend_id() const {
-    return backend_id::metal;
+  return backend_id::metal;
 }
 
 backend_hardware_manager* metal_backend::get_hardware_manager() const {
-    return &_hw;
+  return &_hw;
 }
 backend_executor* metal_backend::get_executor(device_id dev) const {
-    if (dev.get_backend() != backend_id::metal) {
-        register_error(
-            __acpp_here(),
-            error_info{
-                "Requested device ID does not belong to the Metal backend.",
-                error_type::invalid_parameter_error}
-        );
-        return nullptr;
-    }
+  if (dev.get_backend() != backend_id::metal) {
+    register_error(
+      __acpp_here(),
+      error_info{
+        "Requested device ID does not belong to the Metal backend.",
+        error_type::invalid_parameter_error}
+    );
+    return nullptr;
+  }
 
-    return _executor.get();
+  return _executor.get();
 }
 backend_allocator *metal_backend::get_allocator(device_id dev) const {
-    if (dev.get_backend() != backend_id::metal) {
-        register_error(
-            __acpp_here(),
-            error_info{
-                "Requested device ID does not belong to the Metal backend.",
-                error_type::invalid_parameter_error}
-        );
-        return nullptr;
-    }
-    return _hw.get_allocator(dev.get_id());
+  if (dev.get_backend() != backend_id::metal) {
+    register_error(
+      __acpp_here(),
+      error_info{
+        "Requested device ID does not belong to the Metal backend.",
+        error_type::invalid_parameter_error}
+    );
+    return nullptr;
+  }
+  return _hw.get_allocator(dev.get_id());
 }
 
 std::string metal_backend::get_name() const {
-    return "Metal";
+  return "Metal";
 }
 
 std::unique_ptr<backend_executor>
 metal_backend::create_inorder_executor(device_id dev, int priority) {
-    return nullptr;
+  return nullptr;
 }
 
 metal_backend::~metal_backend() = default;

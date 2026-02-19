@@ -30,16 +30,16 @@ inline unsigned align_up(unsigned x, unsigned a) {
 }
 
 void encode_arguments(
-    MTL::ComputeCommandEncoder* encoder,
-    MTL::Device* device,
-    metal_allocator* allocator,
-    void** args,
-    std::size_t* arg_sizes,
-    std::size_t num_args,
-    const std::vector<int>& isPointerArg
+  MTL::ComputeCommandEncoder* encoder,
+  MTL::Device* device,
+  metal_allocator* allocator,
+  void** args,
+  std::size_t* arg_sizes,
+  std::size_t num_args,
+  const std::vector<int>& is_pointer_arg
 ) {
   for (std::size_t i = 0; i < num_args; ++i) {
-    if (isPointerArg[i]) {
+    if (is_pointer_arg[i]) {
       void* usm_ptr = *(void**)args[i];
       auto [buffer, offset, _] = allocator->get_usm_block(usm_ptr);
       if (buffer) {
@@ -52,33 +52,33 @@ void encode_arguments(
 }
 
 void encode_arguments_argbuffer(
-    MTL::ComputeCommandEncoder* encoder,
-    MTL::Device* device,
-    metal_allocator* allocator,
-    MTL::Function* function,
-    void** args,
-    std::size_t* arg_sizes,
-    std::size_t num_args,
-    const std::vector<int>& isPointerArg,
-    std::vector<NS::SharedPtr<MTL::Buffer>>& buffers_out
+  MTL::ComputeCommandEncoder* encoder,
+  MTL::Device* device,
+  metal_allocator* allocator,
+  MTL::Function* function,
+  void** args,
+  std::size_t* arg_sizes,
+  std::size_t num_args,
+  const std::vector<int>& is_pointer_arg,
+  std::vector<NS::SharedPtr<MTL::Buffer>>& buffers_out
 ) {
-  NS::SharedPtr<MTL::ArgumentEncoder> argEnc = NS::TransferPtr(function->newArgumentEncoder(0));
+  NS::SharedPtr<MTL::ArgumentEncoder> arg_enc = NS::TransferPtr(function->newArgumentEncoder(0));
 
-  const size_t argLen = argEnc->encodedLength();
-  auto arg_buffer_out = buffers_out.emplace_back(NS::TransferPtr(device->newBuffer(argLen, MTL::ResourceStorageModeShared)));
+  const size_t arg_len = arg_enc->encodedLength();
+  auto arg_buffer_out = buffers_out.emplace_back(NS::TransferPtr(device->newBuffer(arg_len, MTL::ResourceStorageModeShared)));
 
-  argEnc->setArgumentBuffer(arg_buffer_out.get(), 0);
+  arg_enc->setArgumentBuffer(arg_buffer_out.get(), 0);
 
   for (std::size_t i = 0; i < num_args; ++i) {
-    if (isPointerArg[i]) {
+    if (is_pointer_arg[i]) {
       void* usm_ptr = *(void**)args[i];
       auto [buffer, offset, _] = allocator->get_usm_block(usm_ptr);
       if (buffer) {
-        argEnc->setBuffer(buffer, offset, i);
+        arg_enc->setBuffer(buffer, offset, i);
         encoder->useResource(buffer, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
       }
     } else {
-      auto* dst = argEnc->constantData(i);
+      auto* dst = arg_enc->constantData(i);
       std::memcpy(dst, args[i], arg_sizes[i]);
     }
   }
@@ -88,17 +88,17 @@ void encode_arguments_argbuffer(
 
 /// Launch a kernel from a compiled Metal library
 result launch_kernel_from_library(
-    MTL::Library* library,
-    MTL::Device* device,
-    metal_allocator* allocator,
-    std::string_view kernel_name,
-    const rt::range<3>& num_groups,
-    const rt::range<3>& group_size,
-    unsigned local_mem_size,
-    void** args,
-    std::size_t* arg_sizes,
-    std::size_t num_args,
-    const rt::hcf_kernel_info* kernel_info)
+  MTL::Library* library,
+  MTL::Device* device,
+  metal_allocator* allocator,
+  std::string_view kernel_name,
+  const rt::range<3>& num_groups,
+  const rt::range<3>& group_size,
+  unsigned local_mem_size,
+  void** args,
+  std::size_t* arg_sizes,
+  std::size_t num_args,
+  const rt::hcf_kernel_info* kernel_info)
 {
   if (!library) {
     return make_error(__acpp_here(),
@@ -108,8 +108,8 @@ result launch_kernel_from_library(
   //std::string entry = "my_kernel"; //
   auto entry = std::string(kernel_name);
   // Get the kernel function from library
-  NS::String* functionName = NS::String::string(entry.c_str(), NS::UTF8StringEncoding);
-  NS::SharedPtr<MTL::Function> function = NS::TransferPtr(library->newFunction(functionName));
+  NS::String* function_name = NS::String::string(entry.c_str(), NS::UTF8StringEncoding);
+  NS::SharedPtr<MTL::Function> function = NS::TransferPtr(library->newFunction(function_name));
 
   if (!function) {
     return make_error(__acpp_here(),
@@ -122,9 +122,9 @@ result launch_kernel_from_library(
   opts = (MTL::PipelineOption)(opts | MTL::PipelineOptionBufferTypeInfo);
   MTL::AutoreleasedComputePipelineReflection refl;
 
-  NS::SharedPtr<MTL::ComputePipelineState> pipelineState = NS::TransferPtr(device->newComputePipelineState(function.get(), opts, &refl, &error));
+  NS::SharedPtr<MTL::ComputePipelineState> pipeline_state = NS::TransferPtr(device->newComputePipelineState(function.get(), opts, &refl, &error));
 
-  if (error || !pipelineState) {
+  if (error || !pipeline_state) {
     std::string error_msg = "metal: Failed to create compute pipeline state";
     if (error && error->localizedDescription()) {
       error_msg += ": ";
@@ -133,8 +133,8 @@ result launch_kernel_from_library(
     return make_error(__acpp_here(), error_info{error_msg});
   }
   auto arguments = refl->arguments();
-  std::vector<int> isPointerArg; isPointerArg.resize(num_args);
-  bool argBufferUsed = false;
+  std::vector<int> is_pointer_arg; is_pointer_arg.resize(num_args);
+  bool arg_buffer_used = false;
   for (int i = 0; i < arguments->count() && i < num_args /* skip special 'hidden args'*/; ++i) {
     auto arg = (MTL::Argument*)arguments->object(i);
     if (arg->type() != MTL::ArgumentTypeBuffer) {
@@ -146,47 +146,47 @@ result launch_kernel_from_library(
         return make_error(__acpp_here(),
                           error_info{"metal: Multiple argument buffers not supported"});
       }
-      argBufferUsed = true;
+      arg_buffer_used = true;
       for (int j = 0; j < structType->members()->count() && i < num_args; ++j) {
         auto member = (MTL::StructMember*)structType->members()->object(j);
         switch (member->dataType()) {
           case MTL::DataTypePointer:
-            isPointerArg[j] = 1;
+            is_pointer_arg[j] = 1;
             break;
           default:
-            isPointerArg[j] = 0;
+            is_pointer_arg[j] = 0;
             break;
         }
       }
       break;
     } else if (arg->bufferPointerType()) {
-      isPointerArg[i] = 1;
+      is_pointer_arg[i] = 1;
     } else {
-      isPointerArg[i] = 0;
+      is_pointer_arg[i] = 0;
     }
   }
 
-  NS::SharedPtr<MTL::CommandQueue> commandQueue = NS::TransferPtr(device->newCommandQueue());
-  if (!commandQueue) {
+  NS::SharedPtr<MTL::CommandQueue> command_queue = NS::TransferPtr(device->newCommandQueue());
+  if (!command_queue) {
     return make_error(__acpp_here(),
                       error_info{"metal: Failed to create command queue"});
   }
 
-  auto* commandBuffer = commandQueue->commandBuffer();
-  if (!commandBuffer) {
+  auto* command_buffer = command_queue->commandBuffer();
+  if (!command_buffer) {
     return make_error(__acpp_here(),
                       error_info{"metal: Failed to create command buffer"});
   }
 
   // Create compute command encoder
-  auto* encoder = commandBuffer->computeCommandEncoder();
+  auto* encoder = command_buffer->computeCommandEncoder();
   if (!encoder) {
     return make_error(__acpp_here(),
                       error_info{"metal: Failed to create compute encoder"});
   }
 
   // Set pipeline state
-  encoder->setComputePipelineState(pipelineState.get());
+  encoder->setComputePipelineState(pipeline_state.get());
   auto user_local_mem_size = local_mem_size;
   auto threads_in_group = num_groups[0] * num_groups[1] * num_groups[2];
   // TODO: check if workgroup reduction is used in kernel_info to adjust local mem size
@@ -198,41 +198,41 @@ result launch_kernel_from_library(
   }
 
   std::vector<NS::SharedPtr<MTL::Buffer>> buffers_out;
-  if (!argBufferUsed) {
-    encode_arguments(encoder, device, allocator, args, arg_sizes, num_args, isPointerArg);
+  if (!arg_buffer_used) {
+    encode_arguments(encoder, device, allocator, args, arg_sizes, num_args, is_pointer_arg);
   } else {
     encode_arguments_argbuffer(
-      encoder, device, allocator, function.get(), args, arg_sizes, num_args, isPointerArg, buffers_out);
+      encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out);
   }
-  encoder->setBytes(&user_local_mem_size, sizeof(uint32_t), argBufferUsed ? 1 : num_args);
+  encoder->setBytes(&user_local_mem_size, sizeof(uint32_t), arg_buffer_used ? 1 : num_args);
 
-  MTL::Size numGroupsSize = MTL::Size::Make(
+  MTL::Size num_groups_size = MTL::Size::Make(
     num_groups[0],
     num_groups[1],
     num_groups[2]
   );
 
-  MTL::Size threadgroupSize = MTL::Size::Make(
+  MTL::Size threadgroup_size = MTL::Size::Make(
     group_size[0],
     group_size[1],
     group_size[2]
   );
 
   HIPSYCL_DEBUG_INFO << "Dispatching kernel '" << kernel_name << "' with grid size ("
-                     << numGroupsSize.width << ", " << numGroupsSize.height << ", "
-                     << numGroupsSize.depth << ") and threadgroup size ("
-                     << threadgroupSize.width << ", " << threadgroupSize.height
-                     << ", " << threadgroupSize.depth << ")" << std::endl;
+                     << num_groups_size.width << ", " << num_groups_size.height << ", "
+                     << num_groups_size.depth << ") and threadgroup size ("
+                     << threadgroup_size.width << ", " << threadgroup_size.height
+                     << ", " << threadgroup_size.depth << ")" << std::endl;
 
-  encoder->dispatchThreadgroups(numGroupsSize, threadgroupSize);
+  encoder->dispatchThreadgroups(num_groups_size, threadgroup_size);
 
   encoder->endEncoding();
 
-  commandBuffer->commit();
-  commandBuffer->waitUntilCompleted();
+  command_buffer->commit();
+  command_buffer->waitUntilCompleted();
 
-  if (commandBuffer->error()) {
-    NS::Error* err = commandBuffer->error();
+  if (command_buffer->error()) {
+    NS::Error* err = command_buffer->error();
     std::string msg = "metal: Command buffer failed: ";
     if (err->localizedDescription()) {
       msg += err->localizedDescription()->utf8String();
@@ -247,7 +247,7 @@ result launch_kernel_from_library(
 }
 
 result memset_device(
-  MTL::CommandBuffer* commandBuffer,
+  MTL::CommandBuffer* command_buffer,
   metal_allocator* allocator,
   void* ptr,
   unsigned char pattern,
@@ -259,20 +259,20 @@ result memset_device(
       error_info{"metal_queue: Failed to resolve USM pointer for memset"});
   }
 
-  MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
-  if (!blitEncoder) {
+  MTL::BlitCommandEncoder* blit_encoder = command_buffer->blitCommandEncoder();
+  if (!blit_encoder) {
     return make_error(__acpp_here(),
       error_info{"metal_queue: Failed to create blit encoder for memset"});
   }
 
-  blitEncoder->fillBuffer(buffer, NS::Range::Make(offset, num_bytes), pattern);
-  blitEncoder->endEncoding();
+  blit_encoder->fillBuffer(buffer, NS::Range::Make(offset, num_bytes), pattern);
+  blit_encoder->endEncoding();
 
-  commandBuffer->commit();
-  commandBuffer->waitUntilCompleted();
+  command_buffer->commit();
+  command_buffer->waitUntilCompleted();
 
-  if (commandBuffer->error()) {
-    NS::Error* err = commandBuffer->error();
+  if (command_buffer->error()) {
+    NS::Error* err = command_buffer->error();
     std::string msg = "metal_queue: Memset failed: ";
     if (err->localizedDescription()) {
       msg += err->localizedDescription()->utf8String();
@@ -368,22 +368,21 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
   _worker([=]() {
     NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
-    NS::SharedPtr<MTL::CommandQueue> commandQueue =
-      NS::TransferPtr(_device->newCommandQueue());
-    if (!commandQueue) {
+    NS::SharedPtr<MTL::CommandQueue> command_queue = NS::TransferPtr(_device->newCommandQueue());
+    if (!command_queue) {
       register_error(make_error(__acpp_here(),
         error_info{"metal_queue: Failed to create command queue for memcpy"}));
       return;
     }
 
-    MTL::CommandBuffer* commandBuffer = commandQueue->commandBuffer();
-    if (!commandBuffer) {
+    MTL::CommandBuffer* command_buffer = command_queue->commandBuffer();
+    if (!command_buffer) {
       register_error(make_error(__acpp_here(),
         error_info{"metal_queue: Failed to create command buffer for memcpy"}));
       return;
     }
-    MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
-    if (!blitEncoder) {
+    MTL::BlitCommandEncoder* blit_encoder = command_buffer->blitCommandEncoder();
+    if (!blit_encoder) {
       register_error(make_error(__acpp_here(),
         error_info{"metal_queue: Failed to create blit encoder"}));
       return;
@@ -466,7 +465,7 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
         size_t src_linear_index = linear_index(src, src_staging_shape);
         size_t dst_linear_index = linear_index(dst, dst_staging_shape);
 
-        blitEncoder->copyFromBuffer(
+        blit_encoder->copyFromBuffer(
           from,
           from_offset + src_linear_index * src_element_size,
           to,
@@ -475,12 +474,12 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
       }
     }
 
-    blitEncoder->endEncoding();
-    commandBuffer->commit();
-    commandBuffer->waitUntilCompleted();
+    blit_encoder->endEncoding();
+    command_buffer->commit();
+    command_buffer->waitUntilCompleted();
 
-    if (commandBuffer->error()) {
-      NS::Error* err = commandBuffer->error();
+    if (command_buffer->error()) {
+      NS::Error* err = command_buffer->error();
       std::string msg = "metal_queue: Memcpy failed: ";
       if (err->localizedDescription()) {
         msg += err->localizedDescription()->utf8String();
@@ -544,23 +543,21 @@ result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_p
 
   _worker([=]() {
     NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-    NS::SharedPtr<MTL::CommandQueue> commandQueue =
-      NS::TransferPtr(_device->newCommandQueue());
-    if (!commandQueue) {
+    NS::SharedPtr<MTL::CommandQueue> command_queue = NS::TransferPtr(_device->newCommandQueue());
+    if (!command_queue) {
       register_error(make_error(__acpp_here(),
         error_info{"metal_queue: Failed to create command queue for memset"}));
       return;
     }
 
-    MTL::CommandBuffer* commandBuffer = commandQueue->commandBuffer();
-    if (!commandBuffer) {
+    MTL::CommandBuffer* command_buffer = command_queue->commandBuffer();
+    if (!command_buffer) {
       register_error(make_error(__acpp_here(),
         error_info{"metal_queue: Failed to create command buffer for memset"}));
       return;
     }
 
-    result res = memset_device(commandBuffer, _allocator,
-                  ptr, pattern, num_bytes);
+    result res = memset_device(command_buffer, _allocator, ptr, pattern, num_bytes);
 
     if (!res.is_success()) {
       register_error(res);

@@ -187,7 +187,11 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
         llvm::expandMemSetPatternAsLoop(MSP);
         II->eraseFromParent();
         Changed = true;
+#if LLVM_VERSION_MAJOR >= 21
       } else if (auto* AMC = llvm::dyn_cast<llvm::AnyMemCpyInst>(II)) {
+#else
+      } else if (auto* AMC = llvm::dyn_cast<llvm::AtomicMemCpyInst>(II)) {
+#endif
         llvm::expandAtomicMemCpyAsLoop(AMC, TTI, SE);
         II->eraseFromParent();
         Changed = true;

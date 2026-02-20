@@ -13,6 +13,7 @@
 
 #include "../LLVMToBackend.hpp"
 
+#include <optional>
 #include <vector>
 #include <string>
 #include <unordered_set>
@@ -41,10 +42,12 @@ protected:
   // This assumes that To has been created with a matching function signature from From,
   // including function and parameter attributes.
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
+  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
 
 private:
   std::vector<std::string> KernelNames;
   std::unordered_set<std::string> ActualKernelNames;
+  std::optional<int> MaxArgsForFlatMode;
 };
 
 } // namespace compiler

@@ -472,7 +472,11 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
   FlavoredModule.print(llvm::errs(), nullptr);
 #endif
 
-  MetalEmitter emitter(FlavoredModule, kernelNames);
+  MetalEmitterOptions emitterOpts;
+  if (MaxArgsForFlatMode.has_value()) {
+    emitterOpts.maxArgsForFlatMode = MaxArgsForFlatMode.value();
+  }
+  MetalEmitter emitter(FlavoredModule, kernelNames, emitterOpts);
   bool success = emitter.emit(out);
   if (!success) {
     registerError("LLVMToMetal: MetalEmitter failed: " +
@@ -484,6 +488,14 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
   std::cerr << "Generated Metal code:\n" << out << std::endl;
 #endif
   return true;
+}
+
+bool LLVMToMetalTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
+  if (Option == "metal-max-args-for-flat-mode") {
+    MaxArgsForFlatMode = std::stoi(Value);
+    return true;
+  }
+  return false;
 }
 
 void LLVMToMetalTranslator::migrateKernelProperties(llvm::Function* From, llvm::Function* To) {

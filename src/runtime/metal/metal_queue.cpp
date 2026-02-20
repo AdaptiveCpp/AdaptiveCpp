@@ -25,6 +25,13 @@ namespace rt {
 
 namespace {
 
+// Metal supports at most 31 [[buffer(N)]] arguments in flat mode.
+// When a kernel has more than metal_max_args_for_flat_mode parameters,
+// all arguments are packed into a single argument buffer struct instead.
+// This value is passed to the compiler via kernel_build_option::metal_max_args_for_flat_mode,
+// which sets MetalEmitterOptions::maxArgsForFlatMode in LLVMToMetal.
+static constexpr int metal_max_args_for_flat_mode = 6;
+
 inline unsigned align_up(unsigned x, unsigned a) {
   return (x + (a - 1)) & ~(a - 1);
 }
@@ -86,7 +93,6 @@ void encode_arguments_argbuffer(
   encoder->setBuffer(arg_buffer_out.get(), 0, 0);
 }
 
-/// Launch a kernel from a compiled Metal library
 result launch_kernel_from_library(
   MTL::Library* library,
   MTL::Device* device,
@@ -98,14 +104,14 @@ result launch_kernel_from_library(
   void** args,
   std::size_t* arg_sizes,
   std::size_t num_args,
-  const rt::hcf_kernel_info* kernel_info)
+  const rt::hcf_kernel_info* kernel_info,
+  const std::optional<std::vector<int>>& retained_indices)
 {
   if (!library) {
     return make_error(__acpp_here(),
                       error_info{"metal: Library is null"});
   }
 
-  //std::string entry = "my_kernel"; //
   auto entry = std::string(kernel_name);
   // Get the kernel function from library
   NS::String* function_name = NS::String::string(entry.c_str(), NS::UTF8StringEncoding);
@@ -118,11 +124,7 @@ result launch_kernel_from_library(
   }
 
   NS::Error* error = nullptr;
-  MTL::PipelineOption opts = MTL::PipelineOptionArgumentInfo;
-  opts = (MTL::PipelineOption)(opts | MTL::PipelineOptionBufferTypeInfo);
-  MTL::AutoreleasedComputePipelineReflection refl;
-
-  NS::SharedPtr<MTL::ComputePipelineState> pipeline_state = NS::TransferPtr(device->newComputePipelineState(function.get(), opts, &refl, &error));
+  NS::SharedPtr<MTL::ComputePipelineState> pipeline_state = NS::TransferPtr(device->newComputePipelineState(function.get(), &error));
 
   if (error || !pipeline_state) {
     std::string error_msg = "metal: Failed to create compute pipeline state";
@@ -132,39 +134,15 @@ result launch_kernel_from_library(
     }
     return make_error(__acpp_here(), error_info{error_msg});
   }
-  auto arguments = refl->arguments();
-  std::vector<int> is_pointer_arg; is_pointer_arg.resize(num_args);
-  bool arg_buffer_used = false;
-  for (int i = 0; i < arguments->count() && i < num_args /* skip special 'hidden args'*/; ++i) {
-    auto arg = (MTL::Argument*)arguments->object(i);
-    if (arg->type() != MTL::ArgumentTypeBuffer) {
-      break;
-    }
-    auto dataType = arg->bufferDataType();
-    if (auto structType = arg->bufferStructType()) {
-      if (i != 0) {
-        return make_error(__acpp_here(),
-                          error_info{"metal: Multiple argument buffers not supported"});
-      }
-      arg_buffer_used = true;
-      for (int j = 0; j < structType->members()->count() && i < num_args; ++j) {
-        auto member = (MTL::StructMember*)structType->members()->object(j);
-        switch (member->dataType()) {
-          case MTL::DataTypePointer:
-            is_pointer_arg[j] = 1;
-            break;
-          default:
-            is_pointer_arg[j] = 0;
-            break;
-        }
-      }
-      break;
-    } else if (arg->bufferPointerType()) {
-      is_pointer_arg[i] = 1;
-    } else {
-      is_pointer_arg[i] = 0;
+
+  std::vector<int> is_pointer_arg(num_args, 0);
+  for (std::size_t i = 0; i < num_args; ++i) {
+    std::size_t ki = retained_indices.has_value() ? retained_indices.value()[i] : i;
+    if (ki < kernel_info->get_num_parameters()) {
+      is_pointer_arg[i] = (kernel_info->get_argument_type(ki) == rt::hcf_kernel_info::pointer) ? 1 : 0;
     }
   }
+  bool arg_buffer_used = static_cast<int>(num_args) > metal_max_args_for_flat_mode;
 
   NS::SharedPtr<MTL::CommandQueue> command_queue = NS::TransferPtr(device->newCommandQueue());
   if (!command_queue) {
@@ -178,14 +156,12 @@ result launch_kernel_from_library(
                       error_info{"metal: Failed to create command buffer"});
   }
 
-  // Create compute command encoder
   auto* encoder = command_buffer->computeCommandEncoder();
   if (!encoder) {
     return make_error(__acpp_here(),
                       error_info{"metal: Failed to create compute encoder"});
   }
 
-  // Set pipeline state
   encoder->setComputePipelineState(pipeline_state.get());
   auto user_local_mem_size = local_mem_size;
   auto threads_in_group = num_groups[0] * num_groups[1] * num_groups[2];
@@ -663,6 +639,8 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   for (const auto& opt : kernel_info->get_compilation_options())
     _config.set_build_option(opt.first, opt.second);
 
+  _config.set_build_option(kernel_build_option::metal_max_args_for_flat_mode, metal_max_args_for_flat_mode);
+
   // Generate configuration IDs for caching
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;
@@ -740,9 +718,9 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
       error_info{"metal_queue: Code object construction failed"});
   }
 
-  if (obj->get_jit_output_metadata().kernel_retained_arguments_indices.has_value()) {
-    _arg_mapper.apply_dead_argument_elimination_mask(
-      obj->get_jit_output_metadata().kernel_retained_arguments_indices.value());
+  const auto& retained_indices = obj->get_jit_output_metadata().kernel_retained_arguments_indices;
+  if (retained_indices.has_value()) {
+    _arg_mapper.apply_dead_argument_elimination_mask(retained_indices.value());
   }
 
   // Get the Metal library from the code object
@@ -761,7 +739,8 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
     _arg_mapper.get_mapped_args(),
     const_cast<std::size_t*>(_arg_mapper.get_mapped_arg_sizes()),
     _arg_mapper.get_mapped_num_args(),
-    kernel_info);
+    kernel_info,
+    retained_indices);
 
 #else
   return make_error(__acpp_here(),

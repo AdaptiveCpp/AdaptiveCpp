@@ -67,80 +67,104 @@ namespace compiler {
 
 namespace {
 
+// these are remapped for f32 and f64
+static constexpr std::array remapped_llvm_math_builtins = {
+  "sin", "cos", "tan", "sqrt",
+  "asin", "acos", "atan", "atan2",
+  "sinh", "cosh", "tanh",
+  "log", "log2", "log10",
+  "exp", "exp2", "exp10",
+  "ldexp",
+  "fabs", "floor", "ceil",
+  "copysign"
+};
+
+using builtin_mapping = std::tuple<const char*, const char*, int>; // llvm name, acpp name, arg count (for count intrinsics)
+
+// LLVM math intrinsics where the ACPP name differs from the LLVM name
+// Format: {llvm_name, acpp_name}
+// llvm.<llvm_name>.f32 -> __acpp_sscp_<acpp_name>_f32
+static constexpr std::array remapped_llvm_math_builtins_renamed = {
+  builtin_mapping{"maxnum", "fmax", -1},
+  builtin_mapping{"minnum", "fmin", -1},
+  builtin_mapping{"fmuladd", "fma", -1},
+};
+
+static constexpr std::array remapped_llvm_count_builtins = {
+  builtin_mapping{"ctlz", "clz", 1},
+  builtin_mapping{"cttz", "ctz", 1},
+  builtin_mapping{"ctpop", "popcount", 1}
+};
+
 struct ReplaceIntrinsics : llvm::PassInfoMixin<ReplaceIntrinsics> {
-  struct Mapping {
-    std::string name;
-    int argCount;
-  };
+  std::unordered_map<std::string, std::pair<std::string, int>> Replacement;
 
-  std::unordered_map<llvm::Intrinsic::ID, Mapping> mapping = {
-    {llvm::Intrinsic::ctlz, {"clz", 1}},
-    {llvm::Intrinsic::cttz, {"ctz", 1}},
-    {llvm::Intrinsic::ctpop, {"popcount", 1}},
-  };
-
-  llvm::PreservedAnalyses run(llvm::Function& F, llvm::FunctionAnalysisManager& FAM) {
-    llvm::SmallVector<llvm::IntrinsicInst*, 16> Work;
-
-    for (auto& BB : F) {
-      for (auto& I : BB) {
-        auto* II = llvm::dyn_cast<llvm::IntrinsicInst>(&I);
-        if (!II) {
-          continue;
-        }
-        auto ID = II->getIntrinsicID();
-        if (ID == llvm::Intrinsic::ctlz || ID == llvm::Intrinsic::cttz || ID == llvm::Intrinsic::ctpop) {
-          Work.push_back(II);
-        }
-      }
+  ReplaceIntrinsics() {
+    std::string llvm_prefix = "llvm.";
+    std::string acpp_prefix = "__acpp_sscp_";
+    for (const auto& Name : remapped_llvm_math_builtins) {
+      Replacement[llvm_prefix + Name + ".f32"] = {acpp_prefix + Name + "_f32", -1};
+      Replacement[llvm_prefix + Name + ".f64"] = {acpp_prefix + Name + "_f64", -1};
     }
-
-    bool Changed = false;
-    for (auto* II : Work) {
-      if (replaceCountIntrinsic(II)) {
-        II->eraseFromParent();
-        Changed = true;
-      }
+    for (const auto& [Name, Mapping, _] : remapped_llvm_math_builtins_renamed) {
+      Replacement[llvm_prefix + Name + ".f32"] = {acpp_prefix + Mapping + "_f32", -1};
+      Replacement[llvm_prefix + Name + ".f64"] = {acpp_prefix + Mapping + "_f64", -1};
     }
-
-    return Changed ? llvm::PreservedAnalyses::none()
-                   : llvm::PreservedAnalyses::all();
+    for (const auto& [Name, Mapping, ArgCount] : remapped_llvm_count_builtins) {
+      Replacement[llvm_prefix + Name + ".i8"] = {acpp_prefix + Mapping + "_u8", ArgCount};
+      Replacement[llvm_prefix + Name + ".i16"] = {acpp_prefix + Mapping + "_u16", ArgCount};
+      Replacement[llvm_prefix + Name + ".i32"] = {acpp_prefix + Mapping + "_u32", ArgCount};
+      Replacement[llvm_prefix + Name + ".i64"] = {acpp_prefix + Mapping + "_u64", ArgCount};
+    }
   }
 
-  bool replaceCountIntrinsic(llvm::IntrinsicInst* II) {
-    auto ID = II->getIntrinsicID();
-    auto mappingIt = mapping.find(ID);
-    if (mappingIt == mapping.end()) {
-      return false;
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+    for(const auto& [Name, Value] : Replacement) {
+      const auto& [ReplacementName, ArgCount] = Value;
+      if(llvm::Function* F = M.getFunction(Name)) {
+        llvm::Function* Replacement = M.getFunction(ReplacementName);
+        if(!Replacement) {
+          if (ArgCount == -1) {
+            Replacement = llvm::Function::Create(F->getFunctionType(), F->getLinkage(), ReplacementName, M);
+          } else {
+            llvm::Type* RetTy = F->getReturnType();
+            llvm::SmallVector<llvm::Type*, 8> ArgTys;
+            for (unsigned i = 0; i < ArgCount; ++i) {
+              ArgTys.push_back(F->getArg(i)->getType());
+            }
+            llvm::FunctionType* FT = llvm::FunctionType::get(RetTy, ArgTys, false);
+            Replacement = llvm::Function::Create(FT, F->getLinkage(), ReplacementName, M);
+          }
+          Replacement->setLinkage(llvm::GlobalValue::ExternalLinkage);
+        }
+
+        HIPSYCL_DEBUG_INFO << "Metal: ReplaceIntrinsics: Remapping calls from " << Name << " to "
+                           << ReplacementName << "\n";
+        if (F->getFunctionType() == Replacement->getFunctionType()) {
+          F->replaceAllUsesWith(Replacement);
+        } else {
+          // Signatures differ (e.g. llvm.ctlz has an extra i1 is_zero_undef arg)
+          llvm::SmallVector<llvm::CallInst*, 16> Calls;
+          for (auto* U : F->users()) {
+            if (auto* CI = llvm::dyn_cast<llvm::CallInst>(U)) {
+              Calls.push_back(CI);
+            }
+          }
+          for (auto* CI : Calls) {
+            llvm::SmallVector<llvm::Value*, 4> Args;
+            for (unsigned i = 0; i < (unsigned)ArgCount; ++i) {
+              Args.push_back(CI->getArgOperand(i));
+            }
+            llvm::CallInst* NewCI = llvm::CallInst::Create(Replacement->getFunctionType(), Replacement, Args, "", CI->getIterator());
+            NewCI->takeName(CI);
+            CI->replaceAllUsesWith(NewCI);
+            CI->eraseFromParent();
+          }
+        }
+      }
     }
 
-    llvm::Value* X = II->getArgOperand(0);
-    auto* Ty = X->getType();
-    unsigned W;
-    if (auto* IT = llvm::dyn_cast<llvm::IntegerType>(Ty)) {
-      W = IT->getBitWidth();
-    } else {
-      return false;
-    }
-    if (W != 8 && W != 16 && W != 32 && W != 64) {
-      return false;
-    }
-
-    std::string FnName = "__acpp_sscp_" + mappingIt->second.name + "_u" + std::to_string(W);
-    llvm::Module& M = *II->getModule();
-    auto* FT = llvm::FunctionType::get(Ty, {Ty}, false);
-    llvm::FunctionCallee Callee = M.getOrInsertFunction(FnName, FT);
-    if (auto* F = llvm::dyn_cast<llvm::Function>(Callee.getCallee())) {
-      F->addFnAttr(llvm::Attribute::AlwaysInline);
-      F->addFnAttr(llvm::Attribute::NoUnwind);
-      F->addFnAttr(llvm::Attribute::ReadNone);
-    }
-
-    llvm::IRBuilder<> B(II);
-    llvm::Value* Call = B.CreateCall(Callee, {X});
-    II->replaceAllUsesWith(Call);
-
-    return true;
+    return llvm::PreservedAnalyses::none();
   }
 };
 
@@ -428,14 +452,7 @@ bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   AddressSpaceInferencePass ASIPass{ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
 
-  withPassBuilder([&](auto& PB, auto& LAM, auto& FAM, auto& CGAM, auto& MAM) {
-    llvm::FunctionPassManager FPM;
-    FPM.addPass(ReplaceIntrinsics());
-    llvm::ModulePassManager MPM;
-    MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
-    MPM.run(M, MAM);
-    return 0;
-  });
+  ReplaceIntrinsics{}.run(M, *PH.ModuleAnalysisManager);
 
   std::string BuiltinBitcodeFile =
       common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-metal-full.bc");

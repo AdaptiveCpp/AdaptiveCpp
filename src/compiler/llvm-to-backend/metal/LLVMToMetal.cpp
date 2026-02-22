@@ -243,6 +243,10 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
         expandAbs(II);
         II->eraseFromParent();
         Changed = true;
+      } else if (ID == llvm::Intrinsic::scmp || ID == llvm::Intrinsic::ucmp) {
+        expandCmpIntrinsic(II);
+        II->eraseFromParent();
+        Changed = true;
       } else if (ID == llvm::Intrinsic::lifetime_start ||
          ID == llvm::Intrinsic::lifetime_end ||
          ID == llvm::Intrinsic::assume ||
@@ -285,6 +289,25 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
     llvm::Value* IsMin = B.CreateICmpEQ(X, IntMin, "ismin");
     llvm::Value* Res = B.CreateSelect(IsMin, IntMin, Abs, "abs_safe");
 
+    II->replaceAllUsesWith(Res);
+  }
+
+  void expandCmpIntrinsic(llvm::IntrinsicInst* II) {
+    auto* CI = llvm::cast<llvm::CmpIntrinsic>(II);
+    llvm::IRBuilder<> B(II);
+
+    llvm::Value* A  = CI->getLHS();
+    llvm::Value* Bv = CI->getRHS();
+    auto* RetTy = II->getType();
+
+    llvm::Value* GT = B.CreateICmp(CI->getGTPredicate(), A, Bv, "gt");
+    llvm::Value* LT = B.CreateICmp(CI->getLTPredicate(), A, Bv, "lt");
+
+    auto* One    = llvm::ConstantInt::get(RetTy, 1);
+    auto* Zero   = llvm::ConstantInt::get(RetTy, 0);
+    auto* MinOne = llvm::ConstantInt::getSigned(RetTy, -1);
+
+    llvm::Value* Res = B.CreateSelect(GT, One, B.CreateSelect(LT, MinOne, Zero));
     II->replaceAllUsesWith(Res);
   }
 

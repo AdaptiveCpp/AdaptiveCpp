@@ -31,12 +31,13 @@ namespace {
 
 io_registry_entry_t get_gpu_entry() {
   // Class hierarchy: IOGPU -> AGXAccelerator -> AGXFamilyAccelerator
-  // We could go with IOGPU, but we want to restrict this to Apple silicon.
+  // AGXAccelerator is only present on Apple Silicon; returns IO_OBJECT_NULL on
+  // Intel Macs, virtual machines, and other non-Apple-Silicon environments.
   CFMutableDictionaryRef match_dictionary = IOServiceMatching("AGXAccelerator");
   if (!match_dictionary) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_entry: Could not find AGXAccelerator service",
-                error_code{"metal", 0}});
+    HIPSYCL_DEBUG_WARNING << "metal_hardware_manager: AGXAccelerator service not found "
+                             "(non-Apple-Silicon environment?), GPU properties will use defaults\n";
+    return IO_OBJECT_NULL;
   }
 
   // Get the GPU's entry object.
@@ -44,15 +45,13 @@ io_registry_entry_t get_gpu_entry() {
   kern_return_t error = IOServiceGetMatchingServices(
     kIOMainPortDefault, match_dictionary, &entry_iterator);
   if (error != kIOReturnSuccess) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_entry: No objects match AGXAccelerator service",
-                error_code{"metal", 0}});
+    HIPSYCL_DEBUG_WARNING << "metal_hardware_manager: No objects match AGXAccelerator service, "
+                             "GPU properties will use defaults\n";
+    return IO_OBJECT_NULL;
   }
   io_registry_entry_t gpu_entry = IOIteratorNext(entry_iterator);
   if (IOIteratorNext(entry_iterator)) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_entry: Found multiple GPUs",
-                error_code{"metal", 0}});
+    HIPSYCL_DEBUG_WARNING << "metal_hardware_manager: Found multiple GPUs\n";
   }
 
   // Release acquired objects.
@@ -62,29 +61,28 @@ io_registry_entry_t get_gpu_entry() {
 
 // Number of GPU cores.
 inline int64_t get_gpu_core_count(io_registry_entry_t gpu_entry) {
+  if (gpu_entry == IO_OBJECT_NULL)
+    return 1;
 #if TARGET_OS_IPHONE
   // TODO: Determine the core count on iOS through something like DeviceKit.
+  return 1;
 #else
   // Get the number of cores.
   CFNumberRef gpu_core_count = (CFNumberRef)IORegistryEntrySearchCFProperty(
     gpu_entry, kIOServicePlane, CFSTR("gpu-core-count"), kCFAllocatorDefault, 0);
   if (!gpu_core_count) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_core_count: Could not find 'gpu-core-count' property",
-                error_code{"metal", 0}});
+    HIPSYCL_DEBUG_WARNING << "get_gpu_core_count: Could not find 'gpu-core-count' property\n";
+    return 1;
   }
   CFNumberType type = CFNumberGetType(gpu_core_count);
   if (type != kCFNumberSInt64Type) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_core_count: 'gpu-core-count' not type sInt64",
-                error_code{"metal", 0}});
+    HIPSYCL_DEBUG_WARNING << "get_gpu_core_count: 'gpu-core-count' not type sInt64\n";
+    CFRelease(gpu_core_count);
+    return 1;
   }
-  int64_t value;
-  bool retrieved_value = CFNumberGetValue(gpu_core_count, type, &value);
-  if (!retrieved_value) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_core_count: Could not fetch 'gpu-core-count' value",
-                error_code{"metal", 0}});
+  int64_t value = 1;
+  if (!CFNumberGetValue(gpu_core_count, type, &value)) {
+    HIPSYCL_DEBUG_WARNING << "get_gpu_core_count: Could not fetch 'gpu-core-count' value\n";
   }
 
   // Release acquired objects.
@@ -95,12 +93,13 @@ inline int64_t get_gpu_core_count(io_registry_entry_t gpu_entry) {
 
 // Clock speed in MHz.
 inline int64_t get_gpu_max_clock_speed(io_registry_entry_t gpu_entry) {
+  if (gpu_entry == IO_OBJECT_NULL)
+    return 0;
   CFStringRef model = (CFStringRef)IORegistryEntrySearchCFProperty(
     gpu_entry, kIOServicePlane, CFSTR("model"), kCFAllocatorDefault, 0);
   if (!model) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_max_clock_speed: Could not find 'model' property",
-                error_code{"metal", 0}});
+    HIPSYCL_DEBUG_WARNING << "get_gpu_max_clock_speed: Could not find 'model' property\n";
+    return 0;
   }
 
   // Newest data on each model's clock speed are located at:
@@ -147,12 +146,13 @@ inline int64_t get_gpu_max_clock_speed(io_registry_entry_t gpu_entry) {
 
 // Size of the largest data cache.
 inline int64_t get_gpu_slc_size(io_registry_entry_t gpu_entry) {
+  if (gpu_entry == IO_OBJECT_NULL)
+    return 0;
   CFStringRef model = (CFStringRef)IORegistryEntrySearchCFProperty(
     gpu_entry, kIOServicePlane, CFSTR("model"), kCFAllocatorDefault, 0);
   if (!model) {
-    print_error(__acpp_here(),
-                error_info{"get_gpu_max_clock_speed: Could not find 'model' property",
-                error_code{"metal", 0}});
+    HIPSYCL_DEBUG_WARNING << "get_gpu_slc_size: Could not find 'model' property\n";
+    return 0;
   }
 
   int64_t megabytes = 0;
@@ -203,31 +203,38 @@ inline int64_t get_gpu_slc_size(io_registry_entry_t gpu_entry) {
 
 // The maximum amount of VM memory you can materialize simultaneously.
 inline int64_t get_max_allocated_size(MTL::Device* device) {
+  // Try to get physical RAM size via sysctl.
   int64_t system_memory = 0;
   size_t size = sizeof(system_memory);
   int error = sysctlbyname("hw.memsize", &system_memory, &size, NULL, 0);
-
   if (error) {
-    print_error(__acpp_here(),
-                error_info{"get_max_allocated_size: Could not find 'hw.memsize'",
-                error_code{"metal", errno}});
+    HIPSYCL_DEBUG_WARNING << "get_max_allocated_size: Could not query 'hw.memsize', "
+                             "falling back to Metal reported limit\n";
   }
 
-  // The tested limit is ~3725 / 5494 MB on iOS, 67% of physical RAM. It is
-  // ~21700 / 32768 MB on macOS, 66% of physical RAM. We go slightly under this
-  // limit (65%) for safety.
-  // TODO: Test whether the limit ever breaks.
-  int64_t megabytes = system_memory / 1024 / 1024;
-  int64_t working_set_megabytes = 65 * megabytes / 100;
-  int64_t working_set = working_set_megabytes * 1024 * 1024;
 #if TARGET_OS_IPHONE
-  // NOTE: On iOS, you must set increased-memory-limit and
-  // extended-virtual-addressing in the app's entitlements file. Otherwise this
-  // will crash at runtime.
-  return working_set;
+  if (system_memory > 0) {
+    // The tested limit is ~3725 / 5494 MB on iOS, 67% of physical RAM.
+    // We go slightly under (65%) for safety.
+    int64_t working_set = (65 * (system_memory / 1024 / 1024) / 100) * 1024 * 1024;
+    return working_set;
+  }
+  // Fallback: use Metal's recommended limit.
+  int64_t metal_limit = static_cast<int64_t>(device->recommendedMaxWorkingSetSize());
+  return metal_limit > 0 ? metal_limit : 256LL * 1024 * 1024;
 #else
-  int64_t metal_reported_limit = device->recommendedMaxWorkingSetSize();
-  return std::min(working_set, metal_reported_limit);
+  int64_t metal_limit = static_cast<int64_t>(device->recommendedMaxWorkingSetSize());
+  if (system_memory > 0 && metal_limit > 0) {
+    // ~21700 / 32768 MB on macOS, 66% of physical RAM. We use 65% for safety.
+    int64_t working_set = (65 * (system_memory / 1024 / 1024) / 100) * 1024 * 1024;
+    return std::min(working_set, metal_limit);
+  }
+  if (metal_limit > 0)
+    return metal_limit;
+  if (system_memory > 0)
+    return (65 * (system_memory / 1024 / 1024) / 100) * 1024 * 1024;
+  // Last resort fallback (256 MB).
+  return 256LL * 1024 * 1024;
 #endif
 }
 
@@ -255,7 +262,8 @@ metal_hardware_context::metal_hardware_context(MTL::Device* device)
   _slc_size = get_gpu_slc_size(gpu_entry);
   _max_allocated_size = get_max_allocated_size(_device);
 
-  IOObjectRelease(gpu_entry);
+  if (gpu_entry != IO_OBJECT_NULL)
+    IOObjectRelease(gpu_entry);
 }
 
 // metal_hardware_context

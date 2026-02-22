@@ -289,9 +289,6 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_eve
 result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting memcpy..." << std::endl;
 
-  device_id source_dev = op.source().get_device();
-  device_id dest_dev = op.dest().get_device();
-
   assert(op.source().get_base_ptr());
   assert(op.dest().get_base_ptr());
 
@@ -299,9 +296,10 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
   void* dst_ptr = op.dest().get_base_ptr();
   std::size_t num_bytes = op.get_num_transferred_bytes();
 
-  // Determine copy kind
-  bool src_is_device = (source_dev.get_full_backend_descriptor().sw_platform == api_platform::metal);
-  bool dst_is_device = (dest_dev.get_full_backend_descriptor().sw_platform == api_platform::metal);
+  auto [src_buffer, _1, src_alloc_type] = _allocator->get_usm_block(src_ptr);
+  auto [dst_buffer, _2, dst_alloc_type] = _allocator->get_usm_block(dst_ptr);
+  bool src_is_device = src_buffer != nullptr; // treat shared USM as device memory for memcpy purposes
+  bool dst_is_device = dst_buffer != nullptr;
 
   range<3> transferred_range = op.get_num_transferred_elements();
   range<3> src_allocation_shape = op.source().get_allocation_shape();

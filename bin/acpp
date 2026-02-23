@@ -2019,7 +2019,7 @@ class compiler:
         if not config.are_legacy_flows_allowed:
           print_warning("The 'hip' and 'cuda' compilation flows are not useful outside "
                         "of specific interoperability use cases or applications that have "
-                        "been engineered specifically around them (e.g. Gromacs)."
+                        "been engineered specifically around them (e.g. GROMACS)."
                         "\n\nFor all other use cases, they may not result in best performance!\n\n"
                         "Please use 'generic' target for better performance, portability, and usability!\n"
                         "(use --acpp-allow-legacy-flows to silence this warning)")

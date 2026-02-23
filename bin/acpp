@@ -607,7 +607,7 @@ class acpp_config:
 """  (Experimental) Treat all functions implicitly as SYCL_EXTERNAL. Only supported with generic target.
   This currently only works with translation units that include the sycl.hpp header."""),
       'allow-legacy-flows' : option("--acpp-allow-legacy-flows", "ACPP_ALLOW_LEGACY_FLOWS", "default-allow-legacy-flows",
-"""  Do not warn when the old 'hip' and 'cuda' targets are used, even though they might not result in best performance."""),
+"""  Do not warn when the old 'hip' and 'cuda' targets are used."""),
       'pcuda' : option("--acpp-pcuda", "ACPP_PCUDA", "default-pcuda",
 """  Enable AdaptiveCpp portable CUDA (PCUDA) support as input language.
   This is *exclusively* supported with --acpp-targets=generic."""),

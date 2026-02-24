@@ -438,5 +438,34 @@ BOOST_AUTO_TEST_CASE(prefetch) {
   
   sycl::free(shared_mem, q);
 }
+
+BOOST_AUTO_TEST_CASE(allocation_zero_bytes) {
+  // SYCL standard requires zero-byte allocations to be handled gracefully
+  // We just check that no errors are thrown
+  sycl::queue q;
+
+  int *device_mem_ptr = sycl::malloc_device<int>(0, q);
+  if (device_mem_ptr)
+    sycl::free(device_mem_ptr, q);
+  int *aligned_device_mem_ptr =
+      sycl::aligned_alloc_device<int>(sizeof(int), 0, q);
+  if (aligned_device_mem_ptr)
+    sycl::free(aligned_device_mem_ptr, q);
+  int *host_ptr = sycl::malloc_host<int>(0, q);
+  if (host_ptr)
+    sycl::free(host_ptr, q);
+  int *aligned_host_ptr =
+      sycl::aligned_alloc_host<int>(sizeof(int), 0, q);
+  if (aligned_host_ptr)
+    sycl::free(aligned_host_ptr, q);
+  int *shared_ptr = sycl::malloc_shared<int>(0, q);
+  if (shared_ptr)
+    sycl::free(shared_ptr, q);
+  int *aligned_shared_ptr =
+      sycl::aligned_alloc_shared<int>(sizeof(int), 0, q);
+  if (aligned_shared_ptr)
+    sycl::free(aligned_shared_ptr, q);
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

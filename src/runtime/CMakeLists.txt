@@ -247,6 +247,7 @@ if(WITH_OPENCL_BACKEND)
   
   add_library(ocl-headers INTERFACE)
   target_include_directories(ocl-headers INTERFACE ${ocl-headers_SOURCE_DIR})
+  file(CREATE_LINK ${ocl-headers_SOURCE_DIR}/CL ${ocl-headers_SOURCE_DIR}/OPENCL SYMBOLIC)
   
   FetchContent_Declare(ocl-cxx-headers
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-CLHPP

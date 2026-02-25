@@ -51,6 +51,7 @@
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
 #include "llvm/Transforms/Scalar/DCE.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 
 #include <memory>
 #include <cassert>
@@ -475,11 +476,13 @@ bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   AddressSpaceInferencePass ASIPass{ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
 
-  ReplaceIntrinsics{}.run(M, *PH.ModuleAnalysisManager);
-
+  // First linking: provides __acpp_sscp_* definitions so that the base class inliner
+  // (which runs after toBackendFlavor) can inline them. The inlined bodies then go through
+  // the base class O3 optimization pipeline, which may re-introduce LLVM intrinsics such as
+  // llvm.minnum / llvm.maxnum / llvm.fmuladd via InstCombine. Those are handled in
+  // translateToBackendFormat with a second ReplaceIntrinsics + link pass.
   std::string BuiltinBitcodeFile =
       common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-metal-full.bc");
-
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
 
@@ -489,7 +492,25 @@ bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 }
 
 bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) {
-  withPassBuilder([&](auto& PB, auto& LAM, auto& FAM, auto& CGAM, auto& MAM) {
+  auto ok = withPassBuilder([&](auto& PB, auto& LAM, auto& FAM, auto& CGAM, auto& MAM) {
+    // Second ReplaceIntrinsics + link pass: the base class O3 pipeline (InstCombine etc.) may
+    // have re-introduced LLVM intrinsics (llvm.minnum, llvm.maxnum, llvm.fmuladd) from the
+    // inlined builtin bodies. We remap them to __acpp_sscp_* builtins here, then re-link the
+    // Metal bitcode to supply their definitions. The subsequent inliner pass (AlwaysInlinerPass
+    // inside withPassBuilder) inlines those definitions so MetalEmitter can see the
+    // __acpp_sscp_metal_math_* calls it needs to emit native Metal code.
+    // Any LLVM intrinsics that remain after linking have no __acpp_sscp_* counterpart and are
+    // lowered to plain IR by ExpandIntrinsics below.
+    ReplaceIntrinsics{}.run(FlavoredModule, MAM);
+
+    std::string BuiltinBitcodeFile =
+      common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-metal-full.bc");
+
+    if (!linkBitcodeFile(FlavoredModule, BuiltinBitcodeFile))
+      return false;
+
+    llvm::AlwaysInlinerPass{}.run(FlavoredModule, MAM);
+
     llvm::FunctionPassManager FPM;
     FPM.addPass(llvm::PromotePass());
     FPM.addPass(ExpandIntrinsics());
@@ -503,8 +524,13 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     MPM.run(FlavoredModule, MAM);
-    return 0;
+    return true;
   });
+
+  if (!ok) {
+    registerError("LLVMToMetal: Failed to prepare module for Metal translation");
+    return false;
+  }
 
   std::unordered_set<std::string> kernelNames(KernelNames.begin(), KernelNames.end());
 

@@ -16,7 +16,7 @@
 
 using namespace hipsycl::sycl::detail::metal_builtins;
 
-HIPSYCL_SSCP_BUILTIN void __acpp_sscp_metal_symbol_barrier(const char* s);
+HIPSYCL_SSCP_CONVERGENT_BUILTIN void __acpp_sscp_metal_symbol_barrier(const char* s);
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
 __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,

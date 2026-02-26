@@ -61,13 +61,13 @@ visibility_mask_t::mapped_type parse_device_visibility_mask(const std::string& s
       if(is_number(components[0])) {
         current.device_index_equality = std::stoi(components[0]);
       } else if(components[0] != "*") {
-        current.device_name_match = components[0]; 
+        current.device_name_match = components[0];
       }
     } else if (components.size() > 1) {
       if(is_number(components[0])) {
         current.platform_index_equality = std::stoi(components[0]);
       } else if(components[0] != "*") {
-        current.platform_name_match = components[0]; 
+        current.platform_name_match = components[0];
       }
 
       if(is_number(components[1])) {
@@ -169,6 +169,8 @@ std::istream &operator>>(std::istream &istr, visibility_mask_t &out) {
       backend = rt::backend_id::omp;
     } else if (name == "ocl" || name == "opencl") {
       backend = rt::backend_id::ocl;
+    } else if (name == "metal") {
+      backend = rt::backend_id::metal;
     } else {
       istr.setstate(std::ios_base::failbit);
       // Don't use HIPSYCL_DEBUG_WARNING, it will cause recursive init error.

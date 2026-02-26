@@ -355,7 +355,7 @@ public:
 
     asT result;
     
-    auto in_ptr = reinterpret_cast<typename asT::element_type*>(&_data[0]);
+    auto in_ptr = reinterpret_cast<const typename asT::element_type*>(&_data[0]);
     for(int i = 0; i < N; ++i)
       result[i] = in_ptr[i];
 

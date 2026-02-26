@@ -133,5 +133,18 @@ BOOST_AUTO_TEST_CASE(vec_convert) {
   BOOST_TEST(floats_in.w() == floats_out.w());
 }
 
+// Regression test: as<>() would not compile due to casting from a const pointer to a non-const pointer
+BOOST_AUTO_TEST_CASE(vec_as) {
+  auto floats_in = sycl::float4{1.f, 2.f, 3.f, 4.f};
+  auto ints = floats_in.as<sycl::int4>();
+  auto floats_out = ints.as<sycl::float4>();
+  BOOST_TEST(floats_in.x() == floats_out.x());
+  BOOST_TEST(floats_in.y() == floats_out.y());
+  BOOST_TEST(floats_in.z() == floats_out.z());
+  BOOST_TEST(floats_in.w() == floats_out.w());
+}
+
+
+
 
 BOOST_AUTO_TEST_SUITE_END()

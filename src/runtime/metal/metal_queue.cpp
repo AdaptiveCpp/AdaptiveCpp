@@ -716,9 +716,16 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
       error_info{"metal_queue: Code object construction failed"});
   }
 
-  const auto& retained_indices = obj->get_jit_output_metadata().kernel_retained_arguments_indices;
+  const auto& jit_output_metadata = obj->get_jit_output_metadata();
+  const auto& retained_indices = jit_output_metadata.kernel_retained_arguments_indices;
   if (retained_indices.has_value()) {
     _arg_mapper.apply_dead_argument_elimination_mask(retained_indices.value());
+  }
+  if (!jit_output_metadata.is_free_of_indirect_access) {
+    HIPSYCL_DEBUG_WARNING
+      << "metal_queue: kernel '" << kernel_name
+      << "' may perform indirect memory access, which is currently not supported by the Metal backend and can lead to undefined behavior (e.g., invalid or out-of-bounds memory access)."
+      << std::endl;
   }
 
   // Get the Metal library from the code object

@@ -287,6 +287,12 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::work_item_independent_forward_progress:
     return false;
     break;
+  case device_support_aspect::fp64:
+    return true;
+    break;
+  case device_support_aspect::atomic64:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -527,7 +533,7 @@ ocl_hardware_context::get_property(device_uint_list_property prop) const {
         get_property(device_uint_property::max_num_sub_groups);
     std::size_t max_group_size =
         get_property(device_uint_property::max_group_size);
-    
+
     auto min_bound = 1;
     auto max_bound = std::max(max_num_sub_groups, max_group_size);
 
@@ -631,7 +637,7 @@ ocl_hardware_manager::ocl_hardware_manager()
 
   int global_device_index = 0;
   for(const auto& p : platforms) {
-    
+
     std::string platform_name;
     err = p.getInfo(CL_PLATFORM_NAME, &platform_name);
     if(err != CL_SUCCESS) {

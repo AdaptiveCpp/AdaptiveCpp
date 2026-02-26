@@ -344,6 +344,11 @@ bool metal_hardware_context::has(device_support_aspect aspect) const {
 #endif
   case device_support_aspect::work_item_independent_forward_progress:
     return false;
+
+  case device_support_aspect::fp64:
+    return false;
+  case device_support_aspect::atomic64:
+    return false;
   default:
     return false;
   }

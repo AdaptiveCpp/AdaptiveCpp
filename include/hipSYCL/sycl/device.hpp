@@ -99,15 +99,9 @@ public:
       // fp16 is only partially supported in hipSYCL
       return false;
     } else if(asp == aspect::fp64) {
-      if (get_backend() == rt::backend_id::metal) {
-        return false;
-      }
-      return true;
+      return get_rt_device()->has(rt::device_support_aspect::fp64);
     } else if(asp == aspect::atomic64) {
-      if (get_backend() == rt::backend_id::metal) {
-        return false;
-      }
-      return true;
+      return get_rt_device()->has(rt::device_support_aspect::atomic64);
     } else if(asp == aspect::image) {
       return false;
     } else if(asp == aspect::online_compiler) {

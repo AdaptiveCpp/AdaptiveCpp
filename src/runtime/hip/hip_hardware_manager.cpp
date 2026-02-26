@@ -29,10 +29,10 @@ namespace {
 
 int device_arch_string_to_int(const std::string& device_name) {
   std::string prefix = "gfx";
-  
+
   if(device_name.find(prefix) != 0)
     return 0;
-  
+
   std::string substr = device_name;
   substr.erase(0, prefix.length());
 
@@ -65,7 +65,7 @@ std::pair<int,int> get_stream_priority_bound() {
 
 hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
     : _hw_platform(hw_platform) {
-  
+
   if (has_device_visibility_mask(
           application::get_settings().get<setting::visibility_mask>(),
           backend_id::hip)) {
@@ -89,7 +89,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
                     error_code{"HIP", err}});
     }
   }
-  
+
   for (int dev = 0; dev < num_devices; ++dev) {
     _devices.emplace_back(dev);
   }
@@ -282,6 +282,12 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::work_item_independent_forward_progress:
     return false;
+    break;
+  case device_support_aspect::fp64:
+    return true;
+    break;
+  case device_support_aspect::atomic64:
+    return true;
     break;
   }
   assert(false && "Unknown device aspect");
@@ -488,7 +494,7 @@ std::string hip_hardware_context::get_driver_version() const {
         error_info{"hip_hardware_manager: Querying driver version failed",
                    error_code{"HIP", err}});
   }
-  
+
   return std::to_string(driver_version);
 }
 

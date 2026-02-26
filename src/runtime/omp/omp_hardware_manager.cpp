@@ -31,7 +31,7 @@ bool omp_hardware_context::is_gpu() const {
 std::size_t omp_hardware_context::get_max_kernel_concurrency() const {
   return 1;
 }
-  
+
 // TODO We could actually copy have more memcpy concurrency
 std::size_t omp_hardware_context::get_max_memcpy_concurrency() const {
   return 1;
@@ -113,6 +113,12 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::work_item_independent_forward_progress:
     return false;
+    break;
+  case device_support_aspect::fp64:
+    return true;
+    break;
+  case device_support_aspect::atomic64:
+    return true;
     break;
   }
   assert(false && "Unknown device aspect");

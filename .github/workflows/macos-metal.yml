@@ -63,10 +63,16 @@ jobs:
         cmake -GNinja \
           -DACPP_TARGETS="generic" \
           -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/AdaptiveCpp \
+          -DWITH_PCUDA_TESTS=ON \
           ${GITHUB_WORKSPACE}/tests
         ninja
 
-    - name: run Metal tests
+    - name: run Metal tests (sycl)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ./sycl_tests
+
+    - name: run Metal tests (pcuda)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ./pcuda_tests

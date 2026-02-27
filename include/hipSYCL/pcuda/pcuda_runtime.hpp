@@ -93,7 +93,7 @@ using pcudaStream_t = hipsycl::rt::pcuda::stream*;
 
 #define pcudaMemAttachGlobal 0x01
 #define pcudaMemAttachHost 0x02
-#define pcudaMemAttachSingle 0x04 
+#define pcudaMemAttachSingle 0x04
 
 ACPP_PCUDA_API void __pcudaPushCallConfiguration(dim3 grid, dim3 block,
                                                  size_t shared_mem = 0,
@@ -165,6 +165,8 @@ struct pcudaDeviceProp {
   int memoryBusWidth;
   int l2CacheSize;
   int maxThreadsPerMultiProcessor;
+  bool pcudaHasFp64;
+  bool pcudaHasAtomic64;
 };
 
 ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *prop,
@@ -196,7 +198,7 @@ pcudaError_t pcudaMallocHost(T** ptr, size_t s) {
 #define pcudaHostAllocDefault 0x00
 #define pcudaHostAllocMapped 0x02
 #define pcudaHostAllocPortable 0x01
-#define pcudaHostAllocWriteCombined 0x04 
+#define pcudaHostAllocWriteCombined 0x04
 
 template <class T>
 pcudaError_t pcudaHostAlloc(T **ptr, size_t s, unsigned int flags) {
@@ -214,7 +216,7 @@ ACPP_PCUDA_API pcudaError_t pcudaFreeHost(void* ptr);
 // Streams
 
 #define pcudaStreamDefault 0x00
-#define pcudaStreamNonBlocking 0x01 
+#define pcudaStreamNonBlocking 0x01
 
 ACPP_PCUDA_API pcudaError_t pcudaStreamCreate(pcudaStream_t *pStream);
 ACPP_PCUDA_API pcudaError_t pcudaStreamCreateWithFlags(pcudaStream_t *pStream,

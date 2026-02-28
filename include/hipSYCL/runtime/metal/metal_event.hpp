@@ -15,24 +15,32 @@
 #include "../signal_channel.hpp"
 #include <memory>
 
+namespace MTL {
+class SharedEvent;
+} // namespace MTL
+
 namespace hipsycl {
 namespace rt {
 
+struct metal_event_handle {
+  MTL::SharedEvent* event;
+  uint64_t value;
+};
+
 class metal_node_event
-  : public inorder_queue_event<std::shared_ptr<signal_channel>> {
+  : public inorder_queue_event<metal_event_handle> {
 public:
-  metal_node_event();
+  metal_node_event() = delete;
+  metal_node_event(metal_event_handle handle);
   ~metal_node_event();
 
   virtual bool is_complete() const override;
   virtual void wait() override;
 
-  std::shared_ptr<signal_channel> get_signal_channel() const;
-
-  virtual std::shared_ptr<signal_channel> request_backend_event() override;
+  virtual metal_event_handle request_backend_event() override;
 
 private:
-  std::shared_ptr<signal_channel> _signal_channel;
+  metal_event_handle _handle;
 };
 
 } // namespace rt

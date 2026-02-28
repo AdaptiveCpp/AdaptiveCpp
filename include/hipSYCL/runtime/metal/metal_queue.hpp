@@ -18,7 +18,6 @@
 
 #include "hipSYCL/common/spin_lock.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
-#include "hipSYCL/runtime/generic/async_worker.hpp"
 
 #include "metal_allocator.hpp"
 #include "metal_event.hpp"
@@ -26,6 +25,10 @@
 namespace MTL {
 
 class Device;
+class CommandBuffer;
+class CommandQueue;
+class SharedEvent;
+class SharedEventListener;
 
 } // namespace MTL
 
@@ -83,10 +86,22 @@ public:
 
   virtual ~metal_inorder_queue();
 
-  worker_thread& get_worker();
-
 private:
+  MTL::CommandBuffer* new_command_buffer();
+
   MTL::Device* _device = nullptr;
+  MTL::CommandQueue* _command_queue = nullptr;
+  MTL::SharedEvent* _shared_event = nullptr;
+  MTL::SharedEventListener* _event_listener = nullptr;
+  // Atomic because query_status() and wait() may be called from arbitrary
+  // threads concurrently with submit_*() / insert_event().
+  std::atomic<uint64_t> _event_counter{0};
+
+  // Only touched by submit_*() and insert_event(), which are serialized
+  // by external mutex, so no atomics needed.
+  uint64_t _pending_cpu_event{0};
+  uint64_t _pending_gpu_event{0};
+
   metal_allocator* _allocator = nullptr;
   device_id _device_id;
 
@@ -101,8 +116,6 @@ private:
   kernel_configuration _config;
 
   common::spin_lock _sscp_submission_spin_lock;
-
-  worker_thread _worker;
 };
 
 } // namespace rt

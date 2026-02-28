@@ -18,6 +18,7 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include <Metal/Metal.hpp>
+#include <utility>
 
 #undef nil
 
@@ -97,6 +98,7 @@ void encode_arguments_argbuffer(
 result launch_kernel_from_library(
   MTL::Library* library,
   MTL::Device* device,
+  MTL::CommandBuffer* command_buffer,
   metal_allocator* allocator,
   std::string_view kernel_name,
   const rt::range<3>& num_groups,
@@ -145,13 +147,6 @@ result launch_kernel_from_library(
   }
   bool arg_buffer_used = static_cast<int>(num_args) > metal_max_args_for_flat_mode;
 
-  NS::SharedPtr<MTL::CommandQueue> command_queue = NS::TransferPtr(device->newCommandQueue());
-  if (!command_queue) {
-    return make_error(__acpp_here(),
-                      error_info{"metal: Failed to create command queue"});
-  }
-
-  auto* command_buffer = command_queue->commandBuffer();
   if (!command_buffer) {
     return make_error(__acpp_here(),
                       error_info{"metal: Failed to create command buffer"});
@@ -205,20 +200,20 @@ result launch_kernel_from_library(
 
   encoder->endEncoding();
 
-  command_buffer->commit();
-  command_buffer->waitUntilCompleted();
-
-  if (command_buffer->error()) {
-    NS::Error* err = command_buffer->error();
-    std::string msg = "metal: Command buffer failed: ";
-    if (err->localizedDescription()) {
-      msg += err->localizedDescription()->utf8String();
+  command_buffer->addCompletedHandler([=](MTL::CommandBuffer* command_buffer) {
+    if (NS::Error* err = command_buffer->error()) {
+      std::string msg = "metal: Command buffer failed: ";
+      if (err->localizedDescription()) {
+        msg += err->localizedDescription()->utf8String();
+      }
+      register_error(make_error(__acpp_here(), error_info{msg}));
     }
-    return make_error(__acpp_here(), error_info{msg});
-  }
 
-  HIPSYCL_DEBUG_INFO << "metal: Kernel '" << kernel_name
-                     << "' executed successfully" << std::endl;
+    HIPSYCL_DEBUG_INFO << "metal: Kernel '" << kernel_name
+                      << "' executed successfully" << std::endl;
+  });
+
+  command_buffer->commit();
 
   return make_success();
 }
@@ -245,17 +240,17 @@ result memset_device(
   blit_encoder->fillBuffer(buffer, NS::Range::Make(offset, num_bytes), pattern);
   blit_encoder->endEncoding();
 
-  command_buffer->commit();
-  command_buffer->waitUntilCompleted();
-
-  if (command_buffer->error()) {
-    NS::Error* err = command_buffer->error();
-    std::string msg = "metal_queue: Memset failed: ";
-    if (err->localizedDescription()) {
-      msg += err->localizedDescription()->utf8String();
+  command_buffer->addCompletedHandler([](MTL::CommandBuffer* command_buffer) {
+    if (NS::Error* err = command_buffer->error()) {
+      std::string msg = "metal_queue: Memset failed: ";
+      if (err->localizedDescription()) {
+        msg += err->localizedDescription()->utf8String();
+      }
+      register_error(make_error(__acpp_here(), error_info{msg}));
     }
-    return make_error(__acpp_here(), error_info{msg});
-  }
+  });
+
+  command_buffer->commit();
 
   return make_success();
 }
@@ -263,30 +258,44 @@ result memset_device(
 } // anonymous namespace
 
 metal_inorder_queue::metal_inorder_queue(MTL::Device* device, metal_allocator* allocator, const device_id& id, hardware_context* hw_ctx)
-  : _device{device}, _allocator{allocator}, _device_id{id}
+  : _device{device}
+  , _command_queue{device->newCommandQueue()}
+  , _shared_event{device->newSharedEvent()}
+  , _event_listener{MTL::SharedEventListener::alloc()->init()}
+  , _allocator{allocator}
+  , _device_id{id}
   , _sscp_code_object_invoker(this)
   , _kernel_cache{kernel_cache::get()}
 {
   _reflection_map = glue::jit::construct_default_reflection_map(hw_ctx);
 }
 
+MTL::CommandBuffer* metal_inorder_queue::new_command_buffer() {
+  auto* cmd_buf = _command_queue->commandBuffer();
+  if (auto prev = std::exchange(_pending_gpu_event, 0)) {
+    cmd_buf->encodeWait(_shared_event, prev);
+  }
+  return cmd_buf;
+}
+
 std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;
 
-  auto evt = std::make_shared<metal_node_event>();
-  auto signal_channel = evt->get_signal_channel();
+  if (auto prev = std::exchange(_pending_cpu_event, 0)) {
+    return std::make_shared<metal_node_event>(metal_event_handle{_shared_event, prev});
+  }
 
-  // Schedule a task that will signal the event when all previous work completes
-  _worker([signal_channel]() {
-    signal_channel->signal();
-  });
+  auto val = ++_event_counter;
+  NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
+  auto* cmd_buf = new_command_buffer();
+  cmd_buf->encodeSignalEvent(_shared_event, val);
+  cmd_buf->commit();
 
-  return evt;
+  return std::make_shared<metal_node_event>(metal_event_handle{_shared_event, val});
 }
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_event() {
-  // TODO: Metal backend doesn't support coarse-grained events yet
-  return insert_event();
+  return std::make_shared<queue_completion_event<metal_event_handle, metal_node_event>>(this);
 }
 
 result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {
@@ -325,166 +334,167 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
   }
 
   if (!src_is_device && !dst_is_device) {
-    _worker([=]() {
-      for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
-        for (std::size_t row = 0; row < transferred_range[1]; ++row) {
-          id<3> src = src_offset; src[0] += surface; src[1] += row;
-          id<3> dst = dest_offset; dst[0] += surface; dst[1] += row;
+    for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
+      for (std::size_t row = 0; row < transferred_range[1]; ++row) {
+        id<3> src = src_offset; src[0] += surface; src[1] += row;
+        id<3> dst = dest_offset; dst[0] += surface; dst[1] += row;
 
-          const char* src_byte_ptr = (const char*)src_ptr +
-            linear_index(src, src_allocation_shape) * src_element_size;
-          char* dst_byte_ptr = (char*)dst_ptr +
-            linear_index(dst, dest_allocation_shape) * dest_element_size;
-          memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
-        }
+        const char* src_byte_ptr = (const char*)src_ptr +
+          linear_index(src, src_allocation_shape) * src_element_size;
+        char* dst_byte_ptr = (char*)dst_ptr +
+          linear_index(dst, dest_allocation_shape) * dest_element_size;
+        memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
       }
-    });
+    }
     return make_success();
   }
 
-  _worker([=]() {
-    NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
+  NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
-    NS::SharedPtr<MTL::CommandQueue> command_queue = NS::TransferPtr(_device->newCommandQueue());
-    if (!command_queue) {
-      register_error(make_error(__acpp_here(),
-        error_info{"metal_queue: Failed to create command queue for memcpy"}));
-      return;
+  MTL::CommandBuffer* command_buffer = new_command_buffer();
+  if (!command_buffer) {
+    return make_error(__acpp_here(),
+      error_info{"metal_queue: Failed to create command buffer for memcpy"});
+  }
+  MTL::BlitCommandEncoder* blit_encoder = command_buffer->blitCommandEncoder();
+  if (!blit_encoder) {
+    return make_error(__acpp_here(),
+      error_info{"metal_queue: Failed to create blit encoder for memcpy"});
+  }
+
+  NS::SharedPtr<MTL::Buffer> temp_buffer;
+  if (!src_is_device || !dst_is_device) {
+    temp_buffer = NS::TransferPtr(
+      _device->newBuffer(num_bytes, MTL::ResourceStorageModeShared));
+    if (!temp_buffer) {
+      return make_error(__acpp_here(),
+        error_info{"metal_queue: Failed to allocate temporary buffer"});
     }
+  }
 
-    MTL::CommandBuffer* command_buffer = command_queue->commandBuffer();
-    if (!command_buffer) {
-      register_error(make_error(__acpp_here(),
-        error_info{"metal_queue: Failed to create command buffer for memcpy"}));
-      return;
+  MTL::Buffer* from;
+  MTL::Buffer* to;
+  size_t from_offset = 0;;
+  size_t to_offset = 0;
+
+  auto src_staging_offset = src_offset;;
+  auto src_staging_shape = src_allocation_shape;
+
+  if (src_is_device) {
+    auto [src_buffer, src_offset, _] = _allocator->get_usm_block(src_ptr);
+    from = src_buffer;
+    from_offset = src_offset;
+    if (!src_buffer) {
+      return make_error(__acpp_here(),
+        error_info{"metal_queue: Failed to resolve source USM pointer"});
     }
-    MTL::BlitCommandEncoder* blit_encoder = command_buffer->blitCommandEncoder();
-    if (!blit_encoder) {
-      register_error(make_error(__acpp_here(),
-        error_info{"metal_queue: Failed to create blit encoder"}));
-      return;
-    }
-
-    NS::SharedPtr<MTL::Buffer> temp_buffer;
-    if (!src_is_device || !dst_is_device) {
-      temp_buffer = NS::TransferPtr(
-        _device->newBuffer(num_bytes, MTL::ResourceStorageModeShared));
-      if (!temp_buffer) {
-        register_error(make_error(__acpp_here(),
-          error_info{"metal_queue: Failed to allocate temporary buffer"}));
-        return;
-      }
-    }
-    result res = make_success();
-
-    MTL::Buffer* from;
-    MTL::Buffer* to;
-    size_t from_offset = 0;;
-    size_t to_offset = 0;
-
-    auto src_staging_offset = src_offset;;
-    auto src_staging_shape = src_allocation_shape;
-
-    if (src_is_device) {
-      auto [src_buffer, src_offset, _] = _allocator->get_usm_block(src_ptr);
-      from = src_buffer;
-      from_offset = src_offset;
-      if (!src_buffer) {
-        register_error(make_error(__acpp_here(),
-          error_info{"metal_queue: Failed to resolve source USM pointer"}));
-        return;
-      }
-    } else {
-      from = temp_buffer.get();
-      // copy to staging buffer
-      for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
-        for (std::size_t row = 0; row < transferred_range[1]; ++row) {
-          id<3> src = src_offset; src[0] += surface; src[1] += row;
-          id<3> dst = {surface, row, 0};
-
-          const char* src_byte_ptr = (const char*)src_ptr +
-            linear_index(src, src_allocation_shape) * src_element_size;
-          char* dst_byte_ptr = (char*)temp_buffer->contents() +
-            linear_index(dst, transferred_range) * src_element_size;
-          memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
-        }
-      }
-
-      src_staging_offset = id<3>{0,0,0};
-      src_staging_shape = transferred_range;
-    }
-
-    auto dst_staging_offset = dest_offset;
-    auto dst_staging_shape = dest_allocation_shape;
-
-    if (dst_is_device) {
-      auto [dst_buffer, dst_offset, _] = _allocator->get_usm_block(dst_ptr);
-      to = dst_buffer;
-      to_offset = dst_offset;
-      if (!dst_buffer) {
-        register_error(make_error(__acpp_here(),
-          error_info{"metal_queue: Failed to resolve destination USM pointer"}));
-        return;
-      }
-    } else {
-      // destination staging buffer
-      to = temp_buffer.get();
-      dst_staging_offset = {0,0,0};
-      dst_staging_shape = transferred_range;
-    }
-
-    // copy from src or staging buffer to dst or staging buffer
+  } else {
+    from = temp_buffer.get();
+    // copy to staging buffer
     for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
       for (std::size_t row = 0; row < transferred_range[1]; ++row) {
-        id<3> src = src_staging_offset; src[0] += surface; src[1] += row;
-        id<3> dst = dst_staging_offset; dst[0] += surface; dst[1] += row;
+        id<3> src = src_offset; src[0] += surface; src[1] += row;
+        id<3> dst = {surface, row, 0};
 
-        size_t src_linear_index = linear_index(src, src_staging_shape);
-        size_t dst_linear_index = linear_index(dst, dst_staging_shape);
-
-        blit_encoder->copyFromBuffer(
-          from,
-          from_offset + src_linear_index * src_element_size,
-          to,
-          to_offset + dst_linear_index * dest_element_size,
-          transferred_range[2] * src_element_size);
+        const char* src_byte_ptr = (const char*)src_ptr +
+          linear_index(src, src_allocation_shape) * src_element_size;
+        char* dst_byte_ptr = (char*)temp_buffer->contents() +
+          linear_index(dst, transferred_range) * src_element_size;
+        memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
       }
     }
 
-    blit_encoder->endEncoding();
+    src_staging_offset = id<3>{0,0,0};
+    src_staging_shape = transferred_range;
+  }
+
+  auto dst_staging_offset = dest_offset;
+  auto dst_staging_shape = dest_allocation_shape;
+
+  if (dst_is_device) {
+    auto [dst_buffer, dst_offset, _] = _allocator->get_usm_block(dst_ptr);
+    to = dst_buffer;
+    to_offset = dst_offset;
+    if (!dst_buffer) {
+      return make_error(__acpp_here(),
+        error_info{"metal_queue: Failed to resolve destination USM pointer"});
+    }
+  } else {
+    // destination staging buffer
+    to = temp_buffer.get();
+    dst_staging_offset = {0,0,0};
+    dst_staging_shape = transferred_range;
+  }
+
+  // copy from src or staging buffer to dst or staging buffer
+  for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
+    for (std::size_t row = 0; row < transferred_range[1]; ++row) {
+      id<3> src = src_staging_offset; src[0] += surface; src[1] += row;
+      id<3> dst = dst_staging_offset; dst[0] += surface; dst[1] += row;
+
+      size_t src_linear_index = linear_index(src, src_staging_shape);
+      size_t dst_linear_index = linear_index(dst, dst_staging_shape);
+
+      blit_encoder->copyFromBuffer(
+        from,
+        from_offset + src_linear_index * src_element_size,
+        to,
+        to_offset + dst_linear_index * dest_element_size,
+        transferred_range[2] * src_element_size);
+    }
+  }
+
+  blit_encoder->endEncoding();
+
+  if (!dst_is_device) {
+    // Device->host memcpy uses two event values on the shared event:
+    // val_blit: GPU signals after blit; val_done: CPU signals after memcpy to host
+    // The next command buffer waits on val_done so GPU cannot race ahead of the CPU copy
+    // See: https://developer.apple.com/documentation/metal/synchronizing-events-between-a-gpu-and-the-cpu
+    auto val = _event_counter.fetch_add(2);
+    auto val_blit = val + 1;
+    auto val_done = val + 2;
+
+    command_buffer->addCompletedHandler([](MTL::CommandBuffer* cb) {
+      if (NS::Error* err = cb->error()) {
+        std::string msg = "metal_queue: Memcpy (device→host) failed: ";
+        if (err->localizedDescription()) msg += err->localizedDescription()->utf8String();
+        register_error(make_error(__acpp_here(), error_info{msg}));
+      }
+    });
+
+    command_buffer->encodeSignalEvent(_shared_event, val_blit);
     command_buffer->commit();
-    command_buffer->waitUntilCompleted();
 
-    if (command_buffer->error()) {
-      NS::Error* err = command_buffer->error();
-      std::string msg = "metal_queue: Memcpy failed: ";
-      if (err->localizedDescription()) {
-        msg += err->localizedDescription()->utf8String();
-      }
-      register_error(make_error(__acpp_here(), error_info{msg}));
-      return;
-    }
+    _shared_event->notifyListener(_event_listener, val_blit,
+      [=](MTL::SharedEvent* evt, uint64_t) {
+        for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
+          for (std::size_t row = 0; row < transferred_range[1]; ++row) {
+            id<3> src = dst_staging_offset; src[0] += surface; src[1] += row;
+            id<3> dst = dest_offset; dst[0] += surface; dst[1] += row;
 
-    if (!dst_is_device) {
-      // copy from staging buffer to host
-      for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
-        for (std::size_t row = 0; row < transferred_range[1]; ++row) {
-          id<3> src = dst_staging_offset; src[0] += surface; src[1] += row;
-          id<3> dst = dest_offset; dst[0] += surface; dst[1] += row;
-
-          const char* src_byte_ptr = (const char*)temp_buffer->contents() +
-            linear_index(src, dst_staging_shape) * dest_element_size;
-          char* dst_byte_ptr = (char*)dst_ptr +
-            linear_index(dst, dest_allocation_shape) * dest_element_size;
-          memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * dest_element_size);
+            const char* src_byte_ptr = (const char*)temp_buffer->contents() +
+              linear_index(src, dst_staging_shape) * dest_element_size;
+            char* dst_byte_ptr = (char*)dst_ptr +
+              linear_index(dst, dest_allocation_shape) * dest_element_size;
+            memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * dest_element_size);
+          }
         }
-      }
-    }
+        evt->setSignaledValue(val_done);
+      });
 
-    if (!res.is_success()) {
-      register_error(res);
-    }
-  });
+    _pending_gpu_event = val_done;
+    _pending_cpu_event = val_done;
+  } else {
+    command_buffer->addCompletedHandler([](MTL::CommandBuffer* cb) {
+      if (NS::Error* err = cb->error()) {
+        std::string msg = "metal_queue: Memcpy failed: ";
+        if (err->localizedDescription()) msg += err->localizedDescription()->utf8String();
+        register_error(make_error(__acpp_here(), error_info{msg}));
+      }
+    });
+    command_buffer->commit();
+  }
 
   return make_success();
 }
@@ -495,16 +505,9 @@ result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_p
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_code_object_invoker);
 
-  _worker([=, &op]() {
-    NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-    auto *node_ptr = node.get();
-    result res = op.get_launcher().invoke(backend_id::metal, this, cap, node_ptr);
-    if(!res.is_success()) {
-      register_error(res);
-    }
-  });
-
-  return make_success();
+  NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
+  auto *node_ptr = node.get();
+  return op.get_launcher().invoke(backend_id::metal, this, cap, node_ptr);
 }
 
 result metal_inorder_queue::submit_prefetch(prefetch_operation &, const dag_node_ptr&) {
@@ -518,44 +521,29 @@ result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_p
   unsigned char pattern = op.get_pattern();
   std::size_t num_bytes = op.get_num_bytes();
 
-  _worker([=]() {
-    NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-    NS::SharedPtr<MTL::CommandQueue> command_queue = NS::TransferPtr(_device->newCommandQueue());
-    if (!command_queue) {
-      register_error(make_error(__acpp_here(),
-        error_info{"metal_queue: Failed to create command queue for memset"}));
-      return;
-    }
+  NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
-    MTL::CommandBuffer* command_buffer = command_queue->commandBuffer();
-    if (!command_buffer) {
-      register_error(make_error(__acpp_here(),
-        error_info{"metal_queue: Failed to create command buffer for memset"}));
-      return;
-    }
+  MTL::CommandBuffer* command_buffer = new_command_buffer();
+  if (!command_buffer) {
+    return make_error(__acpp_here(),
+      error_info{"metal_queue: Failed to create command buffer for memset"});
+  }
 
-    result res = memset_device(command_buffer, _allocator, ptr, pattern, num_bytes);
-
-    if (!res.is_success()) {
-      register_error(res);
-    }
-  });
-
-  return make_success();
+  return memset_device(command_buffer, _allocator, ptr, pattern, num_bytes);
 }
 
 result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting wait for other queue..." << std::endl;
 
-  auto evt = node->get_event();
-  if (!evt) {
-    return make_error(__acpp_here(),
-      error_info{"metal_queue: event is null"});
-  }
-
-  _worker([evt]() {
-    evt->wait();
-  });
+  assert(node);
+  auto evt = node->get_event(); assert(evt);
+  assert(dynamic_is<inorder_queue_event<metal_event_handle>>(evt.get()));
+  inorder_queue_event<metal_event_handle>* metal_evt = cast<inorder_queue_event<metal_event_handle>>(evt.get());
+  auto handle = metal_evt->request_backend_event();
+  NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
+  auto* cmd_buf = new_command_buffer();
+  cmd_buf->encodeWait(handle.event, handle.value);
+  cmd_buf->commit();
 
   return make_success();
 }
@@ -563,21 +551,16 @@ result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
 result metal_inorder_queue::submit_external_wait_for(const dag_node_ptr& node) {
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting wait for external node..." << std::endl;
 
-  if (!node) {
-    return make_error(__acpp_here(),
-      error_info{"metal_queue: dag_node_ptr is null"});
-  }
-
-  _worker([node]() {
-    node->wait();
-  });
+  assert(node);
+  auto evt = node->get_event(); assert(evt);
+  evt->wait();
 
   return make_success();
 }
 
 result metal_inorder_queue::wait() {
   HIPSYCL_DEBUG_INFO << "metal_queue: Waiting for queue completion..." << std::endl;
-  _worker.wait();
+  insert_event()->wait();
   return make_success();
 }
 
@@ -589,7 +572,8 @@ void* metal_inorder_queue::get_native_type() const {
 }
 
 result metal_inorder_queue::query_status(inorder_queue_status& status) {
-  status = inorder_queue_status{_worker.queue_size() == 0};
+  auto current = _event_counter.load();
+  status = inorder_queue_status{_shared_event->signaledValue() >= current};
   return make_success();
 }
 
@@ -742,7 +726,7 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   }
 
   return launch_kernel_from_library(
-    library, _device, _allocator, kernel_name,
+    library, _device, new_command_buffer(), _allocator, kernel_name,
     num_groups, group_size, local_mem_size,
     _arg_mapper.get_mapped_args(),
     const_cast<std::size_t*>(_arg_mapper.get_mapped_arg_sizes()),
@@ -758,11 +742,9 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
 }
 
 metal_inorder_queue::~metal_inorder_queue() {
-  _worker.halt();
-}
-
-worker_thread& metal_inorder_queue::get_worker() {
-  return _worker;
+  _event_listener->release();
+  _shared_event->release();
+  _command_queue->release();
 }
 
 result metal_sscp_code_object_invoker::submit_kernel(

@@ -273,7 +273,9 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     OutputFileName,
                                                     OptOutputFileName};
   if(IsFastMath) {
+#if LLVM_VERSION_MAJOR < 22
     Invocation.push_back("--enable-unsafe-fp-math");
+#endif
     Invocation.push_back("--enable-no-infs-fp-math");
     Invocation.push_back("--enable-no-nans-fp-math");
     Invocation.push_back("--enable-no-signed-zeros-fp-math");

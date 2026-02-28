@@ -30,6 +30,7 @@
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DebugInfo.h>
+#include <llvm/IR/DiagnosticInfo.h>
 #include <llvm/IR/DiagnosticPrinter.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/LLVMContext.h>
@@ -339,7 +340,9 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     LlcInvocation.push_back(LlcCpuFlag);
 
   if(IsFastMath) {
+#if LLVM_VERSION_MAJOR < 22
     LlcInvocation.push_back("--enable-unsafe-fp-math");
+#endif
     LlcInvocation.push_back("--enable-no-infs-fp-math");
     LlcInvocation.push_back("--enable-no-nans-fp-math");
     LlcInvocation.push_back("--enable-no-signed-zeros-fp-math");

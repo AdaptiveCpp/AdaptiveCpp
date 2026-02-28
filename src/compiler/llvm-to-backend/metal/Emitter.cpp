@@ -744,33 +744,7 @@ bool MetalEmitter::emitInstruction(const Instruction& I, int level) {
   }
 
   if (auto *CI = dyn_cast<CastInst>(&I)) {
-    auto destType = mapType(CI->getDestTy());
-    std::string src = emitExpr(CI->getOperand(0));
-    auto srcType = mapType(CI->getSrcTy());
-    // Special-case: addrspacecast to generic loses the information; in MSL we treat it as no-op.
-    if (auto* ASC = dyn_cast<AddrSpaceCastInst>(CI)) {
-      os << indent(level) << name << " = " << src << "; " << "// " << instToString(I) << "\n";
-    } else if (auto* BC = dyn_cast<BitCastInst>(CI)) {
-      os << indent(level) << name << " = " << "as_type<" << destType << ">(" << src << "); " << "// " << instToString(I) << "\n";
-    } else if (auto* SI = dyn_cast<SExtInst>(CI)) {
-      auto destSigned = getSignedType(CI->getDestTy());
-      os << indent(level) << name << " = as_type<" << destType << ">((" << destSigned << ")__as_signed(" << src << ")); " << "// " << instToString(I) << "\n";
-    } else if (CI->getOpcode() == Instruction::SIToFP) { // signed integer to float
-      os << indent(level) << name << " = (" << destType << ") " << "__as_signed(" << src << "); " << "// " << instToString(I) << "\n";
-    } else if (CI->getOpcode() == Instruction::FPToSI) { // float to signed integer
-      auto destSigned = getSignedType(CI->getDestTy());
-      os << indent(level) << name << " = (" << destSigned << ") " << src << "; " << "// " << instToString(I) << "\n";
-    } else if (srcType == "uint4" && destType == "uint") {
-      os << indent(level) << name << " = " << src << ".x; " << "// " << instToString(I) << "\n";
-    } else if (srcType == "uint" && destType == "uint4") {
-      os << indent(level) << name << " = uint4(" << src << ", 0, 0, 0); " << "// " << instToString(I) << "\n";
-    } else if (srcType == "uint4" || destType == "uint4") {
-      errorMsg = "Error: Unsupported cast involving uint4 type";
-      return false;
-    } else {
-      os << indent(level) << name << " = (" << destType << ") " << src << "; " << "// " << instToString(I) << "\n";
-    }
-    return true;
+    return emitCastInstruction(CI, name, level);
   }
 
   if (auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
@@ -862,6 +836,68 @@ void MetalEmitter::emitUnaryOperator(const UnaryOperator* UO, const std::string&
       errorMsg = "ERROR: Unknown unary operator: " + std::string(UO->getOpcodeName());
       return;
   }
+}
+
+bool MetalEmitter::emitCastInstruction(const CastInst* CI, const std::string& name, int level) {
+  auto destType = mapType(CI->getDestTy());
+  std::string src = emitExpr(CI->getOperand(0));
+  auto srcType = mapType(CI->getSrcTy());
+
+  auto emitUint4Cast = [&]() -> bool {
+    struct CastEntry {
+      const char* src;
+      const char* dst;
+      const char* fmt;
+    };
+    CastEntry table[] = {
+      // trunc i128 -> i32
+      {"uint4", "uint",  "{src}.x"},
+      // truct i128 -> i48u
+      {"uint4", "i48u", "i48u(packed_ushort3({src}.x, {src}.y, {src}.z))"},
+      // trunc i128 -> i64
+      {"uint4", "ulong", "as_type<ulong>({src}.xy)"},
+      // zext i32 -> i128
+      {"uint",  "uint4", "uint4({src}, 0u, 0u, 0u)"},
+      // zext i48u -> i128
+      {"i48u",  "uint4", "uint4({src}.w[0], {src}.w[1], {src}.w[2], 0u)"},
+      // zext i64 -> i128
+      {"ulong", "uint4", "uint4(as_type<uint2>({src}), 0u, 0u)"},
+    };
+    for (auto& entry : table) {
+      if (srcType == entry.src && destType == entry.dst) {
+        std::string expr = entry.fmt;
+        auto pos = expr.find("{src}");
+        while (pos != std::string::npos) {
+          expr.replace(pos, 5, src);
+          pos = expr.find("{src}", pos + src.size());
+        }
+        os << indent(level) << name << " = " << expr << "; // " << instToString(*CI) << "\n";
+        return true;
+      }
+    }
+    errorMsg = "Error: Unsupported cast involving uint4: " + srcType + " -> " + destType;
+    return false;
+  };
+
+  // Special-case: addrspacecast to generic loses the information; in MSL we treat it as no-op.
+  if (dyn_cast<AddrSpaceCastInst>(CI)) {
+    os << indent(level) << name << " = " << src << "; // " << instToString(*CI) << "\n";
+  } else if (dyn_cast<BitCastInst>(CI)) {
+    os << indent(level) << name << " = as_type<" << destType << ">(" << src << "); // " << instToString(*CI) << "\n";
+  } else if (dyn_cast<SExtInst>(CI)) {
+    auto destSigned = getSignedType(CI->getDestTy());
+    os << indent(level) << name << " = as_type<" << destType << ">((" << destSigned << ")__as_signed(" << src << ")); // " << instToString(*CI) << "\n";
+  } else if (CI->getOpcode() == Instruction::SIToFP) {
+    os << indent(level) << name << " = (" << destType << ") __as_signed(" << src << "); // " << instToString(*CI) << "\n";
+  } else if (CI->getOpcode() == Instruction::FPToSI) {
+    auto destSigned = getSignedType(CI->getDestTy());
+    os << indent(level) << name << " = (" << destSigned << ") " << src << "; // " << instToString(*CI) << "\n";
+  } else if (srcType == "uint4" || destType == "uint4") {
+    return emitUint4Cast();
+  } else {
+    os << indent(level) << name << " = (" << destType << ") " << src << "; // " << instToString(*CI) << "\n";
+  }
+  return true;
 }
 
 void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::string& name, int level) {

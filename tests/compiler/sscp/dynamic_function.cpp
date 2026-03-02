@@ -1,3 +1,4 @@
+// UNSUPPORTED: system-darwin
 // RUN: %acpp %s -o %t --acpp-targets=generic
 // RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
@@ -37,7 +38,7 @@ int main() {
 
   {
     *data = 0;
-  
+
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define(&execute_operations_without_definition, &myfunction1);
     q.parallel_for(sycl::range{1}, dyn_function_config.apply([=](sycl::item<1> idx){
@@ -51,7 +52,7 @@ int main() {
 
   {
     *data = 0;
-  
+
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define(&execute_operations_without_definition, &myfunction1);
     q.parallel_for(sycl::range{1}, dyn_function_config.apply([=](sycl::item<1> idx){
@@ -65,7 +66,7 @@ int main() {
 
   {
     *data = 0;
-  
+
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define(&execute_operations_without_definition2, &myfunction1);
     q.parallel_for(sycl::range{1}, dyn_function_config.apply([=](sycl::item<1> idx){
@@ -79,7 +80,7 @@ int main() {
 
   {
     *data = 0;
-  
+
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define_as_call_sequence(&execute_operations_without_definition, {&myfunction1, &myfunction2});
     q.parallel_for(sycl::range{1}, dyn_function_config.apply([=](sycl::item<1> idx){

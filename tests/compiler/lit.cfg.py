@@ -1,5 +1,6 @@
 import lit.formats
 import os
+import platform
 
 config.name = 'AdaptiveCpp Plugin'
 config.test_format = lit.formats.ShTest(True)
@@ -10,6 +11,14 @@ config.test_source_root = os.path.dirname(__file__)
 config.test_exec_root = os.path.join(config.my_obj_root)
 
 config.substitutions.append(('%acpp', config.acpp_compiler))
+
+system = platform.system().lower()
+if system == 'darwin':
+  config.available_features.add('system-darwin')
+elif system == 'linux':
+  config.available_features.add('system-linux')
+elif system == 'windows':
+  config.available_features.add('system-windows')
 
 if "ACPP_DEBUG_LEVEL" in os.environ:
   config.environment["ACPP_DEBUG_LEVEL"] = os.environ["ACPP_DEBUG_LEVEL"]

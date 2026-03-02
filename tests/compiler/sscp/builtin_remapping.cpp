@@ -24,17 +24,19 @@ void test() {
 
   int num_functions = 10;
 
-  double init = 0.75;
+  T init = static_cast<T>(0.75);
 
   T* data = sycl::malloc_shared<T>(num_functions, q);
   for(int i = 0; i < num_functions; ++i)
-    data[i] = static_cast<T>(init);
+    data[i] = init;
 
   q.single_task([=](){
     data[0] = std::sin(data[0]);
     data[1] = std::cos(data[1]);
     data[2] = std::pow(data[2], init);
-    data[3] = std::pow(data[3], 3);
+    // pow(float, int) is missing in standard after C++11,
+    // will be replaced to llvm.pow.f32.i32 for -O3 -ffast-math
+    data[3] = std::pow(data[3], T(3));
     data[4] = std::exp(data[4]);
     data[5] = std::sqrt(data[5]);
     data[6] = std::tan(data[6]);
@@ -69,5 +71,6 @@ void test() {
 
 int main() {
   test<float>();
-  test<double>();
+  if(get_queue().get_device().has(sycl::aspect::fp64))
+    test<double>();
 }

@@ -223,6 +223,7 @@ uint3 __acpp_sscp_metal_local_size [[threads_per_threadgroup]];
 
   emitTypes();
   emitIntrinsicHelpers();
+  emitGlobalConstants();
 
   auto callGraph = buildCallGraph();
   auto sortedFunctions = topologicalSort(callGraph);
@@ -262,6 +263,60 @@ bool MetalEmitter::emitFunction(Function& F, const Node& node) {
 
   os << "}\n\n";
   return true;
+}
+
+std::string MetalEmitter::emitConstantInitializer(const Constant* C) {
+  if (isa<ConstantAggregateZero>(C)) {
+    return "{}";
+  }
+  if (auto *CDA = dyn_cast<ConstantDataArray>(C)) {
+    std::string result = "{";
+    for (unsigned i = 0; i < CDA->getNumElements(); ++i) {
+      if (i > 0) result += ", ";
+      result += emitExpr(CDA->getElementAsConstant(i));
+    }
+    result += "}";
+    return result;
+  }
+  if (auto *CA = dyn_cast<ConstantArray>(C)) {
+    std::string result = "{";
+    for (unsigned i = 0; i < CA->getNumOperands(); ++i) {
+      if (i > 0) result += ", ";
+      result += emitConstantInitializer(cast<Constant>(CA->getOperand(i)));
+    }
+    result += "}";
+    return result;
+  }
+  if (auto *CS = dyn_cast<ConstantStruct>(C)) {
+    std::string result = "{";
+    for (unsigned i = 0; i < CS->getNumOperands(); ++i) {
+      if (i > 0) result += ", ";
+      result += emitConstantInitializer(cast<Constant>(CS->getOperand(i)));
+    }
+    result += "}";
+    return result;
+  }
+  // Scalars: reuse emitExpr (handles ConstantInt, ConstantFP, etc.)
+  return emitExpr(C);
+}
+
+void MetalEmitter::emitGlobalConstants() {
+  for (const GlobalVariable& GV : M.globals()) {
+    if (!GV.isConstant() || !GV.hasInitializer()) continue;
+    if (GV.getAddressSpace() != 4) continue;
+
+    std::string name = valueName(&GV);
+    std::string init = emitConstantInitializer(GV.getInitializer());
+    Type* valTy = GV.getValueType();
+
+    if (auto* AT = dyn_cast<ArrayType>(valTy)) {
+      std::string elemType = mapType(AT->getElementType());
+      os << "constexpr constant " << elemType << " " << name
+         << "[" << AT->getNumElements() << "] = " << init << ";\n\n";
+    } else {
+      os << "constexpr " << mapType(valTy) << " " << name << " = " << init << ";\n\n";
+    }
+  }
 }
 
 void MetalEmitter::emitTypes() {
@@ -1250,6 +1305,14 @@ std::string MetalEmitter::emitExpr(const Value* V) {
       return "/* undef */ {}";
     }
     return "/* undef */ 0";
+  }
+
+  // Strip pointer casts (addrspacecast, bitcast)
+  if (auto *CE = dyn_cast<ConstantExpr>(V)) {
+    if (CE->getOpcode() == Instruction::AddrSpaceCast ||
+        CE->getOpcode() == Instruction::BitCast) {
+      return emitExpr(CE->getOperand(0));
+    }
   }
 
   return valueName(V);

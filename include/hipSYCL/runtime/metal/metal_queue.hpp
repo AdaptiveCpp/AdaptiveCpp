@@ -56,7 +56,7 @@ private:
 class metal_inorder_queue : public inorder_queue
 {
 public:
-  metal_inorder_queue(MTL::Device* device, metal_allocator* allocator, const device_id& id);
+  metal_inorder_queue(MTL::Device* device, metal_allocator* allocator, const device_id& id, hardware_context* hw_ctx);
   virtual std::shared_ptr<dag_node_event> insert_event();
   virtual std::shared_ptr<dag_node_event> create_queue_completion_event();
 

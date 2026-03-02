@@ -703,7 +703,8 @@ metal_inorder_queue* metal_hardware_manager::make_queue(size_t index) {
     device_id{
       backend_descriptor{hardware_platform::metal, api_platform::metal},
       static_cast<int>(index)
-    });
+    },
+    &_contexts[index]);
 }
 
 std::size_t metal_hardware_manager::get_num_devices() const {

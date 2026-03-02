@@ -13,6 +13,7 @@
 #include "hipSYCL/runtime/metal/metal_event.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/metal/LLVMToMetalFactory.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit-reflection/reflection_map.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/common/debug.hpp"
 
@@ -261,11 +262,13 @@ result memset_device(
 
 } // anonymous namespace
 
-metal_inorder_queue::metal_inorder_queue(MTL::Device* device, metal_allocator* allocator, const device_id& id)
+metal_inorder_queue::metal_inorder_queue(MTL::Device* device, metal_allocator* allocator, const device_id& id, hardware_context* hw_ctx)
   : _device{device}, _allocator{allocator}, _device_id{id}
   , _sscp_code_object_invoker(this)
   , _kernel_cache{kernel_cache::get()}
-{ }
+{
+  _reflection_map = glue::jit::construct_default_reflection_map(hw_ctx);
+}
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;

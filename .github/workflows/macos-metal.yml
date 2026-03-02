@@ -80,10 +80,14 @@ jobs:
     - name: run Metal tests (lit sscp)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ninja check-sscp
+        DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib \
+        PATH=$(brew --prefix llvm@20)/bin:$PATH \
+        ninja check-sscp
 
     - name: run Metal tests (lit reflection)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ninja check-reflection
+        DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib \
+        PATH=$(brew --prefix llvm@20)/bin:$PATH \
+        ninja check-reflection
 

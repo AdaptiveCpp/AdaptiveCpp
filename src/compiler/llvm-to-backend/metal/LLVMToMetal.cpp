@@ -89,6 +89,7 @@ static constexpr std::array remapped_llvm_math_builtins_renamed = {
   builtin_mapping{"maxnum", "fmax", -1},
   builtin_mapping{"minnum", "fmin", -1},
   builtin_mapping{"fmuladd", "fma", -1},
+  builtin_mapping{"pow", "powr", -1},
 };
 
 static constexpr std::array remapped_llvm_count_builtins = {
@@ -107,10 +108,13 @@ struct ReplaceIntrinsics : llvm::PassInfoMixin<ReplaceIntrinsics> {
       Replacement[llvm_prefix + Name + ".f32"] = {acpp_prefix + Name + "_f32", -1};
       Replacement[llvm_prefix + Name + ".f64"] = {acpp_prefix + Name + "_f64", -1};
     }
-    for (const auto& [Name, Mapping, _] : remapped_llvm_math_builtins_renamed) {
-      Replacement[llvm_prefix + Name + ".f32"] = {acpp_prefix + Mapping + "_f32", -1};
-      Replacement[llvm_prefix + Name + ".f64"] = {acpp_prefix + Mapping + "_f64", -1};
+    for (const auto& [Name, Mapping, ArgCount] : remapped_llvm_math_builtins_renamed) {
+      Replacement[llvm_prefix + Name + ".f32"] = {acpp_prefix + Mapping + "_f32", ArgCount};
+      Replacement[llvm_prefix + Name + ".f64"] = {acpp_prefix + Mapping + "_f64", ArgCount};
     }
+    Replacement["llvm.powi.f32.i32"] = {acpp_prefix + "pown_f32", -1};
+    Replacement["llvm.powi.f32.i64"] = {acpp_prefix + "pown_f32", -1};
+    Replacement["__assert_rtn"] = {"__acpp_sscp_assert_fail", -1};
     for (const auto& [Name, Mapping, ArgCount] : remapped_llvm_count_builtins) {
       Replacement[llvm_prefix + Name + ".i8"] = {acpp_prefix + Mapping + "_u8", ArgCount};
       Replacement[llvm_prefix + Name + ".i16"] = {acpp_prefix + Mapping + "_u16", ArgCount};

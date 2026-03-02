@@ -22,7 +22,7 @@ jobs:
       run: |
         set +e
         brew update
-        brew install llvm@20 lld@20 libomp boost ninja
+        brew install llvm@20 lld@20 libomp boost ninja lit
         set -e
 
     - name: download metal-cpp
@@ -76,3 +76,14 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ./pcuda_tests
+
+    - name: run Metal tests (lit sscp)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ninja check-sscp
+
+    - name: run Metal tests (lit reflection)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        DYLD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib ninja check-reflection
+

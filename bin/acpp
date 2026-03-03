@@ -606,7 +606,7 @@ class acpp_config:
       'is-export-all' : option("--acpp-export-all", "ACPP_EXPORT_ALL", "default-export-all",
 """  (Experimental) Treat all functions implicitly as SYCL_EXTERNAL. Only supported with generic target.
   This currently only works with translation units that include the sycl.hpp header."""),
-      'allow-legacy-flows' : option("--acpp-allow-legacy-flows", "ACPP_ALLOW_LEGACY_FLOWS", "default-allow-legacy-flows",
+      'no-warn-legacy-flows' : option("--acpp-no-warn-legacy-flows", "ACPP_NO_WARN_LEGACY_FLOWS", "default-no-warn-legacy-flows",
 """  Do not warn when the old 'hip' and 'cuda' targets are used."""),
       'pcuda' : option("--acpp-pcuda", "ACPP_PCUDA", "default-pcuda",
 """  Enable AdaptiveCpp portable CUDA (PCUDA) support as input language.
@@ -1125,9 +1125,9 @@ class acpp_config:
       return False
     
   @property
-  def are_legacy_flows_allowed(self):
+  def no_warn_legacy_flows(self):
     try:
-      return self._is_flag_set("allow-legacy-flows")
+      return self._is_flag_set("no-warn-legacy-flows")
     except OptionNotSet:
       return False
 
@@ -2016,13 +2016,13 @@ class compiler:
     
     if "hip" in self._targets or "cuda" in self._targets:
       if config.has_plugin_sscp_compiler:
-        if not config.are_legacy_flows_allowed:
+        if not config.no_warn_legacy_flows:
           print_warning("The 'hip' and 'cuda' compilation flows are not useful outside "
                         "of specific interoperability use cases or applications that have "
                         "been engineered specifically around them (e.g. GROMACS)."
                         "\n\nFor all other use cases, they may not result in best performance!\n\n"
                         "Please use 'generic' target for better performance, portability, and usability!\n"
-                        "(use --acpp-allow-legacy-flows to silence this warning)")
+                        "(use --acpp-no-warn-legacy-flows to silence this warning)")
 
     if self._is_pcuda and "generic" not in self._targets:
       raise RuntimeError("PCUDA support requires generic target.")

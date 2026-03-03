@@ -2017,7 +2017,7 @@ class compiler:
     if "hip" in self._targets or "cuda" in self._targets:
       if config.has_plugin_sscp_compiler:
         if not config.no_warn_legacy_flows:
-          print_warning("The 'hip' and 'cuda' compilation flows are not useful outside "
+          print_warning("The 'hip' and 'cuda' compilation flows are not typically useful outside "
                         "of specific interoperability use cases or applications that have "
                         "been engineered specifically around them (e.g. GROMACS)."
                         "\n\nFor all other use cases, they may not result in best performance!\n\n"

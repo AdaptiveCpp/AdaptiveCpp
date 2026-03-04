@@ -1154,6 +1154,59 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events) {
                 sycl::info::event_command_status::complete);
   }
 }
+
+BOOST_AUTO_TEST_CASE(coarse_grained_events_cross_queue_deadlock) {
+  constexpr size_t N = 4;
+
+  sycl::property_list props{
+      sycl::property::queue::in_order{},
+      sycl::property::queue::AdaptiveCpp_coarse_grained_events{}};
+
+  sycl::queue q1{sycl::default_selector_v, props};
+  sycl::queue q2{sycl::default_selector_v, props};
+
+  char *host1  = sycl::malloc_host<char>(N, q1);
+  char *host1b = sycl::malloc_host<char>(N, q1);
+  char *host2  = sycl::malloc_host<char>(N, q1);
+  char *host5  = sycl::malloc_host<char>(N, q1);
+
+  char *dev1  = sycl::malloc_device<char>(N, q1);
+  char *dev1b = sycl::malloc_device<char>(N, q1);
+  char *dev2  = sycl::malloc_device<char>(N, q1);
+  char *dev3  = sycl::malloc_device<char>(N, q2);
+  char *dev4  = sycl::malloc_device<char>(N, q2);
+  char *dev5  = sycl::malloc_device<char>(N, q1);
+
+  std::memset(host1,  1, N);
+  std::memset(host1b, 2, N);
+  std::memset(host2,  3, N);
+  std::memset(host5, 42, N);
+
+  // Cross-queue operations with mixed allocations
+  q1.memcpy(dev1,  host1,  N);
+  q2.memcpy(dev1b, host1b, N);
+  q1.memcpy(dev2,  host2,  N);
+  q2.memset(dev3,  0,      N);
+  q1.memset(dev4,  0,      N); // dev4 from q2
+  q2.memcpy(dev5,  host5,  N);
+
+  // Will hang here if there is a deadlock
+  q1.wait();
+  q2.wait();
+
+  BOOST_CHECK(true);
+
+  sycl::free(host1,  q1);
+  sycl::free(host1b, q1);
+  sycl::free(host2,  q1);
+  sycl::free(host5,  q1);
+  sycl::free(dev1,   q1);
+  sycl::free(dev1b,  q1);
+  sycl::free(dev2,   q1);
+  sycl::free(dev3,   q2);
+  sycl::free(dev4,   q2);
+  sycl::free(dev5,   q1);
+}
 #endif
 
 #ifdef ACPP_EXT_SPECIALIZED

@@ -144,7 +144,4 @@ BOOST_AUTO_TEST_CASE(vec_as) {
   BOOST_TEST(floats_in.w() == floats_out.w());
 }
 
-
-
-
 BOOST_AUTO_TEST_SUITE_END()

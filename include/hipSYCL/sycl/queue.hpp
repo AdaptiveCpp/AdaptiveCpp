@@ -893,16 +893,16 @@ public:
     });
   }
 
-  event khr_prefetch_host(void *ptr, std::size_t num_bytes) {
+  event khr_prefetch_host(const void *ptr, std::size_t num_bytes) {
     return prefetch_host(ptr, num_bytes);
   }
 
-  event khr_prefetch_host(void *ptr, std::size_t num_bytes,
+  event khr_prefetch_host(const void *ptr, std::size_t num_bytes,
                           event dependency) {
     return prefetch_host(ptr, num_bytes, dependency);
   }
 
-  event khr_prefetch_host(void *ptr, std::size_t num_bytes,
+  event khr_prefetch_host(const void *ptr, std::size_t num_bytes,
                       const std::vector<event> &dependencies) {
     return prefetch_host(ptr, num_bytes, dependencies);
   }

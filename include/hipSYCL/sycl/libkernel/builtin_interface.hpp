@@ -208,7 +208,7 @@ HIPSYCL_BUILTIN T __acpp_ldexp(T x, int k) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __acpp_lgamma(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_acos, x);
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_lgamma, x);
 }
 
 template<class T>

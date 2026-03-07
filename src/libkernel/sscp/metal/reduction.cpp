@@ -17,11 +17,13 @@
 
 #include "helpers.hpp"
 
+#include <limits>
 #include <type_traits>
 
 using namespace hipsycl::sycl::detail::metal_builtins;
 
-#define REDUCTION_TYPES \
+#define REDUCTION_INT_TYPES \
+  X(bool) \
   X(i8) \
   X(i16) \
   X(i32) \
@@ -29,10 +31,15 @@ using namespace hipsycl::sycl::detail::metal_builtins;
   X(u8) \
   X(u16) \
   X(u32) \
-  X(u64) \
+  X(u64)
+
+#define REDUCTION_FLOAT_TYPES \
   X(f16) \
   X(f32)
 
+#define REDUCTION_TYPES \
+  REDUCTION_INT_TYPES \
+  REDUCTION_FLOAT_TYPES
 #define X(type) HIPSYCL_SSCP_BUILTIN type __acpp_sscp_metal_reduce_##type(const char* s, type value);
 REDUCTION_TYPES
 #undef X
@@ -55,8 +62,24 @@ inline T __acpp_sscp_sub_group_reduce(T value) {
     return __acpp_sscp_metal_reduce_<T>("simd_sum", value);
   } else if constexpr (op == __acpp_sscp_algorithm_op::multiply) {
     return __acpp_sscp_metal_reduce_<T>("simd_product", value);
-  } else {
-    static_assert(op == __acpp_sscp_algorithm_op::plus || op == __acpp_sscp_algorithm_op::multiply, "Unsupported operation");
+  } else if constexpr (op == __acpp_sscp_algorithm_op::min && std::is_integral_v<T> && std::is_signed_v<T>) {
+    return __acpp_sscp_metal_reduce_<T>("simd_min(__as_signed(%s))", value);
+  } else if constexpr (op == __acpp_sscp_algorithm_op::min) {
+    return __acpp_sscp_metal_reduce_<T>("simd_min", value);
+  } else if constexpr (op == __acpp_sscp_algorithm_op::max && std::is_integral_v<T> && std::is_signed_v<T>) {
+    return __acpp_sscp_metal_reduce_<T>("simd_max(__as_signed(%s))", value);
+  } else if constexpr (op == __acpp_sscp_algorithm_op::max) {
+    return __acpp_sscp_metal_reduce_<T>("simd_max", value);
+  } else if constexpr (op == __acpp_sscp_algorithm_op::bit_and) {
+    return __acpp_sscp_metal_reduce_<T>("simd_and", value);
+  } else if constexpr (op == __acpp_sscp_algorithm_op::bit_or) {
+    return __acpp_sscp_metal_reduce_<T>("simd_or", value);
+  } else if constexpr (op == __acpp_sscp_algorithm_op::bit_xor) {
+    return __acpp_sscp_metal_reduce_<T>("simd_xor", value);
+  } else if constexpr (op == __acpp_sscp_algorithm_op::logical_and) {
+    return static_cast<T>(__acpp_sscp_metal_reduce_<bool>("simd_all", static_cast<bool>(value)));
+  } else if constexpr (op == __acpp_sscp_algorithm_op::logical_or) {
+    return static_cast<T>(__acpp_sscp_metal_reduce_<bool>("simd_any", static_cast<bool>(value)));
   }
 }
 
@@ -67,48 +90,65 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_reduce_##type(__acpp_
     return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::plus>(value); \
   case __acpp_sscp_algorithm_op::multiply: \
     return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::max>(value); \
+  case __acpp_sscp_algorithm_op::bit_and: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::bit_and>(value); \
+  case __acpp_sscp_algorithm_op::bit_or: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::bit_or>(value); \
+  case __acpp_sscp_algorithm_op::bit_xor: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::bit_xor>(value); \
+  case __acpp_sscp_algorithm_op::logical_and: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::logical_and>(value); \
+  case __acpp_sscp_algorithm_op::logical_or: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::logical_or>(value); \
   default: \
     __builtin_trap(); \
     return 0;\
   } \
 }
+REDUCTION_INT_TYPES
+#undef X
 
-REDUCTION_TYPES
-
+#define X(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_reduce_##type(__acpp_sscp_algorithm_op op, type value) { \
+  switch (op) { \
+  case __acpp_sscp_algorithm_op::plus: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::plus>(value); \
+  case __acpp_sscp_algorithm_op::multiply: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::max>(value); \
+  default: \
+    __builtin_trap(); \
+    return 0;\
+  } \
+}
+REDUCTION_FLOAT_TYPES
 #undef X
 
 template<__acpp_sscp_algorithm_op op, typename T>
 inline T __acpp_sscp_work_group_reduce(T value) {
   auto* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
   const uint subgroup_size = __acpp_sscp_get_subgroup_max_size();
-  const uint lx = __acpp_sscp_get_local_id_x();
-  const uint ly = __acpp_sscp_get_local_id_y();
-  const uint lz = __acpp_sscp_get_local_id_z();
-  const uint tg_x = __acpp_sscp_get_local_size_x();
-  const uint tg_y = __acpp_sscp_get_local_size_y();
-  const uint tg_z = __acpp_sscp_get_local_size_z();
-
-  const uint lid = (uint)lx + (uint)tg_x * ((uint)ly + (uint)tg_y * (uint)lz);
-  const uint local_size = (uint)tg_x * (uint)tg_y * (uint)tg_z;
+  const uint lid = __acpp_sscp_typed_get_local_linear_id<3, uint>();
+  const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
 
   const uint group_id = __acpp_sscp_get_subgroup_id();
   const uint lane_id  = __acpp_sscp_get_subgroup_local_id();
   const uint ngroups  = (local_size + subgroup_size - 1u) / subgroup_size;
 
   auto reduce_op = [&](T v) {
-    if constexpr(op == __acpp_sscp_algorithm_op::plus) return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::plus>(v);
-    else return __acpp_sscp_sub_group_reduce<__acpp_sscp_algorithm_op::multiply>(v);
+    return __acpp_sscp_sub_group_reduce<op>(v);
   };
 
-  auto binary_op = [&](T a, T b) {
-    if constexpr(op == __acpp_sscp_algorithm_op::plus) return a + b;
-    else return a * b;
-  };
-
-  auto identity = [&]() {
-    if constexpr(op == __acpp_sscp_algorithm_op::plus) return T{0};
-    else return T{1};
-  };
+  using binary_op_type = typename hipsycl::libkernel::sscp::get_op<op>::type;
+  auto binary_op = [](T a, T b) -> T { return binary_op_type{}(a, b); };
+  auto identity = [&]() -> T { return __acpp_sscp_metal_op_init_value<op, T>(); };
 
   const uint group_base = group_id * subgroup_size;
   uint active = 0;
@@ -187,12 +227,43 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_reduce_##type(__acpp
     return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::plus>(value); \
   case __acpp_sscp_algorithm_op::multiply: \
     return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::max>(value); \
+  case __acpp_sscp_algorithm_op::bit_and: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::bit_and>(value); \
+  case __acpp_sscp_algorithm_op::bit_or: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::bit_or>(value); \
+  case __acpp_sscp_algorithm_op::bit_xor: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::bit_xor>(value); \
+  case __acpp_sscp_algorithm_op::logical_and: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::logical_and>(value); \
+  case __acpp_sscp_algorithm_op::logical_or: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::logical_or>(value); \
   default: \
     __builtin_trap(); \
     return 0;\
   } \
 }
+REDUCTION_INT_TYPES
+#undef X
 
-REDUCTION_TYPES
-
+#define X(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_reduce_##type(__acpp_sscp_algorithm_op op, type value) { \
+  switch (op) { \
+  case __acpp_sscp_algorithm_op::plus: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::plus>(value); \
+  case __acpp_sscp_algorithm_op::multiply: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_work_group_reduce<__acpp_sscp_algorithm_op::max>(value); \
+  default: \
+    __builtin_trap(); \
+    return 0;\
+  } \
+}
+REDUCTION_FLOAT_TYPES
 #undef X

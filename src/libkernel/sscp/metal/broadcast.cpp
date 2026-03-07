@@ -14,6 +14,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/broadcast.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/localmem.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/detail/broadcast.hpp"
 
 #include "helpers.hpp"
 
@@ -86,22 +87,7 @@ ACPP_SUBGROUP_BROADCAST(f32)
 template<typename T>
 inline T __acpp_sscp_work_group_broadcast(i32 local_id, T value) {
   __attribute__((address_space(3))) T* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
-
-  const uint lx = __acpp_sscp_get_local_id_x();
-  const uint ly = __acpp_sscp_get_local_id_y();
-  const uint lz = __acpp_sscp_get_local_id_z();
-  const uint tg_x = __acpp_sscp_get_local_size_x();
-  const uint tg_y = __acpp_sscp_get_local_size_y();
-  const uint tg_z = __acpp_sscp_get_local_size_z();
-
-  const uint lid = (uint)lx + (uint)tg_x * ((uint)ly + (uint)tg_y * (uint)lz);
-
-  if (lid == (uint)local_id) {
-    scratch[0] = value;
-  }
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
-
-  return scratch[0];
+  return hipsycl::libkernel::sscp::wg_broadcast(local_id, value, scratch);
 }
 
 #define ACPP_WORKGROUP_BROADCAST(type) \

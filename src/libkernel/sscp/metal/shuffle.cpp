@@ -11,6 +11,8 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/shuffle.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 
 #include "shuffle_helpers.hpp"
 
@@ -36,7 +38,7 @@ inline T __acpp_sscp_sub_group_shl(T value, u32 shift) {
 
 #define ACPP_SUBGROUP_SHL(type) \
 HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_shl_##type(type value, u32 delta) { \
-    return __acpp_sscp_sub_group_shl(value, delta); \
+  return __acpp_sscp_sub_group_shl(value, delta); \
 }
 
 ACPP_SUBGROUP_SHL(i8)
@@ -64,7 +66,7 @@ inline T __acpp_sscp_sub_group_shr(T value, u32 shift) {
 
 #define ACPP_SUBGROUP_SHR(type) \
 HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_shr_##type(type value, u32 delta) { \
-    return __acpp_sscp_sub_group_shr(value, delta); \
+  return __acpp_sscp_sub_group_shr(value, delta); \
 }
 
 ACPP_SUBGROUP_SHR(i8)
@@ -92,7 +94,7 @@ inline T __acpp_sscp_sub_group_permute(T value, i32 mask) {
 
 #define ACPP_SUBGROUP_PERMUTE(type) \
 HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_permute_##type(type value, i32 mask) { \
-    return __acpp_sscp_sub_group_permute(value, mask); \
+  return __acpp_sscp_sub_group_permute(value, mask); \
 }
 
 ACPP_SUBGROUP_PERMUTE(i8)
@@ -120,10 +122,106 @@ inline T __acpp_sscp_sub_group_select(T value, i32 lane) {
 
 #define ACPP_SUBGROUP_SELECT(type) \
 HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_select_##type(type value, i32 id) { \
-    return __acpp_sscp_sub_group_select(value, id); \
+  return __acpp_sscp_sub_group_select(value, id); \
 }
 
 ACPP_SUBGROUP_SELECT(i8)
 ACPP_SUBGROUP_SELECT(i16)
 ACPP_SUBGROUP_SELECT(i32)
 ACPP_SUBGROUP_SELECT(i64)
+
+template<typename T>
+inline T __acpp_sscp_work_group_shl(T value, u32 delta) {
+  __attribute__((address_space(3))) T* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
+  const uint lid = __acpp_sscp_typed_get_local_linear_id<3, uint>();
+  const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
+
+  scratch[lid] = value;
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+
+  T result = (lid + delta < local_size) ? scratch[lid + delta] : T{};
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  return result;
+}
+
+#define ACPP_WORKGROUP_SHL(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_shl_##type(type value, u32 delta) { \
+  return __acpp_sscp_work_group_shl(value, delta); \
+}
+
+ACPP_WORKGROUP_SHL(i8)
+ACPP_WORKGROUP_SHL(i16)
+ACPP_WORKGROUP_SHL(i32)
+ACPP_WORKGROUP_SHL(i64)
+
+template<typename T>
+inline T __acpp_sscp_work_group_shr(T value, u32 delta) {
+  __attribute__((address_space(3))) T* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
+  const uint lid = __acpp_sscp_typed_get_local_linear_id<3, uint>();
+
+  scratch[lid] = value;
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+
+  T result = (lid >= delta) ? scratch[lid - delta] : T{};
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  return result;
+}
+
+#define ACPP_WORKGROUP_SHR(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_shr_##type(type value, u32 delta) { \
+  return __acpp_sscp_work_group_shr(value, delta); \
+}
+
+ACPP_WORKGROUP_SHR(i8)
+ACPP_WORKGROUP_SHR(i16)
+ACPP_WORKGROUP_SHR(i32)
+ACPP_WORKGROUP_SHR(i64)
+
+template<typename T>
+inline T __acpp_sscp_work_group_permute(T value, i32 mask) {
+  __attribute__((address_space(3))) T* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
+  const uint lid = __acpp_sscp_typed_get_local_linear_id<3, uint>();
+  const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
+
+  scratch[lid] = value;
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+
+  const uint target = lid ^ (uint)mask;
+  T result = (target < local_size) ? scratch[target] : T{};
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  return result;
+}
+
+#define ACPP_WORKGROUP_PERMUTE(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_permute_##type(type value, i32 mask) { \
+  return __acpp_sscp_work_group_permute(value, mask); \
+}
+
+ACPP_WORKGROUP_PERMUTE(i8)
+ACPP_WORKGROUP_PERMUTE(i16)
+ACPP_WORKGROUP_PERMUTE(i32)
+ACPP_WORKGROUP_PERMUTE(i64)
+
+template<typename T>
+inline T __acpp_sscp_work_group_select(T value, i32 id) {
+  __attribute__((address_space(3))) T* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
+  const uint lid = __acpp_sscp_typed_get_local_linear_id<3, uint>();
+  const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
+
+  scratch[lid] = value;
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+
+  T result = ((uint)id < local_size) ? scratch[id] : T{};
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  return result;
+}
+
+#define ACPP_WORKGROUP_SELECT(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_select_##type(type value, i32 id) { \
+  return __acpp_sscp_work_group_select(value, id); \
+}
+
+ACPP_WORKGROUP_SELECT(i8)
+ACPP_WORKGROUP_SELECT(i16)
+ACPP_WORKGROUP_SELECT(i32)
+ACPP_WORKGROUP_SELECT(i64)

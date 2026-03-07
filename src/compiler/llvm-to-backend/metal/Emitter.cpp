@@ -314,7 +314,7 @@ void MetalEmitter::emitGlobalConstants() {
       os << "constexpr constant " << elemType << " " << name
          << "[" << AT->getNumElements() << "] = " << init << ";\n\n";
     } else {
-      os << "constexpr " << mapType(valTy) << " " << name << " = " << init << ";\n\n";
+      os << "constexpr constant " << mapType(valTy) << " " << name << " = " << init << ";\n\n";
     }
   }
 }
@@ -1314,6 +1314,11 @@ std::string MetalEmitter::emitExpr(const Value* V) {
       return emitExpr(CE->getOperand(0));
     }
   }
+
+  // In LLVM IR, globals are pointers, but in MSL we emit them as values.
+  // Return the address so that all uses (GEP, load, store) work correctly.
+  if (isa<GlobalVariable>(V))
+    return "(&" + valueName(V) + ")";
 
   return valueName(V);
 }

@@ -293,6 +293,200 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
   }
 }
 
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_min, T, test_types) {
+  const size_t elements_per_thread = 1;
+  if constexpr (std::is_arithmetic_v<T>) {
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < v.size(); ++i)
+        v[i] = detail::initialize_type<T>(i % local_size + 1);
+    };
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, sycl::minimum<T>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T expected = vOrig[i * local_size];
+        for (size_t j = 1; j < local_size; ++j)
+          expected = sycl::minimum<T>{}(expected, vOrig[i * local_size + j]);
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                      detail::type_to_string(computed) << " at position " << j
+                      << " instead of " << detail::type_to_string(expected)
+                      << " for group " << i << " local_size " << local_size);
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function, validation_function);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_reduce_min for non-scalar type");
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_max, T, test_types) {
+  const size_t elements_per_thread = 1;
+  if constexpr (std::is_arithmetic_v<T>) {
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < v.size(); ++i)
+        v[i] = detail::initialize_type<T>(i % local_size + 1);
+    };
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, sycl::maximum<T>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T expected = vOrig[i * local_size];
+        for (size_t j = 1; j < local_size; ++j)
+          expected = sycl::maximum<T>{}(expected, vOrig[i * local_size + j]);
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                      detail::type_to_string(computed) << " at position " << j
+                      << " instead of " << detail::type_to_string(expected)
+                      << " for group " << i << " local_size " << local_size);
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function, validation_function);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_reduce_max for non-scalar type");
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_and, T, test_types) {
+  const size_t elements_per_thread = 1;
+  if constexpr(std::is_integral_v<detail::elementType<T>>) {
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < v.size(); ++i) {
+        size_t local_idx = i % local_size;
+        v[i] = (local_idx == 0) ? detail::initialize_type<T>(0x0F) : ~T{};
+      }
+    };
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, std::bit_and<T>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T expected = vOrig[i * local_size];
+        for (size_t j = 1; j < local_size; ++j)
+          expected = expected & vOrig[i * local_size + j];
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                     detail::type_to_string(computed) << " at position " << j
+                     << " instead of " << detail::type_to_string(expected)
+                     << " for group " << i << " local_size " << local_size);
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_reduce_bit_and for non-integer type");
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
+  const size_t elements_per_thread = 1;
+  if constexpr(std::is_integral_v<detail::elementType<T>>) {
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < v.size(); ++i) {
+        size_t local_idx = i % local_size;
+        v[i] = (local_idx == 0) ? detail::initialize_type<T>(0x5A) : T{};
+      }
+    };
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, std::bit_or<T>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T expected = vOrig[i * local_size];
+        for (size_t j = 1; j < local_size; ++j)
+          expected = expected | vOrig[i * local_size + j];
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                     detail::type_to_string(computed) << " at position " << j
+                     << " instead of " << detail::type_to_string(expected)
+                     << " for group " << i << " local_size " << local_size);
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_reduce_bit_or for non-integer type");
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_xor, T, test_types) {
+  const size_t elements_per_thread = 1;
+  if constexpr(std::is_integral_v<detail::elementType<T>>) {
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < v.size(); ++i)
+        v[i] = detail::initialize_type<T>(i % local_size + 1);
+    };
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, std::bit_xor<T>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T expected = vOrig[i * local_size];
+        for (size_t j = 1; j < local_size; ++j)
+          expected = expected ^ vOrig[i * local_size + j];
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                     detail::type_to_string(computed) << " at position " << j
+                     << " instead of " << detail::type_to_string(expected)
+                     << " for group " << i << " local_size " << local_size);
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_reduce_bit_xor for non-integer type");
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif

@@ -17,6 +17,9 @@
 
 #include "scan_helpers.hpp"
 
+#include <limits>
+#include <type_traits>
+
 using namespace hipsycl::sycl::detail::metal_builtins;
 
 #define X(type) \
@@ -26,55 +29,60 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_inclusive_scan_##type
     return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::plus>(value); \
   case __acpp_sscp_algorithm_op::multiply: \
     return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::max>(value); \
+  case __acpp_sscp_algorithm_op::bit_and: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::bit_and>(value); \
+  case __acpp_sscp_algorithm_op::bit_or: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::bit_or>(value); \
+  case __acpp_sscp_algorithm_op::bit_xor: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::bit_xor>(value); \
   default: \
     __builtin_trap(); \
     return 0;\
   } \
 }
+SCAN_INT_TYPES
+#undef X
 
-SCAN_TYPES
+#define X(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_sub_group_inclusive_scan_##type(__acpp_sscp_algorithm_op op, type value) { \
+  switch (op) { \
+  case __acpp_sscp_algorithm_op::plus: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::plus>(value); \
+  case __acpp_sscp_algorithm_op::multiply: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::max>(value); \
+  default: \
+    __builtin_trap(); \
+    return 0;\
+  } \
+}
+SCAN_FLOAT_TYPES
 #undef X
 
 template<__acpp_sscp_algorithm_op op, typename T>
 inline T __acpp_sscp_work_group_inclusive_scan(T value) {
   auto* scratch = __acpp_sscp_get_typed_dynamic_local_memory<T>();
   const uint subgroup_size = __acpp_sscp_get_subgroup_max_size();
-  const uint lx = __acpp_sscp_get_local_id_x();
-  const uint ly = __acpp_sscp_get_local_id_y();
-  const uint lz = __acpp_sscp_get_local_id_z();
-  const uint tg_x = __acpp_sscp_get_local_size_x();
-  const uint tg_y = __acpp_sscp_get_local_size_y();
-  const uint tg_z = __acpp_sscp_get_local_size_z();
-
-  const uint lid = (uint)lx + (uint)tg_x * ((uint)ly + (uint)tg_y * (uint)lz);
-  const uint local_size = (uint)tg_x * (uint)tg_y * (uint)tg_z;
+  const uint lid = __acpp_sscp_typed_get_local_linear_id<3, uint>();
+  const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
   const uint group_id = __acpp_sscp_get_subgroup_id();
   const uint lane_id  = __acpp_sscp_get_subgroup_local_id();
   const uint ngroups  = (local_size + subgroup_size - 1u) / subgroup_size;
 
-  auto prefix_op = [&](T value) {
-    if constexpr(op == __acpp_sscp_algorithm_op::plus) {
-      return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::plus>(value);
-    } else {
-      return __acpp_sscp_sub_group_inclusive_scan<__acpp_sscp_algorithm_op::multiply>(value);
-    }
+  auto prefix_op = [&](T v) {
+    return __acpp_sscp_sub_group_inclusive_scan<op>(v);
   };
 
-  auto binary_op = [&](T a, T b) {
-    if constexpr(op == __acpp_sscp_algorithm_op::plus) {
-      return a + b;
-    } else {
-      return a * b;
-    }
-  };
-
-  auto initial_value = [&]() {
-    if constexpr(op == __acpp_sscp_algorithm_op::plus) {
-      return T{0};
-    } else {
-      return T{1};
-    }
-  };
+  using binary_op_type = typename hipsycl::libkernel::sscp::get_op<op>::type;
+  auto binary_op = [](T a, T b) -> T { return binary_op_type{}(a, b); };
+  auto initial_value = [&]() -> T { return __acpp_sscp_metal_op_init_value<op, T>(); };
 
   const T prefix = prefix_op(value);
 
@@ -140,11 +148,39 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_inclusive_scan_##typ
     return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::plus>(value); \
   case __acpp_sscp_algorithm_op::multiply: \
     return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::max>(value); \
+  case __acpp_sscp_algorithm_op::bit_and: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::bit_and>(value); \
+  case __acpp_sscp_algorithm_op::bit_or: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::bit_or>(value); \
+  case __acpp_sscp_algorithm_op::bit_xor: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::bit_xor>(value); \
   default: \
     __builtin_trap(); \
     return 0;\
   } \
 }
+SCAN_INT_TYPES
+#undef X
 
-SCAN_TYPES
+#define X(type) \
+HIPSYCL_SSCP_CONVERGENT_BUILTIN type __acpp_sscp_work_group_inclusive_scan_##type(__acpp_sscp_algorithm_op op, type value) { \
+  switch (op) { \
+  case __acpp_sscp_algorithm_op::plus: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::plus>(value); \
+  case __acpp_sscp_algorithm_op::multiply: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::multiply>(value); \
+  case __acpp_sscp_algorithm_op::min: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::min>(value); \
+  case __acpp_sscp_algorithm_op::max: \
+    return __acpp_sscp_work_group_inclusive_scan<__acpp_sscp_algorithm_op::max>(value); \
+  default: \
+    __builtin_trap(); \
+    return 0;\
+  } \
+}
+SCAN_FLOAT_TYPES
 #undef X

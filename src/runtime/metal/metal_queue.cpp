@@ -160,11 +160,18 @@ result launch_kernel_from_library(
 
   encoder->setComputePipelineState(pipeline_state.get());
   auto user_local_mem_size = local_mem_size;
-  auto threads_in_group = num_groups[0] * num_groups[1] * num_groups[2];
-  // TODO: check if workgroup reduction is used in kernel_info to adjust local mem size
-  auto additional_local_mem_per_thread = (threads_in_group + 32 - 1) / 32; // for per-workgroup reductions
+  auto threads_per_group = group_size[0] * group_size[1] * group_size[2];
+  // Allocate scratch for workgroup algorithms (reduction, scan, shuffle).
+  // Different algorithms have different scratch requirements:
+  //   - reduction/scan: need (ngroups) elements, where ngroups = ceil(local_size / simd_size)
+  //   - shuffle: need local_size elements (one slot per thread)
+  // The shuffle case dominates, so we conservatively allocate local_size * sizeof(uint64_t) bytes
+  // to cover all element types (max 8 bytes for i64/f64).
+  // TODO: inspect kernel_info to determine which algorithms are actually used and only allocate
+  // as much scratch as needed (e.g. reduction-only kernels need far less than local_size * 8 bytes).
+  auto additional_local_mem = threads_per_group * sizeof(uint64_t);
 
-  local_mem_size = user_local_mem_size + additional_local_mem_per_thread;
+  local_mem_size = user_local_mem_size + additional_local_mem;
   if (local_mem_size != 0) {
     encoder->setThreadgroupMemoryLength(align_up(local_mem_size, 16), 0);
   }

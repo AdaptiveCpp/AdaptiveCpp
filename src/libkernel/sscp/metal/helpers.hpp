@@ -14,6 +14,11 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/localmem.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/core_typed.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/detail/utils.hpp"
+
+#include <type_traits>
+#include <limits>
 
 namespace hipsycl {
 namespace sycl {
@@ -43,6 +48,32 @@ template<typename T> inline __attribute__((address_space(3))) T* __acpp_sscp_get
   ptr += __acpp_sscp_get_dynamic_local_memory_size();
   __attribute__((address_space(3))) T* typed_ptr = (__attribute__((address_space(3))) T*)ptr;
   return typed_ptr;
+}
+
+template<__acpp_sscp_algorithm_op op, typename T>
+inline T __acpp_sscp_metal_op_init_value() {
+  if constexpr(op == __acpp_sscp_algorithm_op::plus) {
+    return T{0};
+  } else if constexpr(op == __acpp_sscp_algorithm_op::multiply) {
+    return T{1};
+  } else if constexpr(op == __acpp_sscp_algorithm_op::min) {
+    return std::numeric_limits<T>::max();
+  } else if constexpr(op == __acpp_sscp_algorithm_op::max) {
+    return std::numeric_limits<T>::lowest();
+  } else if constexpr(op == __acpp_sscp_algorithm_op::bit_and && std::is_integral_v<T>) {
+    return ~T{0};
+  } else if constexpr(op == __acpp_sscp_algorithm_op::bit_or && std::is_integral_v<T>) {
+    return T{0};
+  } else if constexpr(op == __acpp_sscp_algorithm_op::bit_xor && std::is_integral_v<T>) {
+    return T{0};
+  } else if constexpr(op == __acpp_sscp_algorithm_op::logical_and) {
+    return T{1};
+  } else if constexpr(op == __acpp_sscp_algorithm_op::logical_or) {
+    return T{0};
+  } else {
+    static_assert(op == __acpp_sscp_algorithm_op::plus, "Unsupported operation");
+    return T{0};
+  }
 }
 
 

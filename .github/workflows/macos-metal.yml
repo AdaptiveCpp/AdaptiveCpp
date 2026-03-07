@@ -64,6 +64,7 @@ jobs:
           -DACPP_TARGETS="generic" \
           -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/AdaptiveCpp \
           -DWITH_PCUDA_TESTS=ON \
+          -DACPP_TEST_WORK_GROUP_SHUFFLE_EXT=ON \
           ${GITHUB_WORKSPACE}/tests
         ninja
 

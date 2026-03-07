@@ -50,7 +50,13 @@ inline uint32_t get_subgroup_size() {
 }
 
 template<typename T>
-using elementType = std::remove_reference_t<decltype(T{}.s0())>;
+auto elementType_helper() {
+  if constexpr(std::is_arithmetic_v<T>) return T{};
+  else return T{}.s0();
+}
+
+template<typename T>
+using elementType = std::remove_reference_t<decltype(elementType_helper<T>())>;
 
 template<typename T, int N>
 std::string type_to_string(sycl::vec<T, N> v) {

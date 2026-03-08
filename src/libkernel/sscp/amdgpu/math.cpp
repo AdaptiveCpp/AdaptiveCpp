@@ -112,12 +112,11 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_frexp_f32(float x, __acpp_int32 *y) {
 }
 
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x, __acpp_int32 *y) {
-  __acpp_int32 w;
   if(__ockl_is_private_addr(y))
     return __ocml_frexp_f64(x, to_private(y));
   else {
     __acpp_int32 w;
-    float res = __ocml_frexp_f64(x, to_private(&w));
+    double res = __ocml_frexp_f64(x, to_private(&w));
     *y = w;
     return res;
   }

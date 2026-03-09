@@ -526,7 +526,7 @@ class acpp_config:
                                    Uses Minicoro for nd_range parallel_for support.
                - omp.accelerated: Uses clang as host compiler to enable compiler support
                                   for nd_range parallel_for (see --acpp-use-accelerated-cpu).
-      * cuda - CUDA backend
+      * cuda - Legacy CUDA interoperability backend
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
                Backend Flavors:
@@ -536,7 +536,7 @@ class acpp_config:
                                            multipass mode.
       * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
                if given requires the format ccXY.
-      * hip  - HIP backend
+      * hip  - Legacy HIP interoperability backend
                Requires specification of targets of the form gfxXYZ,
                e.g. gfx906 for Vega 20, gfx900 for Vega 10
                Backend Flavors:
@@ -606,6 +606,8 @@ class acpp_config:
       'is-export-all' : option("--acpp-export-all", "ACPP_EXPORT_ALL", "default-export-all",
 """  (Experimental) Treat all functions implicitly as SYCL_EXTERNAL. Only supported with generic target.
   This currently only works with translation units that include the sycl.hpp header."""),
+      'no-warn-legacy-flows' : option("--acpp-no-warn-legacy-flows", "ACPP_NO_WARN_LEGACY_FLOWS", "default-no-warn-legacy-flows",
+"""  Do not warn when the old 'hip' and 'cuda' targets are used."""),
       'pcuda' : option("--acpp-pcuda", "ACPP_PCUDA", "default-pcuda",
 """  Enable AdaptiveCpp portable CUDA (PCUDA) support as input language.
   This is *exclusively* supported with --acpp-targets=generic."""),
@@ -1119,6 +1121,13 @@ class acpp_config:
   def is_dryrun(self):
     try:
       return self._is_flag_set("is-dryrun")
+    except OptionNotSet:
+      return False
+    
+  @property
+  def no_warn_legacy_flows(self):
+    try:
+      return self._is_flag_set("no-warn-legacy-flows")
     except OptionNotSet:
       return False
 
@@ -2004,6 +2013,17 @@ class compiler:
                       "simultaneously in non-explicit multipass; enabling explicit "
                       "multipass compilation.")
         self._is_explicit_multipass = True
+    
+    if "hip" in self._targets or "cuda" in self._targets:
+      if config.has_plugin_sscp_compiler:
+        if not config.no_warn_legacy_flows:
+          print_warning("The 'hip' and 'cuda' compilation flows are not typically useful outside "
+                        "of specific interoperability use cases or applications that have "
+                        "been engineered specifically around them (e.g. GROMACS)."
+                        "\n\nFor all other use cases, they may not result in best performance!\n\n"
+                        "Please use 'generic' target for better performance, portability, and usability!\n"
+                        "(use --acpp-no-warn-legacy-flows to silence this warning)")
+
     if self._is_pcuda and "generic" not in self._targets:
       raise RuntimeError("PCUDA support requires generic target.")
 

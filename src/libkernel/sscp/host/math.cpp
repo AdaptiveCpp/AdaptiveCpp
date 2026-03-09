@@ -186,6 +186,28 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y ) {
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) {
   return lgamma_r(x, y);
 }
+#else
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y) {
+  float r = lgammaf(x);
+  if (x >= 0.0f) {
+    *y = 1;
+  } else {
+    int n = (int)floorf(-x);
+    *y = (n & 1) ? 1 : -1;
+  }
+  return r;
+}
+
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) {
+  double r = lgamma(x);
+  if (x >= 0.0) {
+    *y = 1;
+  } else {
+    int n = (int)floor(-x);
+    *y = (n & 1) ? 1 : -1;
+  }
+  return r;
+}
 #endif
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(log)

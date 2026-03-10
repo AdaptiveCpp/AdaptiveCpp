@@ -913,7 +913,7 @@ HIPSYCL_BUILTIN float __acpp_exclusive_scan_over_group(sub_group g, float x,
 }
 
 template <typename BinaryOperation>
-HIPSYCL_BUILTIN float __acpp_exclusive_scan_over_group(sub_group g, double x,
+HIPSYCL_BUILTIN double __acpp_exclusive_scan_over_group(sub_group g, double x,
                                                        BinaryOperation binary_op) {
   auto identity = sscp_binary_operation_identity<std::decay_t<double>,
                                                  sscp_binary_operation_v<BinaryOperation>>::get();

@@ -332,10 +332,20 @@ void MetalEmitter::emitTypes() {
 
   std::unordered_map<const StructType*, std::unordered_set<const StructType*>> deps;
 
+  std::function<const StructType*(Type*)> structType = [&](Type *T) -> const StructType* {
+    if (auto *ST = dyn_cast<StructType>(T)) {
+      return ST;
+    }
+    if (auto *AT = dyn_cast<ArrayType>(T)) {
+      return structType(AT->getElementType());
+    }
+    return nullptr;
+  };
+
   auto addDeps = [&](const StructType *ST) {
     for (unsigned i = 0; i < ST->getNumElements(); ++i) {
       Type *elemTy = ST->getElementType(i);
-      if (auto *elemST = dyn_cast<StructType>(elemTy)) {
+      if (auto *elemST = structType(elemTy)) {
         deps[ST].insert(elemST);
       }
     }

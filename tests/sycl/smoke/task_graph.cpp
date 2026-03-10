@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(task_graph_synchronization) {
   });
 
   auto result = buf_c.get_access<mode::read>();
-  for(size_t i = num_elements; i < num_elements; ++i) {
+  for(size_t i = 0; i < num_elements; ++i) {
     BOOST_REQUIRE(result[i] == 2 * i);
   }
 }

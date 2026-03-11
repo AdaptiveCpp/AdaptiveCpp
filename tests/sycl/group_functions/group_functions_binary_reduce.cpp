@@ -19,6 +19,11 @@
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(group_x_of_local) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
   using T = char;
 
   const size_t elements_per_thread = 1;
@@ -89,6 +94,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_local) {
 }
 
 BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
   if(!sycl::queue{}.get_device().is_host()) {
     using T = char;
 
@@ -153,6 +162,11 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
 }
 
 BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
   using T = char;
 
   const size_t elements_per_thread = 3;
@@ -245,6 +259,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
 }
 
 BOOST_AUTO_TEST_CASE(group_x_of_function) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
   using T = char;
 
   const size_t elements_per_thread = 1;
@@ -318,6 +336,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_function) {
 }
 
 BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
   if(!sycl::queue{}.get_device().is_host()) {
     using T = char;
 

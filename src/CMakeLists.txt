@@ -21,6 +21,7 @@ set(WITH_LLVM_TO_PTX false)
 set(WITH_LLVM_TO_SPIRV false)
 set(WITH_LLVM_TO_HOST false)
 set(WITH_LLVM_TO_METAL false)
+set(WITH_LLVM_TO_VULKAN false)
 
 if(WITH_SSCP_COMPILER)
   if(WITH_LEVEL_ZERO_BACKEND OR WITH_OPENCL_BACKEND)
@@ -37,6 +38,10 @@ if(WITH_SSCP_COMPILER)
 
   if(WITH_METAL_BACKEND)
     set(WITH_LLVM_TO_METAL true)
+  endif()
+
+  if(WITH_VULKAN_BACKEND)
+    set(WITH_LLVM_TO_VULKAN true)
   endif()
 
   set(WITH_LLVM_TO_HOST true)

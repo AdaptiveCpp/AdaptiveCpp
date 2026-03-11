@@ -87,7 +87,15 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(marray_ops, T, marray_test_types) {
   }
 
   test<T, 1>(q);
-  test<T, 3>(q);
+
+  // See doc/vulkan.md issue #3
+  if (std::is_same_v<T, short> &&
+      (q.get_device().get_backend() == sycl::backend::vk)) {
+    BOOST_TEST_MESSAGE("Skipping short3 due to SPIRV issues with i48 types");
+  } else {
+    test<T, 3>(q);
+  }
+
   test<T, 4>(q);
   test<T, 13>(q);
 }

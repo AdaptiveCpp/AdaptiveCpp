@@ -101,6 +101,16 @@ void atomic_device_reduction_test(AtomicOp op, Verifier v,
       return;
     }
   }
+
+  // See doc/vulkan.md issue #2
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
+      BOOST_TEST_MESSAGE(
+          "Skipping test since Vulkan has not floating point atomic support");
+      return;
+    }
+  }
+
   if constexpr(sizeof(T) == 8) {
     if (!q.get_device().has(sycl::aspect::atomic64)) {
       BOOST_TEST_MESSAGE("Skipping test for 64-bit atomics since device has no atomic64 support");

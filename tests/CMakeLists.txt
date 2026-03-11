@@ -81,6 +81,7 @@ add_sycl_to_target(TARGET device_compilation_tests)
 
 add_executable(sycl_tests
   sycl/smoke/task_graph.cpp
+  sycl/smoke/queue.cpp
   sycl/accessor.cpp
   sycl/atomic.cpp
   sycl/buffer.cpp

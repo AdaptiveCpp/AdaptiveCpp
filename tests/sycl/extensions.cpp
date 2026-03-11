@@ -682,10 +682,12 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
   }
 
   std::size_t test_size = 4096;
-  int *shared_mem = sycl::malloc_shared<int>(test_size, q);
+  int *shared_mem = sycl::malloc_device<int>(test_size, q);
 
+  std::vector<int> host_data(test_size);
   for (std::size_t i = 0; i < test_size; ++i)
-    shared_mem[i] = i;
+    host_data[i] = i;
+  q.memcpy(shared_mem, host_data.data(), test_size * sizeof(int)).wait();
 
   q.parallel_for<class usm_prefetch_host_test_kernel>(
       sycl::range<1>{test_size},
@@ -693,8 +695,9 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
   q.prefetch_host(shared_mem, test_size * sizeof(int));
   q.wait_and_throw();
 
+  q.memcpy(host_data.data(), shared_mem, test_size * sizeof(int)).wait();
   for (std::size_t i = 0; i < test_size; ++i)
-    BOOST_TEST(shared_mem[i] == i + 1);
+    BOOST_TEST(host_data[i] == i + 1);
 
   sycl::free(shared_mem, q);
 }
@@ -845,6 +848,14 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
 BOOST_AUTO_TEST_CASE(buffer_page_size) {
 
   sycl::queue q;
+
+  // See Issue 9 in doc/vulkan.md
+  if (q.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
+
 
   // Deliberately choose page_size so that size is not a mulitple of it
   // to test the more complicated case.

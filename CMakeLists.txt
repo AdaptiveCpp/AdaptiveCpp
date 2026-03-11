@@ -121,6 +121,7 @@ endif()
 list(INSERT CMAKE_MODULE_PATH 0 "${ACPP_SOURCE_ROOT}/cmake/")
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
+find_package(Vulkan QUIET COMPONENTS SPIRV-Tools)
 
 #set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "(Deprecated) Whether to target CUDA exclusively with nvc++")
 
@@ -237,6 +238,7 @@ endif()
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build AdaptiveCpp support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build AdaptiveCpp support for AMD GPUs with ROCm")
 set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build AdaptiveCpp support for OpenCL SPIR-V devices supporting USM")
+set(WITH_VULKAN_BACKEND ${Vulkan_FOUND} CACHE BOOL "Build AdaptiveCpp support for Vulkan")
 
 set(WITH_CPU_BACKEND true)
 

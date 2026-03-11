@@ -36,6 +36,14 @@ BOOST_AUTO_TEST_CASE(local_accessors) {
   constexpr size_t global_size = 1024;
 
   sycl::queue queue;
+
+  // See Issue 8 in doc/vulkan.md
+  if (queue.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != queue.get_device().get_info<sycl::info::device::name>().find("RADV MI")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI GPUs");
+    return;
+  }
+
   std::vector<int> host_buf;
   for(size_t i = 0; i < global_size; ++i) {
     host_buf.push_back(static_cast<int>(i));
@@ -208,24 +216,33 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     cgh.single_task<class accessor_api_device_accessors>([](){});
   });
 
-  queue.submit([&](s::handler& cgh) {
-    run_test([&](auto buf, auto... args) {
-      return buf.template get_access<s::access::mode::atomic>(cgh, args...);
+  // See doc/vulkan.md issue #4
+  if (queue.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Skipping due to compiler issue");
+  } else {
+    queue.submit([&](s::handler &cgh) {
+      run_test([&](auto buf, auto... args) {
+        return buf.template get_access<s::access::mode::atomic>(cgh, args...);
+      });
+      // mostly compilation test
+      auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
+      auto atomicAcc3D =
+          buf_d.template get_access<s::access::mode::atomic>(cgh);
+      auto localAtomic =
+          s::accessor<int, 1, s::access::mode::atomic,
+                      s::access::target::local>{s::range<1>{2}, cgh};
+      auto localAtomic3D =
+          s::accessor<int, 3, s::access::mode::atomic,
+                      s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
+      cgh.parallel_for<class accessor_api_atomic_device_accessors>(
+          sycl::nd_range<1>{2, 2}, [=](sycl::nd_item<1> item) {
+            atomicAcc[0].exchange(0);
+            atomicAcc3D[0][1][0].exchange(0);
+            localAtomic[0].exchange(0);
+            localAtomic3D[0][1][0].exchange(0);
+          });
     });
-    // mostly compilation test
-    auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
-    auto atomicAcc3D = buf_d.template get_access<s::access::mode::atomic>(cgh);
-    auto localAtomic = s::accessor<int, 1, s::access::mode::atomic, s::access::target::local>{s::range<1>{2}, cgh};
-    auto localAtomic3D = s::accessor<int, 3, s::access::mode::atomic, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
-    cgh.parallel_for<class accessor_api_atomic_device_accessors>(
-        sycl::nd_range<1>{2, 2},
-        [=](sycl::nd_item<1> item) {
-          atomicAcc[0].exchange(0);
-          atomicAcc3D[0][1][0].exchange(0);
-          localAtomic[0].exchange(0);
-          localAtomic3D[0][1][0].exchange(0);
-    });
-  });
+  }
 
   // accessor is default-constructible, copy-constructible, copy-assignable, equality-comparable, swappable
   s::accessor<int, 0> a0;
@@ -328,6 +345,13 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 BOOST_AUTO_TEST_CASE(nested_subscript) {
   namespace s = sycl;
   s::queue q;
+
+  // See Issue 9 in doc/vulkan.md
+  if (q.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
   
   s::range<2> buff_size2d{64,64};
   s::range<3> buff_size3d{buff_size2d[0],buff_size2d[1],64};
@@ -348,7 +372,7 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
         acc[x][y] = -1;
     });
   });
-  
+
   q.submit([&](s::handler& cgh){
     auto acc = buff3.get_access<s::access::mode::discard_read_write>(cgh);
     
@@ -363,18 +387,16 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
         acc[x][y][z] = -1;
     });
   });
-  
+
   auto host_acc2d = buff2.get_access<s::access::mode::read>();
   auto host_acc3d = buff3.get_access<s::access::mode::read>();
-  
+
   for(size_t x = 0; x < buff_size3d[0]; ++x)
-    for(size_t y = 0; y < buff_size3d[1]; ++y) {
-       
+    for (size_t y = 0; y < buff_size3d[1]; ++y) {
       size_t linear_id2d = static_cast<int>(x*buff_size2d[1] + y);
       s::id<2> id2d{x,y};
       BOOST_CHECK(host_acc2d[id2d] == linear_id2d);
       BOOST_CHECK(host_acc2d.get_pointer()[linear_id2d] == linear_id2d);
-        
       for(size_t z = 0; z < buff_size3d[2]; ++z) {
         size_t linear_id3d = x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z;
         s::id<3> id3d{x,y,z};
@@ -599,6 +621,13 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
 BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
   namespace s = sycl;
 
+  s::queue q;
+  // See doc/vulkan.md issue #1
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE(
+        "Skipping due to issue using memset for non-zero values in clspv");
+    return;
+  }
   constexpr int N = 1024;
   const s::range range(512);
   const s::id offset(10);
@@ -609,14 +638,14 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
   {
     s::buffer<int> buf(host_data.data(), N);
 
-    s::queue{}.submit([&](s::handler &cgh) {
-      s::accessor<int> acc(buf, cgh, range, offset);
+    q.submit([&](s::handler &cgh) {
+       s::accessor<int> acc(buf, cgh, range, offset);
 
-      cgh.single_task([=](){
-        for (auto it = acc.begin(); it != acc.end(); ++it)
-          *it = -1;
-      });
-    }).wait();
+       cgh.single_task([=]() {
+         for (auto it = acc.begin(); it != acc.end(); ++it)
+           *it = -1;
+       });
+     }).wait();
   }
 
   for (int i=0; i < offset[0]; ++i)
@@ -857,6 +886,14 @@ BOOST_AUTO_TEST_CASE(offset_1d) {
 BOOST_AUTO_TEST_CASE(offset_2d) {
   namespace s = sycl;
 
+  // See Issue 9 in doc/vulkan.md
+  s::queue q{};
+  if (q.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
+
   constexpr int N = 8;
   std::array<int, N*N> data;
   std::fill(data.begin(), data.end(), 1);
@@ -864,7 +901,7 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
   {
     s::buffer<int, 2> buf(data.data(), {N,N});
 
-    s::queue{}.submit([&](s::handler &cgh) {
+    q.submit([&](s::handler &cgh) {
       std::size_t offset_1d = 2;
       s::range range{N - offset_1d, N - offset_1d};
       s::id offset{offset_1d, offset_1d};
@@ -898,13 +935,21 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
 BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
   namespace s = sycl;
 
+  // See Issue 9 in doc/vulkan.md
+  s::queue q{};
+  if (q.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
+
   constexpr int N = 8;
   std::array<int, N*N> data;
   std::fill(data.begin(), data.end(), 1);
 
   {
     s::buffer<int, 2> buf(data.data(), {N,N});
-    s::queue{}.submit([&](s::handler &cgh) {
+    q.submit([&](s::handler &cgh) {
       std::size_t offset_1d = 2;
       s::range range{N - offset_1d, N - offset_1d};
       s::id offset{offset_1d, offset_1d};

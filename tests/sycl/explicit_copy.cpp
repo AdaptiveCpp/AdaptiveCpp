@@ -77,6 +77,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
   }
 
   sycl::queue queue;
+  // See Issue 9 in doc/vulkan.md
+  if (queue.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != queue.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
 
   // copy full buffer without strides
   sycl::buffer<size_t, d> device_buf_full{buf_size};

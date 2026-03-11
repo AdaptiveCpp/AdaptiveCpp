@@ -237,6 +237,35 @@ if(WITH_LEVEL_ZERO_BACKEND)
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
+if(WITH_VULKAN_BACKEND)
+  add_library(rt-backend-vk SHARED
+     vk/vk_allocator.cpp
+     vk/vk_backend.cpp
+     vk/vk_queue.cpp
+     vk/vk_event.cpp
+     vk/vk_code_object.cpp
+     vk/vk_hardware_manager.cpp)
+  target_include_directories(rt-backend-vk PRIVATE
+                             ${HIPSYCL_SOURCE_DIR}/include
+                             ${ACPP_BINARY_ROOT}/include/
+                             "${Vulkan_INCLUDE_DIR}")
+  target_link_libraries(rt-backend-vk PRIVATE acpp-rt Vulkan::Vulkan Vulkan::SPIRV-Tools)
+
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-vk PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-vk PRIVATE llvm-to-clspv)
+  endif()
+
+  target_compile_options(rt-backend-vk PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-vk PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
+  install(TARGETS rt-backend-vk
+        RUNTIME DESTINATION bin/hipSYCL
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
+
+endif() # WITH_VULKAN_BACKEND
+
 if(WITH_OPENCL_BACKEND)
   include(FetchContent)
   FetchContent_Declare(ocl-headers

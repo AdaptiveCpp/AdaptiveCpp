@@ -118,6 +118,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
       return;
     }
   }
+
+  // See issue 8 in doc/vulkan.md
+  if (queue.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != queue.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
+
   s::buffer<T> in{{1}};
   s::buffer<OutType> out{{FUN_COUNT}};
   {

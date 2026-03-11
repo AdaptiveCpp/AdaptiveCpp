@@ -17,6 +17,11 @@
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -60,6 +65,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -136,6 +146,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
   const size_t elements_per_thread = 3;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -223,6 +238,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
   if(!sycl::queue{}.get_device().is_host()) {
     const size_t   elements_per_thread = 1;
     const auto     data_generator      = [](std::vector<T> &v, size_t local_size,

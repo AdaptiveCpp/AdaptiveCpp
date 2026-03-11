@@ -39,6 +39,7 @@ BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
   size_t remain = WG % SG;
   size_t cntSG = 0, cntR = 0, cntOther = 0;
 
+
   for (size_t i = 0; i < WG; ++i) {
     if (data[i] == SG) ++cntSG;
     else if(data[i] == remain) ++cntR;
@@ -55,6 +56,14 @@ BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
 BOOST_AUTO_TEST_CASE(sub_group) {
   namespace s = sycl;
   s::queue q;
+
+  // See issue 9 in doc/vulkan.md
+  if (q.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
+
   s::range<1> size1d{1024};
   s::range<2> size2d{32, 32};
   s::range<3> size3d{16, 16, 16};

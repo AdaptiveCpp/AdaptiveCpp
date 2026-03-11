@@ -26,6 +26,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions) {
   // TODO: Add tests for common by-value semantics
 
   s::queue queue;
+  // See Issue 9 in doc/vulkan.md
+  if (queue.get_device().get_backend() == sycl::backend::vk &&
+    std::string::npos != queue.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
+    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
+    return;
+  }
+
 
   {
     // item::get_id and item::operator[] without offset

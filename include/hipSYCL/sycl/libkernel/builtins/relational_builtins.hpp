@@ -84,7 +84,6 @@ template<std::floating_point T, size_t N> auto isequal(sycl::vec<T, N> x, sycl::
     sycl::vec<std::int64_t, N> res;
     for (auto i = 0; i < N; ++i) { res[i] = x[i] == y[i]; }
   }
-  }
   else if constexpr (std::is_same_v<half, T>()) {
     sycl::vec<std::int16_t, N> res;
     for (auto i = 0; i < N; ++i) { res[i] = x[i] == y[i]; }

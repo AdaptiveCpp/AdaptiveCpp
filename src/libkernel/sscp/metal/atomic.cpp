@@ -226,9 +226,29 @@ HIPSYCL_SSCP_BUILTIN u32 __acpp_sscp_atomic_fetch_add_u32(
 }
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_atomic_fetch_add_f32(
-    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
-    __acpp_sscp_memory_scope scope, f32 *ptr, f32 x) {
-  return __acpp_sscp_metal_atomic_fetch_f32("atomic_fetch_add_explicit(__atomic_pointer_cast<float>(%s), %s, memory_order_relaxed)", ptr, x);
+  __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+  __acpp_sscp_memory_scope scope, f32 *ptr, f32 x) {
+
+  if (as == __acpp_sscp_address_space::local_space) {
+    u32 *addr = (u32 *)ptr;
+    u32 old_bits = __acpp_sscp_metal_atomic_load_u32(
+      "atomic_load_explicit(__atomic_pointer_cast<uint>(%s), memory_order_relaxed)", addr);
+    while (true) {
+      f32 old_val = *((f32 *)&old_bits);
+      f32 new_val = old_val + x;
+      u32 new_bits = *((u32 *)&new_val);
+      u32 expected = old_bits;
+      bool ok = __acpp_sscp_metal_atomic_cmpxchg_u32(
+        "atomic_compare_exchange_weak_explicit(__atomic_pointer_cast<uint>(%s), __pointer_cast<uint>(%s), %s, memory_order_relaxed, memory_order_relaxed)",
+        addr, &expected, new_bits);
+      if (ok) {
+        return old_val;
+      }
+      old_bits = expected;
+    }
+  }
+  return __acpp_sscp_metal_atomic_fetch_f32(
+    "atomic_fetch_add_explicit(__atomic_pointer_cast<float>(%s), %s, memory_order_relaxed)", ptr, x);
 }
 
 // ********************* atomic fetch sub ************************************
@@ -270,9 +290,30 @@ HIPSYCL_SSCP_BUILTIN u32 __acpp_sscp_atomic_fetch_sub_u32(
 }
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_atomic_fetch_sub_f32(
-    __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
-    __acpp_sscp_memory_scope scope, f32 *ptr, f32 x) {
-  return __acpp_sscp_metal_atomic_fetch_f32("atomic_fetch_sub_explicit(__atomic_pointer_cast<float>(%s), %s, memory_order_relaxed)", ptr, x);
+  __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+  __acpp_sscp_memory_scope scope, f32 *ptr, f32 x) {
+
+  if (as == __acpp_sscp_address_space::local_space) {
+    u32 *addr = (u32 *)ptr;
+    u32 old_bits = __acpp_sscp_metal_atomic_load_u32(
+      "atomic_load_explicit(__atomic_pointer_cast<uint>(%s), memory_order_relaxed)", addr);
+
+    while (true) {
+      f32 old_val = *((f32 *)&old_bits);
+      f32 new_val = old_val - x;
+      u32 new_bits = *((u32 *)&new_val);
+      u32 expected = old_bits;
+      bool ok = __acpp_sscp_metal_atomic_cmpxchg_u32(
+        "atomic_compare_exchange_weak_explicit(__atomic_pointer_cast<uint>(%s), __pointer_cast<uint>(%s), %s, memory_order_relaxed, memory_order_relaxed)",
+        addr, &expected, new_bits);
+      if (ok) {
+        return old_val;
+      }
+      old_bits = expected;
+    }
+  }
+  return __acpp_sscp_metal_atomic_fetch_f32(
+    "atomic_fetch_sub_explicit(__atomic_pointer_cast<float>(%s), %s, memory_order_relaxed)", ptr, x);
 }
 
 // ********************* atomic fetch and ************************************

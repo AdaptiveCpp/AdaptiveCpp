@@ -163,7 +163,7 @@ HIPSYCL_BUILTIN T __acpp_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-HIPSYCL_BUILTIN double __acpp_modf(float x, float* y) noexcept {
+HIPSYCL_BUILTIN float __acpp_modf(float x, float* y) noexcept {
   return __acpp_sscp_modf_f32(x, y);
 }
 

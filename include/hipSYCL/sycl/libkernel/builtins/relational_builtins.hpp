@@ -12,7 +12,7 @@
 #define HIPSYCL_RELATIONAL_BUILTINS_HPP
 
 #include <cstdint>
-#include <concepts>
+#include <type_traits>
 #include "builtin_utils.hpp"
 
 #include "hipSYCL/sycl/libkernel/builtin_interface.hpp"
@@ -71,28 +71,47 @@ HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isfinite)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isnormal)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, signbit)
 
-template<std::floating_point T> bool isequal(T x, T y) { return x == y; }
-template<std::floating_point T, size_t N> auto isequal(sycl::marray<T, N> x, sycl::marray<T, N> y) {
-  return x == y;
-}
-template<std::floating_point T, size_t N> auto isequal(sycl::vec<T, N> x, sycl::vec<T, N> y) { // to-do handle swizzle
-  if constexpr (std::is_same_v<float, T>()) {}
-    sycl::vec<std::int32_t, N> res;
-    for (auto i = 0; i < N; ++i) { res[i] = x[i] == y[i]; }
-    return res;
+  template <typename T,
+            typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>>
+  bool isequal(T x, T y)
+  {
+    return x == y;
   }
-  else if constexpr (std::is_same_v<double, T>()) {
-    sycl::vec<std::int64_t, N> res;
-    for (auto i = 0; i < N; ++i) { res[i] = x[i] == y[i]; }
-    return res;
+
+  template <typename T,
+            typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>,
+            long unsigned int N>
+  sycl::marray<bool, N> isequal(sycl::marray<T, N> x, sycl::marray<T, N> y)
+  {
+    return x == y;
   }
-  else if constexpr (std::is_same_v<half, T>()) {
-    sycl::vec<std::int16_t, N> res;
-    for (auto i = 0; i < N; ++i) { res[i] = x[i] == y[i]; }
-    return res;
+
+  namespace detail {
+  template <
+      typename R, typename = std::enable_if_t<std::is_scalar<R>::value && std::is_integral_v<R>>,
+      typename T,
+      typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>, int N>
+  sycl::vec<R, N> compare(sycl::vec<T, N> &x, sycl::vec<T, N> &y)
+  {
+    sycl::vec<R, N> b;
+    for (int i = 0; i < N; i++)
+      b[i] = (x[i] == y[i]) ? -1 : 0;
+    return b;
   }
-  // Maybe this can be compressed via defining typename res via if constexpr ?
-}
+  }
+
+  template <typename T,
+            typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>,
+            int N>
+  auto isequal(sycl::vec<T, N> x, sycl::vec<T, N> y)
+  {
+    if constexpr (std::is_same_v<float, T>)
+      return detail::compare<std::int32_t>(x, y);
+    else if constexpr (std::is_same_v<double, T>)
+      return detail::compare<std::int64_t>(x, y);
+    else if constexpr (std::is_same_v<half, T>)
+      return detail::compare<std::int16_t>(x, y);
+  }
 
 }
 #endif

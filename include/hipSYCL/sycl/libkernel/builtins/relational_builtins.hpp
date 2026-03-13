@@ -72,15 +72,14 @@ HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isnormal)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, signbit)
 
   template <typename T,
-            typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>>
+            typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>>
   bool isequal(T x, T y)
   {
     return x == y;
   }
 
-  template <typename T,
-            typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>,
-            long unsigned int N>
+  template <typename T, long unsigned int N,
+            typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>>
   sycl::marray<bool, N> isequal(sycl::marray<T, N> x, sycl::marray<T, N> y)
   {
     return x == y;
@@ -88,9 +87,9 @@ HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, signbit)
 
   namespace detail {
   template <
-      typename R, typename = std::enable_if_t<std::is_scalar<R>::value && std::is_integral_v<R>>,
-      typename T,
-      typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>, int N>
+      typename R, typename T,
+      typename = std::enable_if_t<std::is_scalar_v<R> && std::is_integral_v<R>>,
+      typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>, int N>
   sycl::vec<R, N> compare(sycl::vec<T, N> &x, sycl::vec<T, N> &y)
   {
     sycl::vec<R, N> b;
@@ -100,9 +99,8 @@ HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, signbit)
   }
   }
 
-  template <typename T,
-            typename = std::enable_if_t<std::is_scalar<T>::value && std::is_floating_point_v<T>>,
-            int N>
+  template <typename T, int N,
+            typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>>
   auto isequal(sycl::vec<T, N> x, sycl::vec<T, N> y)
   {
     if constexpr (std::is_same_v<float, T>)

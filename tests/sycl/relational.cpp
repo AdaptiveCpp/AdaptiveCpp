@@ -172,4 +172,84 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   }
 }
 
+BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
+                              rel_test_genfloats) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = sycl;
+
+  using OutType = s::detail::builtin_input_boollike_t<T>;
+  using BoolType = s::detail::builtin_input_element_t<OutType>;
+
+  constexpr int FUN_COUNT = 5;
+
+  // build inputs and allocate outputs
+
+  s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+  s::buffer<T> in1{{1}};
+  s::buffer<T> in2{{1}};
+  s::buffer<OutType> out{{FUN_COUNT}};
+  {
+    auto inputs1  = in1.get_host_access();
+	auto inputs2  = in2.get_host_access();
+    auto outputs = out.get_host_access();
+    s::vec<DT, 16> v{NAN, INFINITY, INFINITY - INFINITY,
+		     0.0, 0.0/0.0, 1.0/0.0, sqrt(-1),
+		     std::numeric_limits<float>::min(),
+		     std::numeric_limits<float>::denorm_min(),
+		     std::numeric_limits<double>::min(),
+		     std::numeric_limits<double>::denorm_min(),
+		     -1.0, 17.0, -4.0, -2.0, 3.0};
+    inputs1[0] = get_subvector<DT, D>(v);
+	inputs2[0] = get_subvector<DT, D>(v);
+    for(int i = 0; i < FUN_COUNT; ++i) {
+      outputs[i] = OutType{BoolType{0}};
+    }
+  }
+
+  // run functions
+
+  queue.submit([&](s::handler &cgh) {
+    auto inputs1  = in1.template get_access<s::access::mode::read>(cgh);
+	auto inputs2  = in2.template get_access<s::access::mode::read>(cgh);
+    auto outputs = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class rel_unary, D, DT>>([=]() {
+      int i = 0;
+      outputs[i++] = s::isequal(inputs1[0], inputs2[0]);
+	  outputs[i++] = s::isnotequal(inputs1[0], inputs2[0]);
+      outputs[i++] = s::isgreater(inputs1[0], inputs2[0]);
+      outputs[i++] = s::isgreaterequal(inputs1[0], inputs2[0]);
+	  outputs[i++] = s::isless(inputs1[0], inputs2[0]);
+      outputs[i++] = s::islessequal(inputs1[0], inputs2[0]);
+	  outputs[i++] = s::islessgreater(inputs1[0], inputs2[0]);
+    });
+  });
+
+  // check results
+
+  {
+    auto inputs  = in.get_host_access();
+    auto outputs = out.get_host_access();
+
+    for(int c = 0; c < std::max(D,1); ++c) {
+      int i = 0;
+      BOOST_TEST(comp(outputs[i++], c) == std::isequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::isnotequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::isgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::isgreaterequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::isless(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::islessequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::islessgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
+    }
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

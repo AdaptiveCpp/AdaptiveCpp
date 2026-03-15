@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   using OutType = s::detail::builtin_input_boollike_t<T>;
   using BoolType = s::detail::builtin_input_element_t<OutType>;
 
-  constexpr int FUN_COUNT = 5;
+  constexpr int FUN_COUNT = 7;
 
   // build inputs and allocate outputs
 
@@ -201,15 +201,20 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
     auto inputs1  = in1.get_host_access();
 	auto inputs2  = in2.get_host_access();
     auto outputs = out.get_host_access();
-    s::vec<DT, 16> v{NAN, INFINITY, INFINITY - INFINITY,
-		     0.0, 0.0/0.0, 1.0/0.0, sqrt(-1),
-		     std::numeric_limits<float>::min(),
-		     std::numeric_limits<float>::denorm_min(),
-		     std::numeric_limits<double>::min(),
-		     std::numeric_limits<double>::denorm_min(),
-		     -1.0, 17.0, -4.0, -2.0, 3.0};
-    inputs1[0] = get_subvector<DT, D>(v);
-	inputs2[0] = get_subvector<DT, D>(v);
+    s::vec<DT, 16> v1{
+      DT(1.0), DT(1.0), DT(2.0), std::numeric_limits<DT>::quiet_NaN(),
+      DT(1.0), DT(0.0), std::numeric_limits<DT>::infinity(),
+      -std::numeric_limits<DT>::infinity(), std::numeric_limits<DT>::denorm_min(),
+      DT(-1.0), DT(17.0), DT(-4.0), DT(-2.0), DT(3.0), DT(5.0), DT(-0.0)
+    };
+    s::vec<DT, 16> v2{
+      DT(1.0), DT(2.0), DT(1.0), DT(1.0),
+      std::numeric_limits<DT>::quiet_NaN(), DT(-0.0), std::numeric_limits<DT>::infinity(),
+      std::numeric_limits<DT>::infinity(), DT(0.0),
+      DT(-4.0), DT(17.0), DT(-1.0), DT(3.0), DT(-2.0), DT(5.0), DT(0.0)
+    };
+    inputs1[0] = get_subvector<DT, D>(v1);
+	inputs2[0] = get_subvector<DT, D>(v2);
     for(int i = 0; i < FUN_COUNT; ++i) {
       outputs[i] = OutType{BoolType{0}};
     }
@@ -221,7 +226,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
     auto inputs1  = in1.template get_access<s::access::mode::read>(cgh);
 	auto inputs2  = in2.template get_access<s::access::mode::read>(cgh);
     auto outputs = out.template get_access<s::access::mode::write>(cgh);
-    cgh.single_task<kernel_name<class rel_unary, D, DT>>([=]() {
+    cgh.single_task<kernel_name<class rel_binary, D, DT>>([=]() {
       int i = 0;
       outputs[i++] = s::isequal(inputs1[0], inputs2[0]);
 	  outputs[i++] = s::isnotequal(inputs1[0], inputs2[0]);
@@ -236,7 +241,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   // check results
 
   {
-    auto inputs  = in.get_host_access();
+    auto inputs1  = in1.get_host_access();
+    auto inputs2  = in2.get_host_access();    
     auto outputs = out.get_host_access();
 
     for(int c = 0; c < std::max(D,1); ++c) {

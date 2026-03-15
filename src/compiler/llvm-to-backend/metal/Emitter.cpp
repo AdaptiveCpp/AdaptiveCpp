@@ -412,8 +412,9 @@ void MetalEmitter::emitIntrinsicHelpers() {
     return as_type<long>(value);
   }
 
-  inline bool __as_signed(bool value) {
-    return value;
+  // LLVM sext i1 true to iN yields all-ones (-1), so replicate that semantic
+  inline int __as_signed(bool value) {
+    return value ? -1 : 0;
   }
 )__";
 

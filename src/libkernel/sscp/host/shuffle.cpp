@@ -32,7 +32,7 @@ SUBGROUP_SIZE_ONE_SHUFLLE(64, shr)
   HIPSYCL_SSCP_CONVERGENT_BUILTIN                                                                  \
   __acpp_int##int_size __acpp_sscp_sub_group_permute_i##int_size(__acpp_int##int_size value,       \
                                                                  __acpp_int32 mask) {              \
-    return mask xor 0 ? value : 0;                                                                 \
+    return mask == 0 ? value : 0;                                                                 \
   }
 
 SUBGROUP_SIZE_ONE_PERMUTE(8)

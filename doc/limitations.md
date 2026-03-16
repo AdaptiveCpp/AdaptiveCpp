@@ -11,6 +11,3 @@ The following is a (probably incomplete) list of features that are not yet imple
 * Error handling: wait_and_throw() and throw_asynchronous() do not invoke async handler
 * 0-dimensional objects (e.g 0D accessors) are mostly unimplemented
 * SYCL 1.2.1: Because hipSYCL is not based on OpenCL, all SYCL OpenCL interoperability features are unimplemented.
-
-#### Other limitations
-* If the SYCL namespace is fully opened with a `using namespace cl::sycl` statement, name collisions *may* occur since the SYCL spec requires the existence of SYCL vector types such as `float4` in the SYCL namespace with the same name as CUDA/HIP vector types which live in the global namespace.

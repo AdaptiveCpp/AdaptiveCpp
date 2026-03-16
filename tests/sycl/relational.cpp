@@ -240,6 +240,28 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
 
   // check results
 
+  auto host_isequal = [](DT a, DT b) {
+    return !std::isnan(a) && !std::isnan(b) && (a == b);
+  };
+  auto host_isnotequal = [](DT a, DT b) {
+    return std::isnan(a) || std::isnan(b) || (a != b);
+  };
+  auto host_isgreater = [](DT a, DT b) {
+    return !std::isnan(a) && !std::isnan(b) && (a > b);
+  };
+  auto host_isgreaterequal = [](DT a, DT b) {
+    return !std::isnan(a) && !std::isnan(b) && (a >= b);
+  };
+  auto host_isless = [](DT a, DT b) {
+    return !std::isnan(a) && !std::isnan(b) && (a < b);
+  };
+  auto host_islessequal = [](DT a, DT b) {
+    return !std::isnan(a) && !std::isnan(b) && (a <= b);
+  };
+  auto host_islessgreater = [](DT a, DT b) {
+    return !std::isnan(a) && !std::isnan(b) && ((a < b) || (a > b));
+  };
+
   {
     auto inputs1  = in1.get_host_access();
     auto inputs2  = in2.get_host_access();    
@@ -247,13 +269,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == std::isequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == std::isnotequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == std::isgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == std::isgreaterequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == std::isless(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == std::islessequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == std::islessgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == host_isequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == host_isnotequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == host_isgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == host_isgreaterequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == host_isless(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == host_islessequal(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == host_islessgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
     }
   }
 }

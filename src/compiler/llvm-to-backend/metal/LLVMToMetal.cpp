@@ -378,17 +378,22 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
     llvm::Value* WmSh = B.CreateSub(WConst, Sh, "w_minus_sh");
 
     llvm::Value* ResShifted = nullptr;
+    llvm::Value* ZeroRes = nullptr;
     if (II->getIntrinsicID() == llvm::Intrinsic::fshl) {
+      // fshl(A, B, S) = msb_extract({A:B} << S) = (A << S) | (B >> (W-S))
       llvm::Value* L = B.CreateShl(A, Sh, "l");
       llvm::Value* R = B.CreateLShr(Bv, WmSh, "r");
       ResShifted = B.CreateOr(L, R, "fshl");
+      ZeroRes = A; // fshl(A, B, 0) = A
     } else { // fshr
-      llvm::Value* L = B.CreateLShr(A, Sh, "l");
-      llvm::Value* R = B.CreateShl(Bv, WmSh, "r");
+      // fshr(A, B, S) = lsb_extract({A:B} >> S) = (B >> S) | (A << (W-S))
+      llvm::Value* L = B.CreateLShr(Bv, Sh, "l");
+      llvm::Value* R = B.CreateShl(A, WmSh, "r");
       ResShifted = B.CreateOr(L, R, "fshr");
+      ZeroRes = Bv; // fshr(A, B, 0) = B
     }
 
-    llvm::Value* Res = B.CreateSelect(IsZero, A, ResShifted, "fsh");
+    llvm::Value* Res = B.CreateSelect(IsZero, ZeroRes, ResShifted, "fsh");
     II->replaceAllUsesWith(Res);
   }
 

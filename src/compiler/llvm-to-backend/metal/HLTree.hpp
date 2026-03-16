@@ -127,15 +127,6 @@ struct ReturnNode final : Node {
   {}
 };
 
-inline bool is(const Node& n, NodeKind k) {
-  return n.kind == k;
-}
-
-template <class T>
-inline T* as(Node* n) {
-  return (n && n->kind == T{}.kind) ? static_cast<T*>(n) : nullptr;
-}
-
 void dumpFunctionTree(llvm::raw_ostream& os, const llvm::Function& F, const Node& root);
 
 } // namespace hl

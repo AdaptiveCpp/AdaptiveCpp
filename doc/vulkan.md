@@ -152,7 +152,6 @@ can detect and set.
 
 ## TODO
 
-* Complete lib kernel implementation
 * Test with real application
 * Try to make compiler passes less brittle
 * Improve device-info queries marked with TODO comments
@@ -167,13 +166,14 @@ as:
 
 | Suite                     | Status |
 | ------------------------- | ------ |
-| `accessor_tests`          | [Issue 1](#issue-1), [Issue 4](#issue-4) & [Issue 8](#issue-8)  |
+| `accessor_tests`          | [Issue 1](#issue-1), [Issue 4](#issue-4) |
 | `atomic_tests`            | `fetch_ops` [Issue 2](#issue-2)   |
 | `buffer_tests`            | Pass   |
 | `explicit_copy_tests`     | Pass   |
 | `extension_tests`         | Pass   |
 | `fill_tests`              | Pass   |
 | `group_functions_tests`   | [Issue 5](#issue-5) & [Issue 10](#issue-10) |
+| `group_known_identity`    | Pass   |
 | `half_tests`              | Pass   |
 | `id_range_tests`          | Pass   |
 | `info_queries`            | Pass   |
@@ -191,7 +191,7 @@ as:
 | `vec_tests`               | Pass   |
 | `queue_tests`             | Pass   |
 | `multi_ptr_test_suite`    | Pass   |
-| `smoke_task_queue`        | [Issue 7](#issue-7) & [Issue 8](#issue-8) |
+| `smoke_task_queue`        | [Issue 7](#issue-7) |
 
 ### Issue 1
 
@@ -217,7 +217,7 @@ do a clspv compiler pass that gets rid of the volatile load and do a manual mem2
 
 ### Issue 5
 
-Workgroup functions not yet implemented in libkernel for clspv.
+Compiler issue with group broadcast implementation.
 
 ### Issue 6
 
@@ -246,13 +246,6 @@ Investigations so far:
  * Generating logical memory model spirv from than physical addressing SPIRV gives the correct
    result in clvk
 
-### Issue 8
-
-> AMD MI GPU Only
-
-Non-deterministic verification fail in `accessors_tests/local_accessors` and
-`smoke_task_queue_tests/queue_local` on MI100 and MI200, needs further investigation.
-
 ### Issue 9
 
 > AMD MI200 GPU only
@@ -268,6 +261,7 @@ Assorted MI200 test fails that needs further investigation:
 * `item_api_tests/*`
 * `extension_tests/buffer_page_size`
 * `explicit_copy/explicit_buffer_copy_host_ptr`
+* `group_functions_tests/group_x_of_local`
 
 ### Issue 10
 

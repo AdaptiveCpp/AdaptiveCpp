@@ -37,13 +37,6 @@ BOOST_AUTO_TEST_CASE(local_accessors) {
 
   sycl::queue queue;
 
-  // See Issue 8 in doc/vulkan.md
-  if (queue.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != queue.get_device().get_info<sycl::info::device::name>().find("RADV MI")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI GPUs");
-    return;
-  }
-
   std::vector<int> host_buf;
   for(size_t i = 0; i < global_size; ++i) {
     host_buf.push_back(static_cast<int>(i));

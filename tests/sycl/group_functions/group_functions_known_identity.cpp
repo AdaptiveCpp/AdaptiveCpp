@@ -28,11 +28,6 @@ using all_ops = boost::mp11::mp_list<
 >;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_known_identity, T, test_types) {
-  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
-    return;
-  }
-
     boost::mp11::mp_for_each<all_ops>([&](auto op){
         static constexpr auto HAS_KNOWN_IDENTITY = sycl::has_known_identity_v<decltype(op), T>;
         if constexpr (HAS_KNOWN_IDENTITY) {

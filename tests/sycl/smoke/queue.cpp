@@ -313,13 +313,6 @@ BOOST_AUTO_TEST_CASE(queue_struct) {
 BOOST_AUTO_TEST_CASE(queue_local) {
   sycl::queue q{sycl::property::queue::in_order{}};
 
-  // See Issue 8 in doc/vulkan.md
-  if (q.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI GPUs");
-    return;
-  }
-
   size_t size = 512;
   int local_size = 128;
   std::vector<int> in_data(size);

@@ -17,10 +17,6 @@
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(group_barrier) {
-  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
-    return;
-  }
   using T = int;
 
   const size_t elements_per_thread = 1;

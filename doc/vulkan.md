@@ -173,7 +173,7 @@ as:
 | `explicit_copy_tests`     | Pass   |
 | `extension_tests`         | Pass   |
 | `fill_tests`              | Pass   |
-| `group_functions_tests`   | [Issue 5](#issue-5) |
+| `group_functions_tests`   | [Issue 5](#issue-5) & [Issue 10](#issue-10) |
 | `half_tests`              | Pass   |
 | `id_range_tests`          | Pass   |
 | `info_queries`            | Pass   |
@@ -268,3 +268,34 @@ Assorted MI200 test fails that needs further investigation:
 * `item_api_tests/*`
 * `extension_tests/buffer_page_size`
 * `explicit_copy/explicit_buffer_copy_host_ptr`
+
+### Issue 10
+
+> Issue only appears in RADV Phoenix
+
+Workgroup size of larger than 128 leads to errors in `group_functions_tests/group_barrier`
+where the result indexes above thread id 128 is no longer synchronized with
+the previous threads.
+
+I could also reproduce this error with clvk on the same system using the
+following kernel reduced from the group_barrier test.
+
+```c
+kernel void test_simple(global int* acc)
+{
+    int tmp          = -10000;
+    int local_id     = get_local_id(0);
+    int local_size   = get_local_size(0);
+    for (int i = 0; i < local_size; ++i) {
+        if (local_id == i) {
+          for (int j = 0; j < 10000; ++j)
+            tmp++;
+        }
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        if (local_id == i)
+          acc[i] = tmp;
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        tmp = acc[i];
+    }
+}
+```

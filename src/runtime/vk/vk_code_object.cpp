@@ -232,16 +232,19 @@ void vk_kernel_pipeline::create_compute_pipeline() {
           _kern_obj->get_exe_obj()->get_spec_const_wg_size()) {
     // Specialization constant for number of threads/invocations/work-items
     // in compute shader work-group.
-    spec_map_entries.emplace_back(0, 0, sizeof(uint32_t));
-    spec_map_data.push_back(spec_const_wg[0]);
-    spec_map_entries.emplace_back(1, sizeof(uint32_t), sizeof(uint32_t));
-    spec_map_data.push_back(spec_const_wg[1]);
-    spec_map_entries.emplace_back(2, 2 * sizeof(uint32_t), sizeof(uint32_t));
-    spec_map_data.push_back(spec_const_wg[2]);
+    spec_map_entries.emplace_back(spec_const_wg[0], 0, sizeof(uint32_t));
+    spec_map_data.push_back(_group_size[0]);
+    spec_map_entries.emplace_back(spec_const_wg[1], sizeof(uint32_t),
+                                  sizeof(uint32_t));
+    spec_map_data.push_back(_group_size[1]);
+    spec_map_entries.emplace_back(spec_const_wg[2], 2 * sizeof(uint32_t),
+                                  sizeof(uint32_t));
+    spec_map_data.push_back(_group_size[2]);
 
-    HIPSYCL_DEBUG_INFO << "Specialization constant set for work group size ("
-                       << spec_const_wg[0] << ", " << spec_const_wg[1] << ","
-                       << spec_const_wg[2] << ")\n";
+    HIPSYCL_DEBUG_INFO << "vk_kernel_pipeline: Specialization constant set for "
+                          "work group size ("
+                       << _group_size[0] << "," << _group_size[1] << ","
+                       << _group_size[2] << ")\n";
   }
 
   if (_kern_obj->get_exe_obj()->has_spec_const_subgroup_max_size()) {
@@ -252,8 +255,8 @@ void vk_kernel_pipeline::create_compute_pipeline() {
         _kern_obj->get_exe_obj()->get_hw_ctx()->get_subgroup_size();
     spec_map_data.push_back(device_subgroup_size);
 
-    HIPSYCL_DEBUG_INFO << "Specialization constant id " << spec_id
-                       << " set for subgroup group size "
+    HIPSYCL_DEBUG_INFO << "vk_kernel_pipeline: Specialization constant id "
+                       << spec_id << " set for subgroup group size "
                        << device_subgroup_size << std::endl;
   }
 
@@ -484,7 +487,7 @@ void vk_executable_object::add_kernel_arg(const std::string &kernel,
   kernel_handle.add_spv_arg(arg);
 
   HIPSYCL_DEBUG_INFO << "vk_executable_object: kernel " << kernel
-                     << "added arg - " << arg << std::endl;
+                     << " added arg - " << arg << std::endl;
 }
 
 void vk_executable_object::set_kernel_reqd_wg_size(const std::string &kernel,
@@ -499,15 +502,16 @@ void vk_executable_object::set_kernel_reqd_wg_size(const std::string &kernel,
   auto &kernel_handle = it->second;
   kernel_handle.set_reqd_wg_size(x, y, z);
 
-  HIPSYCL_DEBUG_INFO << "kernel " << kernel << "required wg size (" << x << ","
-                     << y << "," << z << ")\n";
+  HIPSYCL_DEBUG_INFO << "vk_executable_object: kernel " << kernel
+                     << "required wg size (" << x << "," << y << "," << z
+                     << ")\n";
 }
 
 void vk_executable_object::set_spec_const_wg_size(uint32_t x, uint32_t y,
                                                   uint32_t z) {
   _spec_const_wg_size = {x, y, z};
-  HIPSYCL_DEBUG_INFO << "Spec constant wg size (" << x << "," << y << "," << z
-                     << ")\n";
+  HIPSYCL_DEBUG_INFO << "vk_executable_object: spec constant wg size ids (" << x
+                     << "," << y << "," << z << ")\n";
 }
 
 void vk_executable_object::add_subgroup_max_size_spec_constant(

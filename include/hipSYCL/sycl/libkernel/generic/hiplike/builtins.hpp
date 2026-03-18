@@ -106,10 +106,17 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_fmax, fmaxf, fmax)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_fmin, fminf, fmin)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_fmod, fmodf, fmod)
 
-// Unsupported
-template<class T>
-HIPSYCL_HIPLIKE_BUILTIN
-T __acpp_fract(T x, T* ptr) noexcept;
+HIPSYCL_HIPLIKE_BUILTIN float __acpp_fract(float x, float* ptr) noexcept {
+  float y = ::floorf(x);
+  *ptr = y;
+  return ::fminf(x - y, ::nextafterf(1.0f, 0.0f));
+}
+
+HIPSYCL_HIPLIKE_BUILTIN double __acpp_fract(double x, double* ptr) noexcept {
+  double y = ::floor(x);
+  *ptr = y;
+  return ::fmin(x - y, ::nextafter(1.0, 0.0));
+}
 
 HIPSYCL_HIPLIKE_BUILTIN float __acpp_frexp(float x, int* y) noexcept {
   return ::frexpf(x, y);
@@ -120,7 +127,8 @@ HIPSYCL_HIPLIKE_BUILTIN double __acpp_frexp(double x, int* y) noexcept {
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_hypot, hypotf, hypot)
-HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_ilogb, ilogbf, ilogb)
+HIPSYCL_HIPLIKE_BUILTIN int __acpp_ilogb(float x) noexcept { return ::ilogbf(x); }
+HIPSYCL_HIPLIKE_BUILTIN int __acpp_ilogb(double x) noexcept { return ::ilogb(x); }
 
 HIPSYCL_HIPLIKE_BUILTIN float __acpp_ldexp(float x, int k) noexcept {
   return ::ldexpf(x, k);
@@ -393,14 +401,14 @@ template <class T,
               int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_ctz(T x) noexcept {
 
-  //we convert to the unsigned type to avoid the typecast creating 
+  //we convert to the unsigned type to avoid the typecast creating
   //additional ones in front of the value if x is negative
   using Usigned = typename std::make_unsigned<T>::type;
 
   constexpr T size = CHAR_BIT*sizeof(Usigned);
 
   return x ? __clz(static_cast<__acpp_int32>(__brev(static_cast<Usigned>(x)))) : size;
-  
+
 }
 
 template <class T,
@@ -410,7 +418,7 @@ template <class T,
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_ctz(T x) noexcept {
 
   return __clz(static_cast<__acpp_int32>(__brev(static_cast<__acpp_uint32>(x))));
-  
+
 }
 
 template <class T,
@@ -435,27 +443,27 @@ template <class T,
               int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_clz(T x) noexcept {
 
-  //we convert to the unsigned type to avoid the typecast creating 
+  //we convert to the unsigned type to avoid the typecast creating
   //additional ones in front of the value if x is negative
-  using Usigned = typename std::make_unsigned<T>::type; 
+  using Usigned = typename std::make_unsigned<T>::type;
 
   constexpr T diff = CHAR_BIT*(sizeof(__acpp_int32) - sizeof(Usigned));
   constexpr T size = CHAR_BIT*sizeof(T);
 
   auto v = static_cast<__acpp_int32>(static_cast<Usigned>(x));
 
-  #if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA 
+  #if ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA
     return v ? __builtin_clz(v)-diff : size;
   #else
     // on hip we have to circumvent the clz(0) bug
     // here we force noinline on clz to avoid the if(v) to be optimized away as
-    // llvm rightfully assume that clz(0) == bitsize. 
+    // llvm rightfully assume that clz(0) == bitsize.
     // However, in some LLVM versions, the amdgpu
     // backend does not seem to honor this guarantee from the LLVM LangRef.
     // see : https://llvm.org/docs/LangRef.html#llvm-ctlz-intrinsic
     return v ? __noinline_clz(v)-diff : size;
   #endif
-  
+
 }
 
 template <class T,
@@ -548,7 +556,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_sign(T x) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_HIPLIKE_BUILTIN VecType 
+HIPSYCL_HIPLIKE_BUILTIN VecType
 __acpp_cross3(const VecType &a, const VecType &b) noexcept {
   return {a[1] * b[2] - a[2] * b[1],
           a[2] * b[0] - a[0] * b[2],
@@ -556,9 +564,9 @@ __acpp_cross3(const VecType &a, const VecType &b) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_HIPLIKE_BUILTIN VecType 
+HIPSYCL_HIPLIKE_BUILTIN VecType
 __acpp_cross4(const VecType &a, const VecType &b) noexcept {
-  return {a[1] * b[2] - a[2] * b[1], 
+  return {a[1] * b[2] - a[2] * b[1],
           a[2] * b[0] - a[0] * b[2],
           a[0] * b[1] - a[1] * b[0],
           typename VecType::value_type{0}};

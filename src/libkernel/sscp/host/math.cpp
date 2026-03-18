@@ -281,4 +281,12 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_sinpi_f64(double x) {
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(tan)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(tanh)
+
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanpi_f32(float x) {
+  return tanf(x * M_PI);
+}
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tanpi_f64(double x) {
+  return tan(x * M_PI);
+}
+
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(trunc)

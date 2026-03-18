@@ -234,6 +234,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_sinh, sinhf, sinh)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_sinpi, sinpif, sinpi)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_tan, tanf, tan)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_tanh, tanhf, tanh)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_tanpi, tanpif, tanpi)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_trunc, truncf, trunc)
 
 // ***************** native math builtins ******************

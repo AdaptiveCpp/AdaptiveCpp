@@ -12,7 +12,6 @@
 #define HIPSYCL_RELATIONAL_BUILTINS_HPP
 
 #include <cstdint>
-#include <type_traits>
 #include "builtin_utils.hpp"
 
 #include "hipSYCL/sycl/libkernel/builtin_interface.hpp"
@@ -35,8 +34,7 @@ namespace detail {
   }
 
 #define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_BINARY_T_T_RET_BOOL(T, builtin_name, builtin_func) \
-template<typename T>                                                                            \
-HIPSYCL_BUILTIN detail::builtin_input_boollike_t<T> builtin_name(T x, T y) noexcept {           \
+HIPSYCL_BUILTIN bool builtin_name(T x, T y) noexcept {                                          \
         return builtin_func(x, y);                                                              \
 }
 
@@ -68,8 +66,17 @@ HIPSYCL_BUILTIN detail::builtin_input_boollike_t<T> builtin_name(T x, T y) noexc
     detail::builtin_input_boollike_t<NonScalar1>                                                              \
   > builtin_name(NonScalar1 x, NonScalar2 y) noexcept {                                                       \
     detail::builtin_input_boollike_t<NonScalar1> ret;                                                         \
+    constexpr bool isMarray = std::is_same_v<NonScalar1,                                                      \
+                                             sycl::marray<detail::builtin_input_element_t<NonScalar1>,        \
+                                                          detail::builtin_input_num_elems_v<NonScalar1> > >;  \
+    if constexpr (isMarray) {                                                                                 \
     for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                         \
       ret[i] = builtin_func(x[i], y[i]);                                                                      \
+    }                                                                                                         \
+    } else {                                                                                                  \
+      for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                       \
+        ret[i] = builtin_func(x[i], y[i]) ? -1 : 0;                                                           \
+      }                                                                                                       \
     }                                                                                                         \
     return ret;                                                                                               \
   }
@@ -93,7 +100,6 @@ HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isinf)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isfinite)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isnormal)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, signbit)
-
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isequal)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isnotequal)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isgreater)
@@ -101,46 +107,7 @@ HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isgreaterequal)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isless)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, islessequal)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, islessgreater)
-
-  template <typename T,
-            typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>>
-  bool isequal(T x, T y)
-  {
-    return x == y;
-  }
-
-  template <typename T, long unsigned int N,
-            typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>>
-  sycl::marray<bool, N> isequal(sycl::marray<T, N> x, sycl::marray<T, N> y)
-  {
-    return x == y;
-  }
-
-  namespace detail {
-  template <
-      typename R, typename T,
-      typename = std::enable_if_t<std::is_scalar_v<R> && std::is_integral_v<R>>,
-      typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>, int N>
-  sycl::vec<R, N> compare(sycl::vec<T, N> &x, sycl::vec<T, N> &y)
-  {
-    sycl::vec<R, N> b;
-    for (int i = 0; i < N; i++)
-      b[i] = (x[i] == y[i]) ? -1 : 0;
-    return b;
-  }
-  }
-
-  template <typename T, int N,
-            typename = std::enable_if_t<std::is_scalar_v<T> && std::is_floating_point_v<T>>>
-  auto isequal(sycl::vec<T, N> x, sycl::vec<T, N> y)
-  {
-    if constexpr (std::is_same_v<float, T>)
-      return detail::compare<std::int32_t>(x, y);
-    else if constexpr (std::is_same_v<double, T>)
-      return detail::compare<std::int64_t>(x, y);
-    else if constexpr (std::is_same_v<half, T>)
-      return detail::compare<std::int16_t>(x, y);
-  }
-
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isordered)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isunordered)
 }
 #endif

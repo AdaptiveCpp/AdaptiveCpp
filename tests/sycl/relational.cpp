@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   using OutType = s::detail::builtin_input_boollike_t<T>;
   using BoolType = s::detail::builtin_input_element_t<OutType>;
 
-  constexpr int FUN_COUNT = 7;
+  constexpr int FUN_COUNT = 9;
 
   // build inputs and allocate outputs
 
@@ -235,6 +235,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
 	  outputs[i++] = s::isless(inputs1[0], inputs2[0]);
       outputs[i++] = s::islessequal(inputs1[0], inputs2[0]);
 	  outputs[i++] = s::islessgreater(inputs1[0], inputs2[0]);
+	  outputs[i++] = s::isordered(inputs1[0], inputs2[0]);
+	  outputs[i++] = s::isunordered(inputs1[0], inputs2[0]);
     });
   });
 
@@ -261,6 +263,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   auto host_islessgreater = [](DT a, DT b) {
     return !std::isnan(a) && !std::isnan(b) && ((a < b) || (a > b));
   };
+  auto host_isordered = [](DT a, DT b) {
+    return host_isequal(a, a) && host_isequal(b, b);
+  };
+  auto host_isunordered = [](DT a, DT b) {
+    return host_isnan(a) || host_isnan(b);
+  };
 
   {
     auto inputs1  = in1.get_host_access();
@@ -276,6 +284,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
       BOOST_TEST(comp(outputs[i++], c) == host_isless(comp(inputs1[0], c), comp(inputs2[0], c)));
       BOOST_TEST(comp(outputs[i++], c) == host_islessequal(comp(inputs1[0], c), comp(inputs2[0], c)));
       BOOST_TEST(comp(outputs[i++], c) == host_islessgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
+	  BOOST_TEST(comp(outputs[i++], c) == host_isordered(comp(inputs1[0], c), comp(inputs2[0], c)));
+	  BOOST_TEST(comp(outputs[i++], c) == host_isunordered(comp(inputs1[0], c), comp(inputs2[0], c)));
     }
   }
 }

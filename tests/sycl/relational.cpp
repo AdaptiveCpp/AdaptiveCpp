@@ -241,35 +241,40 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   });
 
   // check results
-
   auto host_isequal = [](DT a, DT b) {
-    return (!std::isnan(a) && !std::isnan(b) && (a == b)) ? -1 : 0;
+    return !std::isnan(a) && !std::isnan(b) && (a == b);
   };
   auto host_isnotequal = [](DT a, DT b) {
-    return (std::isnan(a) || std::isnan(b) || (a != b)) ? -1 : 0;
+    return std::isnan(a) || std::isnan(b) || (a != b);
   };
   auto host_isgreater = [](DT a, DT b) {
-    return (!std::isnan(a) && !std::isnan(b) && (a > b)) ? -1 : 0;
+    return !std::isnan(a) && !std::isnan(b) && (a > b);
   };
   auto host_isgreaterequal = [](DT a, DT b) {
-    return (!std::isnan(a) && !std::isnan(b) && (a >= b)) ? -1 : 0;
+    return !std::isnan(a) && !std::isnan(b) && (a >= b);
   };
   auto host_isless = [](DT a, DT b) {
-    return (!std::isnan(a) && !std::isnan(b) && (a < b)) ? -1 : 0;
+    return !std::isnan(a) && !std::isnan(b) && (a < b);
   };
   auto host_islessequal = [](DT a, DT b) {
-    return (!std::isnan(a) && !std::isnan(b) && (a <= b)) ? -1 : 0;
+    return !std::isnan(a) && !std::isnan(b) && (a <= b);
   };
   auto host_islessgreater = [](DT a, DT b) {
-    return (!std::isnan(a) && !std::isnan(b) && ((a < b) || (a > b))) ? -1 : 0;
+    return !std::isnan(a) && !std::isnan(b) && ((a < b) || (a > b));
   };
   auto host_isordered = [](DT a, DT b) {
-    return (!std::isnan(a) && (a == a) && !std::isnan(b) && (b == b)) ? -1 : 0;
+    return !std::isnan(a) && (a == a) && !std::isnan(b) && (b == b);
   };
   auto host_isunordered = [](DT a, DT b) {
-    return (std::isnan(a) || std::isnan(b)) ? -1 : 0;
+    return std::isnan(a) || std::isnan(b);
   };
-
+  auto postprocess = [](bool a) {
+    if constexpr (std::is_scalar_v<T> || std::is_same_v<T, sycl::marray<DT, D>>)
+      return a;
+    else
+      return a ? -1 : 0;
+  };
+      
   {
     auto inputs1  = in1.get_host_access();
     auto inputs2  = in2.get_host_access();    
@@ -277,15 +282,15 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == host_isequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == host_isnotequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == host_isgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == host_isgreaterequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == host_isless(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == host_islessequal(comp(inputs1[0], c), comp(inputs2[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == host_islessgreater(comp(inputs1[0], c), comp(inputs2[0], c)));
-	  BOOST_TEST(comp(outputs[i++], c) == host_isordered(comp(inputs1[0], c), comp(inputs2[0], c)));
-	  BOOST_TEST(comp(outputs[i++], c) == host_isunordered(comp(inputs1[0], c), comp(inputs2[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_isequal(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_isnotequal(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_isgreater(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_isgreaterequal(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_isless(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_islessequal(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_islessgreater(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_isordered(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_isunordered(comp(inputs1[0], c), comp(inputs2[0], c))));
     }
   }
 }

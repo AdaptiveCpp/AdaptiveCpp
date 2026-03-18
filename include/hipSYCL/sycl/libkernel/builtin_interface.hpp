@@ -659,58 +659,62 @@ HIPSYCL_BUILTIN int __acpp_signbit(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_signbit, x);
 }
 
+// Relational binary functions below default always to host
+// Potential improvement: use HIPSYCL_RETURN_DISPATCH_BUILTIN and specialize for SPIRV as done in
+// https://github.com/intel/llvm/blob/sycl/sycl/include/sycl/detail/builtins/relational_functions.inc#L130
+
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isequal(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isequal, x, y);
+    return host_builtins::__acpp_isequal(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isnotequal(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isnotequal, x, y);
+    return host_builtins::__acpp_isnotequal(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isgreater(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isgreater, x, y);
+    return host_builtins::__acpp_isgreater(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isgreaterequal(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isgreaterequal, x, y);
+    return host_builtins::__acpp_isgreaterequal(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isless(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isless, x, y);
+    return host_builtins::__acpp_isless(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_islessequal(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_islessequal, x, y);
+    return host_builtins::__acpp_islessequal(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_islessgreater(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_islessgreater, x, y);
+    return host_builtins::__acpp_islessgreater(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isordered(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isordered, x, y);
+    return host_builtins::__acpp_isordered(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isunordered(T x, T y) noexcept
 {
-    HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_isunordered, x, y);
+    return host_builtins::__acpp_isunordered(x, y);
 }
 
 }

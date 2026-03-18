@@ -36,7 +36,7 @@ namespace detail {
 
 #define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_BINARY_T_T_RET_BOOL(T, builtin_name, builtin_func) \
 template<typename T>                                                                            \
-HIPSYCL_BUILTIN detail::builtin_input_return_t<T> builtin_name(T x, T y) noexcept {             \
+HIPSYCL_BUILTIN detail::builtin_input_boollike_t<T> builtin_name(T x, T y) noexcept {           \
         return builtin_func(x, y);                                                              \
 }
 
@@ -67,7 +67,7 @@ HIPSYCL_BUILTIN detail::builtin_input_return_t<T> builtin_name(T x, T y) noexcep
     tester<NonScalar1>::value,                                                                                \
     detail::builtin_input_boollike_t<NonScalar1>                                                              \
   > builtin_name(NonScalar1 x, NonScalar2 y) noexcept {                                                       \
-    detail::builtin_input_return_t<NonScalar1> ret;                                                           \
+    detail::builtin_input_boollike_t<NonScalar1> ret;                                                         \
     for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                         \
       ret[i] = builtin_func(x[i], y[i]);                                                                      \
     }                                                                                                         \

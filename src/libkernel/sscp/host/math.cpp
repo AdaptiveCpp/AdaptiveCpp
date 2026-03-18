@@ -162,7 +162,12 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x,
 }
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2(hypot)
-HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(ilogb)
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f32(float x) {
+  return ilogbf(x);
+}
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f64(double x) {
+  return ilogb(x);
+}
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ldexp_f32(float x,
                                                     __acpp_int32 k) {

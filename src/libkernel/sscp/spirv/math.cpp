@@ -113,7 +113,14 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_frexp_f32(float x, __acpp_int32* y ) { re
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x, __acpp_int32* y) { return __spirv_ocl_frexp(x, y); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(hypot)
-HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(ilogb)
+__acpp_int32 __spirv_ocl_ilogb(float);
+__acpp_int32 __spirv_ocl_ilogb(double);
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f32(float x) {
+  return __spirv_ocl_ilogb(x);
+}
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f64(double x) {
+  return __spirv_ocl_ilogb(x);
+}
 
 float __spirv_ocl_ldexp(float x, __acpp_int32 k);
 double __spirv_ocl_ldexp(double x, __acpp_int32 k);

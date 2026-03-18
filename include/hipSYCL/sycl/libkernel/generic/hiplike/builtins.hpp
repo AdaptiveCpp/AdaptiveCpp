@@ -127,7 +127,8 @@ HIPSYCL_HIPLIKE_BUILTIN double __acpp_frexp(double x, int* y) noexcept {
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__acpp_hypot, hypotf, hypot)
-HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_ilogb, ilogbf, ilogb)
+HIPSYCL_HIPLIKE_BUILTIN int __acpp_ilogb(float x) noexcept { return ::ilogbf(x); }
+HIPSYCL_HIPLIKE_BUILTIN int __acpp_ilogb(double x) noexcept { return ::ilogb(x); }
 
 HIPSYCL_HIPLIKE_BUILTIN float __acpp_ldexp(float x, int k) noexcept {
   return ::ldexpf(x, k);

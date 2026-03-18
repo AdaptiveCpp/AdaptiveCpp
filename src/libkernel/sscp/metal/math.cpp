@@ -162,11 +162,10 @@ HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_atan2pi_f32(f32 x, f32 y) {
   return __acpp_sscp_atan2_f32(x, y) / (f32)M_PI;
 }
 
-// TODO: ilogb: Metal returns int, SSCP signature returns f32
 HIPSYCL_SSCP_BUILTIN i32 __acpp_sscp_metal_math_i32_f32(const char* name, f32 x);
 
-HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_ilogb_f32(f32 x) {
-  return (f32)__acpp_sscp_metal_math_i32_f32("ilogb", __acpp_sscp_fabs_f32(x));
+HIPSYCL_SSCP_BUILTIN i32 __acpp_sscp_ilogb_f32(f32 x) {
+  return __acpp_sscp_metal_math_i32_f32("ilogb", __acpp_sscp_fabs_f32(x));
 }
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_logb_f32(f32 x) {

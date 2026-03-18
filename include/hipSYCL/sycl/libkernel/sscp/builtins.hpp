@@ -112,7 +112,12 @@ HIPSYCL_BUILTIN double __acpp_frexp(double x, int* ptr) noexcept {
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(hypot)
-HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(ilogb)
+HIPSYCL_BUILTIN int __acpp_ilogb(float x) noexcept {
+  return __acpp_sscp_ilogb_f32(x);
+}
+HIPSYCL_BUILTIN int __acpp_ilogb(double x) noexcept {
+  return __acpp_sscp_ilogb_f64(x);
+}
 
 HIPSYCL_BUILTIN float __acpp_ldexp(float x, int k) noexcept {
   return __acpp_sscp_ldexp_f32(x, static_cast<__acpp_int32>(k));

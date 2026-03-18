@@ -264,10 +264,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
     return !std::isnan(a) && !std::isnan(b) && ((a < b) || (a > b));
   };
   auto host_isordered = [](DT a, DT b) {
-    return host_isequal(a, a) && host_isequal(b, b);
+    return !std::isnan(a) && (a == a) && !std::isnan(b) && (b == b);
   };
   auto host_isunordered = [](DT a, DT b) {
-    return host_isnan(a) || host_isnan(b);
+    return std::isnan(a) || std::isnan(b);
   };
 
   {

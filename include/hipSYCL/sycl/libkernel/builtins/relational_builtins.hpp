@@ -70,9 +70,9 @@ HIPSYCL_BUILTIN bool builtin_name(T x, T y) noexcept {                          
                                              sycl::marray<detail::builtin_input_element_t<NonScalar1>,        \
                                                           detail::builtin_input_num_elems_v<NonScalar1> > >;  \
     if constexpr (isMarray) {                                                                                 \
-    for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                         \
-      ret[i] = builtin_func(x[i], y[i]);                                                                      \
-    }                                                                                                         \
+      for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                       \
+        ret[i] = builtin_func(x[i], y[i]);                                                                    \
+      }                                                                                                       \
     } else {                                                                                                  \
       for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                       \
         ret[i] = builtin_func(x[i], y[i]) ? -1 : 0;                                                           \

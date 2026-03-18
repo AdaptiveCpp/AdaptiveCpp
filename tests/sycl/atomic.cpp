@@ -185,11 +185,13 @@ void atomic_local_reduction_test(AtomicOp op, Verifier v,
       }
       sycl::group_barrier(group);
 
-      sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::work_group,
-        sycl::access::address_space::local_space>
-      local_ref{local_acc[0]};
+      {
+        sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::work_group,
+          sycl::access::address_space::local_space>
+        local_ref{local_acc[0]};
 
-      op(local_ref, per_item_val);
+        op(local_ref, per_item_val);
+      }
 
       sycl::group_barrier(group);
 

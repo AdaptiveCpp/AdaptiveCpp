@@ -353,13 +353,7 @@ public:
     static_assert(std::is_same_v<VectorStorage, detail::vec_storage<T, N>>,
                   "Reinterpreting swizzled vectors directly is not supported");
 
-    asT result;
-    
-    auto in_ptr = reinterpret_cast<const typename asT::element_type*>(&_data[0]);
-    for(int i = 0; i < N; ++i)
-      result[i] = in_ptr[i];
-
-    return result;
+    return sycl::bit_cast<asT>(*this);
   }
 
   template<int... SwizzleIndices>

@@ -243,31 +243,31 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   // check results
 
   auto host_isequal = [](DT a, DT b) {
-    return !std::isnan(a) && !std::isnan(b) && (a == b);
+    return (!std::isnan(a) && !std::isnan(b) && (a == b)) ? -1 : 0;
   };
   auto host_isnotequal = [](DT a, DT b) {
-    return std::isnan(a) || std::isnan(b) || (a != b);
+    return (std::isnan(a) || std::isnan(b) || (a != b)) ? -1 : 0;
   };
   auto host_isgreater = [](DT a, DT b) {
-    return !std::isnan(a) && !std::isnan(b) && (a > b);
+    return (!std::isnan(a) && !std::isnan(b) && (a > b)) ? -1 : 0;
   };
   auto host_isgreaterequal = [](DT a, DT b) {
-    return !std::isnan(a) && !std::isnan(b) && (a >= b);
+    return (!std::isnan(a) && !std::isnan(b) && (a >= b)) ? -1 : 0;
   };
   auto host_isless = [](DT a, DT b) {
-    return !std::isnan(a) && !std::isnan(b) && (a < b);
+    return (!std::isnan(a) && !std::isnan(b) && (a < b)) ? -1 : 0;
   };
   auto host_islessequal = [](DT a, DT b) {
-    return !std::isnan(a) && !std::isnan(b) && (a <= b);
+    return (!std::isnan(a) && !std::isnan(b) && (a <= b)) ? -1 : 0;
   };
   auto host_islessgreater = [](DT a, DT b) {
-    return !std::isnan(a) && !std::isnan(b) && ((a < b) || (a > b));
+    return (!std::isnan(a) && !std::isnan(b) && ((a < b) || (a > b))) ? -1 : 0;
   };
   auto host_isordered = [](DT a, DT b) {
-    return !std::isnan(a) && (a == a) && !std::isnan(b) && (b == b);
+    return (!std::isnan(a) && (a == a) && !std::isnan(b) && (b == b)) ? -1 : 0;
   };
   auto host_isunordered = [](DT a, DT b) {
-    return std::isnan(a) || std::isnan(b);
+    return (std::isnan(a) || std::isnan(b)) ? -1 : 0;
   };
 
   {

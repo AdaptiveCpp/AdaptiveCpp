@@ -907,414 +907,272 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
   }
 }
 
-BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
-BOOST_AUTO_TEST_CASE_TEMPLATE(math_unary_extra, T, math_test_genfloats) {
+#define SKIP_IF_NO_FP64(queue, DT)                                              \
+  if constexpr(std::is_same_v<DT, double>) {                                    \
+    if (!(queue).get_device().has(sycl::aspect::fp64)) {                        \
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64");  \
+      return;                                                                    \
+    }                                                                            \
+  }
 
+#define INPUT_GT1()   1.5, 2.0, 1.25, 3.0, 1.1, 1.7, 2.5, 1.3, 1.5, 2.0, 1.25, 3.0, 1.1, 1.7, 2.5, 1.3
+#define INPUT_SMALL() 0.5, -0.3, 0.75, -0.1, 0.6, -0.5, 0.2, -0.8, 0.5, -0.3, 0.75, -0.1, 0.6, -0.5, 0.2, -0.8
+#define INPUT_TRIG()  0.4, -0.3, 0.75, -0.1, 0.6, -0.4, 0.2, -0.8, 0.4, -0.3, 0.75, -0.1, 0.6, -0.4, 0.2, -0.8
+#define INPUT_ERF()   -3.0, -1.0, -0.5, 0.0, 0.5, 1.0, 3.0, 2.0, -3.0, -1.0, -0.5, 0.0, 0.5, 1.0, 3.0, 2.0
+#define INPUT_GAMMA() 0.5, 1.5, 2.5, -0.5, 3.0, -1.5, 4.0, -2.1, 0.5, 1.5, 2.5, -0.5, 3.0, -1.5, 4.0, -2.1
+#define INPUT_FRAC()  0.75, 1.5, -2.25, 0.5, 3.125, -0.375, 1.0, 0.25, 0.75, 1.5, -2.25, 0.5, 3.125, -0.375, 1.0, 0.25
+#define INPUT_BIN0()  7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0
+#define INPUT_BIN1()  17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0
+#define INPUT_PI1()   7.0, -4.0, 2.0, 3.0, -5.0, 1.0, -3.0, 0.5, 7.0, -4.0, 2.0, 3.0, -5.0, 1.0, -3.0, 0.5
+
+#define DEFINE_UNARY_MATH_TEST(name, tol, ref_func, input_macro)                \
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(tol))                         \
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_##name, T, math_test_genfloats) {           \
+  constexpr int D = vector_length_v<T>;                                         \
+  using DT = vector_elem_t<T>;                                                  \
+  namespace s = sycl;                                                            \
+  s::queue queue;                                                                \
+  SKIP_IF_NO_FP64(queue, DT);                                                   \
+  s::buffer<T> float_in{{1}};                                                   \
+  s::buffer<T> out{{1}};                                                        \
+  {                                                                              \
+    auto inp = float_in.get_host_access();                                      \
+    inp[0] = get_math_input<DT, D>(s::vec<DT, 16>{input_macro()});             \
+  }                                                                              \
+  queue.submit([&](s::handler& cgh) {                                           \
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);         \
+    auto o = out.template get_access<s::access::mode::write>(cgh);              \
+    cgh.single_task<kernel_name<class math_##name, D, DT>>([=]() {             \
+      o[0] = s::name(in[0]);                                                    \
+    });                                                                          \
+  });                                                                            \
+  {                                                                              \
+    auto inp = float_in.get_host_access();                                      \
+    auto o = out.get_host_access();                                             \
+    for(int c = 0; c < std::max(D, 1); ++c)                                    \
+      BOOST_TEST(comp(o[0], c) ==                                               \
+        ref_func(static_cast<double>(comp(inp[0], c))));                        \
+  }                                                                              \
+}
+
+#define DEFINE_BINARY_MATH_TEST(name, tol, ref_func, in0_macro, in1_macro)      \
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(tol))                         \
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_##name, T, math_test_genfloats) {           \
+  constexpr int D = vector_length_v<T>;                                         \
+  using DT = vector_elem_t<T>;                                                  \
+  namespace s = sycl;                                                            \
+  s::queue queue;                                                                \
+  SKIP_IF_NO_FP64(queue, DT);                                                   \
+  s::buffer<T> float_in{{2}};                                                   \
+  s::buffer<T> out{{1}};                                                        \
+  {                                                                              \
+    auto inp = float_in.get_host_access();                                      \
+    inp[0] = get_math_input<DT, D>(s::vec<DT, 16>{in0_macro()});               \
+    inp[1] = get_math_input<DT, D>(s::vec<DT, 16>{in1_macro()});               \
+  }                                                                              \
+  queue.submit([&](s::handler& cgh) {                                           \
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);         \
+    auto o = out.template get_access<s::access::mode::write>(cgh);              \
+    cgh.single_task<kernel_name<class math_##name, D, DT>>([=]() {             \
+      o[0] = s::name(in[0], in[1]);                                             \
+    });                                                                          \
+  });                                                                            \
+  {                                                                              \
+    auto inp = float_in.get_host_access();                                      \
+    auto o = out.get_host_access();                                             \
+    for(int c = 0; c < std::max(D, 1); ++c) {                                  \
+      double x = static_cast<double>(comp(inp[0], c));                          \
+      double y = static_cast<double>(comp(inp[1], c));                          \
+      BOOST_TEST(comp(o[0], c) == ref_func(x, y));                             \
+    }                                                                            \
+  }                                                                              \
+}
+
+DEFINE_UNARY_MATH_TEST(acosh,  0.0001, ref_acosh,  INPUT_GT1)
+DEFINE_UNARY_MATH_TEST(asinh,  0.0001, ref_asinh,  INPUT_SMALL)
+DEFINE_UNARY_MATH_TEST(atanh,  0.0001, ref_atanh,  INPUT_SMALL)
+DEFINE_UNARY_MATH_TEST(cbrt,   0.0001, ref_cbrt,   INPUT_SMALL)
+DEFINE_UNARY_MATH_TEST(logb,   0.0001, ref_logb,   INPUT_SMALL)
+DEFINE_UNARY_MATH_TEST(acospi, 0.0001, ref_acospi, INPUT_TRIG)
+DEFINE_UNARY_MATH_TEST(asinpi, 0.0001, ref_asinpi, INPUT_TRIG)
+DEFINE_UNARY_MATH_TEST(atanpi, 0.0001, ref_atanpi, INPUT_TRIG)
+DEFINE_UNARY_MATH_TEST(cospi,  0.0001, ref_cospi,  INPUT_TRIG)
+DEFINE_UNARY_MATH_TEST(sinpi,  0.0001, ref_sinpi,  INPUT_TRIG)
+DEFINE_UNARY_MATH_TEST(erf,    0.0007, ref_erf,    INPUT_ERF)
+DEFINE_UNARY_MATH_TEST(erfc,   0.0007, ref_erfc,   INPUT_ERF)
+DEFINE_UNARY_MATH_TEST(lgamma, 0.001,  ref_lgamma, INPUT_GAMMA)
+DEFINE_UNARY_MATH_TEST(tgamma, 0.001,  ref_tgamma, INPUT_GAMMA)
+
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_ilogb, T, math_test_genfloats) {
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
   using IntType = vector_coerce_elem_t<int, T>;
-
   namespace s = sycl;
-
   s::queue queue;
-  if constexpr(std::is_same_v<DT, double>) {
-    if (!queue.get_device().has(sycl::aspect::fp64)) {
-      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
-      return;
-    }
-  }
-
-  // build inputs and allocate outputs
-
-  constexpr int FUN_COUNT = 5; // acosh, asinh, atanh, cbrt, logb
-
-  s::buffer<T> float_in{{2}};
-  s::buffer<T> out{{FUN_COUNT}};
-  s::buffer<IntType> ilogb_out{{1}};
-  {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    inputs[0] = get_math_input<DT, D>(s::vec<DT, 16>{
-      1.5, 2.0, 1.25, 3.0, 1.1, 1.7, 2.5, 1.3, 1.5, 2.0, 1.25, 3.0, 1.1, 1.7, 2.5, 1.3});
-    inputs[1] = get_math_input<DT, D>(s::vec<DT, 16>{
-      0.5, -0.3,  0.75, -0.1, 0.6, -0.5, 0.2, -0.8, 0.5, -0.3, 0.75, -0.1, 0.6, -0.5, 0.2, -0.8});
-    for(int i = 0; i < FUN_COUNT; ++i) {
-      outputs[i] = T{DT{0}};
-    }
-  }
-
-  // run functions
-
-  queue.submit([&](s::handler& cgh) {
-    auto inputs = float_in.template  get_access<s::access::mode::read>(cgh);
-    auto outputs = out.template get_access<s::access::mode::write>(cgh);
-    auto ilogb = ilogb_out.template get_access<s::access::mode::write>(cgh);
-    cgh.single_task<kernel_name<class math_unary_extra, D, DT>>([=]() {
-      int i = 0;
-      outputs[i++] = s::acosh(inputs[0]);
-      outputs[i++] = s::asinh(inputs[1]);
-      outputs[i++] = s::atanh(inputs[1]);
-      outputs[i++] = s::cbrt(inputs[1]);
-      outputs[i++] = s::logb(inputs[1]);
-      ilogb[0] = s::ilogb(inputs[1]);
-    });
-  });
-
-  // check results
-
-  {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    auto ilogb = ilogb_out.get_host_access();
-    for(int c = 0; c < std::max(D, 1); ++c) {
-      double x0 = static_cast<double>(comp(inputs[0], c));
-      double x1 = static_cast<double>(comp(inputs[1], c));
-      int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == ref_acosh(x0));
-      BOOST_TEST(comp(outputs[i++], c) == ref_asinh(x1));
-      BOOST_TEST(comp(outputs[i++], c) == ref_atanh(x1));
-      BOOST_TEST(comp(outputs[i++], c) == ref_cbrt(x1));
-      BOOST_TEST(comp(outputs[i++], c) == ref_logb(x1));
-      BOOST_TEST(comp(ilogb[0], c) == std::ilogb(comp(inputs[1], c)));
-    }
-  }
-}
-
-
-BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
-BOOST_AUTO_TEST_CASE_TEMPLATE(math_binary_extra, T, math_test_genfloats) {
-
-  constexpr int D = vector_length_v<T>;
-  using DT = vector_elem_t<T>;
-
-  namespace s = sycl;
-
-  s::queue queue;
-  if constexpr(std::is_same_v<DT, double>) {
-    if (!queue.get_device().has(sycl::aspect::fp64)) {
-      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
-      return;
-    }
-  }
-
-  // build inputs and allocate outputs
-
-  constexpr int FUN_COUNT = 4; // nextafter, remainder, maxmag, minmag
-
-  s::buffer<T> float_in{{2}};
-  s::buffer<T> out{{FUN_COUNT}};
-  {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    inputs[0] = get_math_input<DT, D>(s::vec<DT, 16>{
-      7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
-    inputs[1] = get_math_input<DT, D>(s::vec<DT, 16>{
-      17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
-    for(int i = 0; i < FUN_COUNT; ++i) {
-      outputs[i] = T{DT{0}};
-    }
-  }
-
-  // run functions
-
-  queue.submit([&](s::handler& cgh) {
-    auto inputs = float_in.template get_access<s::access::mode::read>(cgh);
-    auto outputs = out.template get_access<s::access::mode::write>(cgh);
-    cgh.single_task<kernel_name<class math_binary_extra, D, DT>>([=]() {
-      int i = 0;
-      outputs[i++] = s::nextafter(inputs[0], inputs[1]);
-      outputs[i++] = s::remainder(inputs[0], inputs[1]);
-      outputs[i++] = s::maxmag(inputs[0], inputs[1]);
-      outputs[i++] = s::minmag(inputs[0], inputs[1]);
-    });
-  });
-
-  // check results
-
-  {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    for(int c = 0; c < std::max(D, 1); ++c) {
-      double x = static_cast<double>(comp(inputs[0], c));
-      double y = static_cast<double>(comp(inputs[1], c));
-      int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == ref_nextafter(x, y));
-      BOOST_TEST(comp(outputs[i++], c) == ref_remainder(x, y));
-      BOOST_TEST(comp(outputs[i++], c) == ref_maxmag(x, y));
-      BOOST_TEST(comp(outputs[i++], c) == ref_minmag(x, y));
-    }
-  }
-}
-
-
-BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
-BOOST_AUTO_TEST_CASE_TEMPLATE(math_pi_functions, T, math_test_genfloats) {
-
-  constexpr int D = vector_length_v<T>;
-  using DT = vector_elem_t<T>;
-
-  namespace s = sycl;
-
-  s::queue queue;
-  if constexpr(std::is_same_v<DT, double>) {
-    if (!queue.get_device().has(sycl::aspect::fp64)) {
-      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
-      return;
-    }
-  }
-
-  // build inputs and allocate outputs
-
-  constexpr int FUN_COUNT = 6; // acospi, asinpi, atanpi, atan2pi, cospi, sinpi
-
-  s::buffer<T> float_in{{2}};
-  s::buffer<T> out{{FUN_COUNT}};
-  {
-    auto inputs  = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    inputs[0] = get_math_input<DT, D>(s::vec<DT, 16>{
-      0.4, -0.3, 0.75, -0.1, 0.6, -0.4, 0.2, -0.8, 0.4, -0.3, 0.75, -0.1, 0.6, -0.4, 0.2, -0.8});
-    inputs[1] = get_math_input<DT, D>(s::vec<DT, 16>{
-      7.0, -4.0, 2.0, 3.0, -5.0, 1.0, -3.0, 0.5, 7.0, -4.0, 2.0, 3.0, -5.0, 1.0, -3.0, 0.5});
-    for(int i = 0; i < FUN_COUNT; ++i) {
-      outputs[i] = T{DT{0}};
-    }
-  }
-
-  // run functions
-
-  queue.submit([&](s::handler& cgh) {
-    auto inputs = float_in.template get_access<s::access::mode::read>(cgh);
-    auto outputs = out.template get_access<s::access::mode::write>(cgh);
-    cgh.single_task<kernel_name<class math_pi_functions, D, DT>>([=]() {
-      int i = 0;
-      outputs[i++] = s::acospi(inputs[0]);
-      outputs[i++] = s::asinpi(inputs[0]);
-      outputs[i++] = s::atanpi(inputs[0]);
-      outputs[i++] = s::atan2pi(inputs[0], inputs[1]);
-      outputs[i++] = s::cospi(inputs[0]);
-      outputs[i++] = s::sinpi(inputs[0]);
-    });
-  });
-
-  // check results
-
-  {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    for(int c = 0; c < std::max(D, 1); ++c) {
-      double x = static_cast<double>(comp(inputs[0], c));
-      double y = static_cast<double>(comp(inputs[1], c));
-      int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == ref_acospi(x));
-      BOOST_TEST(comp(outputs[i++], c) == ref_asinpi(x));
-      BOOST_TEST(comp(outputs[i++], c) == ref_atanpi(x));
-      BOOST_TEST(comp(outputs[i++], c) == ref_atan2pi(x, y));
-      BOOST_TEST(comp(outputs[i++], c) == ref_cospi(x));
-      BOOST_TEST(comp(outputs[i++], c) == ref_sinpi(x));
-    }
-  }
-}
-
-
-BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0007))
-BOOST_AUTO_TEST_CASE_TEMPLATE(math_erf_erfc, T, math_test_genfloats) {
-
-  constexpr int D = vector_length_v<T>;
-  using DT = vector_elem_t<T>;
-
-  namespace s = sycl;
-
-  s::queue queue;
-  if constexpr(std::is_same_v<DT, double>) {
-    if (!queue.get_device().has(sycl::aspect::fp64)) {
-      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
-      return;
-    }
-  }
-
-  // build inputs and allocate outputs
-
+  SKIP_IF_NO_FP64(queue, DT);
   s::buffer<T> float_in{{1}};
-  s::buffer<T> erf_out {{1}};
-  s::buffer<T> erfc_out{{1}};
+  s::buffer<IntType> out{{1}};
   {
-    auto inputs = float_in.get_host_access();
-    inputs[0] = get_math_input<DT, D>(s::vec<DT, 16>{
-      -3.0, -1.0, -0.5, 0.0, 0.5, 1.0, 3.0, 2.0, -3.0, -1.0, -0.5, 0.0, 0.5, 1.0, 3.0, 2.0});
+    auto inp = float_in.get_host_access();
+    inp[0] = get_math_input<DT, D>(s::vec<DT, 16>{INPUT_SMALL()});
   }
-
-  // run functions
-
   queue.submit([&](s::handler& cgh) {
-    auto inputs = float_in.template get_access<s::access::mode::read>(cgh);
-    auto eout = erf_out.template get_access<s::access::mode::write>(cgh);
-    auto ecout = erfc_out.template get_access<s::access::mode::write>(cgh);
-    cgh.single_task<kernel_name<class math_erf_erfc_detailed, D, DT>>([=]() {
-      eout[0] = s::erf(inputs[0]);
-      ecout[0] = s::erfc(inputs[0]);
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);
+    auto o = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class math_ilogb, D, DT>>([=]() {
+      o[0] = s::ilogb(in[0]);
     });
   });
-
-  // check results
-
   {
-    auto inputs = float_in.get_host_access();
-    auto eout = erf_out.get_host_access();
-    auto ecout = erfc_out.get_host_access();
-    for(int c = 0; c < std::max(D, 1); ++c) {
-      double x = static_cast<double>(comp(inputs[0], c));
-      BOOST_TEST(comp(eout[0], c) == ref_erf(x));
-      BOOST_TEST(comp(ecout[0], c) == ref_erfc(x));
-      // erf(x) + erfc(x) == 1
-      BOOST_TEST(comp(eout[0], c) + comp(ecout[0], c) == 1.0);
-    }
+    auto inp = float_in.get_host_access();
+    auto o = out.get_host_access();
+    for(int c = 0; c < std::max(D, 1); ++c)
+      BOOST_TEST(comp(o[0], c) == std::ilogb(comp(inp[0], c)));
   }
 }
 
+DEFINE_BINARY_MATH_TEST(nextafter, 0.0001, ref_nextafter, INPUT_BIN0, INPUT_BIN1)
+DEFINE_BINARY_MATH_TEST(remainder, 0.0001, ref_remainder, INPUT_BIN0, INPUT_BIN1)
+DEFINE_BINARY_MATH_TEST(maxmag,    0.0001, ref_maxmag,    INPUT_BIN0, INPUT_BIN1)
+DEFINE_BINARY_MATH_TEST(minmag,    0.0001, ref_minmag,    INPUT_BIN0, INPUT_BIN1)
+DEFINE_BINARY_MATH_TEST(atan2pi,   0.0001, ref_atan2pi,   INPUT_TRIG, INPUT_PI1)
 
 BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.001))
-BOOST_AUTO_TEST_CASE_TEMPLATE(math_gamma, T, math_test_genfloats) {
-
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_lgamma_r, T, math_test_genfloats) {
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
   using IntType = vector_coerce_elem_t<int, T>;
-
   namespace s = sycl;
-
   s::queue queue;
-  if constexpr(std::is_same_v<DT, double>) {
-    if (!queue.get_device().has(sycl::aspect::fp64)) {
-      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
-      return;
-    }
-  }
-
-  // build inputs and allocate outputs
-
-  constexpr int FUN_COUNT = 3; // lgamma, tgamma, lgamma_r
-
+  SKIP_IF_NO_FP64(queue, DT);
   s::buffer<T> float_in{{1}};
-  s::buffer<T> out{{FUN_COUNT}};
-  s::buffer<IntType> lgr_sgn {{1}};
+  s::buffer<T> out{{1}};
+  s::buffer<IntType> lgr_sgn{{1}};
   {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    inputs[0] = get_math_input<DT, D>(s::vec<DT, 16>{
-      0.5, 1.5, 2.5, -0.5, 3.0, -1.5, 4.0, -2.1, 0.5, 1.5, 2.5, -0.5, 3.0, -1.5, 4.0, -2.1});
-    for(int i = 0; i < FUN_COUNT; ++i) {
-      outputs[i] = T{DT{0}};
-    }
+    auto inp = float_in.get_host_access();
+    inp[0] = get_math_input<DT, D>(s::vec<DT, 16>{INPUT_GAMMA()});
   }
-
-  // run functions
-
   queue.submit([&](s::handler& cgh) {
-    auto inputs = float_in.template get_access<s::access::mode::read>(cgh);
-    auto outputs = out.template get_access<s::access::mode::write>(cgh);
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);
+    auto o = out.template get_access<s::access::mode::write>(cgh);
     auto sgn = lgr_sgn.template get_access<s::access::mode::write>(cgh);
-    cgh.single_task<kernel_name<class math_gamma, D, DT>>([=]() {
-      int i = 0;
-      outputs[i++] = s::lgamma(inputs[0]);
-      outputs[i++] = s::tgamma(inputs[0]);
+    cgh.single_task<kernel_name<class math_lgamma_r, D, DT>>([=]() {
       IntType s;
-      outputs[i++] = s::lgamma_r(inputs[0], &s);
+      o[0] = s::lgamma_r(in[0], &s);
       sgn[0] = s;
     });
   });
-
-  // check results
-
   {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
+    auto inp = float_in.get_host_access();
+    auto o = out.get_host_access();
     auto sgn = lgr_sgn.get_host_access();
     for(int c = 0; c < std::max(D, 1); ++c) {
-      double x = static_cast<double>(comp(inputs[0], c));
-      int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == ref_lgamma(x));
-      BOOST_TEST(comp(outputs[i++], c) == ref_tgamma(x));
-      BOOST_TEST(comp(outputs[i++], c) == ref_lgamma(x));
+      double x = static_cast<double>(comp(inp[0], c));
+      BOOST_TEST(comp(o[0], c) == ref_lgamma(x));
       BOOST_TEST(comp(sgn[0], c) == ref_lgamma_r_sign(x));
     }
   }
 }
 
-
 BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
-BOOST_AUTO_TEST_CASE_TEMPLATE(math_out_params, T, math_test_genfloats) {
-
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_frexp, T, math_test_genfloats) {
   constexpr int D = vector_length_v<T>;
   using DT = vector_elem_t<T>;
   using IntType = vector_coerce_elem_t<int, T>;
-
   namespace s = sycl;
-
   s::queue queue;
-  if constexpr(std::is_same_v<DT, double>) {
-    if (!queue.get_device().has(sycl::aspect::fp64)) {
-      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
-      return;
-    }
-  }
-
-  // build inputs and allocate outputs
-
-  // out[0]=frexp mantissa, out[1]=modf frac, out[2]=modf ipart, out[3]=fract frac
-  constexpr int FUN_COUNT = 4;
-
+  SKIP_IF_NO_FP64(queue, DT);
   s::buffer<T> float_in{{1}};
-  s::buffer<T> out{{FUN_COUNT}};
+  s::buffer<T> out{{1}};
   s::buffer<IntType> frexp_exp{{1}};
   {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
-    inputs[0] = get_math_input<DT, D>(s::vec<DT, 16>{
-      0.75, 1.5, -2.25, 0.5, 3.125, -0.375, 1.0, 0.25,
-      0.75, 1.5, -2.25, 0.5, 3.125, -0.375, 1.0, 0.25});
-    for(int i = 0; i < FUN_COUNT; ++i) {
-      outputs[i] = T{DT{0}};
-    }
+    auto inp = float_in.get_host_access();
+    inp[0] = get_math_input<DT, D>(s::vec<DT, 16>{INPUT_FRAC()});
   }
-
-  // run functions
-
   queue.submit([&](s::handler& cgh) {
-    auto inputs = float_in.template  get_access<s::access::mode::read>(cgh);
-    auto outputs = out.template get_access<s::access::mode::write>(cgh);
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);
+    auto o = out.template get_access<s::access::mode::write>(cgh);
     auto exp = frexp_exp.template get_access<s::access::mode::write>(cgh);
-    cgh.single_task<kernel_name<class math_out_params, D, DT>>([=]() {
-      int i = 0;
+    cgh.single_task<kernel_name<class math_frexp, D, DT>>([=]() {
       IntType frexp_exp_val;
-      outputs[i++] = s::frexp(inputs[0], &frexp_exp_val);
+      o[0] = s::frexp(in[0], &frexp_exp_val);
       exp[0] = frexp_exp_val;
-
-      T modf_ipart;
-      outputs[i++] = s::modf(inputs[0], &modf_ipart);
-      outputs[i++] = modf_ipart;
-
-      T fract_ipart;
-      outputs[i++] = s::fract(inputs[0], &fract_ipart);
     });
   });
-
-  // check results
-
   {
-    auto inputs = float_in.get_host_access();
-    auto outputs = out.get_host_access();
+    auto inp = float_in.get_host_access();
+    auto o = out.get_host_access();
     auto exp = frexp_exp.get_host_access();
     for(int c = 0; c < std::max(D, 1); ++c) {
-      double x = static_cast<double>(comp(inputs[0], c));
-      int ref_frexp_exp; double ref_frexp_m = std::frexp(x, &ref_frexp_exp);
-      double ref_modf_ipart; double ref_modf_frac = std::modf(x, &ref_modf_ipart);
-      int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == ref_frexp_m);
-      BOOST_TEST(comp(exp[0], c) == ref_frexp_exp);
-      BOOST_TEST(comp(outputs[i++], c) == ref_modf_frac);
-      BOOST_TEST(comp(outputs[i++], c) == ref_modf_ipart);
-      BOOST_TEST(comp(outputs[i++], c) == ref_fract(x));
+      double x = static_cast<double>(comp(inp[0], c));
+      int ref_exp; double ref_m = std::frexp(x, &ref_exp);
+      BOOST_TEST(comp(o[0], c) == ref_m);
+      BOOST_TEST(comp(exp[0], c) == ref_exp);
     }
+  }
+}
+
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_modf, T, math_test_genfloats) {
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+  namespace s = sycl;
+  s::queue queue;
+  SKIP_IF_NO_FP64(queue, DT);
+  s::buffer<T> float_in{{1}};
+  s::buffer<T> out{{2}};
+  {
+    auto inp = float_in.get_host_access();
+    inp[0] = get_math_input<DT, D>(s::vec<DT, 16>{INPUT_FRAC()});
+  }
+  queue.submit([&](s::handler& cgh) {
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);
+    auto o = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class math_modf, D, DT>>([=]() {
+      T ipart;
+      o[0] = s::modf(in[0], &ipart);
+      o[1] = ipart;
+    });
+  });
+  {
+    auto inp = float_in.get_host_access();
+    auto o = out.get_host_access();
+    for(int c = 0; c < std::max(D, 1); ++c) {
+      double x = static_cast<double>(comp(inp[0], c));
+      double ref_ipart; double ref_frac = std::modf(x, &ref_ipart);
+      BOOST_TEST(comp(o[0], c) == ref_frac);
+      BOOST_TEST(comp(o[1], c) == ref_ipart);
+    }
+  }
+}
+
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_fract, T, math_test_genfloats) {
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+  namespace s = sycl;
+  s::queue queue;
+  SKIP_IF_NO_FP64(queue, DT);
+  s::buffer<T> float_in{{1}};
+  s::buffer<T> out{{1}};
+  {
+    auto inp = float_in.get_host_access();
+    inp[0] = get_math_input<DT, D>(s::vec<DT, 16>{INPUT_FRAC()});
+  }
+  queue.submit([&](s::handler& cgh) {
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);
+    auto o = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class math_fract, D, DT>>([=]() {
+      T ipart;
+      o[0] = s::fract(in[0], &ipart);
+    });
+  });
+  {
+    auto inp = float_in.get_host_access();
+    auto o = out.get_host_access();
+    for(int c = 0; c < std::max(D, 1); ++c)
+      BOOST_TEST(comp(o[0], c) == ref_fract(static_cast<double>(comp(inp[0], c))));
   }
 }
 

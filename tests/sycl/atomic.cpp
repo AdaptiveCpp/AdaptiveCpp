@@ -147,6 +147,74 @@ void atomic_device_reduction_test(AtomicOp op, Verifier v,
   }
 }
 
+template <class T, class AtomicOp, class Verifier>
+void atomic_local_reduction_test(AtomicOp op, Verifier v,
+                                std::string_view type_name,
+                                std::string_view op_name,
+                                T init_val, T per_item_val) {
+  sycl::queue q;
+  if constexpr (std::is_same_v<T, double>) {
+    if (!q.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+  if constexpr (sizeof(T) == 8) {
+    if (!q.get_device().has(sycl::aspect::atomic64)) {
+      BOOST_TEST_MESSAGE("Skipping test for 64-bit atomics since device has no atomic64 support");
+      return;
+    }
+  }
+
+  const std::size_t local_size = 64;
+  const std::size_t num_groups = 8;
+  const std::size_t global_size = local_size * num_groups;
+
+  sycl::buffer<T> result_buf{sycl::range{num_groups}};
+
+  q.submit([&](sycl::handler &cgh) {
+    sycl::accessor result{result_buf, cgh, sycl::read_write, sycl::no_init};
+    sycl::local_accessor<T, 1> local_acc{sycl::range{1}, cgh};
+
+    cgh.parallel_for(sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
+      auto group = item.get_group();
+      auto local_id = item.get_local_id(0);
+
+      if (local_id == 0) {
+        local_acc[0] = init_val;
+      }
+      sycl::group_barrier(group);
+
+      {
+        sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::work_group,
+          sycl::access::address_space::local_space>
+        local_ref{local_acc[0]};
+
+        op(local_ref, per_item_val);
+      }
+
+      sycl::group_barrier(group);
+
+      if (local_id == 0) {
+        result[item.get_group(0)] = local_acc[0];
+      }
+    });
+  });
+
+  sycl::host_accessor hacc{result_buf};
+  T expected = init_val;
+  for (std::size_t i = 0; i < local_size; ++i) {
+    v(expected, per_item_val);
+  }
+
+  for (std::size_t g = 0; g < num_groups; ++g) {
+    BOOST_TEST_CONTEXT("Checking local result for " << op_name << " on " << type_name
+      << " (group " << g << "): " << expected << " (expected) == " << hacc[g] << " (received)") {
+      BOOST_CHECK(expected == hacc[g]);
+    }
+  }
+}
+
 BOOST_AUTO_TEST_CASE(fetch_add_unsigned_int) {
     unsigned int data = 0u;
 
@@ -275,6 +343,37 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 #endif
 }
 
+
+BOOST_AUTO_TEST_CASE(fetch_add_sub_local_memory) {
+  auto fetch_add = [](auto &atomic, auto x) {
+    return atomic.fetch_add(x);
+  };
+  auto fetch_sub = [](auto &atomic, auto x) {
+    return atomic.fetch_sub(x);
+  };
+
+  auto add_verifier = [](auto &v, auto x) {
+    v += x;
+  };
+  auto sub_verifier = [](auto &v, auto x) {
+    v -= x;
+  };
+
+#define ACPP_LOCAL_ATOMIC_REF_TEST_T(type, op, init, per_item_val) \
+  atomic_local_reduction_test<type>(fetch_ ## op, op ## _verifier, #type, "fetch_" #op, init, per_item_val)
+
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(float, add, 0.0f, 1.0f);
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(float, sub, 64.0f, 1.0f);
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(double, add, 0.0f, 1.0f);
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(double, sub, 64.0f, 1.0f);
+
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(int, add, 0, 1);
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(int, sub, 64, 1);
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(unsigned int, add, 0u, 1u);
+  ACPP_LOCAL_ATOMIC_REF_TEST_T(unsigned int, sub, 64u, 1u);
+
+#undef ACPP_LOCAL_ATOMIC_REF_TEST_T
+}
 
 #ifndef ACPP_LIBKERNEL_CUDA_NVCXX // nvc++ has some issue with this test
 BOOST_AUTO_TEST_CASE(atomic_fence) {

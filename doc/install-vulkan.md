@@ -1,13 +1,30 @@
 # Vulkan
 
-Experimental Vulkan compute backend. Backend devices require a Vulkan 1.3 or later
-physical device although it was testing using the LunarG SDK 1.4 versions.
+Experimental Vulkan compute backend. This backend is under active development
+and not all SYCL features are supported, or all possible Vulkan backend
+devices tested.
+
+Vulkan consumes SPIR-V kernels which are required to match the Vulkan SPIR-V
+environment requirements, rather than the OpenCL SPIR-V environment requirements like
+for the Level-Zero and OpenCL backends. In order to turn SYCL kernels into Vulkan
+consumable SPIR-V the [clspv](github.com/google/clspv) tool is used as part of
+the generic SSCP compilation flow.
+
+## Requirements
+
+* For a Vulkan backend device to be reported through SYCL a Vulkan 1.3 or later
+physical device is required.
+* The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later.
+* A `clspv` executable, tested with commit `75d2471da8d697ae5a04d06cf14a1667b74200e8`
+  and later.
 
 The following physical device features are also required to be
 support for a Vulkan device to be available although future work would be
 to make checking for shader capabilities more lazy and only
 error if you try to use a kernel that doesn't have the capability
 enabled.
+
+> TODO describe what the below capabilities are for
 
 * `bufferDeviceAddress`
 * `timelineSemaphore`
@@ -20,24 +37,50 @@ enabled.
 * `shaderInt16`
 * `shaderInt64`
 
-The Vulkan validation layer is enabled in debug builds.
+## Supported Devices
 
-Vulkan consumes SPIR-V kernels which are required to be match the Vulkan SPIR-V
-environment requirements, rather than the OpenCL SPIR-V environment requirements like
-for the Level-Zero and OpenCL backends. In order to turn SYCL kernels into Vulkan
-consumable SPIR-V the [clspv](github.com/google/clspv) tool is used, which is a
-requirement for building AdaptiveCpp with the Vulkan backend.
+> TODO create table of devices tested on and expected stability
+
+## Supported SYCL features
+
+> TODO list SYCL features expectde to work and expected to not work
 
 ## Building
 
 The LunarG Vulkan SDK is a dependency for building the Vulkan backend, as it
-provides the Vulkan layers & loader along with SPIR-V Tools. A `clspv` binary
-that is detectable by `find_program` is also a dependency.
+provides the Vulkan layers & loader along with SPIR-V Tools, and should be
+available in your system path after using the `setup-env.sh` script it ships.
+A `clspv` binary that is detectable by `find_program` is also a dependency.
 
-Example CMake invocation
+Combined with the `-DWITH_VULKAN_BACKEND=ON` option for enabling the Vulkan
+backend in the build, the relevant parts of CMake invocation are:
+
 ```sh
-cmake -DWITH_VULKAN_BACKEND=ON -DCMAKE_PROGRAM_PATH=<path/to/clspv/build/dir>
+$ cmake -DWITH_VULKAN_BACKEND=ON -DCMAKE_PROGRAM_PATH=<path/to/clspv/build/bin/dir>
 ```
+
+The Vulkan validation layer is enabled in debug builds.
+
+## Running
+
+`acpp-info` can be used to list all of the Vulkan devices available on your system,
+alongside the devices for other backends. For example,
+
+```sh
+$ acpp-info -l
+=================Backend information===================
+Loaded backend 0: OpenMP
+  Found device: AdaptiveCpp OpenMP host device
+Loaded backend 1: Vulkan
+  Found device: AMD Radeon Graphics (RADV PHOENIX)
+  Found device: llvmpipe (LLVM 20.1.2, 256 bits)
+```
+
+The SYCL device selectors will tend to prefer GPU devices where available, but to narrow
+down the selection of visible devices the `ACPP_VISIBILITY_MASK=vk` environment variable
+can be used. Optionally setting a individual device, for example in the output abouve
+`ACPP_VISIBILITY_MASK=vk:0` would select the "AMD Radeon Graphics" Vulkan device
+`ACPP_VISIBILITY_MASK=vk:1` would select the `llvmpipe` Vulkan device.
 
 ## Design
 
@@ -122,14 +165,13 @@ memcopy.
 
 ### Compiler
 
-Uses SPIR-V version 1.3 for the `GroupNonUniform` capability.
-
 #### clspv
 
 Kernels are compiled by using the LLVM-IR input to clspv to create Vulkan consumable SPIR-V.
 This involves the SSCP compiler flavouring the LLVM-IR to resemble OpenCL-C generated IR,
 which is then lowered appropriately by clspv. Transformations are defined in the
-`llvm-to-clspv` tool to achieve this.
+`llvm-to-clspv` tool to achieve this. For more information on the transformations
+see the [llvm-to-clspv doc](../src/compiler/llvm-to-backend/clspv/llvm-to-clspv.md)
 
 The SPIR-V reflection non-semantic instructions are then used to provide the
 Vulkan runtime with the appropriate information on how to set the kernel arguments. For
@@ -150,11 +192,21 @@ A specialization constant will be created by `clspv` if the required workgroup s
 was not set in the kernel IR, which is part of the reflection information that the runtime
 can detect and set.
 
-## TODO
+#### libKernel
 
-* Test with real application
-* Try to make compiler passes less brittle
-* Improve device-info queries marked with TODO comments
+To implement the kernel functions declared by `libKernel` many of them are mapped to
+OpenCL-C builtin functions, which `clspv` then knows how to implement correctly for
+SPIR-V. However, clspv only supports OpenCL-C version 1.2 and some builtins (e.g.
+work-group collectives) require builtins from OpenCL 3.0. In such cases a more
+generic implementation is fallen back to.
+
+## Future Work
+
+* Test with real application.
+* Benchmark performance of backend.
+* Get SYCL running on Android device.
+
+* Try pcuda
 * Lazily error on use of kernels which aren't supported by physical device, rather
   than not reporting VK physical device at all as a SYCL device.
 
@@ -272,7 +324,7 @@ where the result indexes above thread id 128 is no longer synchronized with
 the previous threads.
 
 I could also reproduce this error with clvk on the same system using the
-following kernel reduced from the group_barrier test.
+following kernel reduced from the `group_barrier` test.
 
 ```c
 kernel void test_simple(global int* acc)

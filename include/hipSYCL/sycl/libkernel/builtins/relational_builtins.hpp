@@ -34,9 +34,9 @@ namespace detail {
   }
 
 #define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_BINARY_T_T_RET_BOOL(T, builtin_name, builtin_func) \
-HIPSYCL_BUILTIN bool builtin_name(T x, T y) noexcept {                                          \
-        return builtin_func(x, y);                                                              \
-}
+  HIPSYCL_BUILTIN bool builtin_name(T x, T y) noexcept {                                        \
+    return builtin_func(x, y);                                                                  \
+  }
 
 #define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_TEMPLATE_UNARY_T_RET_BOOL(tester, builtin_name, builtin_func) \
   template<typename NonScalar1>                                                                            \

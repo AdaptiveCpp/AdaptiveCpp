@@ -666,55 +666,55 @@ HIPSYCL_BUILTIN int __acpp_signbit(T x) noexcept {
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isequal(T x, T y) noexcept
 {
-    return x == y;
+  return x == y;
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isnotequal(T x, T y) noexcept
 {
-    return x != y;
+  return x != y;
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isgreater(T x, T y) noexcept
 {
-    return x > y;
+  return x > y;
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isgreaterequal(T x, T y) noexcept
 {
-    return x >= y;
+  return x >= y;
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isless(T x, T y) noexcept
 {
-    return x < y;
+  return x < y;
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_islessequal(T x, T y) noexcept
 {
-    return x <= y;
+  return x <= y;
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_islessgreater(T x, T y) noexcept
 {
-    return (x < y) || (x > y);
+  return (x < y) || (x > y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isordered(T x, T y) noexcept
 {
-    return __acpp_isequal(x, x) && __acpp_isequal(y, y);
+  return __acpp_isequal(x, x) && __acpp_isequal(y, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isunordered(T x, T y) noexcept
 {
-    return __acpp_isnan(x) || __acpp_isnan(y);
+  return __acpp_isnan(x) || __acpp_isnan(y);
 }
 
 }

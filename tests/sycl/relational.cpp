@@ -204,7 +204,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
     s::vec<DT, 16> v1{
       DT(1.0), DT(1.0), DT(2.0), std::numeric_limits<DT>::quiet_NaN(),
       DT(1.0), DT(0.0), std::numeric_limits<DT>::infinity(),
-      -std::numeric_limits<DT>::infinity(), DT(0.0) /*std::numeric_limits<DT>::denorm_min()*/ /* metal: denorm == 0 => true, temporary disable input */
+      -std::numeric_limits<DT>::infinity(), DT(0.0), /*std::numeric_limits<DT>::denorm_min()*/ /* metal: denorm == 0 => true, temporary disable input */
       DT(-1.0), DT(17.0), DT(-4.0), DT(-2.0), DT(3.0), DT(5.0), DT(-0.0)
     };
     s::vec<DT, 16> v2{

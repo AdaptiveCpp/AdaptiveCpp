@@ -13,7 +13,6 @@
 #include "hipSYCL/runtime/vk/vk_queue.hpp"
 
 #include "spirv/unified1/NonSemanticClspvReflection.h"
-#include "spirv/unified1/spirv.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -347,6 +346,12 @@ static spv_result_t parse_reflection(void *user_data,
   auto *parse_data = reinterpret_cast<spv_reflection_data *>(user_data);
 
   switch (inst->opcode) {
+  case spv::Op::OpCapability: {
+    const uint32_t capability = inst->words[inst->operands[0].offset];
+    auto spv_cap = static_cast<spv::Capability>(capability);
+    parse_data->_caps.push_back(spv_cap);
+    break;
+  }
   case spv::OpTypeInt:
     if (inst->words[2] == 32 && inst->words[3] == 0) {
       parse_data->_id = inst->result_id;
@@ -435,6 +440,79 @@ static spv_result_t parse_reflection(void *user_data,
   return SPV_SUCCESS;
 }
 
+static void verify_spv_capabilities(const uint16_t phys_dev_features,
+                                    const std::vector<spv::Capability> &caps) {
+  auto check_support = [phys_dev_features](int16_t bit,
+                                           const char *err_string) {
+    if ((phys_dev_features & bit) == 0) {
+      print_error(__acpp_here(), error_info{err_string});
+    }
+  };
+
+  for (auto cap : caps) {
+    switch (cap) {
+    // Always supported
+    case spv::CapabilityShader:
+    case spv::CapabilityPhysicalStorageBufferAddresses:
+      break;
+    case spv::CapabilityInt8:
+      check_support(vk_device_features::shaderInt8,
+                    "SPIR-V Capability Int8 not supported by device");
+      break;
+    case spv::CapabilityInt16:
+      check_support(vk_device_features::shaderInt16,
+                    "SPIR-V Capability Int16 not supported by device");
+      break;
+    case spv::CapabilityInt64:
+      check_support(vk_device_features::shaderInt64,
+                    "SPIR-V Capability Int64 not supported by device");
+      break;
+    case spv::CapabilityFloat16:
+      check_support(vk_device_features::shaderFloat16,
+                    "SPIR-V Capability Float16 not supported by device");
+      break;
+    case spv::CapabilityStoragePushConstant8:
+      check_support(vk_device_features::storagePushConstant8,
+                    "SPIR-V Capability PushConstant8 not supported by device");
+      break;
+    case spv::CapabilityStoragePushConstant16:
+      check_support(vk_device_features::storagePushConstant16,
+                    "SPIR-V Capability PushConstant16 not supported by device");
+      break;
+    case spv::CapabilityVariablePointers:
+      check_support(
+          vk_device_features::variablePointers,
+          "SPIR-V Capability VariablePointers not supported by device");
+      break;
+    case spv::CapabilityVariablePointersStorageBuffer:
+      check_support(vk_device_features::variablePointersStorageBuffer,
+                    "SPIR-V Capability VariablePointersStorageBuffer not "
+                    "supported by device");
+      break;
+    case spv::CapabilityGroupNonUniformShuffle:
+      check_support(vk_device_features::groupNonUniformShuffle,
+                    "SPIR-V Capability GroupNonUniformShuffle not "
+                    "supported by device");
+      break;
+    case spv::CapabilityGroupNonUniform:
+      check_support(vk_device_features::groupNonUniform,
+                    "SPIR-V Capability GroupNonUniform not "
+                    "supported by device");
+      break;
+    case spv::CapabilityGroupNonUniformVote:
+      check_support(vk_device_features::groupNonUniformVote,
+                    "SPIR-V Capability GroupNonUniformVote not "
+                    "supported by device");
+      break;
+    default: {
+      std::string err_str{"vk_executable_object: unexpected SPIRV capability "};
+      err_str.append(std::to_string(cap));
+      print_error(__acpp_here(), error_info{err_str});
+    }
+    }
+  }
+}
+
 vk_executable_object::vk_executable_object(
     vk_hardware_context *hw_ctx, hcf_object_id source,
     const std::string &code_image, const kernel_configuration &config,
@@ -464,6 +542,8 @@ vk_executable_object::vk_executable_object(
   if (result != SPV_SUCCESS) {
     print_error(__acpp_here(), error_info{"failed to parse spirv"});
   }
+
+  verify_spv_capabilities(_hw_ctx->get_phys_dev_features(), reflection._caps);
 
   for (auto &kern : _kernel_handles) {
     kern.second.create_descriptor_pool();

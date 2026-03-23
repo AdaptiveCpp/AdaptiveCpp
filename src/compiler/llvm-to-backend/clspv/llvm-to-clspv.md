@@ -8,6 +8,10 @@ The tool generates SPIR-V version 1.3 for the `GroupNonUniform` capability,
 and propagates the max push constant and uniform buffer sizes from the
 Vulkan physical device.
 
+We need to pass `-long-vector` to clspv to avoid generating `Vector16`
+capability instructions which aren't supported. See clspv Github
+[issue 1573](https://github.com/google/clspv/issues/1573).
+
 ## Generic Address Space
 
 > TODO: describe challenges of supporting generic address space and how this

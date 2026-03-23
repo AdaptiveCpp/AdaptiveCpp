@@ -20,9 +20,28 @@ namespace rt {
 
 class vk_allocator;
 
+namespace vk_device_features {
+// Bit for each SPIR-V capability feature we may encounter in kernel code
+// and can lazily check against device support.
+enum feature_bits {
+  shaderInt8 = 1 << 0,
+  shaderInt16 = 1 << 1,
+  shaderInt64 = 1 << 2,
+  shaderFloat16 = 1 << 3,
+  storagePushConstant8 = 1 << 4,
+  storagePushConstant16 = 1 << 5,
+  variablePointers = 1 << 6,
+  variablePointersStorageBuffer = 1 << 7,
+  groupNonUniform = 1 << 8,
+  groupNonUniformShuffle = 1 << 9,
+  groupNonUniformVote = 1 << 10,
+};
+}; // namespace vk_device_features
+
 class vk_hardware_context : public hardware_context {
 public:
-  vk_hardware_context(const vk::raii::PhysicalDevice &, int dev_id);
+  vk_hardware_context(const vk::raii::PhysicalDevice &, int dev_id,
+                      uint16_t features);
   vk_hardware_context(vk_hardware_context const &) = delete;
   vk_hardware_context(vk_hardware_context &&) = default;
 
@@ -63,6 +82,7 @@ public:
     return _limits.maxUniformBufferRange;
   }
   uint32_t get_subgroup_size() const { return _subgroup_size; }
+  uint16_t get_phys_dev_features() const { return _physical_dev_features; }
 
 private:
   size_t global_mem_size() const;
@@ -78,6 +98,7 @@ private:
   size_t _max_alloc_size{};
 
   int _dev_id;
+  uint16_t _physical_dev_features;
   std::unique_ptr<vk_allocator> _allocator;
 };
 

@@ -18,6 +18,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "spirv/unified1/spirv.hpp"
 #include <spirv-tools/libspirv.h>
 #include <vulkan/vulkan_raii.hpp>
 
@@ -155,6 +156,7 @@ struct spv_reflection_data {
   std::unordered_map<uint32_t, uint32_t> _constants;
   std::unordered_map<uint32_t, std::string> _strings;
   vk_executable_object *_code_obj;
+  std::vector<spv::Capability> _caps;
 };
 
 class vk_executable_object : public code_object {

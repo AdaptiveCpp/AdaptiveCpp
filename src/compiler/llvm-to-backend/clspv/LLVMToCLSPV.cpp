@@ -290,8 +290,11 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
 
   std::string CLSPV = HIPSYCL_CLSPV_PATH;
 
-  llvm::SmallVector<std::string> Args{"-x=ir", "--physical-storage-buffers",
-                                      "-spv-version=1.3", "--arch=spir64",
+  llvm::SmallVector<std::string> Args{"-x=ir",
+                                      "--physical-storage-buffers",
+                                      "-spv-version=1.3",
+                                      "--arch=spir64",
+                                      "-long-vector",
                                       "-o=" + OutputFileName};
   if (!MaxPushConstantSize.empty()) {
     Args.push_back("-max-pushconstant-size=" + MaxPushConstantSize);

@@ -334,7 +334,7 @@ bool metal_hardware_context::has(device_support_aspect aspect) const {
     return false;
 
   case device_support_aspect::execution_timestamps:
-    return false; // TODO: implement
+    return true;
 
   case device_support_aspect::sscp_kernels:
 #ifdef HIPSYCL_WITH_SSCP_COMPILER

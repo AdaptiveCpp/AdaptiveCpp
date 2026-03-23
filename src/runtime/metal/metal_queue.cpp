@@ -282,7 +282,45 @@ MTL::CommandBuffer* metal_inorder_queue::new_command_buffer() {
   if (auto prev = std::exchange(_pending_gpu_event, 0)) {
     cmd_buf->encodeWait(_shared_event, prev);
   }
+  if (_profiling_setup) {
+    cmd_buf->addCompletedHandler([setup = std::move(_profiling_setup)](MTL::CommandBuffer* cb) {
+      if (setup->start_time) {
+        setup->start_time->set_time(cb->GPUStartTime());
+      }
+      if (setup->finish_time) {
+        setup->finish_time->set_time(cb->GPUEndTime());
+      }
+    });
+    _profiling_setup.reset();
+  }
+
   return cmd_buf;
+}
+
+void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& node) {
+  if (!node) {
+    return;
+  }
+
+  auto& hints = node->get_execution_hints();
+  if (hints.has_hint<rt::hints::request_instrumentation_submission_timestamp>()) {
+    op.get_instrumentations().add_instrumentation<instrumentations::submission_timestamp>(
+      std::make_shared<metal_submission_timestamp>()
+    );
+  }
+
+  metal_profiling_setup setup;
+  if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+    setup.start_time = std::make_shared<metal_execution_start_timestamp>();
+    op.get_instrumentations().add_instrumentation<instrumentations::execution_start_timestamp>(setup.start_time);
+  }
+  if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+    setup.finish_time = std::make_shared<metal_execution_finish_timestamp>();
+    op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(setup.finish_time);
+  }
+  if (setup.start_time || setup.finish_time) {
+    _profiling_setup = std::move(setup);
+  }
 }
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
@@ -358,6 +396,7 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
 
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
+  profiling_setup(op, node);
   MTL::CommandBuffer* command_buffer = new_command_buffer();
   if (!command_buffer) {
     return make_error(__acpp_here(),
@@ -514,10 +553,26 @@ result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_p
 
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
   auto *node_ptr = node.get();
+  profiling_setup(op, node);
   return op.get_launcher().invoke(backend_id::metal, this, cap, node_ptr);
 }
 
-result metal_inorder_queue::submit_prefetch(prefetch_operation &, const dag_node_ptr&) {
+result metal_inorder_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& node) {
+  if (node) {
+    uint64_t now = metal_now_ns();
+    auto& hints = node->get_execution_hints();
+    if (hints.has_hint<rt::hints::request_instrumentation_submission_timestamp>())
+      op.get_instrumentations().add_instrumentation<instrumentations::submission_timestamp>(
+        std::make_shared<metal_submission_timestamp>(now));
+    if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+      op.get_instrumentations().add_instrumentation<instrumentations::execution_start_timestamp>(
+        std::make_shared<metal_execution_start_timestamp>(now));
+    }
+    if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+      op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(
+        std::make_shared<metal_execution_finish_timestamp>(now));
+    }
+  }
   return make_success();
 }
 
@@ -530,6 +585,7 @@ result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_p
 
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
+  profiling_setup(op, node);
   MTL::CommandBuffer* command_buffer = new_command_buffer();
   if (!command_buffer) {
     return make_error(__acpp_here(),

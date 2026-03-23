@@ -143,6 +143,11 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     return;
   }
 
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    BOOST_TEST_MESSAGE("Skipping test since device has no shared USM support");
+    return;
+  }
+
   if constexpr(std::is_same_v<T, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -154,19 +159,17 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
 
   std::vector<T*> inputs, outputs;
   for(std::size_t i = 0; i < num_reductions; ++i) {
-    inputs.push_back(sycl::malloc_device<T>(input_size, q));
-    outputs.push_back(sycl::malloc_device<T>(1, q));
+    inputs.push_back(sycl::malloc_shared<T>(input_size, q));
+    outputs.push_back(sycl::malloc_shared<T>(1, q));
   }
 
   for(std::size_t reduction = 0; reduction < num_reductions; ++reduction) {
-    std::vector<int> host_data(input_size);
     for(std::size_t i = 0; i < input_size; ++i) {
       if(reduction == 0)
         inputs[reduction][i] = input_generator<T, sycl::plus<T>>{}(i);
       else
         inputs[reduction][i] = input_generator<T, sycl::multiplies<T>>{}(i);
     }
-    q.memcpy(inputs[reduction], host_data.data(), sizeof(int) * input_size).wait();
   }
 
   T* input0 = inputs[0];
@@ -183,17 +186,12 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     T expected_mul_result =
       std::accumulate(input1, input1 + input_size, T{1}, std::multiplies<T>{});
 
-    int host_output0, host_output1;
-    q.memcpy(&host_output0, output0, sizeof(int));
-    q.memcpy(&host_output1, output1, sizeof(int));
-    q.wait();
-
-    if constexpr(std::is_floating_point_v<T>) {
-      BOOST_TEST(expected_add_result == host_output0, tolerance);
-      BOOST_TEST(expected_mul_result == host_output1, tolerance);
+      if constexpr(std::is_floating_point_v<T>) {
+      BOOST_TEST(expected_add_result == *output0, tolerance);
+      BOOST_TEST(expected_mul_result == *output1, tolerance);
     } else {
-      BOOST_TEST(expected_add_result == host_output0);
-      BOOST_TEST(expected_mul_result == host_output1);
+      BOOST_TEST(expected_add_result == *output0);
+      BOOST_TEST(expected_mul_result == *output1);
     }
     *output0 = T{};
     *output1 = T{};

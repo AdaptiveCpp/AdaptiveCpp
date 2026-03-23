@@ -290,14 +290,16 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
 
   std::string CLSPV = HIPSYCL_CLSPV_PATH;
 
-  llvm::SmallVector<std::string> Args{
-      "-x=ir",
-      "--physical-storage-buffers",
-      "-spv-version=1.3",
-      "--arch=spir64",
-      "-max-pushconstant-size=" + std::to_string(MaxPushConstantSize),
-      "-max-ubo-size=" + std::to_string(MaxUniformBufferRange),
-      "-o=" + OutputFileName};
+  llvm::SmallVector<std::string> Args{"-x=ir", "--physical-storage-buffers",
+                                      "-spv-version=1.3", "--arch=spir64",
+                                      "-o=" + OutputFileName};
+  if (!MaxPushConstantSize.empty()) {
+    Args.push_back("-max-pushconstant-size=" + MaxPushConstantSize);
+  }
+
+  if (!MaxUniformBufferRange.empty()) {
+    Args.push_back("-max-ubo-size=" + MaxUniformBufferRange);
+  }
 
   llvm::SmallVector<llvm::StringRef, 16> Invocation{CLSPV};
   for (const auto &A : Args)
@@ -337,6 +339,15 @@ bool LLVMToCLSPVTranslator::applyBuildOption(const std::string &Option,
   if (Option == "spirv-dynamic-local-mem-allocation-size") {
     this->DynamicLocalMemSize = static_cast<unsigned>(std::stoi(Value));
     return true;
+  }
+
+  if (Option == "-max-pushconstant-size") {
+    this->MaxPushConstantSize = Value;
+    return true;
+  }
+
+  if (Option == "-max-ubo-size") {
+    this->MaxUniformBufferRange = Value;
   }
 
   return false;

@@ -19,6 +19,9 @@ inputs:
   CUDA_DRIVER_VERSION:
     required: true
     default: '450.51.05'
+  VULKAN_VERSION:
+    required: true
+    default: '1.4.341.1'
   BASE_TAG:
     required: true
     default: 'ubuntu-22.04'
@@ -180,4 +183,5 @@ runs:
           CUDA_MINOR_VERSION=${{ inputs.CUDA_MINOR_VERSION }}
           CUDA_PATCH_VERSION=${{ inputs.CUDA_PATCH_VERSION }}
           CUDA_DRIVER_VERSION=${{ inputs.CUDA_DRIVER_VERSION }}
+          VULKAN_VERSION=${{ inputs.VULKAN_VERSION }}
           BASE=${{ steps.make-tagged-os.outputs.BASE_OS }}

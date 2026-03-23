@@ -10,6 +10,8 @@ ARG CUDA_MAJOR_VERSION="11"
 ARG CUDA_MINOR_VERSION="0"
 ARG CUDA_PATCH_VERSION="2"
 ARG CUDA_DRIVER_VERSION="450.51.05"
+# LunarG Vulkan SDK Version
+ARG VULKAN_VERSION="1.4.341.1"
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -84,6 +86,19 @@ RUN <<EOF
 EOF
 
 RUN <<EOF
+    # skip if VULKAN_VERSION empty
+    if [ -z "${VULKAN_VERSION}" ]; then exit 0; fi
+
+    # Setup SDK
+    wget -O /opt/vulkansdk-linux-x86_64-${VULKAN_VERSION}.tar.xz -q https://sdk.lunarg.com/sdk/download/${VULKAN_VERSION}/linux/vulkansdk-linux-x86_64-${VULKAN_VERSION}.tar.xz
+    tar -xf /opt/vulkansdk-linux-x86_64-${VULKAN_VERSION}.tar.xz -C /opt
+    # Install mesa vulkan driver
+    apt-get update
+    apt-get install -y mesa-vulkan-drivers
+    rm -rf /var/lib/apt/lists/*
+EOF
+
+RUN <<EOF
     wget -q https://apt.llvm.org/llvm.sh
     chmod +x llvm.sh
     ./llvm.sh ${LLVM_VERSION}
@@ -94,8 +109,11 @@ RUN <<EOF
     ln -s /usr/bin/FileCheck-${LLVM_VERSION} /usr/bin/FileCheck
 EOF
 
-ENV PATH="$PATH:/usr/local/cuda/bin"
-ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64"
+# Manual equivalent of setup-env.sh exports
+ENV VULKAN_SDK="/opt/${VULKAN_VERSION}/x86_64"
+ENV VK_ADD_LAYER_PATH="$VULKAN_SDK/share/vulkan/explicit_layer.d"
+ENV PATH="$PATH:/usr/local/cuda/bin:$VULKAN_SDK/bin"
+ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64:$VULKAN_SDK/lib"
 ENV CC=clang-${LLVM_VERSION}
 ENV CXX=clang++-${LLVM_VERSION}
 

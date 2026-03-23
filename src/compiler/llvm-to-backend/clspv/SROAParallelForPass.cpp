@@ -39,7 +39,7 @@ void SROAParallelForPass::findParallelForStruct(llvm::Function &F) {
   }
 }
 
-// if SROA hasn't broken down the basic_parallel_for struc then we need to
+// if SROA hasn't broken down the basic_parallel_for struct then we need to
 // manually do it so that clspv can understand what's going on.
 llvm::PreservedAnalyses
 SROAParallelForPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &) {

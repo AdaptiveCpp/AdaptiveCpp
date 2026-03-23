@@ -29,14 +29,6 @@ public:
   bool translateToBackendFormat(llvm::Module &FlavoredModule,
                                 std::string &Out) override;
 
-  void set_max_push_constant_size(uint32_t pc_size) {
-    MaxPushConstantSize = pc_size;
-  }
-
-  void set_max_uniform_buffer_range(uint32_t ub_range) {
-    MaxUniformBufferRange = ub_range;
-  }
-
 protected:
   bool applyBuildOption(const std::string &Option,
                         const std::string &Value) override;
@@ -53,8 +45,8 @@ private:
 
   std::vector<std::string> KernelNames;
   unsigned DynamicLocalMemSize = 0;
-  uint32_t MaxPushConstantSize = 0;
-  uint32_t MaxUniformBufferRange = 0;
+  std::string MaxPushConstantSize;
+  std::string MaxUniformBufferRange;
 };
 
 } // namespace compiler

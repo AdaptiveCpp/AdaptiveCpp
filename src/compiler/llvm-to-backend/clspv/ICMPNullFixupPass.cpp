@@ -15,8 +15,8 @@
 namespace hipsycl {
 namespace compiler {
 
-// Pass for fixing up icmp instructions comparing a pointer with addrspace 1
-// in the first operand against a nullptr with no address space.
+// Pass for fixing up icmp instructions comparing a pointer with nonzero address
+// space in the first operand against a nullptr with no address space.
 llvm::PreservedAnalyses
 ICMPNullFixupPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &) {
   bool DidTransform = false;

@@ -22,31 +22,51 @@ run at the *Optimize Flavoured IR* stage of the pipeline.
 A major challenge in the implementation is making this part of the compilation
 flow less brittle so users can reliably run their kernels.
 
-### AddrSpaceCastRemovalPass
-
-> TODO - Document and put in order
-
-### AtomicAddrSpacePass
-
-> TODO - Document and put in order
-
 ### RemoveUnusedIntrinsicsPass
 
-> TODO - Document and put in order
+`clspv` ignores LLVM freeze, assume, and lifetime intrinsics. Remove them early
+in the pipeline to make the IR cleaner.
 
-### AddrSpaceRestorePass
+### AddrSpaceCastRemovalPass
 
-> TODO - Document and put in order
+Remove casting away the address space from arguments, as otherwise
+clspv doesn't know how to lower the generic pointer to SPIR-V.
 
 ### ICMPNullFixupPass
 
-> TODO - Document and put in order
-
-### PtrToIntPass
-
-> TODO - Document and put in order
+Pass for fixing icmp instructions comparing a pointer with non-zero address
+space in the first operand against a nullptr with no address space in the
+second, by giving the nullptr constant the same address space.
 
 ### SROAParallelForPass
 
-> TODO - Document and put in order
+If a prior Scalar Reduction Of Aggregates (SROA) pass hasn't broken down the acpp
+`basic_parallel_for` struct then we manually do it so that clspv avoids choking on
+the alloca.
 
+### LLVM SROA
+
+A regular LLVM SROA pass, used to breakdown kernel arguments that are structs
+passed by value. By breaking them down into their component members, each member
+can be put into a Vulkan uniform buffer at a specific offset.
+
+### PtrToIntPass
+
+Pass for fixing resulting SROA components from large structs so that we don't
+lose the address space of pointers between `PtrToInt` then `IntToPtr` on a
+Value.
+
+### AddrSpaceRestorePass
+
+General pass for fixing instructions that have lost address space during
+optimization until this point.
+
+* GEP
+* MemCpyInst - Need to recreate builtin declaration with address spaces.
+* MemSetInst - Need to recreate builtin declaration with address spaces.
+
+### AtomicAddrSpacePass
+
+Pass for fixing up atomic builtin calls that take an opaque ptr without an address
+space but pointer value for used for builtin parameter has an addrspace. Done
+by creating an address space cast for the relevant operand.

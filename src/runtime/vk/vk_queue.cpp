@@ -548,12 +548,12 @@ result vk_queue::submit_sscp_kernel_from_code_object(
         std::move(compiler::createLLVMToCLSPVTranslator(kernel_names));
 
     auto raw_translator = translator.get();
-    auto clspv_translator =
-        dynamic_cast<compiler::LLVMToCLSPVTranslator *>(raw_translator);
-    clspv_translator->set_max_push_constant_size(
-        _dev_ctx->get_max_push_constant_size());
-    clspv_translator->set_max_uniform_buffer_range(
-        _dev_ctx->get_max_uniform_buffer_range());
+    raw_translator->setBuildOption(
+        "-max-pushconstant-size",
+        std::to_string(_dev_ctx->get_max_push_constant_size()));
+    raw_translator->setBuildOption(
+        "-max-ubo-size",
+        std::to_string(_dev_ctx->get_max_uniform_buffer_range()));
 
     // Lower kernels to SPIR-V
     bool enable_dead_arg_elimination = kernel_names.size() == 1;

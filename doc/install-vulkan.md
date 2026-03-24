@@ -66,13 +66,52 @@ printed if the device doesn't support them:
 * `VK_SUBGROUP_FEATURE_SHUFFLE_BIT` - Allows SPIR-V `CapabilityGroupNonUniformShuffle`
   instructions to be used in the implementation of SYCL sub-group builtins.
 
-## Supported Devices
+## Supported Features
 
-> TODO create table of devices tested on and expected stability
+All the runtime functionality and synchronization of SYCL is expected to work, although
+some optional features are not supported. Most notably only device USM is available,
+and not host or shared USM. However, there is no support of backend interop at this time.
 
-## Supported SYCL features
+The holes in support arise from deficiencies in the compilation of kernel code. Features
+which are not yet fully supported for use in kernels targeting Vulkan SPIR-V are:
 
-> TODO list SYCL features expectde to work and expected to not work
+| Feature                | Support                                                              |
+| ---------------------- | -------------------------------------------------------------------- |
+| Accessors              | Partially supported, but known issues failing to compile, prefer USM |
+| Reductions             | Not supported, will generate incorrect results rather than error     |
+| Floating point atomics | Not supported, will generate incorrect results rather than error     |
+| `marray<short, 3>`     | Not supported, will fail to compile                                  |
+| `group_broadcast`      | Not supported, will fail to compile                                  |
+
+## Device Support
+
+In additional to the restrictions around supported features individual devices will have their
+own bugs that need addressed (which may turn out to be not device specific once investigated).
+
+Devices known to be well supported by the backend include:
+
+| Driver Name  | Driver Version | Device Type        |
+| ------------ | -------------- | ------------------ |
+| llvmpipe     | Mesa 25.0.7    | CPU                |
+| RADV Pheonix | Mesa 25.0.7    | AMD Integrated GPU |
+| AMD MI100    | TODO           | AMD Discrete GPU   |
+
+
+Devices known to have issues with the backend include:
+
+| Driver Name | Driver Version | Device Type      |
+| ----------- | -------------- | ---------------- |
+| AMD MI210   | TODO           | AMD Discrete GPU |
+
+Other devices are untested and support status unknown.
+
+### PCUDA
+
+Supporting PCUDA is not a primary goal of this backend as it can only
+support `pcudaMalloc`, which is equivalent to device USM, and not
+`pcudaHostManaged` or `pcudaMallocHost` which are equivalent to
+shared/host USM. However in CUDA this functionality is not optional and
+many tests & applications make use of the managed/host allocation APIs.
 
 ## Building
 
@@ -242,11 +281,11 @@ generic implementation is fallen back to.
 * Fix CI issues with llvm pipe (suspect due to a LLVM 18 build rather than
   LLVM 19).
 * Add CI to self-hosted runners.
-* Try pcuda and document how generic pointers work.
+* Document how generic pointers work.
 
 ## Test Status
 
-No CI is yet setup, tested sycl test suite locally on AMD pheonix integrated GPU and AMD MI100 & MI200 discrete GPUs.
+No CI is yet setup, tested sycl test suite locally on AMD Phoenix integrated GPU and AMD MI100 & MI200 discrete GPUs.
 MI200 has several fails that need investigated (See [issue 9](#issue-9)) but otherwise the fails can be categorize
 as:
 
@@ -327,7 +366,7 @@ kernel void test_simple(global int* out, global int* in, int offset)
 
 Investigations so far:
  * Removing `-1` fixes the issue
- * Using `volatile* to keep the load but remove the store fixes the issue`
+ * Using `volatile*` to keep the load but remove the store fixes the issue.
  * Doing `out[id] = &in[offset-1] - &in` gives the correct offset
  * Generating logical memory model spirv from than physical addressing SPIRV gives the correct
    result in clvk

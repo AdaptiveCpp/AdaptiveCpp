@@ -14,8 +14,26 @@ capability instructions which aren't supported. See clspv Github
 
 ## Generic Address Space
 
-> TODO: describe challenges of supporting generic address space and how this
-> is addressed
+The primary challenge with the Vulkan backend is finding a way to
+convert generic pointers to address space qualified pointers that
+`clspv` can lower correctly.
+
+Although LLVM normally uses address space `4` for the generic address
+space and `0` for private address space, due to ACPP being a single pass
+compiler the code starts as `0` everywhere and needs to be remapped
+which is not 100% reliable.
+
+Therefore the majority of the compiler passes in the `llvm-to-clspv`
+tool are for inferring the address space of generic address space
+`0` pointers.
+
+Without generic address space support the backend hits problems from:
+
+* Function calls with pointer arguments, as the function could accept call sites with
+  either local or global address spaces. The aggressive inlining from the compiler mitigates
+  this by the time we get to optimizing the flavored IR stage of the pipeline.
+* When you need to store pointers to global memory and then load them later, address space inference breaks down,
+  affecting pointer-based data structures.
 
 ## Passes
 
@@ -74,3 +92,8 @@ optimization until this point.
 Pass for fixing up atomic builtin calls that take an opaque ptr without an address
 space but pointer value for used for builtin parameter has an addrspace. Done
 by creating an address space cast for the relevant operand.
+
+## TODO
+
+* LLVM has an pass [llvm::InferAddressSpacesPasS](https://llvm.org/doxygen/InferAddressSpaces_8cpp_source.html)
+  that we should try to use.

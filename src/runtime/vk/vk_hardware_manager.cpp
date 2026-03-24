@@ -605,7 +605,7 @@ device_id vk_hardware_manager::get_device_id(std::size_t index) const {
                    static_cast<int>(index)};
 }
 
-std::size_t vk_hardware_manager::get_num_platforms() const { return 0; }
+std::size_t vk_hardware_manager::get_num_platforms() const { return 1; }
 
 } // namespace rt
 } // namespace hipsycl

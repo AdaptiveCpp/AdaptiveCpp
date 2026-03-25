@@ -80,8 +80,8 @@ which are not yet fully supported for use in kernels targeting Vulkan SPIR-V are
 | Accessors              | Partially supported, but known issues failing to compile, prefer USM |
 | Reductions             | Not supported, will generate incorrect results rather than error     |
 | Floating point atomics | Not supported, will generate incorrect results rather than error     |
-| `marray<short, 3>`     | Not supported, will fail to compile                                  |
-| `group_broadcast`      | Not supported, will fail to compile                                  |
+| `marray`               | Not supported, will fail to compile or generate incorrect results    |
+| `group_scan` variants  | Not supported, will fail to compile or generate incorrect results   |
 
 ## Device Support
 
@@ -94,14 +94,14 @@ Devices known to be well supported by the backend include:
 | ------------ | -------------- | ------------------ |
 | llvmpipe     | Mesa 25.0.7    | CPU                |
 | RADV Pheonix | Mesa 25.0.7    | AMD Integrated GPU |
-| AMD MI100    | TODO           | AMD Discrete GPU   |
+| RADV MI100   | Mesa 23.2.1    | AMD Discrete GPU   |
 
 
 Devices known to have issues with the backend include:
 
 | Driver Name | Driver Version | Device Type      |
 | ----------- | -------------- | ---------------- |
-| AMD MI210   | TODO           | AMD Discrete GPU |
+| RADV MI210  | Mesa 23.2.1    | AMD Discrete GPU |
 
 Other devices are untested and support status unknown.
 
@@ -331,7 +331,9 @@ floating point atomics are used in kernel code.
 
 ### Issue 3
 
-clspv can't deal with `i48` LLVM IR types generated from `marray<short, 3>` testing
+clspv can't deal with `i48` LLVM IR types generated from `marray<short, 3>` testing. On llvmpipe
+from Mesa 25.0.7 (LLVM 15.0.7) there are also issues with other `marray` types which ACPP is
+built with LLVM 18, but not when built with LLVM 20.
 
 ### Issue 4
 

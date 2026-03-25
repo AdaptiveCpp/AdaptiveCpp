@@ -37,6 +37,8 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_native_rsqrt_f32(float);
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_native_sin_f32(float);
 
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_native_sincos_f32(float, float*);
+
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_native_sqrt_f32(float);
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_native_tan_f32(float);

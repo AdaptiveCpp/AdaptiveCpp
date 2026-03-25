@@ -287,6 +287,11 @@ HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__acpp_native_sin, __sinf,
                                            __acpp_sin)
 
 template<class T>
+HIPSYCL_HIPLIKE_BUILTIN T __acpp_native_sincos(T x, T* cosval) noexcept {
+  return hiplike_builtins::__acpp_sincos(x, cosval);
+}
+
+template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_native_sqrt(T x) noexcept {
   return hiplike_builtins::__acpp_sqrt(x);
 }

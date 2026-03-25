@@ -428,6 +428,11 @@ HIPSYCL_BUILTIN T __acpp_native_sin(T x) noexcept {
 }
 
 template<class T>
+HIPSYCL_BUILTIN T __acpp_native_sincos(T x, T* cosval) noexcept {
+  return host_builtins::__acpp_sincos(x, cosval);
+}
+
+template<class T>
 HIPSYCL_BUILTIN T __acpp_native_sqrt(T x) noexcept {
   return host_builtins::__acpp_sqrt(x);
 }

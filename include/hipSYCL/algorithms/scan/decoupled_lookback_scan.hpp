@@ -26,6 +26,13 @@
 namespace hipsycl::algorithms::scanning {
 
 namespace detail {
+template <class T>
+union Storage {
+  Storage() {}
+  ~Storage() {}
+
+  T data;
+};
 
 enum class status : uint32_t {
   invalid = 0,
@@ -134,7 +141,7 @@ T collective_broadcast(sycl::nd_item<1> idx, T x, int local_id, T* local_mem) {
   }
 }
 
-template <int WorkPerItem, class T, class BinaryOp, class Generator,
+template <int WorkPerItem, bool IsInclusive, class T, class BinaryOp, class Generator,
           class Processor, class PrefixHandler>
 void iterate_host_and_inclusive_group_scan(
     sycl::nd_item<1> idx, BinaryOp op, T *local_mem, std::size_t global_group_id,
@@ -146,16 +153,16 @@ void iterate_host_and_inclusive_group_scan(
 
   const int num_elements = group_size * WorkPerItem;
   if(lid == 0) {
-    T current_inclusive_scan;
+    Storage<T> current_inclusive_scan;
     for(int i = 0; i < num_elements; ++i) {
       T current_element = gen(idx, i % WorkPerItem, i);
       if(i == 0)
-        current_inclusive_scan = current_element;
+        current_inclusive_scan.data = current_element;
       else
-        current_inclusive_scan = op(current_inclusive_scan, current_element);
+        current_inclusive_scan.data = op(current_inclusive_scan.data, current_element);
       // we store the result array at i+1 to avoid conflicts with the
       // fallback group broadcast, which uses element 0.
-      local_mem[i+1] = current_inclusive_scan;
+      local_mem[i+1] = current_inclusive_scan.data;
     }
   }
   sycl::group_barrier(idx.get_group());
@@ -172,11 +179,19 @@ void iterate_host_and_inclusive_group_scan(
   
   for(int i = 0; i < WorkPerItem; ++i) {
     int effective_id = lid * WorkPerItem + i;
-    result_processor(i, effective_id, local_mem[effective_id+1]);
+    if constexpr (IsInclusive) {
+      result_processor(i, effective_id, local_mem[effective_id+1]);
+    } else {
+      if (i == WorkPerItem - 1 && lid == group_size - 1)
+        result_processor(i, 0, global_prefix);
+      else {
+        result_processor(i, effective_id + 1, local_mem[effective_id+1]);
+      }
+    }
   }
 }
 
-template <int WorkPerItem, class T, class BinaryOp, class Generator,
+template <int WorkPerItem, bool IsInclusive, class T, class BinaryOp, class Generator,
           class Processor, class PrefixHandler>
 void iterate_and_inclusive_group_scan(
     sycl::nd_item<1> idx, BinaryOp op, T *local_mem, std::size_t global_group_id,
@@ -186,9 +201,12 @@ void iterate_and_inclusive_group_scan(
   const int lid = idx.get_local_linear_id();
   const int group_size = idx.get_local_range().size();
   
-
-  T current_exclusive_prefix;
-  T scan_result [WorkPerItem];
+  // Support types without default constructors
+  // There may be shenanigans with having to implictly start
+  // lifetimes or something that I am ignoring here. When
+  // trivial unions are implemented this will be fine.
+  Storage<T> current_exclusive_prefix;
+  Storage<T[WorkPerItem]> scan_result;
   for(int invocation = 0; invocation < WorkPerItem; ++invocation) {
     int current_id = invocation * group_size + lid;
     T my_element = gen(idx, invocation, current_id);
@@ -196,23 +214,31 @@ void iterate_and_inclusive_group_scan(
         collective_inclusive_group_scan(idx, my_element, op, local_mem);
     
     if(invocation != 0)
-      local_scan_result = op(current_exclusive_prefix, local_scan_result);
+      local_scan_result = op(current_exclusive_prefix.data, local_scan_result);
     
-    current_exclusive_prefix = collective_broadcast<T, BinaryOp>(
-        idx, local_scan_result, group_size - 1, local_mem);
+    current_exclusive_prefix.data = collective_broadcast<T, BinaryOp>(
+      idx, local_scan_result, group_size - 1, local_mem);
     
-    scan_result[invocation] = local_scan_result;
+    scan_result.data[invocation] = local_scan_result;
   }
   // has local prefix here, this also does lookback
-  T global_prefix = local_prefix_to_global_prefix(lid, current_exclusive_prefix);
+  T global_prefix = local_prefix_to_global_prefix(lid, current_exclusive_prefix.data);
 
   if(global_group_id != 0) {
     for(int i = 0; i < WorkPerItem; ++i) {
-      scan_result[i] =  op(global_prefix, scan_result[i]);
+      scan_result.data[i] =  op(global_prefix, scan_result.data[i]);
     }  
   }
   for(int i = 0; i < WorkPerItem; ++i) {
-    result_processor(i, i*group_size+lid, scan_result[i]);
+    if constexpr (IsInclusive) {
+      result_processor(i, i*group_size+lid, scan_result.data[i]);
+    } else {
+      if (i == WorkPerItem - 1 && lid == group_size - 1)
+        result_processor(i, 0, global_prefix);
+      else {
+        result_processor(i, i*group_size+lid+1, scan_result.data[i]);
+      }
+    }
   }
 }
 
@@ -256,118 +282,18 @@ T exclusive_prefix_look_back(const T &dummy_init, int effective_group_id,
   return exclusive_prefix;
 }
 
-template <bool IsInclusive, class T, class Generator, class OptionalInitT,
+template <class T, class Generator, class OptionalInitT,
           class BinaryOp>
 T load_data_element(Generator &&gen, sycl::nd_item<1> idx, BinaryOp op,
                     uint32_t effective_group_id, std::size_t global_id,
                     std::size_t problem_size, OptionalInitT init) {
-  if constexpr (IsInclusive) {
-    auto elem = gen(idx, effective_group_id, global_id, problem_size);
-    if constexpr(!std::is_same_v<OptionalInitT, std::nullopt_t>) {
-      if(global_id == 0) {
-        return op(init, elem);
-      }
-    }
-    return elem;
-  } else {
-    if(global_id == 0)
-      return init;
-    return gen(idx, effective_group_id, global_id - 1, problem_size);
-  }
-}
-
-template <bool IsInclusive, class T, class OptionalInitT, class BinaryOp,
-          class Generator, class Processor>
-void flat_group_scan_kernel(sycl::nd_item<1> idx, T *local_memory,
-                            scratch_data<T> scratch, uint32_t *group_counter,
-                            BinaryOp op, OptionalInitT init,
-                            std::size_t problem_size, Generator &&gen,
-                            Processor &&processor) {
-  sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed,
-                    sycl::memory_scope::device,
-                    sycl::access::address_space::global_space>
-      group_id_counter{*group_counter};
-
-  const int local_id = idx.get_local_linear_id();
-  uint32_t effective_group_id = idx.get_group_linear_id();
-  if(local_id == 0) {
-    effective_group_id = group_id_counter.fetch_add(static_cast<uint32_t>(1));
-  }
-  effective_group_id = collective_broadcast<uint32_t, BinaryOp>(
-      idx, effective_group_id, 0, reinterpret_cast<uint32_t*>(local_memory));
-
-  const std::size_t global_id = effective_group_id * idx.get_local_range().size() +
-                          local_id;
-  
-  int local_size = idx.get_local_range().size();
-  
-  std::size_t num_groups = idx.get_group_range().size();
-  const bool is_last_group = effective_group_id == num_groups - 1;
-  if(is_last_group) {
-    std::size_t group_offset = effective_group_id * (num_groups - 1) + local_size;
-    local_size = problem_size - group_offset;
-  }
-
-  // This invokes gen for the current work item to obtain our data element
-  // for the scan. If we are dealing with an exclusive scan, load_data_element
-  // shifts the data access by 1, thus allowing us to treat the scan as inclusive
-  // in the subsequent algorithm.
-  // It also applies init to the first data element, if provided.
-  T my_element = load_data_element<IsInclusive, T>(
-      gen, idx, op, effective_group_id, global_id, problem_size, init);
-  
-  // The exclusive scan case is handled in load_element() by accessing the element
-  // at global_id-1 instead of global_id.
-  T local_scan_result =
-          collective_inclusive_group_scan(idx, my_element, op, local_memory);
-
-  uint32_t *status_ptr =
-        reinterpret_cast<uint32_t *>(&scratch.group_status[effective_group_id]);
-    sycl::atomic_ref<uint32_t, sycl::memory_order::acq_rel,
-                  sycl::memory_scope::device,
-                  sycl::access::address_space::global_space> status_ref{*status_ptr};
-
-  // Set group aggregate which we now know after scan. The first group
-  // Can also set its prefix and is done.
-  if(local_id == local_size - 1) {
-    T group_aggregate = local_scan_result;
-    
-    if(effective_group_id == 0) {
-      scratch.group_aggregate[effective_group_id] = group_aggregate;
-      scratch.inclusive_prefix[effective_group_id] = group_aggregate;
-      status_ref.store(static_cast<uint32_t>(status::prefix_available));
-    } else {
-      scratch.group_aggregate[effective_group_id] = group_aggregate;
-      status_ref.store(static_cast<uint32_t>(status::aggregate_available));
+  auto elem = gen(idx, effective_group_id, global_id, problem_size);
+  if constexpr(!std::is_same_v<OptionalInitT, std::nullopt_t>) {
+    if(global_id == 0) {
+      return op(init, elem);
     }
   }
-
-  sycl::group_barrier(idx.get_group());
-
-  // All groups except group 0 need to perform lookback to find their prefix
-  if(effective_group_id != 0) {
-    // my_element is a dummy value here; avoid relying on default constructor
-    // in case T has none
-    T exclusive_prefix = my_element;
-    if(local_id == 0) {
-      exclusive_prefix = exclusive_prefix_look_back(my_element, effective_group_id,
-                          scratch.group_status, scratch.group_aggregate,
-                          scratch.inclusive_prefix, op);
-    }
-    exclusive_prefix = collective_broadcast<T, BinaryOp>(
-        idx, exclusive_prefix, 0, local_memory);
-    local_scan_result = op(exclusive_prefix, local_scan_result);
-
-    // All groups except first and last one need to update their prefix
-    if(effective_group_id != num_groups - 1) {
-      if(local_id == local_size - 1){
-        scratch.inclusive_prefix[effective_group_id] = local_scan_result;
-        status_ref.store(static_cast<uint32_t>(status::prefix_available));
-      }
-    }
-  }
-
-  processor(idx, effective_group_id, global_id, problem_size, local_scan_result);
+  return elem;
 }
 
 template <int WorkPerItem, bool IsInclusive, class T, class OptionalInitT,
@@ -400,7 +326,7 @@ void scan_kernel(sycl::nd_item<1> idx, T *local_memory, scratch_data<T> scratch,
     std::size_t global_id =
         effective_group_id * local_size * WorkPerItem + current_local_id;
 
-    return load_data_element<IsInclusive, T>(
+    return load_data_element<T>(
       data_generator, idx, op, effective_group_id, global_id, problem_size, init);
   };
 
@@ -428,8 +354,17 @@ void scan_kernel(sycl::nd_item<1> idx, T *local_memory, scratch_data<T> scratch,
 
     sycl::group_barrier(idx.get_group());
 
+    // local_inclusive_prefix is a dummy value here; avoid relying on default constructor
+    // in case T has none
+    T exclusive_prefix = local_inclusive_prefix;
+    // If we have an init, set it here so the fallback for the exclusive scans can pick it
+    // up as the first element.
+    if constexpr (!std::is_same_v<OptionalInitT, std::nullopt_t>) {
+      exclusive_prefix = init;
+    }
+    
+
     // All groups except group 0 need to perform lookback to find their prefix
-    T exclusive_prefix;
     if(effective_group_id != 0) {
       if(local_id == 0) {
         exclusive_prefix = exclusive_prefix_look_back(
@@ -460,19 +395,19 @@ void scan_kernel(sycl::nd_item<1> idx, T *local_memory, scratch_data<T> scratch,
       namespace jit = sycl::AdaptiveCpp_jit;
       if (jit::reflect<jit::reflection_query::compiler_backend>() ==
           jit::compiler_backend::host) {
-        iterate_host_and_inclusive_group_scan<WorkPerItem>(
+        iterate_host_and_inclusive_group_scan<WorkPerItem, IsInclusive>(
             idx, op, local_memory, effective_group_id, generator,
             result_processor, local_prefix_to_global_prefix);
         return;
       });
   __acpp_if_target_host(
-    iterate_host_and_inclusive_group_scan<WorkPerItem>(
+    iterate_host_and_inclusive_group_scan<WorkPerItem, IsInclusive>(
             idx, op, local_memory, effective_group_id, generator,
             result_processor, local_prefix_to_global_prefix);
         return;
   );
   // Only executed for non-host
-  iterate_and_inclusive_group_scan<WorkPerItem>(
+  iterate_and_inclusive_group_scan<WorkPerItem, IsInclusive>(
       idx, op, local_memory, effective_group_id, generator, result_processor,
       local_prefix_to_global_prefix);
 
@@ -480,30 +415,7 @@ void scan_kernel(sycl::nd_item<1> idx, T *local_memory, scratch_data<T> scratch,
 
 template<class T>
 constexpr int work_per_item() {
-  if constexpr(!std::is_constructible_v<T>)
-    return 1;
-  else {
-    return 16;
-  }
-}
-
-template <bool IsInclusive, class T, class OptionalInitT,
-          class BinaryOp, class Generator, class Processor>
-void select_and_run_scan_kernel(sycl::nd_item<1> idx,
-                                T *local_memory, scratch_data<T> scratch,
-                                uint32_t *group_counter, BinaryOp op,
-                                OptionalInitT init, std::size_t problem_size,
-                                Generator &&data_generator,
-                                Processor &&processor) {
-  if constexpr (!std::is_constructible_v<T>) {
-    flat_group_scan_kernel<IsInclusive>(idx, local_memory, scratch,
-                                        group_counter, op, init, problem_size,
-                                        data_generator, processor);
-  } else {
-    scan_kernel<work_per_item<T>(), IsInclusive>(
-        idx, local_memory, scratch, group_counter, op, init, problem_size,
-        data_generator, processor);
-  }
+  return 16;
 }
 
 } // detail
@@ -598,7 +510,7 @@ decoupled_lookback_scan(sycl::queue &q, util::allocation_group &scratch_alloc,
   if constexpr(detail::can_use_group_algorithms<T, BinaryOp>()) {
     if(!is_host) {
       return q.parallel_for(kernel_range, deps, [=](auto idx) {
-        detail::select_and_run_scan_kernel<IsInclusive>(
+        detail::scan_kernel<detail::work_per_item<T>(), IsInclusive>(
             idx, static_cast<T *>(nullptr), scratch,
             group_counter, op, init, problem_size, gen, processor);
       });
@@ -635,7 +547,7 @@ decoupled_lookback_scan(sycl::queue &q, util::allocation_group &scratch_alloc,
 
       sycl::local_accessor<T, 1> local_mem{local_mem_elements, cgh};
       cgh.parallel_for(kernel_range, [=](auto idx) {
-        detail::select_and_run_scan_kernel<IsInclusive>(
+        detail::scan_kernel<detail::work_per_item<T>(), IsInclusive>(
             idx, &(local_mem[0]), scratch, group_counter,
             op, init, problem_size, gen, processor);
       });
@@ -646,7 +558,7 @@ decoupled_lookback_scan(sycl::queue &q, util::allocation_group &scratch_alloc,
     T* emulated_local_mem = scratch_alloc.obtain<T>(num_groups * local_mem_elements);
 
     return q.parallel_for(kernel_range, deps, [=](auto idx) {
-      detail::select_and_run_scan_kernel<IsInclusive>(
+      detail::scan_kernel<detail::work_per_item<T>(), IsInclusive>(
           idx,
           emulated_local_mem + local_mem_elements * idx.get_group_linear_id(),
           scratch, group_counter, op, init, problem_size, gen, processor);

@@ -275,12 +275,11 @@ generic implementation is fallen back to.
 * Get SYCL running on Android device.
 * Enable backed on Windows CI.
 * Enable backend on macOS running on top of moltenVK
+* Add CI to self-hosted runners.
+* Add CI for Google Swiftshader
 
 ### MVP TODO
 
-* Fix CI issues with llvm pipe (suspect due to a LLVM 18 build rather than
-  LLVM 19).
-* Add CI to self-hosted runners.
 * Document how generic pointers work.
 
 ## Test Status

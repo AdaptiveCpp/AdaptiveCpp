@@ -21,13 +21,16 @@ on:
         default: "2"
       rocm:
         description: 'ROCm Version (default 5.4.3)'
+      vulkan_version:
+        description: 'LunarG SDK Version'
+        default: "1.4.341.1"
       force:
         description: 'Force build the image'
         default: "false"
 
 jobs:
   prep-container:
-    name: Prepare CI container clang ${{ inputs.clang }}, ${{ inputs.os }}, CUDA ${{inputs.cuda_major_version}}.${{inputs.cuda_minor_version}}.${{inputs.cuda_patch_version}}, ROCm ${{inputs.rocm}}
+    name: Prepare CI container clang ${{ inputs.clang }}, ${{ inputs.os }}, CUDA ${{inputs.cuda_major_version}}.${{inputs.cuda_minor_version}}.${{inputs.cuda_patch_version}}, ROCm ${{inputs.rocm}}, Vulkan ${{inputs.vulkan_version}}
     runs-on: ubuntu-22.04
     permissions:
       packages: write
@@ -44,6 +47,7 @@ jobs:
           CUDA_MAJOR_VERSION: ${{ inputs.cuda_major_version }}
           CUDA_MINOR_VERSION: ${{ inputs.cuda_minor_version }}
           CUDA_PATCH_VERSION: ${{ inputs.cuda_patch_version }}
+          VULKAN_VERSION: ${{ inputs.vulkan_version }}
           BASE_TAG: ${{ inputs.os }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE_BUILD: ${{ inputs.force != 'false' }}

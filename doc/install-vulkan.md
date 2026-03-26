@@ -90,18 +90,14 @@ own bugs that need addressed (which may turn out to be not device specific once 
 
 Devices known to be well supported by the backend include:
 
-| Driver Name  | Driver Version | Device Type        |
-| ------------ | -------------- | ------------------ |
-| llvmpipe     | Mesa 25.0.7    | CPU                |
-| RADV Pheonix | Mesa 25.0.7    | AMD Integrated GPU |
-| RADV MI100   | Mesa 23.2.1    | AMD Discrete GPU   |
-
-
-Devices known to have issues with the backend include:
-
-| Driver Name | Driver Version | Device Type      |
-| ----------- | -------------- | ---------------- |
-| RADV MI210  | Mesa 23.2.1    | AMD Discrete GPU |
+| Driver Name  | Driver Version    | Device Type          | Status
+| ------------ | ----------------- | -------------------- | ----------------------------------------------------------- |
+| llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                              |
+| RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                              |
+| RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                              |
+| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](#issue-9)                                     |
+| Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Tests pass in isolation, but issues running full sycl suite |
+| RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Issues with sub-groups and group functions                  |
 
 Other devices are untested and support status unknown.
 

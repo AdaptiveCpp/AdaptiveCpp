@@ -163,6 +163,14 @@ void atomic_local_reduction_test(AtomicOp op, Verifier v,
                                 std::string_view op_name,
                                 T init_val, T per_item_val) {
   sycl::queue q;
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
+      BOOST_TEST_MESSAGE(
+          "Skipping test since Vulkan has not floating point atomic support");
+      return;
+    }
+  }
+
   if constexpr (std::is_same_v<T, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -355,6 +363,11 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 
 
 BOOST_AUTO_TEST_CASE(fetch_add_sub_local_memory) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
+    return;
+  }
+
   auto fetch_add = [](auto &atomic, auto x) {
     return atomic.fetch_add(x);
   };

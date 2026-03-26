@@ -227,10 +227,10 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_hypot_f64(double x, double y) {
   return hypot(x, y);
 }
 
-float ilogb(float);
-double ilogb(double);
-HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ilogb_f32(float x) { return ilogb(x); }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_ilogb_f64(double x) { return ilogb(x); }
+__acpp_int32 ilogb(float);
+__acpp_int32 ilogb(double);
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f32(float x) { return ilogb(x); }
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f64(double x) { return ilogb(x); }
 
 float ldexp(float, __acpp_int32);
 double ldexp(double, __acpp_int32);

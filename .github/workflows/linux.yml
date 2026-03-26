@@ -40,6 +40,7 @@ jobs:
           CUDA_MAJOR_VERSION: ${{ matrix.cuda_major_version }}
           CUDA_MINOR_VERSION: ${{ matrix.cuda_minor_version }}
           CUDA_PATCH_VERSION: ${{ matrix.cuda_patch_version }}
+          VULKAN_VERSION: "" # Vulkan not tested in this job
           BASE_TAG: ${{ matrix.os }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: beacon-biosignals/matrix-output@v1

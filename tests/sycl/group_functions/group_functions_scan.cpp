@@ -848,6 +848,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_bit_or, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_bit_xor, T, test_types) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
+
   if constexpr(std::is_integral_v<detail::elementType<T>>) {
     const size_t elements_per_thread = 1;
     const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
@@ -1034,6 +1040,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_bit_or, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_bit_xor, T, test_types) {
+  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
   if constexpr(std::is_integral_v<detail::elementType<T>>) {
     const size_t elements_per_thread = 1;
     const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {

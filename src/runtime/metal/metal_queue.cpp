@@ -326,10 +326,6 @@ void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& nod
 std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;
 
-  if (auto prev = std::exchange(_pending_cpu_event, 0)) {
-    return std::make_shared<metal_node_event>(metal_event_handle{_shared_event, prev});
-  }
-
   auto val = ++_event_counter;
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
   auto* cmd_buf = new_command_buffer();
@@ -379,17 +375,35 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
   }
 
   if (!src_is_device && !dst_is_device) {
-    for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
-      for (std::size_t row = 0; row < transferred_range[1]; ++row) {
-        id<3> src = src_offset; src[0] += surface; src[1] += row;
-        id<3> dst = dest_offset; dst[0] += surface; dst[1] += row;
+    auto do_h2h_copy = [=]() {
+      for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
+        for (std::size_t row = 0; row < transferred_range[1]; ++row) {
+          id<3> src = src_offset; src[0] += surface; src[1] += row;
+          id<3> dst = dest_offset; dst[0] += surface; dst[1] += row;
 
-        const char* src_byte_ptr = (const char*)src_ptr +
-          linear_index(src, src_allocation_shape) * src_element_size;
-        char* dst_byte_ptr = (char*)dst_ptr +
-          linear_index(dst, dest_allocation_shape) * dest_element_size;
-        memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
+          const char* src_byte_ptr = (const char*)src_ptr +
+            linear_index(src, src_allocation_shape) * src_element_size;
+          char* dst_byte_ptr = (char*)dst_ptr +
+            linear_index(dst, dest_allocation_shape) * dest_element_size;
+          memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
+        }
       }
+    };
+
+    auto prev_cpu_event = std::exchange(_pending_cpu_event, uint64_t{0});
+    if (prev_cpu_event == 0) {
+      do_h2h_copy();
+    } else {
+      // wait for the prior CPU async work (e.g. device->host copy) to complete
+      // before reading from src_ptr
+      auto val_done = ++_event_counter;
+      _shared_event->notifyListener(_event_listener, prev_cpu_event,
+        [=](MTL::SharedEvent* evt, uint64_t) {
+          do_h2h_copy();
+          evt->setSignaledValue(val_done);
+        });
+      _pending_gpu_event = val_done;
+      _pending_cpu_event = val_done;
     }
     return make_success();
   }
@@ -401,11 +415,6 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
   if (!command_buffer) {
     return make_error(__acpp_here(),
       error_info{"metal_queue: Failed to create command buffer for memcpy"});
-  }
-  MTL::BlitCommandEncoder* blit_encoder = command_buffer->blitCommandEncoder();
-  if (!blit_encoder) {
-    return make_error(__acpp_here(),
-      error_info{"metal_queue: Failed to create blit encoder for memcpy"});
   }
 
   NS::SharedPtr<MTL::Buffer> temp_buffer;
@@ -425,6 +434,7 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
 
   auto src_staging_offset = src_offset;;
   auto src_staging_shape = src_allocation_shape;
+  uint64_t deferred_h2d_done_event = 0;
 
   if (src_is_device) {
     auto [src_buffer, src_offset, _] = _allocator->get_usm_block(src_ptr);
@@ -436,18 +446,35 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
     }
   } else {
     from = temp_buffer.get();
-    // copy to staging buffer
-    for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
-      for (std::size_t row = 0; row < transferred_range[1]; ++row) {
-        id<3> src = src_offset; src[0] += surface; src[1] += row;
-        id<3> dst = {surface, row, 0};
+    auto do_h2d_copy = [=]() {
+      for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
+        for (std::size_t row = 0; row < transferred_range[1]; ++row) {
+          id<3> src = src_offset; src[0] += surface; src[1] += row;
+          id<3> dst = {surface, row, 0};
 
-        const char* src_byte_ptr = (const char*)src_ptr +
-          linear_index(src, src_allocation_shape) * src_element_size;
-        char* dst_byte_ptr = (char*)temp_buffer->contents() +
-          linear_index(dst, transferred_range) * src_element_size;
-        memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
+          const char* src_byte_ptr = (const char*)src_ptr +
+            linear_index(src, src_allocation_shape) * src_element_size;
+          char* dst_byte_ptr = (char*)temp_buffer->contents() +
+            linear_index(dst, transferred_range) * src_element_size;
+          memcpy(dst_byte_ptr, src_byte_ptr, transferred_range[2] * src_element_size);
+        }
       }
+    };
+
+    auto prev_cpu_event = std::exchange(_pending_cpu_event, uint64_t{0});
+    if (prev_cpu_event == 0) {
+      do_h2d_copy();
+    } else {
+      auto base = _event_counter.fetch_add(2);
+      auto val_stage_ready = base + 1;
+      auto val_done = base + 2;
+      command_buffer->encodeWait(_shared_event, val_stage_ready);
+      _shared_event->notifyListener(_event_listener, prev_cpu_event,
+      [=](MTL::SharedEvent* evt, uint64_t) {
+        do_h2d_copy();
+        evt->setSignaledValue(val_stage_ready);
+      });
+      deferred_h2d_done_event = val_done;
     }
 
     src_staging_offset = id<3>{0,0,0};
@@ -470,6 +497,12 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
     to = temp_buffer.get();
     dst_staging_offset = {0,0,0};
     dst_staging_shape = transferred_range;
+  }
+
+  MTL::BlitCommandEncoder* blit_encoder = command_buffer->blitCommandEncoder();
+  if (!blit_encoder) {
+    return make_error(__acpp_here(),
+      error_info{"metal_queue: Failed to create blit encoder for memcpy"});
   }
 
   // copy from src or staging buffer to dst or staging buffer
@@ -532,6 +565,10 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
     _pending_gpu_event = val_done;
     _pending_cpu_event = val_done;
   } else {
+    if (deferred_h2d_done_event != 0) {
+      command_buffer->encodeSignalEvent(_shared_event, deferred_h2d_done_event);
+      _pending_cpu_event = deferred_h2d_done_event;
+    }
     command_buffer->addCompletedHandler([](MTL::CommandBuffer* cb) {
       if (NS::Error* err = cb->error()) {
         std::string msg = "metal_queue: Memcpy failed: ";

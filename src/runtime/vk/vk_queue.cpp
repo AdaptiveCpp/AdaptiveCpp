@@ -116,11 +116,34 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
 
   // We need to copy host data into the new src buffer.
   if (src_alloc.second) {
-    void *vptr = src_alloc.first->_dev_mem.mapMemory(0, size);
-    std::memcpy(vptr, reinterpret_cast<void *>(src_ptr), size);
-    src_alloc.first->_dev_mem.unmapMemory();
+    const uint64_t wait_value = _timeline_value;
+    const uint64_t signal_value = ++_timeline_value;
+    vk_alloc_info *src_alloc_info = src_alloc.first;
+    _host_worker(
+        [=]() mutable {
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation source copy async thread - wait "
+              << wait_value << std::endl;
+          vk::Semaphore semaphore = *_semaphore;
+          vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
+          while (vk::Result::eTimeout ==
+                 _dev_ctx->get_device().waitSemaphores(wait_info, UINT64_MAX)) {
+            ;
+          }
 
-    temp_allocs.first = src_alloc.first;
+          void *vptr = src_alloc_info->_dev_mem.mapMemory(0, size);
+          std::memcpy(vptr, reinterpret_cast<void *>(src_ptr), size);
+          src_alloc_info->_dev_mem.unmapMemory();
+
+          vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
+          _dev_ctx->get_device().signalSemaphore(signal_info);
+
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation source copy async thread - signal "
+              << signal_value << std::endl;
+        });
+
+    temp_allocs.first = src_alloc_info;
   }
 
   if (dst_alloc.second) {
@@ -205,7 +228,8 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
     _host_worker(
         [=]() mutable {
           HIPSYCL_DEBUG_INFO
-              << "vk_queue: temp allocation deallocate async thread - wait\n";
+              << "vk_queue: temp allocation deallocate async thread - wait "
+              << wait_value << std::endl;
           vk::Semaphore semaphore = *_semaphore;
           vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
           while (vk::Result::eTimeout ==
@@ -233,7 +257,8 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
           _dev_ctx->get_device().signalSemaphore(signal_info);
 
           HIPSYCL_DEBUG_INFO
-              << "vk_queue: temp allocation deallocate async thread - done\n";
+              << "vk_queue: temp allocation deallocate async thread - signal "
+              << signal_value << std::endl;
         });
   }
 

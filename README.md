@@ -11,7 +11,7 @@ It currently supports the following programming models:
 2. **C++ standard parallelism**: Additionally, AdaptiveCpp features experimental support for offloading C++ algorithms from the parallel STL. See [here](doc/stdpar.md) for details on which algorithms can be offloaded. **AdaptiveCpp is currently the only solution capable of demonstrating C++ standard parallelism performance across NVIDIA, AMD and Intel GPUs, and in most cases outperforms vendor compilers.**
 3. **PCUDA (portable CUDA)**, a dialect of the CUDA/HIP programming model is currently in an experimental support state. See [here](doc/pcuda.md) for details. AdaptiveCpp PCUDA allows for CUDA or HIP code to be compiled to a single binary that can offload kernels to CPUs, NVIDIA GPUs, AMD GPUs and Intel GPUs.
 
-AdaptiveCpp supports CPUs (including x86, arm and other LLVM-supported architectures) as well as GPUs from Intel, NVIDIA, and AMD. This includes the ability to generate a single binary that can offload to all supported devices.
+AdaptiveCpp supports CPUs (including x86, arm and other LLVM-supported architectures) as well as GPUs from Intel, NVIDIA, AMD, and Apple. This includes the ability to generate a single binary that can offload to all supported devices.
 
 AdaptiveCpp's compilation flows include
 1. A powerful, generic LLVM JIT compiler. This is AdaptiveCpp's default, most portable and usually most performant compilation flow. It is also the **world's only SYCL compiler that only needs to parse the source code a single time** across both host and device compilation.

@@ -234,8 +234,12 @@ if __name__ == '__main__':
   add_backend(graph, "acpp_ocl", acpp_grey, {'OpenCL SPIR-V devices' : intel_blue},
               description="OpenCL")
 
+  apple_grey = make_html_color("333333")
+  add_backend(graph, "acpp_metal", acpp_grey, {'Apple GPUs' : apple_grey},
+              description="Metal")
+
   add_implementation(graph, "AdaptiveCpp", acpp_grey, acpp_red,
-                     ["acpp_cuda", "acpp_rocm", "acpp_openmp", "acpp_l0", "acpp_ocl"])
+                     ["acpp_cuda", "acpp_rocm", "acpp_openmp", "acpp_l0", "acpp_ocl", "acpp_metal"])
 
   ####################### triSYCL ##############################
 

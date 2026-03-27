@@ -304,6 +304,11 @@ namespace {
     return std::sin(x * pi);
   }
 
+  double ref_sincos(double x, double* cosval) {
+    *cosval = std::cos(x);
+    return std::sin(x);
+  }
+
   double ref_lgamma(double x) {
     return std::lgamma(x);
   }
@@ -1037,6 +1042,7 @@ DEFINE_BINARY_MATH_TEST(remainder, 0.0001, ref_remainder, INPUT_BIN0, INPUT_BIN1
 DEFINE_BINARY_MATH_TEST(maxmag,    0.0001, ref_maxmag,    INPUT_BIN0, INPUT_BIN1)
 DEFINE_BINARY_MATH_TEST(minmag,    0.0001, ref_minmag,    INPUT_BIN0, INPUT_BIN1)
 DEFINE_BINARY_MATH_TEST(atan2pi,   0.0001, ref_atan2pi,   INPUT_TRIG, INPUT_PI1)
+DEFINE_UNARY_MATH_PTR_TEST(sincos,    0.0001, ref_sincos,    INPUT_TRIG) // TO-DO define this macro taking a second argument as ptr for the return value
 
 BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_lgamma_r, T, math_test_genfloats) {

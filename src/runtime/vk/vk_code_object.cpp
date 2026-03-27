@@ -504,6 +504,11 @@ static void verify_spv_capabilities(const uint16_t phys_dev_features,
                     "SPIR-V Capability GroupNonUniformVote not "
                     "supported by device");
       break;
+    case spv::CapabilityFloat64:
+      check_support(vk_device_features::shaderFloat64,
+                    "SPIR-V Capability Float64 not supported by device");
+      break;
+
     default: {
       std::string err_str{"vk_executable_object: unexpected SPIRV capability "};
       err_str.append(std::to_string(cap));

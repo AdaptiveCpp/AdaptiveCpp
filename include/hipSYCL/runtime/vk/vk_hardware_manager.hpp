@@ -35,6 +35,7 @@ enum feature_bits {
   groupNonUniform = 1 << 8,
   groupNonUniformShuffle = 1 << 9,
   groupNonUniformVote = 1 << 10,
+  shaderFloat64 = 1 << 11,
 };
 }; // namespace vk_device_features
 

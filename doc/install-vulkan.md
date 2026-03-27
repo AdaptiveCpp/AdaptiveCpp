@@ -101,6 +101,32 @@ Devices known to be well supported by the backend include:
 
 Other devices are untested and support status unknown.
 
+## Benchmarks
+
+The `pcuda` branch of [illuhad/benchmark-scipts](https://github.com/illuhad/benchmark-scripts/tree/pcuda-benchmarking)
+contains benchmarks that work with SYCL and PCUDA. No thorough benchmarking has been done but an initial
+assessment of the status of the benchmarks is as follows on llvmpipe 25.0.7.
+
+| Benchmark           | Status                                               |
+| ------------------- | ---------------------------------------------------- |
+| HeCbench dslash     | Completes successfully on SYCL and PCUDA             |
+| HeCbench fdtd3d     | Can't compile kernel for SYCL or PCUDA               |
+| HeCbench FFT        | SYCL & PCUDA compiles kernel, but fails verification |
+| HeCbench ising      | Completes successfully on SYCL and PCUDA             |
+| HeCbench mandlebrot | Completes successfully on SYCL and PCUDA             |
+| HeCbench nbody      | Completes successfully on SYCL and PCUDA             |
+| HeCbench rsbench    | Can't compile kernel for SYCL or PCUDA               |
+| HeCbench sph        | Completes successfully on SYCL and PCUDA             |
+| Bude                | SYCL verification fails, PCUDA device not compatible |
+| Cloverleaf          | Can't compile kernel for SYCL or PCUDA               |
+
+Compilation fail investigations:
+
+* HecBench fdtd3d - LLVM-IR contains `llvm.memmmove` intrinsic which is not implemented in clspv.
+* Hecbench rsbench - Error processing GEP into alloca array of `type { double, double }` struct.
+* Cloverleaf - Malformed LLVM-IR PHI instruction being output that cannot be read when
+  bitcode is deserialized by clspv.
+
 ### PCUDA
 
 Supporting PCUDA is not a primary goal of this backend as it can only
@@ -242,7 +268,7 @@ Vulkan runtime with the appropriate information on how to set the kernel argumen
 example as push constants, or via a uniform buffer.
 
 See clspv doc on [OpenCL-C restrictions](https://github.com/google/clspv/blob/main/docs/OpenCLCOnVulkan.md#opencl-c-restrictions)
-for inherited restrictions, such as no double precision floating point support.
+for inherited restrictions, such as the assumption of no aliasing.
 
 #### Physical Addressing
 

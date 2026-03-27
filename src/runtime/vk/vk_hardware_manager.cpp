@@ -87,6 +87,10 @@ vk_hardware_context::vk_hardware_context(
   phys_dev_features.shaderInt64 =
       (_physical_dev_features & vk_device_features::shaderInt64) ? VK_TRUE
                                                                  : VK_FALSE;
+  phys_dev_features.shaderFloat64 =
+      (_physical_dev_features & vk_device_features::shaderFloat64) ? VK_TRUE
+                                                                 : VK_FALSE;
+
 
   vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceFeatures2,
                      vk::PhysicalDeviceVulkan12Features,
@@ -558,6 +562,9 @@ vk_hardware_manager::vk_hardware_manager()
     }
     if (features.shaderInt64) {
       backend_features |= vk_device_features::shaderInt64;
+    }
+    if (features.shaderFloat64) {
+      backend_features |= vk_device_features::shaderFloat64;
     }
 
     auto const &features_11 =

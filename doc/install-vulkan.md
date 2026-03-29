@@ -66,7 +66,12 @@ printed if the device doesn't support them:
 * `VK_SUBGROUP_FEATURE_SHUFFLE_BIT` - Allows SPIR-V `CapabilityGroupNonUniformShuffle`
   instructions to be used in the implementation of SYCL sub-group builtins.
 
-## Supported Features
+## Limitations
+
+Due to the challenge of supporting a generic address space in SYCL/PCUDA on Vulkan
+SPIR-V `PhysicalStorageBuffer64` memory model, kernels cannot store to global
+memory the addresses of private address-space variables and local address-space
+local assessors.
 
 All the runtime functionality and synchronization of SYCL is expected to work, although
 some optional features are not supported. Most notably only device USM is available,

@@ -89,8 +89,7 @@ vk_hardware_context::vk_hardware_context(
                                                                  : VK_FALSE;
   phys_dev_features.shaderFloat64 =
       (_physical_dev_features & vk_device_features::shaderFloat64) ? VK_TRUE
-                                                                 : VK_FALSE;
-
+                                                                   : VK_FALSE;
 
   vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceFeatures2,
                      vk::PhysicalDeviceVulkan12Features,

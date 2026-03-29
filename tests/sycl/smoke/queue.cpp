@@ -365,7 +365,7 @@ BOOST_AUTO_TEST_CASE(queue_offset_subtract) {
 
   // See Issue 7 in doc/vulkan.md
   if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping due with physical addressing");
+    BOOST_TEST_MESSAGE("Skipping due to issue with physical addressing");
     return;
   }
 
@@ -402,6 +402,53 @@ BOOST_AUTO_TEST_CASE(queue_offset_subtract) {
   sycl::free(out_ptr, q);
 }
 
+BOOST_AUTO_TEST_CASE(queue_private_address_store_to_global) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Exfiltrating private pointers not supported");
+    return;
+  }
+
+  int **ptr = sycl::malloc_device<int *>(1, q);
+  q.memset(ptr, 0, sizeof(int *));
+
+  q.submit([&](sycl::handler &cgh) {
+    cgh.single_task([=]() {
+      int arr;
+      *ptr = &arr;
+    });
+  });
+
+  int *res = nullptr;
+  q.memcpy(&res, ptr, sizeof(int *));
+  q.wait();
+
+  BOOST_CHECK(nullptr != res);
+  sycl::free(ptr, q);
+}
+
+BOOST_AUTO_TEST_CASE(queue_local_address_store_to_global) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Exfiltrating local pointers not supported");
+    return;
+  }
+
+  int **ptr = sycl::malloc_device<int *>(1, q);
+  q.memset(ptr, 0, sizeof(int *));
+
+  q.submit([&](sycl::handler &cgh) {
+    auto scratch = sycl::local_accessor<int, 1>{1, cgh};
+    cgh.single_task([=]() { *ptr = &scratch[0]; });
+  });
+
+  int *res = nullptr;
+  q.memcpy(&res, ptr, sizeof(int *));
+  q.wait();
+
+  BOOST_CHECK(nullptr != res);
+  sycl::free(ptr, q);
+}
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

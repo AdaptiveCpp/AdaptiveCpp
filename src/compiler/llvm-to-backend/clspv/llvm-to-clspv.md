@@ -14,9 +14,11 @@ capability instructions which aren't supported. See clspv Github
 
 ## Generic Address Space
 
-The primary challenge with the Vulkan backend is finding a way to
+One of the main challenge with the Vulkan backend is finding a way to
 convert generic pointers to address space qualified pointers that
-`clspv` can lower correctly.
+`clspv` can lower correctly. LLVM has a pass
+[llvm::InferAddressSpacesPass](https://llvm.org/doxygen/InferAddressSpaces_8cpp_source.html),
+but by itself it is not enough to solve this problem.
 
 Although LLVM normally uses address space `4` for the generic address
 space and `0` for private address space, due to ACPP being a single pass
@@ -27,13 +29,34 @@ Therefore the majority of the compiler passes in the `llvm-to-clspv`
 tool are for inferring the address space of generic address space
 `0` pointers.
 
-Without generic address space support the backend hits problems from:
+Without generic address space support the backend generally hits problems
+from:
 
-* Function calls with pointer arguments, as the function could accept call sites with
-  either local or global address spaces. The aggressive inlining from the compiler mitigates
-  this by the time we get to optimizing the flavored IR stage of the pipeline.
-* When you need to store pointers to global memory and then load them later, address space inference breaks down,
-  affecting pointer-based data structures.
+1) Function calls with pointer arguments, as the function could accept call sites with
+   either local or global address spaces.
+2) When you need to store pointers to global memory and then load them later, address space inference breaks down,
+   affecting pointer-based data structures.
+
+The current solutions to these are:
+
+1) The aggressive inlining from the compiler mitigates this by the time we get
+   to optimizing the flavored IR stage of the pipeline.
+2) clspv will not let kernels store to global memory the addresses of private address-space variables or
+   local address-space variables. Therefore any pointer loaded from global memory can be inferred to
+   be to the global address space.
+
+An example of a SYCL kernel that tries to store a private address space pointer to global memory,
+which results in a compilation failure on the Vulkan backend.
+
+```cpp
+  int **ptr = sycl::malloc_device<int *>(1, q);
+  q.submit([&](sycl::handler &cgh) {
+    cgh.single_task([=]() {
+      int arr;
+      *ptr = &arr;
+    });
+  });
+```
 
 ## Passes
 
@@ -92,8 +115,3 @@ optimization until this point.
 Pass for fixing up atomic builtin calls that take an opaque ptr without an address
 space but pointer value for used for builtin parameter has an addrspace. Done
 by creating an address space cast for the relevant operand.
-
-## TODO
-
-* LLVM has an pass [llvm::InferAddressSpacesPasS](https://llvm.org/doxygen/InferAddressSpaces_8cpp_source.html)
-  that we should try to use.

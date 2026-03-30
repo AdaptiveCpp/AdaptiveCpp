@@ -413,7 +413,7 @@ BOOST_AUTO_TEST_CASE(queue_offset_subtract) {
 BOOST_AUTO_TEST_CASE(queue_private_address_store_to_global) {
   sycl::queue q{sycl::property::queue::in_order{}};
   if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Exfiltrating private pointers not supported");
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
     return;
   }
 
@@ -433,7 +433,7 @@ BOOST_AUTO_TEST_CASE(queue_private_address_store_to_global) {
 BOOST_AUTO_TEST_CASE(queue_local_address_store_to_global) {
   sycl::queue q{sycl::property::queue::in_order{}};
   if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Exfiltrating local pointers not supported");
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
     return;
   }
 
@@ -446,6 +446,71 @@ BOOST_AUTO_TEST_CASE(queue_local_address_store_to_global) {
    }).wait();
 
   sycl::free(ptr, q);
+}
+
+BOOST_AUTO_TEST_CASE(queue_global_address_store_to_global) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
+    return;
+  }
+
+  int **ptr = sycl::malloc_device<int *>(1, q);
+  int *target_ptr = sycl::malloc_device<int>(1, q);
+
+  q.submit([&](sycl::handler &cgh) {
+    cgh.single_task([=]() { *ptr = target_ptr; });
+  });
+
+  int *host;
+  q.memcpy(&host, ptr, sizeof(int *)).wait();
+
+  BOOST_CHECK(target_ptr == host);
+
+  sycl::free(ptr, q);
+  sycl::free(target_ptr, q);
+}
+
+BOOST_AUTO_TEST_CASE(queue_linked_list) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
+    return;
+  }
+
+  struct Node {
+    int id;
+    Node *ptr;
+  };
+
+  Node *nodes = sycl::malloc_device<Node>(3, q);
+  Node nodeC{2, nullptr};
+  Node nodeB{1, nodes + 2};
+  Node nodeA{0, nodes + 1};
+
+  q.memcpy(nodes, &nodeA, sizeof(Node));
+  q.memcpy(nodes + 1, &nodeB, sizeof(Node));
+  q.memcpy(nodes + 2, &nodeC, sizeof(Node));
+  q.wait();
+
+  int *ptr = sycl::malloc_device<int>(1, q);
+  q.submit([&](sycl::handler &cgh) {
+    cgh.single_task([=]() {
+      Node *curr = nodes;
+      while (curr != nullptr) {
+        *ptr = curr->id;
+        curr = curr->ptr;
+      }
+    });
+  });
+
+  int result;
+  q.memcpy(&result, ptr, sizeof(int)).wait();
+
+  BOOST_CHECK(2 == result);
+
+  sycl::free(ptr, q);
+  sycl::free(nodes, q);
 }
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this

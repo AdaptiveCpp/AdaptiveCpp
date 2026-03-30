@@ -37,13 +37,16 @@ from:
 2) When you need to store pointers to global memory and then load them later, address space inference breaks down,
    affecting pointer-based data structures.
 
-The current solutions to these are:
+The current situation with these is:
 
 1) The aggressive inlining from the compiler mitigates this by the time we get
    to optimizing the flavored IR stage of the pipeline.
-2) clspv will not let kernels store to global memory the addresses of private address-space variables or
-   local address-space variables. Therefore any pointer loaded from global memory can be inferred to
-   be to the global address space.
+2) Not supported. To avoid this issue clspv will not compile OpenCL-C kernels that define structures which have pointers
+   members and does not support OpenCL-C generic address space feature. Additionally, OpenCL-C kernel arguments cannot
+   be pointer-to-pointer. Try to use clspv for SYCL kernels that do pointer chasing or try to exfiltrate pointers to
+   host therefore results in a compilation fail. We may be able to work around this via the IR input to
+   make assumptions about the address space but it could lead to incorrect results which would probably
+   be a worse user experience than a compilation fail.
 
 An example of a SYCL kernel that tries to store a private address space pointer to global memory,
 which results in a compilation failure on the Vulkan backend.

@@ -68,9 +68,9 @@ printed if the device doesn't support them:
 ## Limitations
 
 Due to the challenge of supporting a generic address space in SYCL/PCUDA on Vulkan
-SPIR-V `PhysicalStorageBuffer64` memory model, kernels cannot store to global
-memory the addresses of private address-space variables and local address-space
-local assessors.
+SPIR-V `PhysicalStorageBuffer64` memory model, kernels cannot currently
+chase pointers in a linked list fashion  or store to global memory the addresses
+of variables.
 
 All the runtime functionality and synchronization of SYCL is expected to work, although
 some optional features are not supported. Most notably only device USM is available,
@@ -129,7 +129,8 @@ Compilation fail investigations:
 * HecBench fdtd3d - LLVM-IR contains `llvm.memmmove` intrinsic which is not implemented in clspv.
 * Hecbench rsbench - Error processing GEP into alloca array of `type { double, double }` struct.
 * Cloverleaf - Malformed LLVM-IR PHI instruction being output that cannot be read when
-  bitcode is deserialized by clspv.
+  bitcode is deserialized by clspv. This a symptom that has been seem when an kernel
+  tries to pointer chase a linked list.
 
 ### PCUDA
 

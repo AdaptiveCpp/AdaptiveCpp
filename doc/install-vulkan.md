@@ -16,8 +16,7 @@ the generic SSCP compilation flow.
 physical device is required.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable, tested with commit `75d2471da8d697ae5a04d06cf14a1667b74200e8`
-  and later.
+* A `clspv` executable, from commit `75d2471da8d697ae5a04d06cf14a1667b74200e8` and later.
 * Linux is the only supported OS, with Ubuntu 22.04 and later the tested distributions.
   Adding support for Windows, macOS, and Android is future work.
 * A Vulkan driver, use `vulkaninfo` from the Vulkan SDK to see the available devices
@@ -86,7 +85,7 @@ which are not yet fully supported for use in kernels targeting Vulkan SPIR-V are
 | Reductions             | Not supported, will generate incorrect results rather than error     |
 | Floating point atomics | Not supported, will generate incorrect results rather than error     |
 | `marray`               | Not supported, will fail to compile or generate incorrect results    |
-| `group_scan` variants  | Not supported, will fail to compile or generate incorrect results   |
+| `group_scan` variants  | Not supported, will fail to compile or generate incorrect results    |
 
 ## Device Support
 
@@ -305,15 +304,7 @@ generic implementation is fallen back to.
 * Add CI to self-hosted runners.
 * Add CI for Google Swiftshader
 
-### MVP TODO
-
-* Document how generic pointers work.
-
 ## Test Status
-
-No CI is yet setup, tested sycl test suite locally on AMD Phoenix integrated GPU and AMD MI100 & MI200 discrete GPUs.
-MI200 has several fails that need investigated (See [issue 9](#issue-9)) but otherwise the fails can be categorize
-as:
 
 | Suite                     | Status |
 | ------------------------- | ------ |

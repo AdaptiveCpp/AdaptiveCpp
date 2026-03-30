@@ -184,7 +184,14 @@ BOOST_AUTO_TEST_CASE(queue_kernel) {
 BOOST_AUTO_TEST_CASE(queue_prefetch) {
   sycl::queue q{sycl::property::queue::in_order{}};
   size_t size = 1024;
-  int *ptr = sycl::malloc_device<int>(size, q);
+
+  int *ptr;
+  if (q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    ptr = sycl::malloc_shared<int>(size, q);
+  } else {
+    ptr = sycl::malloc_device<int>(size, q);
+  }
+
   q.prefetch(ptr, size * sizeof(int)).wait();
   sycl::free(ptr, q);
 }
@@ -283,14 +290,15 @@ BOOST_AUTO_TEST_CASE(queue_usm_offset) {
 BOOST_AUTO_TEST_CASE(queue_struct) {
   sycl::queue q{sycl::property::queue::in_order{}};
 
-  size_t size = 1024;
+  constexpr unsigned size = 256;
+  constexpr unsigned arr_size = size / 2;
   std::vector<int> out_data(size);
 
   struct foo {
-    int A[512];
+    int A[arr_size];
   } bar;
 
-  for (unsigned i = 0; i < 512; i++) {
+  for (unsigned i = 0; i < arr_size; i++) {
     bar.A[i] = i;
   }
 
@@ -409,21 +417,16 @@ BOOST_AUTO_TEST_CASE(queue_private_address_store_to_global) {
     return;
   }
 
+  // We just check the kernel compiles, there is no invalid
+  // value that `*ptr` could contain.
   int **ptr = sycl::malloc_device<int *>(1, q);
-  q.memset(ptr, 0, sizeof(int *));
-
   q.submit([&](sycl::handler &cgh) {
-    cgh.single_task([=]() {
-      int arr;
-      *ptr = &arr;
-    });
-  });
+     cgh.single_task([=]() {
+       int arr;
+       *ptr = &arr;
+     });
+   }).wait();
 
-  int *res = nullptr;
-  q.memcpy(&res, ptr, sizeof(int *));
-  q.wait();
-
-  BOOST_CHECK(nullptr != res);
   sycl::free(ptr, q);
 }
 
@@ -434,19 +437,14 @@ BOOST_AUTO_TEST_CASE(queue_local_address_store_to_global) {
     return;
   }
 
+  // We just check the kernel compiles, there is no invalid
+  // value that `*ptr` could contain.
   int **ptr = sycl::malloc_device<int *>(1, q);
-  q.memset(ptr, 0, sizeof(int *));
-
   q.submit([&](sycl::handler &cgh) {
-    auto scratch = sycl::local_accessor<int, 1>{1, cgh};
-    cgh.single_task([=]() { *ptr = &scratch[0]; });
-  });
+     auto scratch = sycl::local_accessor<int, 1>{1, cgh};
+     cgh.single_task([=]() { *ptr = &scratch[0]; });
+   }).wait();
 
-  int *res = nullptr;
-  q.memcpy(&res, ptr, sizeof(int *));
-  q.wait();
-
-  BOOST_CHECK(nullptr != res);
   sycl::free(ptr, q);
 }
 

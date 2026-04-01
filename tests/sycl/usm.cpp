@@ -467,5 +467,47 @@ BOOST_AUTO_TEST_CASE(allocation_zero_bytes) {
     sycl::free(aligned_shared_ptr, q);
 }
 
+BOOST_AUTO_TEST_CASE(linked_list) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().get_backend() == sycl::backend::metal) {
+    BOOST_TEST_MESSAGE("Not yet supported on Metal backend");
+    return;
+  }
+
+  struct Node {
+    int id;
+    Node *ptr;
+  };
+
+  Node *nodes = sycl::malloc_device<Node>(3, q);
+  Node nodeC{2, nullptr};
+  Node nodeB{1, nodes + 2};
+  Node nodeA{0, nodes + 1};
+
+  q.memcpy(nodes, &nodeA, sizeof(Node));
+  q.memcpy(nodes + 1, &nodeB, sizeof(Node));
+  q.memcpy(nodes + 2, &nodeC, sizeof(Node));
+  q.wait();
+
+  int *ptr = sycl::malloc_device<int>(1, q);
+  q.submit([&](sycl::handler &cgh) {
+    cgh.single_task([=]() {
+      Node *curr = nodes;
+      while (curr != nullptr) {
+        *ptr = curr->id;
+        curr = curr->ptr;
+      }
+    });
+  });
+
+  int result;
+  q.memcpy(&result, ptr, sizeof(int)).wait();
+
+  BOOST_CHECK(2 == result);
+
+  sycl::free(ptr, q);
+  sycl::free(nodes, q);
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

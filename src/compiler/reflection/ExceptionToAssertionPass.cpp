@@ -23,19 +23,17 @@
 #include <llvm/Transforms/Utils/ValueMapper.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
+
 namespace hipsycl {
 namespace compiler {
 
 
 llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
 
-  //Strategy: __cxa__throw retains its old signature but internally only calls __acpp_sscp_assert_fail 
-
   static const char* CXAThrow = "__cxa_throw";
   static const char* ACPPSSCPAssertFail = "__acpp_sscp_assert_fail";
   //static const char* GlibcxxAssertFailBuiltinName = "__acpp_sscp_glibcxx_assert_fail";
   static const char* CXAAllocExc = "__cxa_allocate_exception";
-
 
   // declare __acpp_sscp_assert_fail
   // detect if C++ throws occur in source code
@@ -48,6 +46,7 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     llvm::errs() << "Function " << CXAThrow << " not found. Assuming there is no use of exceptions in source code.\n";
     return llvm::PreservedAnalyses::none();
   }
+
 
   // declare __acpp_sscp_assert_fail if not yet declared
   llvm::Type* llvmCharType;
@@ -69,7 +68,6 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     ParamTs.push_back(llvm::Type::getInt32Ty(M.getContext()));
     // function name
     ParamTs.push_back(llvmCharType);
-
     auto FC = M.getOrInsertFunction(ACPPSSCPAssertFail,
                                     llvm::FunctionType::get(llvm::Type::getVoidTy(M.getContext()),
                                                             llvm::ArrayRef<llvm::Type *>{ParamTs},
@@ -78,84 +76,67 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     ACPPSSCPAssertFailDeclaration->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
   }
 
-  //store all invokes and calls of __cxa_throw and their args for later RAUW
+  //store all invokes and calls of __cxa_throw for later
   llvm::SmallVector<llvm::InvokeInst*> cxaThrowInvokes;
-  llvm::SmallVector<llvm::SmallVector<llvm::Value*>> cxaThrowInvokesArgs;
   llvm::SmallVector<llvm::CallInst*> cxaThrowCalls;
-  llvm::SmallVector<llvm::SmallVector<llvm::Value*>> cxaThrowCallsArgs;
   for (auto &F : M) {
     for (auto &BB : F) {
       for (auto &Inst : BB) {
         if(auto *Invoke = llvm::dyn_cast<llvm::InvokeInst>(&Inst)) {
-          if (Invoke->getCalledFunction()) { //invoke of fct pointer would return nullptr for getCalledFunction()
+          if (Invoke->getCalledFunction()) {
             if(Invoke->getCalledFunction()->getName() == CXAThrow) {
                 //count to the invoke instructions
                 cxaThrowInvokes.push_back(Invoke); 
-                //retrieve each __cxa_throw-use's arguments
-                llvm::User::op_iterator cxaThrowArgIt;
-                llvm::SmallVector<llvm::Value*> cxaThrowArgs;
-
-                for (cxaThrowArgIt=Invoke->arg_begin(); cxaThrowArgIt != Invoke->arg_end(); cxaThrowArgIt++) {
-                  cxaThrowArgs.push_back(*cxaThrowArgIt);
-                }
-                cxaThrowInvokesArgs.push_back(cxaThrowArgs);
               }
             }
           }
           if(auto *Call = llvm::dyn_cast<llvm::CallInst>(&Inst)) {
-          if (Call->getCalledFunction()) { //Call of fct pointer would return nullptr for getCalledFunction()
+          if (Call->getCalledFunction()) {
             if(Call->getCalledFunction()->getName() == CXAThrow) {
                 //count to the call instructions
-                cxaThrowCalls.push_back(Call); 
-                //retrieve each __cxa_throw-use's arguments
-                llvm::User::op_iterator cxaThrowArgIt;
-                llvm::SmallVector<llvm::Value*> cxaThrowArgs;
-
-                for (cxaThrowArgIt=Call->arg_begin(); cxaThrowArgIt != Call->arg_end(); cxaThrowArgIt++) {
-                  cxaThrowArgs.push_back(*cxaThrowArgIt);
-                }
-                cxaThrowCallsArgs.push_back(cxaThrowArgs);
+                cxaThrowCalls.push_back(Call);
               }
             }
           }
         }
     }
   }
-
-
-  //build new call to __acpp_sscp_assert_fail
-  for (int i=0; i<cxaThrowInvokes.size(); i++) {
-    auto *Invoke = cxaThrowInvokes[i];
-    llvm::SmallVector<llvm::Value*> InvokeArgs = cxaThrowInvokesArgs[i];
-    llvm::IRBuilder<> Builder(Invoke);
-    llvm::CallInst *newCall = Builder.CreateCall(ACPPSSCPAssertFailDeclaration, InvokeArgs);
-    newCall->setCallingConv(Invoke->getCallingConv());
-    newCall->setDebugLoc(Invoke->getDebugLoc());
-    //Invoke->replaceAllUsesWith(newCall);
-    llvm::Instruction *terminator = Builder.CreateUnreachable();
-
-  }
-  for (int i=0; i<cxaThrowCalls.size(); i++) {
-    auto *Call = cxaThrowCalls[i];
-    llvm::SmallVector<llvm::Value*> CallArgs = cxaThrowCallsArgs[i];
-    llvm::IRBuilder<> Builder(Call);
-    llvm::CallInst *newCall = Builder.CreateCall(ACPPSSCPAssertFailDeclaration, CallArgs);
-    newCall->setCallingConv(Call->getCallingConv());
-    newCall->setDebugLoc(Call->getDebugLoc());
-    //Call->replaceAllUsesWith(newCall);
-    //llvm::Instruction *terminator = Builder.CreateUnreachable();
-  }    
-
-  //remove all invokes and calls to __cxa_throw
-  for (auto *Invoke : cxaThrowInvokes) {
-    //remove the __cxa_throw invoke
-    Invoke->eraseFromParent();
-  }
-  for (auto *Call : cxaThrowCalls) {
-    //remove the __cxa_throw call
-    Call->eraseFromParent();
-  }
   
+  //asssemble signature ptr ptr i32 ptr for @__acpp_sscp_assert_fail
+  llvm::SmallVector<llvm::Value*> ACPPSSCPAssertFailArgs;
+  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantPointerNull::get(llvm::PointerType::get(M.getContext(), 0)));
+  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantPointerNull::get(llvm::PointerType::get(M.getContext(), 0)));
+  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), -42));
+  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantPointerNull::get(llvm::PointerType::get(M.getContext(), 0)));
+
+  // create calls to __acpp_sscp_assert_fail and terminate with unreachable instructions in place of __cxa_throw invokes
+  llvm::SmallVector<llvm::UnreachableInst*> UnreachableForCXAInvokes;
+  for (int i=0; i<cxaThrowInvokes.size(); i++) {
+    auto *Call = llvm::CallInst::Create(ACPPSSCPAssertFailDeclaration, ACPPSSCPAssertFailArgs);
+    Call->insertBefore(cxaThrowInvokes[i]);
+    auto *Unreachable = new llvm::UnreachableInst(M.getContext(), cxaThrowInvokes[i]); 
+    UnreachableForCXAInvokes.push_back(Unreachable);
+  }
+  // replace all uses of invoke @__cxa_throw with unreachable instruction and erase the invoke instruction
+  for (int i=0; i<cxaThrowInvokes.size(); i++) {
+    UnreachableForCXAInvokes[i]->replaceAllUsesWith(cxaThrowInvokes[i]);
+    cxaThrowInvokes[i]->eraseFromParent();
+  }
+
+  // create calls to __acpp_sscp_assert_fail in place of __cxa_throw calls
+  llvm::SmallVector<llvm::CallInst*> AssertForCXACalls;
+  for (int i=0; i<cxaThrowCalls.size(); i++) {
+    auto *Call = llvm::CallInst::Create(ACPPSSCPAssertFailDeclaration, ACPPSSCPAssertFailArgs);
+    Call->insertBefore(cxaThrowCalls[i]);
+    AssertForCXACalls.push_back(Call);
+  }
+  // replace all uses of call @__cxa_throw with call to __acpp_sscp_assert_fail and clean up
+  for (int i=0; i<cxaThrowCalls.size(); i++) {
+    AssertForCXACalls[i]->replaceAllUsesWith(cxaThrowCalls[i]);
+    cxaThrowCalls[i]->eraseFromParent();
+  }
+
+
 
 
   //throws in C++ mean memory allocation of exception structure by __cxa_allocate_exception
@@ -235,4 +216,5 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
 }
 
 }
+
 

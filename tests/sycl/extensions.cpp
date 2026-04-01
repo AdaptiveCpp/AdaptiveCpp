@@ -511,8 +511,8 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
         target_devices[0],
         sycl::property_list{sycl::property::queue::in_order{},
                             sycl::property::queue::AdaptiveCpp_retargetable{}}};
-    int* ptr = sycl::malloc_shared<int>(1, q);
-    *ptr = 0;
+    int* ptr = sycl::malloc_device<int>(1, q);
+    q.memset(ptr, 0, sizeof(int)).wait();
 
     q.parallel_for<class retarget_gpu_kernel>(sycl::range{128}, 
       [=](sycl::id<1> idx){
@@ -530,7 +530,9 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 
     q.wait();
 
-    BOOST_TEST(ptr[0] == 2);
+    int host;
+    q.memcpy(&host, ptr, sizeof(int)).wait();
+    BOOST_TEST(host == 2);
 
     sycl::free(ptr, q);
   }
@@ -553,7 +555,7 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
 
-  int* gsize = sycl::malloc_shared<int>(3, q);
+  int* gsize = sycl::malloc_device<int>(3, q);
 
   auto group_size1d = sycl::range{100};
   auto group_size2d = sycl::range{9,9};
@@ -628,11 +630,13 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 
   q.wait();
 
+  int host_gsize[3];
+  q.memcpy(host_gsize, gsize, sizeof(int) * 3).wait();
   if(q.get_device().get_backend() == sycl::backend::cuda || 
     q.get_device().get_backend() == sycl::backend::hip) {
-    BOOST_TEST(gsize[0] == group_size1d.size());
-    BOOST_TEST(gsize[1] == group_size2d.size());
-    BOOST_TEST(gsize[2] == group_size3d.size());
+    BOOST_TEST(host_gsize[0] == group_size1d.size());
+    BOOST_TEST(host_gsize[1] == group_size2d.size());
+    BOOST_TEST(host_gsize[2] == group_size3d.size());
   } else {
     /* Don't test this - it's meaningless for the extension,
        and might not be true if the SSCP JIT executes the kernel
@@ -669,25 +673,32 @@ BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
 
 #ifdef ACPP_EXT_PREFETCH_HOST
 BOOST_AUTO_TEST_CASE(prefetch_host) {
-
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
 
-  std::size_t test_size = 4096;
-  int *shared_mem = sycl::malloc_shared<int>(test_size, q);
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    // Extension is defined for shared USM, skip test if not supported
+    return;
+  }
 
+  std::size_t test_size = 4096;
+  int *ptr = sycl::malloc_shared<int>(test_size, q);
+
+  std::vector<int> host_data(test_size);
   for (std::size_t i = 0; i < test_size; ++i)
-    shared_mem[i] = i;
+    host_data[i] = i;
+  q.memcpy(ptr, host_data.data(), test_size * sizeof(int)).wait();
 
   q.parallel_for<class usm_prefetch_host_test_kernel>(
       sycl::range<1>{test_size},
-      [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
-  q.prefetch_host(shared_mem, test_size * sizeof(int));
+      [=](sycl::id<1> idx) { ptr[idx.get(0)] += 1; });
+  q.prefetch_host(ptr, test_size * sizeof(int));
   q.wait_and_throw();
 
+  q.memcpy(host_data.data(), ptr, test_size * sizeof(int)).wait();
   for (std::size_t i = 0; i < test_size; ++i)
-    BOOST_TEST(shared_mem[i] == i + 1);
+    BOOST_TEST(host_data[i] == i + 1);
 
-  sycl::free(shared_mem, q);
+  sycl::free(ptr, q);
 }
 #endif
 #ifdef ACPP_EXT_BUFFER_USM_INTEROP
@@ -772,8 +783,8 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
   sycl::queue q;
   sycl::range size{1024};
 
-  int* alloc1 = sycl::malloc_shared<int>(size.size(), q);
-  int* alloc2 = sycl::malloc_shared<int>(size.size(), q);
+  int* alloc1 = sycl::malloc_device<int>(size.size(), q);
+  int* alloc2 = sycl::malloc_device<int>(size.size(), q);
 
   {
     sycl::buffer<int> b1{
@@ -796,8 +807,11 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
     });
   }
   q.wait();
+
+  std::vector<int> host_data(size.get(0));
+  q.memcpy(host_data.data(), alloc1, size.get(0) * sizeof(int)).wait();
   for(int i = 0; i < size.get(0); ++i){
-    BOOST_CHECK(alloc1[i] == i);
+    BOOST_CHECK(host_data[i] == i);
   }
   {
     sycl::buffer<int> b2{
@@ -817,9 +831,10 @@ BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
       BOOST_CHECK(hacc[i] == i);
     }  
   }
+  q.memcpy(host_data.data(), alloc2, size.get(0) * sizeof(int)).wait();
   
   for(int i = 0; i < size.get(0); ++i){
-    BOOST_CHECK(alloc2[i] == i);
+    BOOST_CHECK(host_data[i] == i);
   }
 
   sycl::free(alloc1, q);
@@ -1165,6 +1180,10 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events_cross_queue_deadlock) {
   sycl::queue q1{sycl::default_selector_v, props};
   sycl::queue q2{sycl::default_selector_v, props};
 
+  if (!q1.get_device().has(sycl::aspect::usm_host_allocations)) {
+    return;
+  }
+
   char *host1  = sycl::malloc_host<char>(N, q1);
   char *host1b = sycl::malloc_host<char>(N, q1);
   char *host2  = sycl::malloc_host<char>(N, q1);
@@ -1213,11 +1232,12 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events_cross_queue_deadlock) {
 BOOST_AUTO_TEST_CASE(sycl_specialized) {
   sycl::queue q;
 
-  uint64_t* data = sycl::malloc_shared<uint64_t>(1, q);
+  uint64_t* data = sycl::malloc_device<uint64_t>(1, q);
+  uint64_t one = 1;
 
   //Ctor
   {
-    *data = 1;
+    q.memcpy(data, &one, sizeof(uint64_t)).wait();
     sycl::specialized<uint64_t> s{10};
     q.submit([&](sycl::handler& cgh){
       cgh.single_task([=](){
@@ -1225,12 +1245,14 @@ BOOST_AUTO_TEST_CASE(sycl_specialized) {
       });
     }).wait();
 
-    BOOST_CHECK(*data == 11);
+    uint64_t host;
+    q.memcpy(&host, data, sizeof(uint64_t)).wait();
+    BOOST_CHECK(host == 11);
   }
 
   //Copy assignment operator (const T&)
   {
-    *data = 1;
+    q.memcpy(data, &one, sizeof(uint64_t)).wait();
     sycl::specialized<uint64_t> s;
     q.submit([&](sycl::handler& cgh){
       s = 10;
@@ -1239,12 +1261,14 @@ BOOST_AUTO_TEST_CASE(sycl_specialized) {
       });
     }).wait();
 
-    BOOST_CHECK(*data == 11);
+    uint64_t host;
+    q.memcpy(&host, data, sizeof(uint64_t)).wait();
+    BOOST_CHECK(host == 11);
   }
 
    //Copy assignment operator (sycl::specialized)
   {
-    *data = 1;
+    q.memcpy(data, &one, sizeof(uint64_t)).wait();
     sycl::specialized<uint64_t> s_tmp{10};
     q.submit([&](sycl::handler& cgh){
       sycl::specialized<uint64_t> s = s_tmp;
@@ -1253,7 +1277,9 @@ BOOST_AUTO_TEST_CASE(sycl_specialized) {
       });
     }).wait();
 
-    BOOST_CHECK(*data == 11);
+    uint64_t host;
+    q.memcpy(&host, data, sizeof(uint64_t)).wait();
+    BOOST_CHECK(host == 11);
   }
 
   sycl::free(data, q);

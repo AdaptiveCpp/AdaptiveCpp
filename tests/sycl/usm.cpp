@@ -476,10 +476,11 @@ BOOST_AUTO_TEST_CASE(linked_list) {
 
   struct Node {
     int id;
-    Node *ptr;
+    Node *next;
   };
 
-  Node *nodes = sycl::malloc_device<Node>(3, q);
+  const int num_nodes = 3;
+  Node *nodes = sycl::malloc_device<Node>(num_nodes, q);
   Node nodeC{2, nullptr};
   Node nodeB{1, nodes + 2};
   Node nodeA{0, nodes + 1};
@@ -490,12 +491,16 @@ BOOST_AUTO_TEST_CASE(linked_list) {
   q.wait();
 
   int *ptr = sycl::malloc_device<int>(1, q);
+
+  // Set an iteration limit to avoid an infinite loop in the case
+  // of erroneous behavior.
+  const unsigned max_iterations = num_nodes + 1;
   q.submit([&](sycl::handler &cgh) {
     cgh.single_task([=]() {
       Node *curr = nodes;
-      while (curr != nullptr) {
+      for (int i = 0; i < max_iterations && curr; ++i, curr = curr->next)
+      {
         *ptr = curr->id;
-        curr = curr->ptr;
       }
     });
   });

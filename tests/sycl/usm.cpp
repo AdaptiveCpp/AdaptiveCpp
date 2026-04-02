@@ -467,38 +467,23 @@ BOOST_AUTO_TEST_CASE(allocation_zero_bytes) {
     sycl::free(aligned_shared_ptr, q);
 }
 
-BOOST_AUTO_TEST_CASE(linked_list) {
-  sycl::queue q{sycl::property::queue::in_order{}};
-  if (q.get_device().get_backend() == sycl::backend::metal) {
-    BOOST_TEST_MESSAGE("Not yet supported on Metal backend");
-    return;
-  }
+namespace linked_list {
 
-  struct Node {
-    int id;
-    Node *next;
-  };
+struct Node {
+  int id;
+  Node *next;
+};
 
-  const int num_nodes = 3;
-  Node *nodes = sycl::malloc_device<Node>(num_nodes, q);
-  Node nodeC{2, nullptr};
-  Node nodeB{1, nodes + 2};
-  Node nodeA{0, nodes + 1};
-
-  q.memcpy(nodes, &nodeA, sizeof(Node));
-  q.memcpy(nodes + 1, &nodeB, sizeof(Node));
-  q.memcpy(nodes + 2, &nodeC, sizeof(Node));
-  q.wait();
-
+std::pair<int, int>
+enqueue_kernel(int max_iterations, Node* start, sycl::queue q) {
   int *output_id = sycl::malloc_device<int>(1, q);
   int *output_iterations = sycl::malloc_device<int>(1, q);
 
   // Set an iteration limit to avoid an infinite loop in the case
   // of erroneous behavior.
-  const int max_iterations = num_nodes + 1;
   q.submit([&](sycl::handler &cgh) {
     cgh.single_task([=]() {
-      Node *curr = nodes;
+      Node *curr = start;
       int iterations = 0;
       while(iterations < max_iterations && curr)
       {
@@ -515,12 +500,68 @@ BOOST_AUTO_TEST_CASE(linked_list) {
   q.memcpy(&result_iterations, output_iterations, sizeof(int));
   q.wait();
 
+  sycl::free(output_id, q);
+  sycl::free(output_iterations, q);
+
+  return std::make_pair(result_id, result_iterations);
+}
+} // namespace linked_list
+
+BOOST_AUTO_TEST_CASE(linked_list_single_alloc) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().get_backend() == sycl::backend::metal) {
+    BOOST_TEST_MESSAGE("Not yet supported on Metal backend");
+    return;
+  }
+
+  const int num_nodes = 3;
+  linked_list::Node *nodes = sycl::malloc_device<linked_list::Node>(num_nodes, q);
+  linked_list::Node nodeC{2, nullptr};
+  linked_list::Node nodeB{1, nodes + 2};
+  linked_list::Node nodeA{0, nodes + 1};
+
+  q.memcpy(nodes, &nodeA, sizeof(linked_list::Node));
+  q.memcpy(nodes + 1, &nodeB, sizeof(linked_list::Node));
+  q.memcpy(nodes + 2, &nodeC, sizeof(linked_list::Node));
+  q.wait();
+
+  const int max_iterations = num_nodes + 1;
+  auto [result_id, result_iterations] = linked_list::enqueue_kernel(max_iterations, nodes, q);
+
   BOOST_CHECK(2 == result_id);
   BOOST_CHECK(num_nodes == result_iterations);
 
-  sycl::free(output_id, q);
-  sycl::free(output_iterations, q);
   sycl::free(nodes, q);
+}
+
+BOOST_AUTO_TEST_CASE(linked_list_separate_alloc) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().get_backend() == sycl::backend::metal) {
+    BOOST_TEST_MESSAGE("Not yet supported on Metal backend");
+    return;
+  }
+
+  constexpr int num_nodes = 3;
+  linked_list::Node* nodes[num_nodes];
+  for (int i = 0; i < num_nodes; i++) {
+    nodes[i] = sycl::malloc_device<linked_list::Node>(1, q);
+  }
+
+  for (int i = 0; i < num_nodes; i++) {
+    linked_list::Node* next = (i == num_nodes - 1) ? nullptr : nodes[i+1];
+    linked_list::Node node{i, next};
+    q.memcpy(nodes[i], &node, sizeof(linked_list::Node)).wait();
+  }
+
+  const int max_iterations = num_nodes+1;
+  auto [result_id, result_iterations] = linked_list::enqueue_kernel(max_iterations, nodes[0], q);
+
+  BOOST_CHECK(2 == result_id);
+  BOOST_CHECK(num_nodes == result_iterations);
+
+  for (int i = 0; i < num_nodes; i++) {
+    sycl::free(nodes[i], q);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this

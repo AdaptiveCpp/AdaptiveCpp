@@ -490,27 +490,36 @@ BOOST_AUTO_TEST_CASE(linked_list) {
   q.memcpy(nodes + 2, &nodeC, sizeof(Node));
   q.wait();
 
-  int *ptr = sycl::malloc_device<int>(1, q);
+  int *output_id = sycl::malloc_device<int>(1, q);
+  int *output_iterations = sycl::malloc_device<int>(1, q);
 
   // Set an iteration limit to avoid an infinite loop in the case
   // of erroneous behavior.
-  const unsigned max_iterations = num_nodes + 1;
+  const int max_iterations = num_nodes + 1;
   q.submit([&](sycl::handler &cgh) {
     cgh.single_task([=]() {
       Node *curr = nodes;
-      for (int i = 0; i < max_iterations && curr; ++i, curr = curr->next)
+      int iterations = 0;
+      while(iterations < max_iterations && curr)
       {
-        *ptr = curr->id;
+        *output_id = curr->id;
+        ++iterations;
+        curr = curr->next;
       }
+      *output_iterations = iterations;
     });
   });
 
-  int result;
-  q.memcpy(&result, ptr, sizeof(int)).wait();
+  int result_id, result_iterations;
+  q.memcpy(&result_id, output_id, sizeof(int));
+  q.memcpy(&result_iterations, output_iterations, sizeof(int));
+  q.wait();
 
-  BOOST_CHECK(2 == result);
+  BOOST_CHECK(2 == result_id);
+  BOOST_CHECK(num_nodes == result_iterations);
 
-  sycl::free(ptr, q);
+  sycl::free(output_id, q);
+  sycl::free(output_iterations, q);
   sycl::free(nodes, q);
 }
 

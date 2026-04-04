@@ -232,6 +232,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
   endif()
 
   install(TARGETS rt-backend-ze
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -287,6 +288,7 @@ if(WITH_OPENCL_BACKEND)
   endif()
 
   install(TARGETS rt-backend-ocl
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()

@@ -214,7 +214,9 @@ if(WITH_SSCP_COMPILER)
     )
 
     #install(TARGETS InstallLLVMSpirvTranslator)
-    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target InstallLLVMSpirvTranslator)")
+    install(CODE [[
+      execute_process(COMMAND "${CMAKE_COMMAND}" --build . --target InstallLLVMSpirvTranslator)
+    ]])
 
     add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
     target_compile_definitions(llvm-to-spirv PRIVATE

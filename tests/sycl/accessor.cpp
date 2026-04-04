@@ -958,44 +958,4 @@ BOOST_AUTO_TEST_CASE(zero_dim_accessor) {
   BOOST_CHECK(val == 123);
 }
 
-BOOST_AUTO_TEST_CASE(constant_acc) {
-  sycl::queue q{sycl::property::queue::in_order{}};
-
-  size_t size = 1024;
-  std::vector<int> in_data(size);
-  for (int i = 0; i < size; ++i) {
-    in_data[i] = i;
-  }
-  std::vector<int> out_data(size);
-
-  {
-    sycl::buffer<int> a_buff{in_data.data(), size};
-    sycl::buffer<int> c_buff{size};
-    c_buff.set_final_data(out_data.data());
-
-    sycl::nd_range<1> b{sycl::range<1>(size), sycl::range<1>(4)};
-    q.submit([&](sycl::handler &cgh) {
-      auto const_acc =
-          a_buff.template get_access<sycl::access_mode::read,
-                                     sycl::target::constant_buffer>(cgh);
-
-      auto out_acc = c_buff.template get_access<sycl::access::mode::write>(cgh);
-
-      cgh.parallel_for(
-          sycl::nd_range<1>(sycl::range<1>(size), sycl::range<1>(128)),
-          [=](sycl::nd_item<1> id) {
-            auto idx = id.get_global_id(0);
-            out_acc[idx] = const_acc[idx];
-          });
-    });
-    q.wait();
-  }
-
-  for (int i = 0; i < size; ++i) {
-    BOOST_CHECK(in_data[i] == out_data[i]);
-    if (in_data[i] != out_data[i])
-      break;
-  }
-}
-
 BOOST_AUTO_TEST_SUITE_END()

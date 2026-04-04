@@ -673,6 +673,7 @@ BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
 
 #ifdef ACPP_EXT_PREFETCH_HOST
 BOOST_AUTO_TEST_CASE(prefetch_host) {
+
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
 
   if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
@@ -681,24 +682,21 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
   }
 
   std::size_t test_size = 4096;
-  int *ptr = sycl::malloc_shared<int>(test_size, q);
+  int *shared_mem = sycl::malloc_shared<int>(test_size, q);
 
-  std::vector<int> host_data(test_size);
   for (std::size_t i = 0; i < test_size; ++i)
-    host_data[i] = i;
-  q.memcpy(ptr, host_data.data(), test_size * sizeof(int)).wait();
+    shared_mem[i] = i;
 
   q.parallel_for<class usm_prefetch_host_test_kernel>(
       sycl::range<1>{test_size},
-      [=](sycl::id<1> idx) { ptr[idx.get(0)] += 1; });
-  q.prefetch_host(ptr, test_size * sizeof(int));
+      [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
+  q.prefetch_host(shared_mem, test_size * sizeof(int));
   q.wait_and_throw();
 
-  q.memcpy(host_data.data(), ptr, test_size * sizeof(int)).wait();
   for (std::size_t i = 0; i < test_size; ++i)
-    BOOST_TEST(host_data[i] == i + 1);
+    BOOST_TEST(shared_mem[i] == i + 1);
 
-  sycl::free(ptr, q);
+  sycl::free(shared_mem, q);
 }
 #endif
 #ifdef ACPP_EXT_BUFFER_USM_INTEROP

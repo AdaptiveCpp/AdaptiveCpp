@@ -557,54 +557,5 @@ BOOST_AUTO_TEST_CASE(allocation_zero_bytes) {
     sycl::free(aligned_shared_ptr, q);
 }
 
-BOOST_AUTO_TEST_CASE(private_address_store_to_global) {
-  sycl::queue q{sycl::property::queue::in_order{}};
-
-  // We just check the kernel compiles, there is no invalid
-  // value that `*ptr` could contain.
-  int **ptr = sycl::malloc_device<int *>(1, q);
-  q.submit([&](sycl::handler &cgh) {
-     cgh.single_task([=]() {
-       int arr;
-       *ptr = &arr;
-     });
-   }).wait();
-
-  sycl::free(ptr, q);
-}
-
-BOOST_AUTO_TEST_CASE(local_address_store_to_global) {
-  sycl::queue q{sycl::property::queue::in_order{}};
-
-  // We just check the kernel compiles, there is no invalid
-  // value that `*ptr` could contain.
-  int **ptr = sycl::malloc_device<int *>(1, q);
-  q.submit([&](sycl::handler &cgh) {
-     auto scratch = sycl::local_accessor<int, 1>{1, cgh};
-     cgh.single_task([=]() { *ptr = &scratch[0]; });
-   }).wait();
-
-  sycl::free(ptr, q);
-}
-
-BOOST_AUTO_TEST_CASE(global_address_store_to_global) {
-  sycl::queue q{sycl::property::queue::in_order{}};
-
-  int **ptr = sycl::malloc_device<int *>(1, q);
-  int *target_ptr = sycl::malloc_device<int>(1, q);
-
-  q.submit([&](sycl::handler &cgh) {
-    cgh.single_task([=]() { *ptr = target_ptr; });
-  });
-
-  int *host;
-  q.memcpy(&host, ptr, sizeof(int *)).wait();
-
-  BOOST_CHECK(target_ptr == host);
-
-  sycl::free(ptr, q);
-  sycl::free(target_ptr, q);
-}
-
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

@@ -153,6 +153,4 @@ BOOST_AUTO_TEST_CASE(two_queues) {
   sycl::free(dev_ptr2, q2);
 }
 
-
-
 BOOST_AUTO_TEST_SUITE_END()

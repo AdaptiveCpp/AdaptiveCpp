@@ -31,17 +31,23 @@ int main() {
   sycl::queue q = get_queue();
   constexpr int N = 64;
 
-  int* iatoms = sycl::malloc_shared<int>(N * 4, q);
-  float* params = sycl::malloc_shared<float>(4, q);
-  int* result = sycl::malloc_shared<int>(N, q);
+  int* iatoms = sycl::malloc_device<int>(N * 4, q);
+  float* params = sycl::malloc_device<float>(4, q);
+  int* result = sycl::malloc_device<int>(N, q);
 
+  int init[4] = {
+                  0, // type
+                  1, // ai
+                  2, // aj
+                  3  // ak
+                };
   for (int i = 0; i < N; ++i) {
-    iatoms[i * 4 + 0] = 0; // type
-    iatoms[i * 4 + 1] = 1; // ai
-    iatoms[i * 4 + 2] = 2; // aj
-    iatoms[i * 4 + 3] = 3; // ak
+    q.memcpy(iatoms + i * 4, init, sizeof(init));
   }
-  params[0] = 4.0f;
+
+  float p_init = 4.0f;
+  q.memcpy(params, &p_init, sizeof(float));
+  q.wait();
 
   q.parallel_for(sycl::range<1>(N), [=](sycl::id<1> id) {
     int tid = id[0];
@@ -54,11 +60,16 @@ int main() {
     result[tid] = r;
   }).wait();
 
+  int first_result, last_result;
+  q.memcpy(&first_result, result, sizeof(int));
+  q.memcpy(&last_result, result + N-1, sizeof(int));
+  q.wait();
+
   // Each call: params[0]=4, ai=1, aj=2, ak=3 -> 4+1+2+3=10, two calls -> 20
   // CHECK: 20
-  std::cout << result[0] << std::endl;
+  std::cout << first_result << std::endl;
   // CHECK: 20
-  std::cout << result[N - 1] << std::endl;
+  std::cout << last_result << std::endl;
 
   sycl::free(iatoms, q);
   sycl::free(params, q);

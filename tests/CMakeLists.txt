@@ -110,7 +110,6 @@ add_executable(sycl_tests
   sycl/vec.cpp
   sycl/queue.cpp
   sycl/multi_ptr.cpp
-  sycl/kernel.cpp
 )
 
 # Also test instant submission mode

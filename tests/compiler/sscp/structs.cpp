@@ -43,7 +43,6 @@ void test_plain(sycl::queue& q) {
 
   Plain host;
   q.memcpy(&host, out, sizeof(Plain)).wait();
-  q.wait();
 
   // CHECK: 10
   // CHECK: 20
@@ -86,7 +85,7 @@ void test_array_of_structs(sycl::queue& q) {
   WithArrayOfStructs host;
   q.memcpy(&host, out, sizeof(host)).wait();
 
-  for (int i = 0; i < out->count; ++i)
+  for (int i = 0; i < host.count; ++i)
     std::cout << host.items[i].value << "\n";
   std::cout << host.count << "\n";
   sycl::free(out, q);
@@ -110,7 +109,7 @@ void test_carray_of_structs(sycl::queue& q) {
   // CHECK: 5
   // CHECK: 6
   // CHECK: 3
-  for (int i = 0; i < out->count; ++i)
+  for (int i = 0; i < host.count; ++i)
     std::cout << host.items[i].value << "\n";
   std::cout << host.count << "\n";
   sycl::free(out, q);

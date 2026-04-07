@@ -966,9 +966,16 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_rootn, T, math_test_genfloats) {
     auto outputs = out.get_host_access();
 
     for(int c = 0; c < std::max(D,1); ++c) {
+      // Reference is computed in double so the comparison happens at double
+      // precision. boost::unit_test::tolerance is type-keyed: tolerance(0.0001)
+      // registers a tolerance for `double` only, so a `float == float`
+      // comparison falls back to exact equality and any backend that returns
+      // a result differing by even one ULP from std::pow would fail. This
+      // matches the existing math_genfloat_genint pattern (line 906) and the
+      // DEFINE_*_MATH_TEST macros below.
       BOOST_TEST(comp(outputs[0], c) ==
-                 std::pow(comp(base_inputs[0], c),
-                          DT{1} / static_cast<DT>(comp(exp_inputs[0], c))));
+                 std::pow(static_cast<double>(comp(base_inputs[0], c)),
+                          1.0 / static_cast<double>(comp(exp_inputs[0], c))));
     }
   }
 }

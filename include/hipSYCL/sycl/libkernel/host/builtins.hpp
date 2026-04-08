@@ -357,7 +357,7 @@ HIPSYCL_BUILTIN T __acpp_tanh(T x) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __acpp_tanpi(T x) noexcept {
-  return __acpp_tan(x * M_PI);
+  return __acpp_tan(x * (T(M_PI));
 }
 
 template<class T>

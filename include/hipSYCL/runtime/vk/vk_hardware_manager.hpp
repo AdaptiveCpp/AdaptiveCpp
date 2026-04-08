@@ -42,7 +42,7 @@ enum feature_bits {
 class vk_hardware_context : public hardware_context {
 public:
   vk_hardware_context(const vk::raii::PhysicalDevice &, int dev_id,
-                      uint16_t features);
+                      uint16_t features, bool portability_subset);
   vk_hardware_context(vk_hardware_context const &) = delete;
   vk_hardware_context(vk_hardware_context &&) = default;
 

@@ -49,6 +49,14 @@ using exchange_test_types =
 BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
                               exchange_test_types) {
   sycl::queue q;
+
+  if (std::string::npos !=
+      q.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   if constexpr(std::is_same_v<Type, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -257,6 +265,13 @@ BOOST_AUTO_TEST_CASE(fetch_add_unsigned_int) {
 
 BOOST_AUTO_TEST_CASE(fetch_op) {
 
+  if (std::string::npos !=
+      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   auto fetch_add = [](auto& atomic, auto x) {
     return atomic.fetch_add(x);
   };
@@ -403,6 +418,13 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
   // This is mainly a compile-test. Testing atomic memory semantics is hard...
 
   sycl::queue q;
+  if (std::string::npos !=
+      q.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   int* data = sycl::malloc_device<int>(1, q);
   q.memset(data, 0, sizeof(int)).wait();
   size_t range = 1024;

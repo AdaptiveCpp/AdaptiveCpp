@@ -60,6 +60,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
+  if (std::string::npos !=
+      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -228,6 +235,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
+  if (std::string::npos !=
+      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   if(!sycl::queue{}.get_device().is_host()) {
     const size_t   elements_per_thread = 1;
     const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
@@ -415,6 +429,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_and, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
+  if (std::string::npos !=
+      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   const size_t elements_per_thread = 1;
   if constexpr(std::is_integral_v<detail::elementType<T>>) {
     const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
@@ -455,6 +476,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_xor, T, test_types) {
+  if (std::string::npos !=
+      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   const size_t elements_per_thread = 1;
   if constexpr(std::is_integral_v<detail::elementType<T>>) {
     const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {

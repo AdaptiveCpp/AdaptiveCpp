@@ -17,8 +17,9 @@ physical device is required.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
 * A `clspv` executable, from commit `75d2471da8d697ae5a04d06cf14a1667b74200e8` and later.
-* Linux is the only supported OS, with Ubuntu 22.04 and later the tested distributions.
-  Adding support for Windows, macOS, and Android is future work.
+* Linux and macOS are the only supported OS, with Ubuntu 22.04 and later the tested distributions
+  for Linux. MacOS 15.7.4 is tested with the Vulkan backend in CI. Adding support for Windows and
+  Android is future work.
 * A Vulkan driver, use `vulkaninfo` from the Vulkan SDK to see the available devices
   on your system.
 
@@ -95,13 +96,14 @@ own bugs that need addressed (which may turn out to be not device specific once 
 Devices known to be well supported by the backend include:
 
 | Driver Name  | Driver Version    | Device Type          | Status
-| ------------ | ----------------- | -------------------- | ----------------------------------------------------------- |
-| llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                              |
-| RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                              |
-| RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                              |
-| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](#issue-9)                                     |
-| Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Tests pass in isolation, but issues running full sycl suite |
-| RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Issues with sub-groups and group functions                  |
+| ------------ | ----------------- | -------------------- | -------------------------------------------------------------- |
+| llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                                 |
+| RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                                 |
+| RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                                 |
+| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](#issue-9)                                        |
+| Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Tests pass in isolation, but issues running full sycl suite    |
+| RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Issues with sub-groups and group functions                     |
+| MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled |
 
 Other devices are untested and support status unknown.
 
@@ -301,7 +303,7 @@ generic implementation is fallen back to.
 * Benchmark performance of backend.
 * Get SYCL running on Android device.
 * Enable backed on Windows CI.
-* Enable backend on macOS running on top of moltenVK
+* Add CI for KosmicKrisp mesa Vulkan on Metal implementation.
 * Add CI to self-hosted runners.
 * Add CI for Google Swiftshader
 
@@ -398,9 +400,7 @@ should be supportable. Needs investigated.
 
 ### Issue 9
 
-> AMD MI200 GPU only
-
-Assorted MI200 test fails that needs further investigation:
+Assorted AMD MI200 test fails that needs further investigation:
 * `accessor_tests/nested_subscript`
 * `accessor_tests/offset_2d`
 * `accessor_tests/offset_nested_subscript`
@@ -443,3 +443,15 @@ kernel void test_simple(global int* acc)
     }
 }
 ```
+
+### Issues 11
+
+Test fails on MoltenVK backend which have been disabled and need further
+investigating to work out if they are fundamental issues running ontop of Metal
+or something we can fix.
+
+* atomics
+* group functions
+* math functions
+* relational
+* vec api

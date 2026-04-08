@@ -36,7 +36,6 @@ BOOST_AUTO_TEST_CASE(local_accessors) {
   constexpr size_t global_size = 1024;
 
   sycl::queue queue;
-
   std::vector<int> host_buf;
   for(size_t i = 0; i < global_size; ++i) {
     host_buf.push_back(static_cast<int>(i));
@@ -338,13 +337,6 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 BOOST_AUTO_TEST_CASE(nested_subscript) {
   namespace s = sycl;
   s::queue q;
-
-  // See Issue 9 in doc/vulkan.md
-  if (q.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
-    return;
-  }
   
   s::range<2> buff_size2d{64,64};
   s::range<3> buff_size3d{buff_size2d[0],buff_size2d[1],64};
@@ -879,14 +871,6 @@ BOOST_AUTO_TEST_CASE(offset_1d) {
 BOOST_AUTO_TEST_CASE(offset_2d) {
   namespace s = sycl;
 
-  // See Issue 9 in doc/vulkan.md
-  s::queue q{};
-  if (q.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
-    return;
-  }
-
   constexpr int N = 8;
   std::array<int, N*N> data;
   std::fill(data.begin(), data.end(), 1);
@@ -894,7 +878,7 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
   {
     s::buffer<int, 2> buf(data.data(), {N,N});
 
-    q.submit([&](s::handler &cgh) {
+    s::queue{}.submit([&](s::handler &cgh) {
       std::size_t offset_1d = 2;
       s::range range{N - offset_1d, N - offset_1d};
       s::id offset{offset_1d, offset_1d};
@@ -928,21 +912,13 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
 BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
   namespace s = sycl;
 
-  // See Issue 9 in doc/vulkan.md
-  s::queue q{};
-  if (q.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
-    return;
-  }
-
   constexpr int N = 8;
   std::array<int, N*N> data;
   std::fill(data.begin(), data.end(), 1);
 
   {
     s::buffer<int, 2> buf(data.data(), {N,N});
-    q.submit([&](s::handler &cgh) {
+    s::queue{}.submit([&](s::handler &cgh) {
       std::size_t offset_1d = 2;
       s::range range{N - offset_1d, N - offset_1d};
       s::id offset{offset_1d, offset_1d};

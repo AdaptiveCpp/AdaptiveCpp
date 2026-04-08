@@ -19,13 +19,6 @@ void fill_test_helper(sycl::id<d> offset = sycl::id<d>{}) {
 
   s::queue q;
 
-  // See Issue 9 in doc/vulkan.md
-  if (q.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
-    return;
-  }
-
   auto buff_size = make_test_value<s::range, d>({64}, {64, 64}, {64, 64, 64});
   s::buffer<s::id<d>, d> buff{buff_size};
   

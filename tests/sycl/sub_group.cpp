@@ -18,7 +18,6 @@ BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
 BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
   namespace s = sycl;
   s::queue q;
-
   const auto dev = q.get_device();
   const auto sg_sizes = dev.get_info<s::info::device::sub_group_sizes>();
   BOOST_TEST_REQUIRE(!sg_sizes.empty());
@@ -56,13 +55,6 @@ BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
 BOOST_AUTO_TEST_CASE(sub_group) {
   namespace s = sycl;
   s::queue q;
-
-  // See issue 9 in doc/vulkan.md
-  if (q.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
-    return;
-  }
 
   s::range<1> size1d{1024};
   s::range<2> size2d{32, 32};

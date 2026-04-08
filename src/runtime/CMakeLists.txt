@@ -251,6 +251,8 @@ if(WITH_VULKAN_BACKEND)
                              "${Vulkan_INCLUDE_DIR}")
   target_link_libraries(rt-backend-vk PRIVATE acpp-rt Vulkan::Vulkan Vulkan::SPIRV-Tools)
 
+  # Need portability subset beta extension for moltenvk
+  target_compile_definitions(rt-backend-vk PRIVATE -DVK_ENABLE_BETA_EXTENSIONS)
   if(WITH_SSCP_COMPILER)
     target_compile_definitions(rt-backend-vk PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
     target_link_libraries(rt-backend-vk PRIVATE llvm-to-clspv)

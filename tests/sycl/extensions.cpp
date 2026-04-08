@@ -853,14 +853,6 @@ BOOST_AUTO_TEST_CASE(buffer_page_size) {
 
   sycl::queue q;
 
-  // See Issue 9 in doc/vulkan.md
-  if (q.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != q.get_device().get_info<sycl::info::device::name>().find("RADV MI200")) {
-    BOOST_TEST_MESSAGE("Skipping due to RADV issue on MI200 GPUs");
-    return;
-  }
-
-
   // Deliberately choose page_size so that size is not a mulitple of it
   // to test the more complicated case.
   const std::size_t size = 1000;

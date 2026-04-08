@@ -20,7 +20,8 @@ namespace hipsycl {
 namespace rt {
 
 vk_hardware_context::vk_hardware_context(
-    const vk::raii::PhysicalDevice &phys_device, int dev_id, uint16_t features)
+    const vk::raii::PhysicalDevice &phys_device, int dev_id, uint16_t features,
+    bool portability_subset)
     : _physical_device(phys_device), _dev_id(dev_id),
       _physical_dev_features(features) {
   _properties = phys_device.getProperties();
@@ -91,10 +92,19 @@ vk_hardware_context::vk_hardware_context(
       (_physical_dev_features & vk_device_features::shaderFloat64) ? VK_TRUE
                                                                    : VK_FALSE;
 
+  vk::DeviceCreateInfo dev_create_info{{}, queue_create_info};
+  // Outside if statement scope so lifetime is valid for raii::Device
+  // initialization
+  const char *portability_ext_name = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
+  if (portability_subset) {
+    dev_create_info.setEnabledExtensionCount(1);
+    dev_create_info.setPpEnabledExtensionNames(&portability_ext_name);
+  }
+
   vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceFeatures2,
                      vk::PhysicalDeviceVulkan12Features,
                      vk::PhysicalDeviceVulkan11Features>
-      dev_create_info_chain({{}, queue_create_info}, phys_dev_features,
+      dev_create_info_chain(dev_create_info, phys_dev_features,
                             phys_dev_12_features, phys_dev_11_features);
   auto device_create_info = dev_create_info_chain.get<vk::DeviceCreateInfo>();
 
@@ -436,6 +446,7 @@ vk_hardware_manager::vk_hardware_manager()
     }
   }
 
+  std::vector<const char *> enabled_extensions;
   auto ext_properties = _context.enumerateInstanceExtensionProperties();
   auto required_ext = vk::EXTDebugUtilsExtensionName;
   bool ext_unsupported = std::none_of(
@@ -450,14 +461,31 @@ vk_hardware_manager::vk_hardware_manager()
             std::string("vk_hardware_manager: Required layer no supported - ")
                 .append(std::string(required_ext))});
   }
+  enabled_extensions.push_back(required_ext);
 
+  auto optional_ext = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+  bool optional_ext_supported = std::any_of(
+      std::begin(ext_properties), std::end(ext_properties),
+      [optional_ext](auto const &ext_property) {
+        return strcmp(ext_property.extensionName, optional_ext) == 0;
+      });
+  if (optional_ext_supported) {
+    HIPSYCL_DEBUG_INFO << "vk_hardware_manager: enabling extension "
+                       << optional_ext << std::endl;
+    enabled_extensions.push_back(optional_ext);
+  }
+
+  // To layer ontop of moltenVK we need to opt-in to the Vulkan loader showing
+  // non-conformant Vulkan implementations
+  const vk::InstanceCreateFlags flags =
+      vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
   vk::InstanceCreateInfo create_info{
-      vk::InstanceCreateFlags(),
-      &app_info,                                     // pApplicationInfo
-      static_cast<uint32_t>(required_layers.size()), // enabledLayerCount
-      required_layers.data(),                        // ppEnabledLayerNames
-      1u,                                            // enabledExtensionCount
-      &required_ext                                  // ppEnabledExtensionNames
+      flags,
+      &app_info,                                        // pApplicationInfo
+      static_cast<uint32_t>(required_layers.size()),    // enabledLayerCount
+      required_layers.data(),                           // ppEnabledLayerNames
+      static_cast<uint32_t>(enabled_extensions.size()), // enabledExtensionCount
+      enabled_extensions.data() // ppEnabledExtensionNames
   };
   _instance = vk::raii::Instance(_context, create_info);
 
@@ -580,10 +608,19 @@ vk_hardware_manager::vk_hardware_manager()
       backend_features |= vk_device_features::storagePushConstant16;
     }
 
+    auto phys_dev_extensions = phys_dev.enumerateDeviceExtensionProperties();
+    bool portability_ext_supported = std::any_of(
+        std::begin(phys_dev_extensions), std::end(phys_dev_extensions),
+        [](auto const &ext_property) {
+          return strcmp(ext_property.extensionName,
+                        VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) == 0;
+        });
+
     auto device_name = phys_dev.getProperties().deviceName;
     if (device_matches(visibility_mask, backend_id::vk, device_index,
                        device_index, 0, device_name, {})) {
-      _devices.emplace_back(phys_dev, device_index, backend_features);
+      _devices.emplace_back(phys_dev, device_index, backend_features,
+                            portability_ext_supported);
     }
     device_index++;
   }

@@ -283,6 +283,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
 
 #if defined(ACPP_TEST_WORK_GROUP_SHUFFLE_EXT) and !defined(REDUCED_LOCAL_MEM_USAGE)
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
+  if (std::string::npos !=
+      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -432,6 +438,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
 }
 #endif
 BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
+  if (std::string::npos !=
+      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   if(!sycl::queue{}.get_device().is_host()) {
     const size_t elements_per_thread = 1;
     const auto   data_generator      = [](std::vector<T> &v, size_t local_size,

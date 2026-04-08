@@ -225,5 +225,11 @@ HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sinh, __ocml_sinh)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sinpi, __ocml_sinpi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(tan, __ocml_tan)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(tanh, __ocml_tanh)
-HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(tanpi, __ocml_tanpi)
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanpi_f32(float x) {
+  return __ocml_tan_f32(x * ((f32)M_PI));
+}
+
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tanpi_f64(double x) {
+  return __ocml_tan_f64(x *M_PI);
+}
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(trunc, __ocml_trunc)

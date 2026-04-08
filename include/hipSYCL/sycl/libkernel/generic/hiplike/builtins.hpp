@@ -232,7 +232,7 @@ HIPSYCL_HIPLIKE_BUILTIN double __acpp_sincos(double x, double* cosval) noexcept 
 
 template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_tanpi(T x) noexcept {
-  return hiplike_builtins::__acpp_tan(x * (T(M_PI));
+  return hiplike_builtins::__acpp_tan(x * T(M_PI));
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_sinh, sinhf, sinh)

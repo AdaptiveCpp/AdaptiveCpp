@@ -240,6 +240,26 @@ bool LLVMToCLSPVTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
   // kernel debugging as future work
   llvm::StripDebugInfo(M);
 
+  // Change the behavior of the 'wchar_size' metadata node from 'error'
+  // to 'override'. This is due to discrepancy on Windows where we set
+  // this to '2' but clspv links in libclc builtins with metadata set
+  // to '4'.
+  llvm::NamedMDNode *ModFlags = M.getOrInsertModuleFlagsMetadata();
+  for (unsigned i = 0; i < ModFlags->getNumOperands(); ++i) {
+    llvm::MDNode *Flag = ModFlags->getOperand(i);
+    if (llvm::cast<llvm::MDString>(Flag->getOperand(1))->getString() ==
+        "wchar_size") {
+      auto &Context = M.getContext();
+      llvm::Type *Int32Ty = llvm::Type::getInt32Ty(Context);
+      llvm::Metadata *Ops[3] = {
+          llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+              Int32Ty, llvm::Module::ModFlagBehavior::Override)),
+          llvm::MDString::get(Context, "wchar_size"), Flag->getOperand(2)};
+      ModFlags->setOperand(i, llvm::MDNode::get(Context, Ops));
+      break;
+    }
+  }
+
   return true;
 }
 

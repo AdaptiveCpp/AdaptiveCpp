@@ -12,7 +12,11 @@
 #include "hipSYCL/runtime/vk/vk_hardware_manager.hpp"
 #include "hipSYCL/runtime/vk/vk_queue.hpp"
 
+#ifndef _WIN32
 #include "spirv/unified1/NonSemanticClspvReflection.h"
+#else
+#include "spirv-headers/NonSemanticClspvReflection.h"
+#endif
 
 namespace hipsycl {
 namespace rt {

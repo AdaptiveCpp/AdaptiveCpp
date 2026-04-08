@@ -18,7 +18,12 @@
 #include <string>
 #include <unordered_map>
 
+#ifndef _WIN32
 #include "spirv/unified1/spirv.hpp"
+#else
+#include "spirv-headers/spirv.hpp"
+#endif
+
 #include <spirv-tools/libspirv.h>
 #include <vulkan/vulkan_raii.hpp>
 

@@ -941,6 +941,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_rootn, T, math_test_genfloats) {
   using IntType = s::detail::builtin_input_intlike_t<T>;
 
   s::queue queue;
+  if (std::string::npos !=
+      queue.get_device().get_info<sycl::info::device::name>().find(
+          "Apple Paravirtual")) {
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
+    return;
+  }
+
   if constexpr(std::is_same_v<DT, double>) {
     if (!queue.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");

@@ -261,6 +261,10 @@ if(WITH_VULKAN_BACKEND)
   target_compile_options(rt-backend-vk PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-vk PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
+    target_compile_options(rt-backend-vk PRIVATE /EHs)
+  endif()
+
   install(TARGETS rt-backend-vk
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL

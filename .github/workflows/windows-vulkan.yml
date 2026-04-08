@@ -1,0 +1,184 @@
+name: Windows Vulkan
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: clang ${{ matrix.clang_version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        clang_version: ['19', '20']
+        base_compiler: ['19']
+        os: [windows-2022]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+        path: AdaptiveCpp
+    - name: Use MSVC Command prompt
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Install LLVM and Clang
+      uses: KyleMayes/install-llvm-action@v2.0.7
+      with:
+        version: "${{matrix.base_compiler}}"
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        variant: sccache
+        key: ${{ github.job }}-${{matrix.clang_version}}-${{matrix.docker.os}}
+
+    - name: Download Ninja
+      shell: powershell
+      run: |
+        $ninjaURL = "https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip"
+        Invoke-WebRequest $ninjaURL -OutFile ninja.zip
+        Expand-Archive -Path ninja.zip -DestinationPath $env:GITHUB_WORKSPACE\ninja_install
+
+    - name: Install Vulkan SDK
+      uses: jakoch/install-vulkan-sdk-action@v1
+      with:
+        vulkan_version: 1.4.341.1
+        install_lavapipe: true
+        install_runtime: true
+        cache: true
+        stripdown: true
+
+    - name: Configure SDK Path
+      run: |
+        echo "PATH=$env:VULKAN_SDK\runtime\x64;$env:PATH" >> $env:GITHUB_ENV
+
+    - name: vulkaninfo
+      run: |
+        vulkaninfo --summary
+
+    - name: cache clspv
+      id: cache-clspv
+      uses: actions/cache@v4
+      with:
+        path: ${{github.workspace}}/clspv/build/install
+        key: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
+
+    - name: checkout clspv
+      if: steps.cache-clspv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: google/clspv
+        path: clspv
+        ref: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
+
+    - name: build clspv
+      if: steps.cache-clspv.outputs.cache-hit != 'true'
+      run: |
+        cd $env:GITHUB_WORKSPACE\clspv
+        python3 utils\fetch_sources.py
+        cmake -GNinja -S $env:GITHUB_WORKSPACE\clspv -B $env:GITHUB_WORKSPACE\clspv\build -DCMAKE_INSTALL_PREFIX=build\install -DCMAKE_BUILD_TYPE=Release
+        cmake --build $env:GITHUB_WORKSPACE\clspv\build --target install
+
+    - name: Configure clspv Path
+      run: |
+        dir $env:GITHUB_WORKSPACE\clspv\build\install\bin
+        echo "PATH=$env:GITHUB_WORKSPACE\clspv\build\install\bin;$env:PATH" >> $env:GITHUB_ENV
+
+    - name: Restore Cache installed Boost
+      id: cache-boost-install
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{github.workspace}}/boost/install
+        key: ${{runner.os}}-boost1830-install
+
+    - name: Build boost
+      if: steps.cache-boost-install.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        $boostURL = "https://archives.boost.io/release/1.83.0/source/boost_1_83_0.7z"
+        Invoke-WebRequest $boostURL -OutFile boost.7z
+        7z.exe x boost.7z
+
+        cd $env:GITHUB_WORKSPACE/boost_1_83_0
+        $env:PATH = "$env:LLVM_PATH\bin;$env:PATH"
+        $env:CC = "clang-cl"
+        $env:CXX = "clang-cl"
+
+        "using clang-win : : sccache.exe clang-cl.exe ;" | Out-File -FilePath "$env:USERPROFILE\user-config.jam"
+
+        .\bootstrap.bat
+        .\b2.exe toolset=clang-win address-model=64 variant=release --build-type=complete install --prefix=$env:GITHUB_WORKSPACE/boost/install
+
+    - name: Copy Boost install to common install folder
+      shell: powershell
+      run: |
+        Copy-Item $env:GITHUB_WORKSPACE/boost/install -Destination $env:GITHUB_WORKSPACE -Recurse
+
+    - name: Save Boost Cache
+      if: steps.cache-boost-install.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{github.workspace}}/boost/install
+        key: ${{steps.cache-boost-install.outputs.cache-primary-key}}
+
+    - name: clone LLVM
+      run: |
+        git clone --recurse-submodules https://github.com/llvm/llvm-project --depth 1 --single-branch -b release/${{matrix.clang_version}}.x llvm
+
+    - name: build Adaptive Cpp
+      shell: powershell
+      run: |
+        $env:PATH = "$env:LLVM_PATH\bin;$env:PATH"
+        $env:CC = "clang-cl"
+        $env:CXX = "clang-cl"
+
+        md $env:GITHUB_WORKSPACE/build/acpp-llvm
+        cd $env:GITHUB_WORKSPACE/build/acpp-llvm
+
+        cmake "$env:GITHUB_WORKSPACE/llvm/llvm" -GNinja `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE/install" `
+          -DLLVM_TARGETS_TO_BUILD="X86" `
+          -DLLVM_ENABLE_PROJECTS="clang;openmp;lld;compiler-rt" `
+          -DLLVM_PARALLEL_LINK_JOBS=1 `
+          -DLLVM_EXTERNAL_PROJECTS=AdaptiveCpp `
+          -DLLVM_EXTERNAL_ADAPTIVECPP_SOURCE_DIR="$env:GITHUB_WORKSPACE/AdaptiveCpp" `
+          -DLLVM_ADAPTIVECPP_LINK_INTO_TOOLS=ON `
+          -DWITH_OPENCL_BACKEND=OFF `
+          -DWITH_VULKAN_BACKEND=ON `
+          -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
+          -DBoost_COMPILER="clangw${{matrix.base_compiler}}" `
+          -DLLVM_TOOL_BUGPOINT_BUILD=OFF `
+          -DOPENMP_ENABLE_LIBOMPTARGET=OFF `
+          -DLLVM_INCLUDE_TESTS=OFF `
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+        ninja install
+
+        echo "CC=$env:GITHUB_WORKSPACE\install\bin\clang.exe" >> $env:GITHUB_ENV
+        echo "CXX=$env:GITHUB_WORKSPACE\install\bin\clang.exe" >> $env:GITHUB_ENV
+        echo "PATH=$env:GITHUB_WORKSPACE\install\bin;$env:PATH" >> $env:GITHUB_ENV
+
+        dir $env:GITHUB_WORKSPACE\install\
+        dir $env:GITHUB_WORKSPACE\install\bin
+
+    - name: acpp-info
+      run: acpp-info -l
+
+        #- name: build generic SSCP tests
+        #  run: |
+        #    md $env:GITHUB_WORKSPACE/build/tests-sscp
+        #    cd $env:GITHUB_WORKSPACE/build/tests-sscp
+        #    cmake -GNinja -DACPP_TARGETS="generic" `
+        #      -DCMAKE_BUILD_TYPE=Release `
+        #      -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/AdaptiveCpp" `
+        #      "$env:GITHUB_WORKSPACE/AdaptiveCpp/tests" `
+        #      -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
+        #      -DBoost_COMPILER="clangw${{matrix.base_compiler}}" `
+        #      -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw${{matrix.base_compiler}}\\\"'
+
+        #    ninja -j2
+
+        #- name: run SSCP Vulkan tests
+        #  run: |
+        #    cd $env:GITHUB_WORKSPACE/build/tests-sscp
+        #    $env:ACPP_VISIBILITY_MASK="vk"
+        #    .\sycl_tests.exe

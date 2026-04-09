@@ -15,6 +15,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "info/device.hpp"
 #include "types.hpp"
 #include "aspect.hpp"
 #include "info/info.hpp"
@@ -59,11 +60,11 @@ public:
 
   // Implemented in device_selector.hpp
   device();
-  
+
   template <class DeviceSelector>
   explicit device(const DeviceSelector &deviceSelector);
 
-  bool is_host() const 
+  bool is_host() const
   {
     return is_cpu();
   }
@@ -98,9 +99,9 @@ public:
       // fp16 is only partially supported in hipSYCL
       return false;
     } else if(asp == aspect::fp64) {
-      return true;
+      return get_rt_device()->has(rt::device_support_aspect::fp64);
     } else if(asp == aspect::atomic64) {
-      return true;
+      return get_rt_device()->has(rt::device_support_aspect::atomic64);
     } else if(asp == aspect::image) {
       return false;
     } else if(asp == aspect::online_compiler) {
@@ -135,12 +136,12 @@ public:
     if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
 #endif
-    
+
 #if defined(__ACPP_ENABLE_CUDA_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::cuda)
       return true;
 #endif
-    
+
 #if defined(__ACPP_ENABLE_HIP_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::hip)
       return true;
@@ -165,7 +166,7 @@ public:
   template <typename Param>
   typename Param::return_type get_info() const;
 
-  bool has_extension(const string_class &extension) const
+  bool has_extension(const std::string &extension) const
   {
     return false;
   }
@@ -244,7 +245,7 @@ public:
 
   friend bool operator!=(const device& lhs, const device &rhs)
   { return !(lhs == rhs); }
-  
+
   backend get_backend() const noexcept {
     return _device_id.get_backend();
   }
@@ -303,15 +304,56 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, device_type) {
 
 /// \todo Return different id for amd and nvidia
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
-{ 
+{
   return get_rt_device()->get_property(
-      rt::device_uint_property::vendor_id); 
+      rt::device_uint_property::vendor_id);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 {
   return get_rt_device()->get_property(
       rt::device_uint_property::max_compute_units);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<1>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range0));
+  return range<1>{size0};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<2>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range1));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<2>{size1, size0};
+  else
+    return range<2>{size0, size1};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range<3>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range1));
+  std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range2));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<3>{size2, size1, size0};
+  else
+    return range<3>{size0, size1, size2};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO_KHR_EXTENSION(device, max_work_group_range_size)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_work_group_range_size);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
@@ -655,7 +697,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, queue_profiling) {
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, built_in_kernels)
-{ return std::vector<string_class>{}; }
+{ return std::vector<std::string>{}; }
 
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor) {
@@ -700,7 +742,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, aspects)
                         aspect::usm_system_allocations};
 
   std::vector<aspect> result;
-  
+
   for(auto asp : aspects) {
     if(this->has(asp)){
       result.push_back(asp);
@@ -712,7 +754,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, aspects)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, extensions)
 {
-  return std::vector<string_class>{};
+  return std::vector<std::string>{};
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, printf_buffer_size) {
@@ -756,6 +798,17 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, reference_count)
   // hipSYCL device classes do not need any resources, and hence
   // no reference counting is required.
   return 1;
+}
+
+template<>
+inline typename info::device::AdaptiveCpp_priority_range::return_type
+sycl::device::get_info<info::device::AdaptiveCpp_priority_range>() const {
+  return {
+    get_rt_device()->get_property(
+      rt::device_uint_property::queue_priority_range_low),
+    get_rt_device()->get_property(
+          rt::device_uint_property::queue_priority_range_high)
+  };
 }
 
 namespace detail {

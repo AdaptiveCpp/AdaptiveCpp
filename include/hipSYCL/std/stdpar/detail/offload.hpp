@@ -20,6 +20,9 @@
 
 #include "hipSYCL/glue/reflection.hpp"
 #include "hipSYCL/common/stable_running_hash.hpp"
+#include "hipSYCL/common/small_vector.hpp"
+#include "hipSYCL/common/small_map.hpp"
+#include "hipSYCL/common/appdb.hpp"
 
 
 #include <atomic>
@@ -30,6 +33,7 @@
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <optional>
 #include <sys/types.h>
 #include <utility>
 
@@ -122,6 +126,285 @@ bool validate_all_pointers(const Args&... args){
   return result;
 }
 
+template<class T, int N>
+using small_static_vector = hipsycl::common::small_static_vector<T,N>;
+template<class Key, class Value>
+using small_map = hipsycl::common::small_map<Key, Value>;
+
+template <class AlgorithmType, typename... Args>
+struct unique_algorithm_id {
+  static auto get() {
+    std::string_view name =
+        typeid(unique_algorithm_id<AlgorithmType, Args...>).name();
+    std::array<uint64_t, 2> hash = {};
+    if(name.size() == 0)
+      return hash;
+
+    hipsycl::common::stable_running_hash h1, h2;
+    auto half_size = name.size() / 2;
+    h1(name.data(), half_size);
+    h2(name.data()+half_size, name.size() - half_size);
+
+    hash[0] = h1.get_current_hash();
+    hash[1] = h2.get_current_hash();
+
+    return hash;
+  }
+};
+
+template <class AlgorithmType, class Size, typename... Args>
+sycl::queue &schedule_to_queue(AlgorithmType alg, Size problem_size,
+                               const Args &...args) {
+#if defined(__ACPP_STDPAR_ASSUME_SYSTEM_USM__) ||                              \
+    !defined(__ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__)
+  return detail::single_device_dispatch::get_queue();
+#else
+  auto& stdpar_rt = detail::stdpar_tls_runtime::get();
+  // finalize prior algorithm
+  stdpar_rt.get_scheduling_monitor().finalize_algorithm();
+  auto algorithm_unique_id = unique_algorithm_id<AlgorithmType, Args...>::get();
+
+  std::optional<bool> is_free_of_indirect_access;
+
+  hipsycl::common::filesystem::persistent_storage::get()
+      .get_this_app_db()
+      .read_access([&](const hipsycl::common::db::appdb_data &appdb) {
+        auto it = appdb.scheduling_objects.find(algorithm_unique_id);
+        if (it != appdb.scheduling_objects.end()) {
+          is_free_of_indirect_access = it->second.is_free_of_indirect_access;
+        }
+      });
+
+  if(!is_free_of_indirect_access.has_value()) {
+    HIPSYCL_DEBUG_INFO
+        << "[stdpar-mqs] Algorithm indirect access properties are unknown"
+        << std::endl;
+  } else if(!is_free_of_indirect_access) {
+    HIPSYCL_DEBUG_INFO
+        << "[stdpar-mqs] Could not prove that device code is free of indirect access"
+        << std::endl;
+  }
+
+  // Ask the code monitor to store the obtained information from this run in
+  // the appdb for future use
+  if(!is_free_of_indirect_access.has_value()) {
+    stdpar_rt.get_scheduling_monitor().request_sync_to_appdb(algorithm_unique_id);
+  }
+
+  constexpr std::size_t max_deps = 32;
+  small_static_vector<sycl::queue*, max_deps> dependent_queues;
+  
+  auto& deps = stdpar_rt.get_current_dependencies();
+  
+  constexpr std::size_t arg_size = (sizeof(args) + ...);
+  constexpr std::size_t max_num_pointer_args =
+      (arg_size + sizeof(void *) - 1) / sizeof(void *);
+  
+  small_static_vector<const void*, max_num_pointer_args> new_dependencies;
+  small_static_vector<unified_shared_memory::allocation_lookup_result,
+                      max_num_pointer_args>
+      allocation_lookup_results;
+
+  // accumulated memory size of dependencies per device
+  small_map<rt::device_id, std::size_t> local_memory_amount;
+
+  // Executed for each pointer argument to the kernel/algorithm
+  auto analyze_dependencies = [&](const void* ptr){
+    if(ptr) {
+      unified_shared_memory::allocation_lookup_result lookup_result;
+      if (unified_shared_memory::allocation_lookup(const_cast<void *>(ptr),
+                                                   lookup_result)) {
+        allocation_lookup_results.try_push_back(lookup_result);
+
+        const void* allocation = lookup_result.root_address;
+        std::size_t allocation_size = lookup_result.info->allocation_size;
+        if (sycl::queue *prior_user = __atomic_load_n(
+                &(lookup_result.info->most_recent_processing_queue),
+                __ATOMIC_ACQUIRE)) {
+          local_memory_amount[prior_user->get_device()
+                                  .AdaptiveCpp_device_id()] += allocation_size;
+        }
+
+        bool is_dependency_already_known = false;
+        for(auto& d : deps) {
+          if(d.allocation == allocation) {
+            dependent_queues.try_push_back(d.executing_queue);
+            is_dependency_already_known = true;
+          }
+        }
+        if(!is_dependency_already_known) {
+          new_dependencies.try_push_back(allocation);
+        }
+      }
+    }
+  };
+  sycl::queue* selected_queue = nullptr;
+
+  for_each_contained_pointer(analyze_dependencies, args...);
+
+  for(auto entry : local_memory_amount) {
+    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Kernel has " << entry.second*1.e-9 
+        << " GB of data dependencies on device " << entry.first.get_id() 
+        << std::endl;
+  }
+
+  // Select queue
+  // If dependency buffer was insufficient, back out and just schedule
+  // to default queue.
+  // Similarly, if there is indirect access,
+  // we need to back out and just schedule to the default queue.
+
+  // Whether *this* algorithm has indirect access
+  const bool is_known_to_have_indirect_access =
+      is_free_of_indirect_access.has_value() && !is_free_of_indirect_access;
+  // Also need to fall back if any of the kernels in the same batch have indirect
+  // access, since then we can no longer guarantee correct dependency resolution
+  const bool previous_kernels_in_batch_have_indirect_access =
+      !stdpar_rt.get_scheduling_monitor()
+           .all_launched_kernels_from_batch_are_free_of_indirect_access();
+  const bool fallback_to_single_queue =
+      dependent_queues.is_capacity_insufficient() ||
+      !is_free_of_indirect_access.has_value() ||
+      is_known_to_have_indirect_access ||
+      previous_kernels_in_batch_have_indirect_access;
+  if (fallback_to_single_queue) {
+    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Falling back to default queue" << std::endl;
+    selected_queue = &detail::single_device_dispatch::get_queue();
+  } else {
+    double best_cost = std::numeric_limits<double>::max();
+    int best_queue_id = 0;
+    auto& queues = detail::stdpar_tls_runtime::get().get_available_queues();
+    for(int queue_id = 0; queue_id < queues.size(); ++queue_id) {
+      auto& q = queues[queue_id];
+
+      // rough time estimate in ms
+      double scheduling_cost = 0;
+
+      // general device load
+      double device_load = 0.0;
+      for(int i = 0; i < queues.size(); ++i) {
+        if(i != queue_id) {
+          if(queues[i].get_device() == queues[queue_id].get_device())
+            // 0.5: Maybe we can achieve ~2x concurrency on device?
+            device_load += 0.5 * stdpar_rt.get_scheduling_monitor().get_enqueued_cost(i);
+        }
+      }
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Device load cost: " << device_load << std::endl;
+
+      // Previous operations in queue
+      double own_queue_cost = stdpar_rt.get_scheduling_monitor().get_enqueued_cost(queue_id);
+
+      double max_dependency_cost = 0;
+      for(int i = 0; i < dependent_queues.size(); ++i) {
+        double dependency_cost_i = 0;
+        if(&q != dependent_queues[i]) {
+          // Synchronization cost
+          dependency_cost_i += 0.01;
+          // Try map dependent queue to its index, and obtain the work that has
+          // been enqueued there
+          int queue_index = stdpar_rt.get_queue_index(*dependent_queues[i]);
+          if(queue_index >= 0) {
+            double preenqueued_cost = stdpar_rt.get_scheduling_monitor().get_enqueued_cost(
+                    queue_index);
+            if(q.get_device() == dependent_queues[i]->get_device()) {
+              // If we're scheduling to the same device, kernels may run *slower*
+              // due to resource contention. This effect is difficult to predict,
+              // but the factor 1.5 only really needs to ensure that the kernel is more costly
+              // than running on a different device.
+              preenqueued_cost *= 1.5;
+            }
+            dependency_cost_i += preenqueued_cost;
+          }
+        }
+        max_dependency_cost = std::max(max_dependency_cost, dependency_cost_i);
+      }
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Dependency cost: " << max_dependency_cost << std::endl;
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Preenqueued work cost: " << own_queue_cost << std::endl;
+      scheduling_cost += std::max(std::max(max_dependency_cost, device_load), own_queue_cost);
+      // Data transfer cost
+      double data_transfer_cost = 0.;
+      for (auto local_mem_it = local_memory_amount.begin();
+          local_mem_it != local_memory_amount.end(); ++local_mem_it) {
+        if(local_mem_it->first != q.get_device().AdaptiveCpp_device_id()) {
+          // GB/s, order of magnitude
+          double transfer_speed = 10.0;
+          data_transfer_cost +=
+              (local_mem_it->second * 1.e-9) / transfer_speed * 1000;
+        }
+      }
+      scheduling_cost += data_transfer_cost;
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Data transfer cost: " << data_transfer_cost << std::endl;
+
+      // Rough cost of the algorithm itself
+      // TODO Actual take device characteristics, information from prior runs
+      // etc into account
+      double memory_bandwidth = q.get_device().is_cpu() ? 100. : 800.;
+      double kernel_cost =
+          0.05 + 1000. * static_cast<double>(problem_size * sizeof(int)) *
+                     1.e-9 / memory_bandwidth;
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Pure kernel cost: " << kernel_cost << std::endl;
+
+      scheduling_cost += kernel_cost;
+          
+
+      HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Queue " << queue_id
+                         << " has an estimated scheduling cost of "
+                         << scheduling_cost << std::endl;
+      
+      if(scheduling_cost < best_cost) {
+        selected_queue = &q;
+        best_cost = scheduling_cost;
+        best_queue_id = queue_id;
+      }
+    }
+    HIPSYCL_DEBUG_INFO << "[stdpar-mqs] Selected queue " << selected_queue << "(index " << best_queue_id << ") on device " 
+                       << selected_queue->get_device().AdaptiveCpp_device_id().get_id()
+                       << std::endl;
+    stdpar_rt.get_scheduling_monitor().set_enqueued_operation_cost(best_queue_id, best_cost);
+  }
+
+  // Add new dependencies to runtime tracking
+  assert(selected_queue);
+  for(int i = 0; i < new_dependencies.size(); ++i) {
+    const void* new_dep_data_ptr = new_dependencies[i];
+    detail::stdpar_tls_runtime::data_dependency data_dep;
+    data_dep.allocation = new_dep_data_ptr;
+    data_dep.executing_queue = selected_queue;
+    detail::stdpar_tls_runtime::get().add_dependency(data_dep);
+  }
+
+  // Update data locality tracking to selected queue
+  for(int i = 0; i < allocation_lookup_results.size(); ++i) {
+    sycl::queue **ptr =
+        &(allocation_lookup_results[i].info->most_recent_processing_queue);
+    __atomic_store_n(ptr, selected_queue, __ATOMIC_RELEASE);
+  }
+
+  // Synchronize
+  std::vector<sycl::event> deps_vector;
+  if(!fallback_to_single_queue) {
+    for(int i = 0; i < dependent_queues.size(); ++i) {
+      if(dependent_queues[i] != selected_queue) {
+        sycl::event evt =
+            dependent_queues[i]->AdaptiveCpp_enqueue_custom_operation([](auto) {});
+        deps_vector.push_back(evt);
+      }
+    }
+  } else {
+    for(auto& q : detail::stdpar_tls_runtime::get().get_available_queues()) {
+      if(&q != selected_queue) {
+        if(!q.khr_empty())
+          deps_vector.push_back(
+              q.AdaptiveCpp_enqueue_custom_operation([](auto) {}));
+      }
+    }
+  }
+  selected_queue->AdaptiveCpp_enqueue_custom_operation([](auto) {}, deps_vector);
+
+  return *selected_queue;
+#endif
+}
+
 enum prefetch_mode {
   automatic = 0,
   always = 1,
@@ -179,9 +462,9 @@ inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcep
   }
 }
 
-template<class AlgorithmType, class Size, typename... Args>
-void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
-  auto& q = detail::single_device_dispatch::get_queue();
+template <class AlgorithmType, class Size, typename... Args>
+void prepare_offloading(sycl::queue &q, AlgorithmType type, Size problem_size,
+                        const Args &...args) {
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
@@ -601,11 +884,12 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                      offload_invoker, fallback_invoker, ...)   \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded) {                                                          \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+    auto &q = hipsycl::stdpar::detail::schedule_to_queue(                      \
+        algorithm_type_object, problem_size, __VA_ARGS__);                     \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
                                                                                \
     device_instrumentation([&]() { offload_invoker(q); },                      \
@@ -624,13 +908,16 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                ...)                                            \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
-  if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+  hipsycl::sycl::queue &q =                                                    \
+      hipsycl::stdpar::detail::single_device_dispatch::get_queue();            \
+  if (is_offloaded) {                                                          \
+    q = hipsycl::stdpar::detail::schedule_to_queue(algorithm_type_object,      \
+                                                   problem_size, __VA_ARGS__); \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
-  else                                                                         \
+  } else                                                                       \
     __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \
@@ -651,7 +938,8 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                         fallback_invoker, ...)                 \
   using hipsycl::stdpar::detail::device_instrumentation;                       \
   using hipsycl::stdpar::detail::host_instrumentation;                         \
-  auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
+  hipsycl::sycl::queue &q =                                                    \
+      hipsycl::stdpar::detail::single_device_dispatch::get_queue();            \
   bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   const auto blocking_fallback_invoker = [&]() {                               \
@@ -660,10 +948,12 @@ auto device_instrumentation(F&& f, AlgorithmType t, Size n, Args... args) {
                                 algorithm_type_object, problem_size,           \
                                 __VA_ARGS__);                                  \
   };                                                                           \
-  if (is_offloaded)                                                            \
-    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+  if (is_offloaded) {                                                          \
+    q = hipsycl::stdpar::detail::schedule_to_queue(algorithm_type_object,      \
+                                                   problem_size, __VA_ARGS__); \
+    hipsycl::stdpar::detail::prepare_offloading(q, algorithm_type_object,      \
                                                 problem_size, __VA_ARGS__);    \
-  else                                                                         \
+  } else                                                                       \
     __acpp_stdpar_barrier();                                                   \
   return_type ret =                                                            \
       is_offloaded                                                             \

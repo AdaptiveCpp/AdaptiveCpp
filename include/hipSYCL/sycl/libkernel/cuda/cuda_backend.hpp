@@ -60,13 +60,13 @@
 #ifdef ACPP_LIBKERNEL_CUDA_NVCXX
  #define ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 1
 
-#define __acpp_if_target_host(...)                                          \
-  if target (nv::target::is_host) {                                            \
-    __VA_ARGS__                                                                \
+ #define __acpp_if_target_host(...)                                         \
+  if target (nv::target::is_host) {                                         \
+    __VA_ARGS__                                                             \
   }
 #define __acpp_if_target_device(...)                                        \
-  if target (nv::target::is_device) {                                          \
-    __VA_ARGS__                                                                \
+  if target (nv::target::is_device) {                                       \
+    __VA_ARGS__                                                             \
   }
 #else
  #define ACPP_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0

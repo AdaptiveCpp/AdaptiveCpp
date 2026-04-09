@@ -11,6 +11,8 @@
 #include "hipSYCL/compiler/reflection/IntrospectStructPass.hpp"
 #include "hipSYCL/compiler/utils/AggregateTypeUtils.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include <climits>
 #include <cstdint>
 #include <llvm/IR/Constants.h>
@@ -221,9 +223,9 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
               // vaue may be pointer-to-array, while the argument may be pointer-to-pointer.
               auto* StoreTarget = CI->getArgOperand(ArgIndex);
               auto *BCInst =
-                  new llvm::BitCastInst(StoreTarget, getPointerType(GV->getType(), 0), "", CI);
+                  new llvm::BitCastInst(StoreTarget, getPointerType(GV->getType(), 0), "", llvmutils::makeInsertionPoint(CI));
               [[maybe_unused]] llvm::StoreInst *S =
-                new llvm::StoreInst(GV, BCInst, CI);
+                new llvm::StoreInst(GV, BCInst, llvmutils::makeInsertionPoint(CI));
             };
 
             createStoreOp(1, GVs.FlattenedNumMembers);

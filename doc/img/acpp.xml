@@ -231,6 +231,17 @@
         <mxCell id="p8bNRnPfSB32FQdiQsax-9" value="SPIR-V" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1ba1e2;strokeColor=#006EAF;fontColor=#ffffff;fontStyle=1" parent="1" vertex="1">
           <mxGeometry x="914" y="358" width="70" height="30" as="geometry" />
         </mxCell>
+        <mxCell id="metal-acpp-1" value="MSL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#000000;fontColor=#ffffff;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="914" y="398" width="70" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="metal-acpp-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=1;strokeWidth=2;" edge="1" parent="1" source="p8bNRnPfSB32FQdiQsax-5" target="metal-acpp-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="890" y="315" />
+              <mxPoint x="890" y="410" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
         <mxCell id="p8bNRnPfSB32FQdiQsax-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.038;entryY=0.511;entryDx=0;entryDy=0;entryPerimeter=0;strokeWidth=3;curved=1;" parent="1" source="p8bNRnPfSB32FQdiQsax-14" target="p8bNRnPfSB32FQdiQsax-1" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>

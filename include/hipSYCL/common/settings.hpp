@@ -117,6 +117,12 @@ bool try_retrieve_settings_variable(const std::string& name, T& out) {
   return false;
 }
 
+ACPP_COMMON_EXPORT
+bool get_default_enable_allocation_tracking();
+
+ACPP_COMMON_EXPORT
+void force_default_enable_allocation_tracking(bool v);
+
 
 }
 }

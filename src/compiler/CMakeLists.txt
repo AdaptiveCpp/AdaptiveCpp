@@ -16,37 +16,197 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
   set(HIPSYCL_DEBUG_LEVEL 2 CACHE INTEGER)
 endif()
 
+if(WIN32)
+  set(ACPP_LLD_NAME lld-link)
+elseif(APPLE)
+  set(ACPP_LLD_NAME ld64.lld)
+else()
+  set(ACPP_LLD_NAME ld.lld)
+endif()
+
 if(NOT ACPP_LLVM_COMPONENT)
   find_program(ACPP_LLC_PATH NAMES llc-${LLVM_VERSION_MAJOR} llc-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} llc HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
-  find_program(ACPP_LLD_PATH NAMES lld-${LLVM_VERSION_MAJOR} lld-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} lld HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
+  find_program(ACPP_LLD_PATH NAMES ${ACPP_LLD_NAME}-${LLVM_VERSION_MAJOR} ${ACPP_LLD_NAME}-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} ${ACPP_LLD_NAME} HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
   find_program(ACPP_OPT_PATH NAMES opt-${LLVM_VERSION_MAJOR} opt-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} opt HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
 else()
-  set(ACPP_LLC_PATH "$ACPP_PATH/bin/llc")
-  set(ACPP_LLD_PATH "$ACPP_PATH/bin/lld")
-  set(ACPP_OPT_PATH "$ACPP_PATH/bin/opt")
+  if(WIN32)
+    set(ACPP_LLC_PATH "$ACPP_PATH/bin/llc.exe" CACHE INTERNAL "")
+    set(ACPP_LLD_PATH "$ACPP_PATH/bin/${ACPP_LLD_NAME}.exe" CACHE INTERNAL "")
+    set(ACPP_OPT_PATH "$ACPP_PATH/bin/opt.exe" CACHE INTERNAL "")
+  else()
+    set(ACPP_LLC_PATH "$ACPP_PATH/bin/llc" CACHE INTERNAL "")
+    set(ACPP_LLD_PATH "$ACPP_PATH/bin/${ACPP_LLD_NAME}" CACHE INTERNAL "")
+    set(ACPP_OPT_PATH "$ACPP_PATH/bin/opt" CACHE INTERNAL "")
+  endif()
 endif()
 if(NOT ACPP_LLC_PATH)
   message(SEND_ERROR "Cannot find llc. Please provide path to LLVM's llc tool using -DACPP_LLC_PATH=/path/to/llc.")
 else()
   message(STATUS "Found llc: ${ACPP_LLC_PATH}")
+  get_filename_component(ACPP_LLC_NAME "${ACPP_LLC_PATH}" NAME)
 endif()
 if(NOT ACPP_LLD_PATH)
-  message(SEND_ERROR "Cannot find lld. Please provide path to LLVM's lld tool using -DACPP_LLD_PATH=/path/to/lld.")
+  message(SEND_ERROR "Cannot find ${ACPP_LLD_NAME}. Please provide path to LLVM's ${ACPP_LLD_NAME} tool using -DACPP_LLD_PATH=/path/to/${ACPP_LLD_NAME}")
 else()
-  message(STATUS "Found lld: ${ACPP_LLD_PATH}")
+  message(STATUS "Found ${ACPP_LLD_NAME}: ${ACPP_LLD_PATH}")
+  get_filename_component(ACPP_LLD_NAME "${ACPP_LLD_PATH}" NAME)
 endif()
 if(NOT ACPP_OPT_PATH)
   message(SEND_ERROR "Cannot find opt. Please provide path to LLVM's opt tool using -DACPP_OPT_PATH=/path/to/opt.")
 else()
   message(STATUS "Found opt: ${ACPP_OPT_PATH}")
+  get_filename_component(ACPP_OPT_NAME "${ACPP_OPT_PATH}" NAME)
 endif()
 
 add_definitions(-DACPP_LLC_PATH="${ACPP_LLC_PATH}")
 add_definitions(-DACPP_LLD_PATH="${ACPP_LLD_PATH}")
 add_definitions(-DACPP_OPT_PATH="${ACPP_OPT_PATH}")
+add_definitions(-DACPP_LLD_NAME="${ACPP_LLD_NAME}")
+add_definitions(-DACPP_LLC_NAME="${ACPP_LLC_NAME}")
+add_definitions(-DACPP_OPT_NAME="${ACPP_OPT_NAME}")
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 if(WITH_ACCELERATED_CPU)
   add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)
+endif()
+
+#MATH VECTOR LIBRARY
+if( APPLE OR WIN32)
+  message( WARNING "Usage of vector math library for JIT compilation is not supported on windows and Apple")
+  add_definitions(-DDEFAULT_VEC_MATH_LIB=none)
+else()
+
+  #LIBMVEC
+  find_library(LIBMVEC NAMES mvec)
+
+  if(LIBMVEC)
+    
+    #Check that libmvec is recent enough
+    include(CheckFunctionExists)
+    set(CMAKE_REQUIRED_LIBRARIES "${LIBMVEC}")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+      CHECK_FUNCTION_EXISTS("_ZGVnN2v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    else()
+      CHECK_FUNCTION_EXISTS("_ZGVdN8v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    endif()
+    unset(CMAKE_REQUIRED_LIBRARIES)
+
+    #Check clang support libmvec
+    set(CLANG_SUPPORT_LIBMVEC true)
+    if(${LLVM_VERSION_MAJOR} LESS 21)
+
+      #Only clang 21+ support libmvec on aarch64
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+        set(CLANG_SUPPORT_LIBMVEC false)
+      endif()
+    endif()
+  endif()
+
+  if(LIBMVEC AND LIBMVEC_HAS_REQUIRED_SYMBOLS AND CLANG_SUPPORT_LIBMVEC)
+    get_filename_component(LIB_MVEC_DIR "${LIBMVEC}" DIRECTORY)
+    get_filename_component(LIB_MVEC_NAME_WE "${LIBMVEC}" NAME_WE)
+    get_filename_component(LIB_MVEC_NAME "${LIBMVEC}" NAME)
+
+    add_definitions(-DLIBMVEC_AVAILABLE)
+    add_definitions(-DLIB_MVEC_DIR="${LIB_MVEC_DIR}")
+    add_definitions(-DLIB_MVEC_NAME_WE="${LIB_MVEC_NAME_WE}")
+    add_definitions(-DLIB_MVEC_NAME="${LIB_MVEC_NAME}")
+    set(DEFAULT_VEC_MATH_LIB libmvec)
+
+    message( STATUS "LIBMVEC found at ${LIBMVEC}")
+  elseif(NOT LIBMVEC)
+    message(STATUS "LIBMVEC was not found")
+  elseif(NOT LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    message(STATUS "LIBMVEC found at ${LIBMVEC}, but does not provide required functions (likely too old)")
+  elseif(NOT CLANG_SUPPORT_LIBMVEC)
+    message(STATUS "LIBMVEC was found at ${LIBMVEC}, but the detected LLVM version (${LLVM_VERSION_MAJOR}) does not support LIBMVEC.")
+  endif()
+
+  #SLEEF
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBSLEEF NAMES sleef)
+
+    if(LIBSLEEF)
+      get_filename_component(LIB_SLEEF_DIR "${LIBSLEEF}" DIRECTORY)
+      get_filename_component(LIB_SLEEF_NAME_WE "${LIBSLEEF}" NAME_WE)
+      get_filename_component(LIB_SLEEF_NAME "${LIBSLEEF}" NAME)
+
+      add_definitions(-DSLEEF_AVAILABLE)
+      add_definitions(-DLIB_SLEEF_DIR="${LIB_SLEEF_DIR}")
+      add_definitions(-DLIB_SLEEF_NAME_WE="${LIB_SLEEF_NAME_WE}")
+      add_definitions(-DLIB_SLEEF_NAME="${LIB_SLEEF_NAME}")
+      set(DEFAULT_VEC_MATH_LIB sleef)
+
+      message( STATUS "SLEEF found at ${LIBSLEEF}")
+    else()
+      message( STATUS "SLEEF was not found")
+    endif()
+  else()
+    message( STATUS "SLEEF not available on X86")
+  endif()
+
+  #AMATH
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBAMATH NAMES amath)
+
+    if(LIBAMATH)
+      get_filename_component(LIB_AMATH_DIR "${LIBAMATH}" DIRECTORY)
+      get_filename_component(LIB_AMATH_NAME_WE "${LIBAMATH}" NAME_WE)
+      get_filename_component(LIB_AMATH_NAME "${LIBAMATH}" NAME)
+
+      add_definitions(-DAMATH_AVAILABLE)
+      add_definitions(-DLIB_AMATH_DIR="${LIB_AMATH_DIR}")
+      add_definitions(-DLIB_AMATH_NAME_WE="${LIB_AMATH_NAME_WE}")
+      add_definitions(-DLIB_AMATH_NAME="${LIB_AMATH_NAME}")
+      set(DEFAULT_VEC_MATH_LIB armpl)
+
+      message( STATUS "AMATH found at ${LIBAMATH}")
+    else()
+      message( STATUS "AMATH was not found")
+    endif()
+  else()
+    message( STATUS "AMATH not available on X86")
+  endif()
+
+  #SVML
+  if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBSVML NAMES svml)
+    find_library(LIBINTLC NAMES intlc)
+
+    if(LIBSVML AND LIBINTLC )
+      get_filename_component(LIB_SVML_DIR "${LIBSVML}" DIRECTORY)
+      get_filename_component(LIB_SVML_NAME_WE "${LIBSVML}" NAME_WE)
+      get_filename_component(LIB_SVML_NAME "${LIBSVML}" NAME)
+
+      add_definitions(-DSVML_AVAILABLE)
+      add_definitions(-DLIB_SVML_DIR="${LIB_SVML_DIR}")
+      add_definitions(-DLIB_SVML_NAME_WE="${LIB_SVML_NAME_WE}")
+      add_definitions(-DLIB_SVML_NAME="${LIB_SVML_NAME}")
+
+      get_filename_component(LIB_INTLC_DIR "${LIBINTLC}" DIRECTORY)
+      get_filename_component(LIB_INTLC_NAME_WE "${LIBINTLC}" NAME_WE)
+      get_filename_component(LIB_INTLC_NAME "${LIBINTLC}" NAME)
+
+      add_definitions(-DLIB_INTLC_DIR="${LIB_INTLC_DIR}")
+      add_definitions(-DLIB_INTLC_NAME_WE="${LIB_INTLC_NAME_WE}")
+      add_definitions(-DLIB_INTLC_NAME="${LIB_INTLC_NAME}")
+    
+      set(DEFAULT_VEC_MATH_LIB svml)
+
+      message( STATUS "SVML found at ${LIBSVML} (INTLC found at ${LIBINTLC})")
+    else()
+      message( STATUS "SVML was not found")
+    endif()
+  else()
+    message( STATUS "SVML not available on AArch64")
+  endif()
+endif()
+
+if(DEFAULT_VEC_MATH_LIB)
+  add_definitions(-DDEFAULT_VEC_MATH_LIB=${DEFAULT_VEC_MATH_LIB})
+  message(STATUS "Will Use ${DEFAULT_VEC_MATH_LIB} as default vector math library")
+else()
+  add_definitions(-DDEFAULT_VEC_MATH_LIB=none)
+  message(STATUS "Will not use any vector math library for JIT compilation")
 endif()
 
 if(WITH_ACCELERATED_CPU OR WITH_SSCP_COMPILER)
@@ -152,10 +312,17 @@ set(COMPILER_LIBRARY_SOURCES
 )
 
 if(NOT ACPP_LLVM_COMPONENT)
-  add_library(${COMPILER_LIBRARY_NAME} MODULE
-    ${COMPILER_LIBRARY_SOURCES}
-    frontend/AdaptiveCppClangPlugin.cpp
-  )
+  if(WIN32)
+    add_library(${COMPILER_LIBRARY_NAME} SHARED
+      ${COMPILER_LIBRARY_SOURCES}
+      frontend/AdaptiveCppClangPlugin.cpp
+    )
+  else()
+    add_library(${COMPILER_LIBRARY_NAME} MODULE
+      ${COMPILER_LIBRARY_SOURCES}
+      frontend/AdaptiveCppClangPlugin.cpp
+    )
+  endif()
 else()
   add_clang_library(acpp-frontend OBJECT
     frontend/AdaptiveCppClangPlugin.cpp

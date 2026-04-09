@@ -66,8 +66,8 @@ public:
         return 1, 
         return __acpp_sscp_get_subgroup_size(),
         // TODO This is not actually correct for incomplete subgroups
-        return __acpp_warp_size,
-        return __acpp_warp_size);
+        return hiplike_get_subgroup_size(),
+        return hiplike_get_subgroup_size());
   }
 
   ACPP_KERNEL_TARGET
@@ -123,6 +123,24 @@ private:
         int local_range =
             __acpp_lsize_x * __acpp_lsize_y * __acpp_lsize_z;
         return (local_range + __acpp_warp_size - 1) / __acpp_warp_size;
+    );
+    return 0;
+  }
+
+  ACPP_KERNEL_TARGET
+  int hiplike_get_subgroup_size() const {
+    __acpp_if_target_hiplike(
+      if (get_group_linear_id() ==
+          hiplike_num_subgroups() - 1) {
+        auto wg_size = __acpp_lsize_x *
+          __acpp_lsize_y * __acpp_lsize_z;
+
+        auto num_max_sized_subgroups = hiplike_num_subgroups() - 1;
+        return wg_size -
+               num_max_sized_subgroups * __acpp_warp_size;
+      } else {
+        return __acpp_warp_size;
+      }
     );
     return 0;
   }

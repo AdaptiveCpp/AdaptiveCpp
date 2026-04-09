@@ -30,6 +30,21 @@ std::mutex stream_registry_lock;
 
 }
 
+pcudaError_t stream::create(stream *&out, std::shared_ptr<inorder_executor> exec) {
+  if(!exec)
+    return pcudaErrorInvalidValue;
+  
+  out = new pcuda::stream{};
+  out->_executor = exec;
+
+  {
+    std::lock_guard<std::mutex> lock{stream_registry_lock};
+    stream_registry.push_back(out);
+  }
+
+  return pcudaSuccess;
+}
+
 pcudaError_t stream::create(pcuda::stream *&out, pcuda_runtime *pcuda_rt,
                            device_id dev, unsigned int flags, int priority){
   assert(pcuda_rt);
@@ -45,15 +60,7 @@ pcudaError_t stream::create(pcuda::stream *&out, pcuda_runtime *pcuda_rt,
   }
 
   inorder_executor* exec = static_cast<inorder_executor*>(executor.release());
-  out = new pcuda::stream{};
-  out->_executor = std::shared_ptr<inorder_executor>{exec};
-
-  {
-    std::lock_guard<std::mutex> lock{stream_registry_lock};
-    stream_registry.push_back(out);
-  }
-
-  return pcudaSuccess;
+  return create(out, std::shared_ptr<inorder_executor>{exec});
 }
 
 pcudaError_t stream::destroy(stream *stream, pcuda_runtime *) {

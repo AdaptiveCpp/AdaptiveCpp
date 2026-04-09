@@ -31,7 +31,7 @@ bool omp_hardware_context::is_gpu() const {
 std::size_t omp_hardware_context::get_max_kernel_concurrency() const {
   return 1;
 }
-  
+
 // TODO We could actually copy have more memcpy concurrency
 std::size_t omp_hardware_context::get_max_memcpy_concurrency() const {
   return 1;
@@ -114,6 +114,12 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::work_item_independent_forward_progress:
     return false;
     break;
+  case device_support_aspect::fp64:
+    return true;
+    break;
+  case device_support_aspect::atomic64:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   return false;
@@ -135,6 +141,18 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     // Do not change this; heuristics in algorithms library
     // use this.
     return omp_get_num_procs();
+    break;
+    case device_uint_property::max_work_group_range0:
+    return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::max_work_group_range1:
+    return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::max_work_group_range2:
+    return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::max_global_size0:
     return std::numeric_limits<std::size_t>::max();
@@ -283,6 +301,10 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::omp);
+    break;
+  case device_uint_property::queue_priority_range_low:
+  case device_uint_property::queue_priority_range_high:
+    return 0;
     break;
   }
   assert(false && "Invalid device property");

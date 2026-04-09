@@ -391,10 +391,14 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
     // host?
     std::pair<backend_executor *, device_id> execution_config =
         select_executor(_rt, node, node->get_operation());
-    // If we are not a requirement, execution target should not have changed
+    // If we are not a requirement or data transfer, execution target should not have changed
     // -- only e.g. for host accessors a change is expected as they target the
     // CPU device, but their memcyp may need to be executed on a device.
-    assert(execution_config.second == target_device);
+    // Similary, host-host data transfers may be carried out by the host backend
+    // and not the device backend.
+    if(!node->get_operation()->is_data_transfer()) {
+      assert(execution_config.second == target_device);
+    }
     rt::submit(execution_config.first, node, node->get_operation());
   }
 }

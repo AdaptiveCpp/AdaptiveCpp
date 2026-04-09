@@ -6,6 +6,7 @@ AdaptiveCpp supports a dialect of the CUDA/HIP language called portable CUDA (PC
 Similarly to using `--acpp-targets=generic` with SYCL or C++ standard parallelism code (stdpar), AdaptiveCpp can JIT-compile the input PCUDA code for any target from a single binary, including CPUs, NVIDIA GPUs, AMD GPUs, and Intel GPUs.
 
 Possible use cases for PCUDA include:
+
 * Working with existing CUDA/HIP code bases;
 * Iterative porting of existing CUDA/HIP code bases;
 * Fairer compiler comparisons between AdaptiveCpp and nvcc or hipcc, since the exact same (or at least very similar) input code can be used for benchmarks;
@@ -40,7 +41,7 @@ Due to the single-pass nature of AdaptiveCpp's compiler, host and device code ar
 
 ### No compile-time knowledge of targets
 
-Due to the JIT nature, the target device is not known at compile-time. Therefore, it is not possible to specialize code paths for different devices using preprocesor macros.
+Due to the JIT nature, the target device is not known at compile-time. Therefore, it is not possible to specialize code paths for different devices using preprocessor macros.
 Instead, control flow and AdaptiveCpp's JIT reflection and `compile_if` functionality must be used (**Note**: This API is currently available in SYCL and can be used from PCUDA, however, a native PCUDA version will follow in the future).
 
 Another consequence of the JIT nature is that `warpSize` is not `constexpr`, since the target device and its warp size is not known at compile time.
@@ -52,8 +53,9 @@ AdaptiveCpp does not implement CUDA's legacy default stream semantics and only s
 ### Multi-backend device topology and device management
 
 AdaptiveCpp is a portable platform supporting multiple backends that might potentially also be used simultaneously.
+
 * Multiple backends may be available. The OpenMP host backend targeting the CPU is always available.
-* A backend may contain multiple platorms. This is primarily used on backends like OpenCL, where the backend itself might expose multiple available drivers. For example, a system might have the Intel OpenCL implementation for CPU installed as well as the Intel GPU OpenCL implementation.
+* A backend may contain multiple platforms. This is primarily used on backends like OpenCL, where the backend itself might expose multiple available drivers. For example, a system might have the Intel OpenCL implementation for CPU installed as well as the Intel GPU OpenCL implementation.
 * A platform may contain multiple devices.
 
 Because devices from different vendors in general do not know how to talk to each other, in general data transfers are only possible within devices of one platform (and the host).
@@ -343,7 +345,7 @@ pcudaSetDevice(device);
 
 ## Interoperability with SYCL or C++ standard parallelism in device code
 
-When using `--acpp-targets=generic`, all programming models supported by AdaptiveCpp are interchangable arbitrarily in device code.
+When using `--acpp-targets=generic`, all programming models supported by AdaptiveCpp are interchangeable arbitrarily in device code.
 You can mix-and-match code as needed with any of the programming models.
 
 Example:
@@ -382,6 +384,10 @@ pcudaParallelFor(num_blocks, block_size, [=](){
 
 ## Interoperability with SYCL for runtime objects
 
+### Memory
+
+Any pointer can directly be shared between PCUDA and SYCL without additional action. The usual memory compatibility rules apply as in SYCL, i.e. in general a device pointer can only be accessed from devices of the same platform where it was allocated.
+
 ### Queue
 
 A `sycl::queue` object can be obtained from a PCUDA stream as follows:
@@ -391,9 +397,74 @@ pcudaStream_t stream = ...
 sycl::queue q = sycl::AdaptiveCpp_pcuda::make_queue(stream);
 ```
 
+The reverse is also possible, but exclusively for **in-order queues**. There is no way to turn an out-of-order queue into a PCUDA stream:
+```c++
+sycl::queue q = ...
+pcudaStream_t s = sycl::AdaptiveCpp_pcuda::make_stream(q);
+```
+
+#### Synopsis
+
+```c++
+namespace sycl::AdaptiveCpp_pcuda {
+sycl::queue make_queue(pcudaStream_t stream);
+pcudaStream_t make_stream(sycl::queue& q);
+}
+```
+
 **Note:** 
+
 1. During the lifetime of the queue, the underlying backend queue is shared between the PCUDA stream and the SYCL queue. The underlying backend queue will be freed once *both* PCUDA stream and SYCL queue are no longer alive.
 2. The queue returned from `make_queue` will always be an in-order queue. However, SYCL may queue up work to perform batched submission in certain cases. This can cause SYCL work dispatched before PCUDA work to be executed *after* PCUDA work even if both submit to the same underlying queue. To avoid this, use the AdaptiveCpp instant submission mode in SYCL (see [here](macros.md)) and avoid using the buffer-accessor data management model.
 3. You can get a SYCL queue for the PCUDA default stream for the current PCUDA device using `make_queue(0)`.
+4. A SYCL queue only participates in `pcudaDeviceSynchronize()` if a corresponding PCUDA stream is alive at the same time.
 
 
+### Device
+
+#### Synopsis
+
+```c++
+
+namespace sycl::AdaptiveCpp_pcuda {
+/// Given a SYCL device, retrieves the PCUDA indices for
+/// backend, platform and device. They can then e.g.
+/// be passed to pcudaSetDevice and related functions.
+void make_pcuda_device_indices(const sycl::device &dev,
+                              int &backend_idx,
+                              int &platform_idx,
+                              int &device_idx);
+
+/// Creates a SYCL device matching the specified PCUDA indices.
+/// Throws an exception with errc::invalid if invalid indices are passed in.
+sycl::device make_sycl_device(int backend_idx, int platform_idx,
+                              int device_idx);
+
+/// Set the specified SYCL device as currently active PCUDA device
+pcudaError_t set_pcuda_device(const sycl::device& dev);
+
+/// Create a SYCL device from the currently active PCUDA device
+sycl::device get_pcuda_device();
+
+}
+
+```
+
+### Event
+
+#### Synopsis
+
+```c++
+
+namespace sycl::AdaptiveCpp_pcuda {
+
+/// Obtain SYCL event from PCUDA event.
+/// NOTE: Only works with events that have been recorded!
+///   i.e. pcudaEventRecord must have been called.
+sycl::event make_event(pcudaEvent_t evt);
+
+}
+
+```
+
+**Note:** The lifetime of the internal event object is extended until both the PCUDA and SYCL event have been destroyed.

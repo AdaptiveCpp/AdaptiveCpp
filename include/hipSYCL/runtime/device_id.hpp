@@ -25,7 +25,8 @@ enum class hardware_platform
   cuda,
   level_zero,
   ocl,
-  cpu
+  cpu,
+  metal
 };
 
 enum class api_platform {
@@ -33,7 +34,8 @@ enum class api_platform {
   hip,
   level_zero,
   ocl,
-  omp
+  omp,
+  metal
 };
 
 enum class backend_id {
@@ -41,7 +43,8 @@ enum class backend_id {
   hip,
   level_zero,
   ocl,
-  omp
+  omp,
+  metal
 };
 
 struct backend_descriptor
@@ -67,6 +70,9 @@ struct backend_descriptor
       id = backend_id::level_zero;
     else if (hw_plat == hardware_platform::ocl && sw_plat == api_platform::ocl)
       id = backend_id::ocl;
+    else if (hw_plat == hardware_platform::metal &&
+             sw_plat == api_platform::metal)
+      id = backend_id::metal;
     else
       assert(false && "Invalid combination of hardware/software platform for "
                       "backend descriptor.");
@@ -94,7 +100,7 @@ public:
 
   friend bool operator==(const device_id& a, const device_id& b)
   {
-    return a._backend == b._backend && 
+    return a._backend == b._backend &&
            a._device_id == b._device_id;
   }
 
@@ -149,7 +155,7 @@ struct hash<hipsycl::rt::device_id>
 {
   std::size_t operator()(const hipsycl::rt::device_id& k) const
   {
-    return hash<int>()(static_cast<int>(k.get_backend())) ^ 
+    return hash<int>()(static_cast<int>(k.get_backend())) ^
           (hash<int>()(k.get_id()) << 8);
   }
 };
@@ -159,7 +165,7 @@ struct hash<hipsycl::rt::platform_id>
 {
   std::size_t operator()(const hipsycl::rt::platform_id& p) const
   {
-    return hash<int>()(static_cast<int>(p.get_backend())) ^ 
+    return hash<int>()(static_cast<int>(p.get_backend())) ^
           (hash<int>()(p.get_platform()) << 8);
   }
 };

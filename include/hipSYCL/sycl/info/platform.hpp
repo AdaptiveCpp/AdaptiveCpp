@@ -20,11 +20,11 @@ namespace info {
 
 namespace platform
 {
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(profile, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(version, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(name, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(vendor, string_class);
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(extensions, vector_class<string_class>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(profile, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(version, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(name, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(vendor, std::string);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(extensions, std::vector<std::string>);
 };
 
 }

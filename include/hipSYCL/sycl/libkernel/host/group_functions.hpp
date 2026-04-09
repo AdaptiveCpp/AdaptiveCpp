@@ -358,69 +358,32 @@ template<typename Group, typename InPtr, typename OutPtr, typename T, typename B
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 ACPP_KERNEL_TARGET
 OutPtr __acpp_leader_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result, T init,
-                                   BinaryOperation binary_op) {
-
+                                   BinaryOperation binary_op) {  
   if (g.leader()) {
-    *(result++) = init;
-    while (first != last - 1) {
-      *result = binary_op(*(result - 1), *(first++));
-      result++;
+    T acc = init;
+    while (first != last) {
+        T next = binary_op(acc, *(first++));
+        *(result++) = acc;
+        acc = next;
     }
   }
   return result;
 }
-
-template<typename Group, typename InPtr, typename OutPtr, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-ACPP_KERNEL_TARGET
-OutPtr __acpp_leader_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                                   BinaryOperation binary_op) {
-  using value_type = std::remove_reference_t<decltype(*result)>;
-  return __acpp_leader_exclusive_scan(g, first, last, result, value_type{},
-                                         binary_op);
-}
-}
-
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-ACPP_KERNEL_TARGET OutPtr
-__acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               T init, BinaryOperation binary_op) {
-  const auto ret = detail::__acpp_leader_exclusive_scan(
-      g, first, last, result, init, binary_op);
-  return group_broadcast(g, ret);
-}
-
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-ACPP_KERNEL_TARGET OutPtr
-__acpp_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               BinaryOperation binary_op) {
-  using value_type = std::remove_reference_t<decltype(*result)>;
-  return host_builtins::__acpp_joint_exclusive_scan(
-      g, first, last, result, value_type{},
-      binary_op);
 }
 
 template <int Dim, typename V, typename T, typename BinaryOperation>
 ACPP_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
     group<Dim> g, V x, T init, BinaryOperation binary_op) {
-  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
-  const size_t lid     = g.get_local_linear_id();
+  V * input = static_cast<V *>(g.get_local_memory_ptr());
+  T * scratch = reinterpret_cast<T *>(static_cast<char *>(g.get_local_memory_ptr()) + g.get_local_range().size() * sizeof(V));
+  const size_t lid = g.get_local_linear_id();
 
-  if (lid + 1 < 1024)
-    scratch[lid + 1] = x;
+  input[lid] = x;
   __acpp_group_barrier(g);
 
-  if (g.leader()) {
-    scratch[0] = init;
-    for (int i = 1; i < g.get_local_range().size(); ++i)
-      scratch[i] = binary_op(scratch[i], scratch[i - 1]);
-  }
-
+  detail::__acpp_leader_exclusive_scan(g, input, input + g.get_local_range().size(), scratch, init, binary_op);
   __acpp_group_barrier(g);
+  
   T tmp = scratch[lid];
   __acpp_group_barrier(g);
 
@@ -430,14 +393,14 @@ ACPP_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
 template <typename V, typename T, typename BinaryOperation>
 ACPP_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
     sub_group g, V x, T init, BinaryOperation binary_op) {
-  return binary_op(x, init);
+  return init;
 }
 
 template <typename Group, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-ACPP_KERNEL_TARGET T
-__acpp_exclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
-  return __acpp_exclusive_scan_over_group(g, x, T{}, binary_op);
+ACPP_KERNEL_TARGET T __acpp_exclusive_scan_over_group(
+    Group g, T x, BinaryOperation binary_op) {
+  return __acpp_exclusive_scan_over_group(g, x, sycl::known_identity_v<BinaryOperation, std::decay_t<T>>, binary_op);
 }
 
 // inclusive_scan
@@ -451,81 +414,47 @@ __acpp_leader_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
     return result;
 
   if (g.leader()) {
-    *(result++) = binary_op(init, *(first++));
+    T acc = binary_op(init, *(first++));
+    *(result++) = acc;
     while (first != last) {
-      *result = binary_op(*(result - 1), *(first++));
-      result++;
+      acc = binary_op(acc, *(first++));
+      *(result++) = acc;
     }
   }
   return result;
 }
-
-template <typename Group, typename InPtr, typename OutPtr, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-ACPP_KERNEL_TARGET OutPtr
-__acpp_leader_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                                BinaryOperation binary_op) {
-  using value_type = std::remove_reference_t<decltype(*result)>;
-  return __acpp_leader_inclusive_scan(g, first, last, result, binary_op, value_type{});
-}
 }
 
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-ACPP_KERNEL_TARGET OutPtr
-__acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               BinaryOperation binary_op, T init) {
-  auto ret = detail::__acpp_leader_inclusive_scan(g, first, last, result,
-                                                     binary_op, init);
-  return __acpp_group_broadcast(g, ret);
-}
+template <int Dim, typename V, typename T, typename BinaryOperation>
+ACPP_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
+    group<Dim> g, V x, BinaryOperation binary_op, T init) {
+  V * input = static_cast<V *>(g.get_local_memory_ptr());
+  T * scratch = reinterpret_cast<T *>(static_cast<char *>(g.get_local_memory_ptr()) + g.get_local_range().size() * sizeof(V));
+  const size_t lid = g.get_local_linear_id();
 
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-ACPP_KERNEL_TARGET OutPtr
-__acpp_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               BinaryOperation binary_op) {
-  using value_type = std::remove_reference_t<decltype(*result)>;
-  return __acpp_joint_inclusive_scan(
-      g, first, last, result, binary_op,
-      value_type{});
-}
-template <int Dim, typename T, typename BinaryOperation>
-ACPP_KERNEL_TARGET
-T __acpp_inclusive_scan_over_group(
-    group<Dim> g, T x, BinaryOperation binary_op) {
-  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
-  const size_t lid     = g.get_local_linear_id();
-
-  scratch[lid] = x;
+  input[lid] = x;
   __acpp_group_barrier(g);
 
-  if (g.leader()) {
-    for (int i = 1; i < g.get_local_range().size(); ++i)
-      scratch[i] = binary_op(scratch[i], scratch[i - 1]);
-  }
-
+  detail::__acpp_leader_inclusive_scan(g, input, input + g.get_local_range().size(), scratch, binary_op, init);
   __acpp_group_barrier(g);
+  
   T tmp = scratch[lid];
   __acpp_group_barrier(g);
 
   return tmp;
 }
 
-template <typename T, typename BinaryOperation>
+template <typename V, typename T, typename BinaryOperation>
 ACPP_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
-    sub_group g, T x, BinaryOperation binary_op) {
-  return x;
+    sub_group g, V x, BinaryOperation binary_op, T init) {
+  return binary_op(init, x);
 }
 
-template <typename Group, typename V, typename T, typename BinaryOperation,
+template <typename Group, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 ACPP_KERNEL_TARGET T __acpp_inclusive_scan_over_group(
-    Group g, V x, T init, BinaryOperation binary_op) {
-  T scan = __acpp_inclusive_scan_over_group(g, T{x}, binary_op);
-  return binary_op(scan, init);
+    Group g, T x, BinaryOperation binary_op) {
+  return __acpp_inclusive_scan_over_group(g, x, binary_op, sycl::known_identity_v<BinaryOperation, std::decay_t<T>>);
 }
 
 // shift_left
@@ -568,9 +497,9 @@ ACPP_KERNEL_TARGET T __acpp_shift_group_right(
   scratch[lid] = x;
   __acpp_group_barrier(g);
 
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   x = scratch[target_lid];
   __acpp_group_barrier(g);
@@ -596,9 +525,9 @@ ACPP_KERNEL_TARGET T __acpp_permute_group_by_xor(
   scratch[lid] = x;
   __acpp_group_barrier(g);
 
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   x = scratch[target_lid];
   __acpp_group_barrier(g);
@@ -627,8 +556,9 @@ ACPP_KERNEL_TARGET T __acpp_select_from_group(
   __acpp_group_barrier(g);
 
   // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   x = scratch[target_lid];
   __acpp_group_barrier(g);

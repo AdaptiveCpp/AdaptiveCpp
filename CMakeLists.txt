@@ -1,12 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 
 if(POLICY CMP0074) # Since CMake 3.12
-  cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
+  cmake_policy(SET CMP0074 NEW) # Don't complain about using OpenMP_ROOT...
 endif()
-if(POLICY CMP0167) # Since CMake 3.30
-    # Suppress warning: "Policy CMP0167 is not set: The FindBoost module is removed."
-    # Set CMP0167 to OLD to avoid breakage in the Windows & macOS CI tests.
-    cmake_policy(SET CMP0167 OLD)
+if (POLICY CMP0144) # Since CMake 3.27
+  cmake_policy(SET CMP0144 NEW)
 endif()
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
@@ -15,7 +13,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
 endif()
 
 set(ACPP_VERSION_MAJOR 25)
-set(ACPP_VERSION_MINOR 02)
+set(ACPP_VERSION_MINOR 10)
 set(ACPP_VERSION_PATCH 0)
 
 execute_process(
@@ -94,6 +92,11 @@ endif()
 
 set(ACPP_EXPERIMENTAL_LLVM OFF CACHE BOOL "Whether to allow building AdaptiveCpp against unsupported LLVM versions")
 
+set(ACPP_SUBPROJECT_PARALLEL_JOBS "1" CACHE STRING "Specifies the number of parallel jobs to use when building subprojects")
+if(NOT ACPP_SUBPROJECT_PARALLEL_JOBS MATCHES "^[1-9][0-9]*$")
+  message(SEND_ERROR "ACPP_SUBPROJECT_PARALLEL_JOBS must be a positive integer.")
+endif()
+
 set(HIPSYCL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ACPP_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(ACPP_BINARY_ROOT "${CMAKE_CURRENT_BINARY_DIR}")
@@ -112,16 +115,6 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
   )
   endif()
-endif()
-
-if (NOT ${BOOST_ROOT} STREQUAL "")
-  set(ENV{BOOST_ROOT} ${BOOST_ROOT})
-endif()
-
-find_package(Boost COMPONENTS context fiber )
-
-if(NOT Boost_FOUND)
-  message(FATAL_ERROR "Please provide the path to the root directory of the boost installation using the -DBOOST_ROOT option")
 endif()
 
 # Check for CUDA/ROCm and clang
@@ -372,7 +365,7 @@ if(BUILD_CLANG_PLUGIN)
         message(STATUS "Found ROCm clang: ${ROCM_CLANG_PATH}")
         execute_process(COMMAND ${ROCM_CLANG_PATH} "--version"
           OUTPUT_VARIABLE ROCM_CLANG_VERBOSE_OUTPUT)
-        string(REGEX MATCH "clang version ([0-9]+).([0-9]+).([0-9]+)" ROCM_CLANG_VERSION ${ROCM_CLANG_VERBOSE_OUTPUT})
+        string(REGEX MATCH "clang version ([0-9]+)\\.([0-9]+)\\.([0-9]+)" ROCM_CLANG_VERSION ${ROCM_CLANG_VERBOSE_OUTPUT})
         if(ROCM_CLANG_VERSION)
           set(ROCM_LLVM_MAJOR ${CMAKE_MATCH_1})
           set(ROCM_LLVM_MINOR ${CMAKE_MATCH_2})
@@ -394,7 +387,7 @@ if(BUILD_CLANG_PLUGIN)
       # by Linux distributions as they may be missing the roc-* identifier in the output :(
       execute_process(COMMAND ${CLANG_EXECUTABLE_PATH} "--version"
         OUTPUT_VARIABLE CLANG_VERBOSE_OUTPUT)
-      string(REGEX MATCH "clang version [0-9]+.[0-9]+.[0-9]+ \\(.+ roc-([0-9]+).([0-9]+).([0-9]+)" AMD_CLANG_VERSION ${CLANG_VERBOSE_OUTPUT})
+      string(REGEX MATCH "clang version [0-9]+\\.[0-9]+\\.[0-9]+[a-zA-Z]* \\(.+ roc-([0-9]+)\\.([0-9]+)\\.([0-9]+)" AMD_CLANG_VERSION ${CLANG_VERBOSE_OUTPUT})
 
       if(AMD_CLANG_VERSION)
         set(ROCM_VERSION_MAJOR ${CMAKE_MATCH_1})
@@ -509,30 +502,11 @@ else()
   set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
 endif()
 
-if(Boost_FIBER_LIBRARY_DEBUG)
-  get_filename_component(Boost_LIBRARY_DIR "${Boost_FIBER_LIBRARY_DEBUG}" DIRECTORY)
-elseif(Boost_FIBER_LIBRARY_RELEASE)
-  get_filename_component(Boost_LIBRARY_DIR "${Boost_FIBER_LIBRARY_RELEASE}" DIRECTORY)
-else()
-  get_target_property(FIBER_IMPORT_LIBRARY Boost::fiber IMPORTED_LOCATION_DEBUG)
-  if(NOT FIBER_IMPORT_LIBRARY)
-    get_target_property(FIBER_IMPORT_LIBRARY Boost::fiber IMPORTED_LOCATION_RELEASE)
-  endif()
-  get_filename_component(Boost_LIBRARY_DIR "${FIBER_IMPORT_LIBRARY}" DIRECTORY)
-  get_target_property(Boost_INCLUDE_DIR Boost::fiber INTERFACE_INCLUDE_DIRECTORIES)
-endif()
-
 if(APPLE)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     set(DEFAULT_OMP_FLAG "-Xclang -fopenmp")
   else()
     set(DEFAULT_OMP_FLAG "-fopenmp")
-  endif()
-
-  if(Boost_FIBER_LIBRARY_DEBUG)
-    set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_DEBUG} ${Boost_FIBER_LIBRARY_DEBUG} -Wl,-rpath ${Boost_LIBRARY_DIR}")
-  else()
-    set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_RELEASE} ${Boost_FIBER_LIBRARY_RELEASE} -Wl,-rpath ${Boost_LIBRARY_DIR}")
   endif()
 else()
   set(DEFAULT_OMP_FLAG "-fopenmp")
@@ -559,21 +533,14 @@ else()
   set(DEFAULT_LINK_PREFIX "-l")
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-  get_filename_component(Boost_CONTEXT_LIBRARY_NAME "${Boost_CONTEXT_LIBRARY_DEBUG}" NAME)
-  get_filename_component(Boost_FIBER_LIBRARY_NAME "${Boost_FIBER_LIBRARY_DEBUG}" NAME)
-else()
-  get_filename_component(Boost_CONTEXT_LIBRARY_NAME "${Boost_CONTEXT_LIBRARY_RELEASE}" NAME)
-  get_filename_component(Boost_FIBER_LIBRARY_NAME "${Boost_FIBER_LIBRARY_RELEASE}" NAME)
-endif()
-set(DEFAULT_WIN32_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} ${DEFAULT_LINK_PREFIX}${Boost_CONTEXT_LIBRARY_NAME} ${DEFAULT_LINK_PREFIX}${Boost_FIBER_LIBRARY_NAME} ${DEFAULT_OMP_FLAG}")
-set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} ${DEFAULT_LINK_PREFIX}${Boost_CONTEXT_LIBRARY_NAME} ${DEFAULT_LINK_PREFIX}${Boost_FIBER_LIBRARY_NAME} -llibomp")
+set(DEFAULT_WIN32_OMP_LINK_LINE "${DEFAULT_OMP_FLAG}")
+set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "-llibomp")
 
 # need add_subdirectory(src) before this!
-set(DEFAULT_APPLE_OMP_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${DEFAULT_OMP_FLAG} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
-set(DEFAULT_APPLE_SEQUENTIAL_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
-set(DEFAULT_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR} ${DEFAULT_OMP_FLAG}")
-set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR}")
+set(DEFAULT_APPLE_OMP_LINK_LINE "${DEFAULT_OMP_FLAG} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
+set(DEFAULT_APPLE_SEQUENTIAL_LINK_LINE "${hipSYCL_OpenMP_CXX_LIBRARIES}")
+set(DEFAULT_OMP_LINK_LINE "${DEFAULT_OMP_FLAG}")
+set(DEFAULT_SEQUENTIAL_LINK_LINE "")
 
 # If no link lines given, set to default.
 if(WIN32)
@@ -636,11 +603,11 @@ endif()
 
 # always need -D_ENABLE_EXTENDED_ALIGNED_STORAGE to allow correctly aligned local memory on CPU
 if(NOT OMP_CXX_FLAGS)
-  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
+  set(OMP_CXX_FLAGS "${DEFAULT_OMP_FLAG} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
 endif()
 
 if(NOT SEQUENTIAL_CXX_FLAGS)
-  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
+  set(SEQUENTIAL_CXX_FLAGS "-D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
 endif()
 
 if(BUILD_CLANG_PLUGIN)
@@ -743,6 +710,102 @@ if(WITH_ROCM_BACKEND)
   file(WRITE ${ACPP_BINARY_ROOT}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
 endif()
 
+message(STATUS "Numa: ${NUMA_LIBRARY}")
+
+if(WIN32)
+  # libs on windows are under bin/
+  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_PATH/bin")
+  # on windows, these libraries don't exist as they are linked
+  # statically to backends
+  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "")
+  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "")
+else()
+  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_LIB_PATH")
+  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host")
+  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx")
+  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu")
+  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv")
+  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend")
+endif()
+
+# TODO OpenMP is poorly handled.
+# - We copy both omp and gomp instead of checking what we need
+# - Won't work with AdaptiveCpp-in-LLVM builds
+set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-rt\" : \"/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-common\" : \"/\",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
+  \"${NUMA_LIBRARY}\" : \"/\",
+  \"${LLVM_LIBRARY}\" : \"/\",
+  \"${OpenMP_omp_LIBRARY}\" : \"/\",
+  \"${OpenMP_gomp_LIBRARY}\" : \"/\",
+  \"${LIBSLEEF}\" : \"/\",
+  \"${LIBMVEC}\" : \"/\",
+  \"${LIBAMATH}\" : \"/\",
+  \"${LIBSVML}\" : \"/\",
+  \"${LIBINTLC}\" : \"/\"
+}
+")
+
+#TODO cudart for older cmake versions?
+set(ACPP_CUDA_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\",
+  \"${CUDA_cudart_LIBRARY}\" : \"/\"
+}
+")
+
+# TODO Can we unify with the other ROCm detection logic that we already have?
+if(WITH_ROCM_BACKEND)
+  find_library(AMDHIP64_LIBRARY amdhip64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
+  if(NOT WIN32)
+    find_library(HSARUNTIME64_LIBRARY hsa-runtime64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
+  endif()
+  find_library(AMDCOMGR_LIBRARY amd_comgr HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+  find_library(HSAKMT_LIBRARY hsakmt HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+  find_library(ROCPROFILERREGISTER_LIBRARY rocprofiler-register HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+endif()
+set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"${ROCM_DEVICE_LIBS_PATH}/*\" : \"/hipSYCL/ext/bitcode/amdgcn/\",
+  \"${HIPRTC_LIBRARY}\" : \"/\",
+  \"${AMDHIP64_LIBRARY}\" : \"/\",
+  \"${HSARUNTIME64_LIBRARY}\" : \"/\",
+  \"${AMDCOMGR_LIBRARY}\" : \"/\",
+  \"${HSAKMT_LIBRARY}\" : \"/\",
+  \"${ROCPROFILERREGISTER_LIBRARY}\" : \"/\"
+}
+")
+
+# TODO Looks like llvm-spirv sets up spirv-tools dependency if it finds
+# it on the system -> look into explicitly disabling this?
+set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
+  \"${OpenCL_LIBRARIES}\" : \"/\"
+}
+")
+
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json ${ACPP_CORE_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json ${ACPP_CUDA_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json ${ACPP_HIP_DEPLOYMENT_MANIFEST})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json ${ACPP_OCL_DEPLOYMENT_MANIFEST})
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -815,6 +878,11 @@ endif()
 if(WITH_ROCM_BACKEND)
   install(FILES ${ACPP_BINARY_ROOT}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 endif()
+
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)

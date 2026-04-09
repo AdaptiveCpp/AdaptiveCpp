@@ -133,6 +133,21 @@ bool instructionAccessesMemory(llvm::Instruction* I) {
   return false;
 }
 
+bool isStackPtr(const llvm::Value* V) {
+  if(!V)
+    return false;
+  
+  if(llvm::isa<llvm::AllocaInst>(V)) {
+    return true;
+  } else {
+    if(auto* GEPInst = llvm::dyn_cast<llvm::GetElementPtrInst>(V)) {
+      return isStackPtr(GEPInst->getPointerOperand());
+    }
+
+    return false;
+  }
+}
+
 bool functionDoesNotAccessMemory(llvm::Function* F){
   if(!F)
     return true;
@@ -150,7 +165,7 @@ bool functionDoesNotAccessMemory(llvm::Function* F){
 // returns whether To is in the same BB as From, and succeeds it in the instruction list.
 bool isSucceedingInBB(llvm::Instruction* From, llvm::Instruction* To) {
   if(From->getParent() == To->getParent()) {
-    for(auto* I = From; I != nullptr; I = I->getNextNonDebugInstruction()) {
+    for(auto* I = From; I != nullptr; I = llvmutils::getNextNonDebugInstruction(I)) {
       if(I == To)
         return true;
     }
@@ -187,6 +202,7 @@ void forEachReachableInstructionRequiringSync(
     llvm::Instruction *Start, const llvm::SmallPtrSet<llvm::Function *, 16> &StdparFunctions,
     const InstToInstListMapT& PotentialStoresForStdparArgs,
     llvm::SmallPtrSet<llvm::BasicBlock*, 16> &CompletelyVisitedBlocks,
+    bool NoStackPtrsInStdparAlgorithms,
     Handler &&H) {
 
   if(!Start)
@@ -224,8 +240,12 @@ void forEachReachableInstructionRequiringSync(
         return;
       }
     } else if(instructionAccessesMemory(Current)) {
-      bool isSkippableStore = false;
-      if(llvm::isa<llvm::StoreInst>(Current)) {
+      bool isSkippableInst = false;
+      if(auto* SI = llvm::dyn_cast<llvm::StoreInst>(Current)) {
+        if(NoStackPtrsInStdparAlgorithms) {
+          if(isStackPtr(SI->getPointerOperand()))
+            isSkippableInst = true;
+        }
         // Check if the store is perhaps only used to setup arguments of stdpar calls
         // (e.g. to assemble kernel lambdas)
         auto It = PotentialStoresForStdparArgs.find(Current);
@@ -241,17 +261,22 @@ void forEachReachableInstructionRequiringSync(
             }
           }
           if(allAreSucceedingInBB(Current, StdparCallsUsingMemory)) {
-            isSkippableStore = true;
+            isSkippableInst = true;
           }
+        }
+      } else if(auto* LI = llvm::dyn_cast<llvm::LoadInst>(Current)) {
+        if(NoStackPtrsInStdparAlgorithms) {
+          if(isStackPtr(LI->getPointerOperand()))
+            isSkippableInst = true;
         }
       }
 
-      if(!isSkippableStore) {
+      if(!isSkippableInst) {
         H(Current);
         return;
       } else {
         HIPSYCL_DEBUG_INFO
-            << "[stdpar] SyncElision: Detected store that does not block barrier movement\n";
+            << "[stdpar] SyncElision: Detected load or store that does not block barrier movement\n";
       }
     } else if(Current->isTerminator()){
       // If this terminator causes control flow to exit from this function, we need
@@ -263,7 +288,7 @@ void forEachReachableInstructionRequiringSync(
         return;
       }
     }
-    Current = Current->getNextNonDebugInstruction();
+    Current = llvmutils::getNextNonDebugInstruction(Current);
   }
   // We have reached the end of this BB - so we need to look
   // at all its successors in the CFG
@@ -273,7 +298,8 @@ void forEachReachableInstructionRequiringSync(
     if(Successor->size() > 0) {
       llvm::Instruction* FirstI = &(*Successor->getFirstInsertionPt());
       forEachReachableInstructionRequiringSync(
-          FirstI, StdparFunctions, PotentialStoresForStdparArgs, CompletelyVisitedBlocks, H);
+          FirstI, StdparFunctions, PotentialStoresForStdparArgs, CompletelyVisitedBlocks,
+          NoStackPtrsInStdparAlgorithms, H);
     }
   }
 }
@@ -365,7 +391,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
     for(auto* I : StdparCallPositions) {
       // For the start of our search, we need be move to the next instruction following
       // the stdpar call.
-      // If the stdpar call is mapped to an InvokeInst (which is tpyically the case),
+      // If the stdpar call is mapped to an InvokeInst (which is typically the case),
       // it does not have a next instruction.
       //
       // It is important to have this logic here, and not e.g. when collecting StdparCallPositions,
@@ -377,13 +403,14 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
           StartPositions.push_back(&*(I->getSuccessor(i)->getFirstInsertionPt()));
         }
       } else {
-        StartPositions.push_back(I->getNextNonDebugInstruction());
+        StartPositions.push_back(llvmutils::getNextNonDebugInstruction(I));
       }
       for(auto* Start : StartPositions) {
 
         llvm::SmallPtrSet<llvm::BasicBlock*, 16> VisitedBlocks;
         forEachReachableInstructionRequiringSync(
             Start, StdparFunctions, InstructionsPotentiallyForStdparArgHandling, VisitedBlocks,
+            NoStackPtrsInStdparAlgorithms,
             [&](llvm::Instruction *InsertSyncBefore) {
               HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Inserting synchronization in function "
                                 << InsertSyncBefore->getParent()->getParent()->getName() << "\n";

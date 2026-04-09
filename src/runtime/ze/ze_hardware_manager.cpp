@@ -45,7 +45,7 @@ ze_context_manager::ze_context_manager(ze_driver_handle_t driver)
       HIPSYCL_DEBUG_INFO << "ze_context_manager: Destroying context..."
                          << std::endl;
       ze_result_t err = zeContextDestroy(*ptr);
-      
+
       if (err != ZE_RESULT_SUCCESS) {
         register_error(
             __acpp_here(),
@@ -66,7 +66,7 @@ ze_context_manager::~ze_context_manager() {}
 ze_context_handle_t ze_context_manager::get() const {
   if(!_handle)
     return nullptr;
-  
+
   return *(_handle.get());
 }
 
@@ -110,7 +110,7 @@ void ze_event_pool_manager::spawn_pool(){
     auto deleter = [](ze_event_pool_handle_t* ptr) {
         if(ptr) {
           ze_result_t err = zeEventPoolDestroy(*ptr);
-    
+
           if(err != ZE_RESULT_SUCCESS) {
             register_error(__acpp_here(),
                           error_info{"ze_event_pool_manager: Could not destroy event pool",
@@ -122,7 +122,7 @@ void ze_event_pool_manager::spawn_pool(){
       };
 
     _pool = std::shared_ptr<ze_event_pool_handle_t>{
-      new ze_event_pool_handle_t{pool}, deleter 
+      new ze_event_pool_handle_t{pool}, deleter
     };
 
     // Reset number of used events
@@ -140,7 +140,7 @@ ze_context_handle_t ze_event_pool_manager::get_ze_context() const {
   return _ctx;
 }
 
-std::shared_ptr<ze_event_pool_handle_t> 
+std::shared_ptr<ze_event_pool_handle_t>
 ze_event_pool_manager::allocate_event(uint32_t& event_ordinal) {
   if(_num_used_events+1 >= _pool_size) {
     // If pool is full, spawn a new pool
@@ -155,7 +155,7 @@ ze_event_pool_manager::allocate_event(uint32_t& event_ordinal) {
   }
   return _pool;
 }
-  
+
 
 ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
                                          ze_device_handle_t device,
@@ -211,7 +211,7 @@ std::size_t ze_hardware_context::get_max_kernel_concurrency() const {
   // TODO
   return 1;
 }
-  
+
 std::size_t ze_hardware_context::get_max_memcpy_concurrency() const {
   // TODO
   return 1;
@@ -291,6 +291,12 @@ bool ze_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::work_item_independent_forward_progress:
     return false;
     break;
+  case device_support_aspect::fp64:
+    return true;
+    break;
+  case device_support_aspect::atomic64:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -300,6 +306,18 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
   switch (prop) {
   case device_uint_property::max_compute_units:
     return _props.numSlices * _props.numSubslicesPerSlice * _props.numEUsPerSubslice;
+    break;
+  case device_uint_property::max_work_group_range0:
+    return _compute_props.maxGroupSizeX;
+    break;
+  case device_uint_property::max_work_group_range1:
+    return _compute_props.maxGroupSizeY;
+    break;
+  case device_uint_property::max_work_group_range2:
+    return _compute_props.maxGroupSizeZ;
+    break;
+  case device_uint_property::max_work_group_range_size:
+    return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::max_global_size0:
     return _compute_props.maxGroupSizeX * _compute_props.maxGroupCountX;
@@ -456,6 +474,10 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::level_zero);
     break;
+  case device_uint_property::queue_priority_range_low:
+  case device_uint_property::queue_priority_range_high:
+    return 0;
+    break;
   }
   assert(false && "Invalid device property");
   std::terminate();
@@ -477,7 +499,7 @@ ze_hardware_context::get_property(device_uint_list_property prop) const {
   assert(false && "Invalid device property");
   std::terminate();
 }
-  
+
 std::string ze_hardware_context::get_driver_version() const {
   ze_driver_properties_t props;
   ze_result_t err = zeDriverGetProperties(_driver, &props);
@@ -542,7 +564,7 @@ ze_hardware_manager::ze_hardware_manager() {
                              "assuming no drivers available.",
                              error_code{"ze", static_cast<int>(err)}});
   }
-  
+
   if(num_drivers > 0) {
     std::vector<ze_driver_handle_t> drivers(num_drivers);
     err = zeDriverGet(&num_drivers, drivers.data());
@@ -555,7 +577,7 @@ ze_hardware_manager::ze_hardware_manager() {
     }
 
     for(int i = 0; i < num_drivers; ++i) {
-      
+
       _drivers.push_back(drivers[i]);
       _contexts.push_back(ze_context_manager{drivers[i]});
 
@@ -569,11 +591,11 @@ ze_hardware_manager::ze_hardware_manager() {
         num_devices = 0;
       }
 
-      
+
       std::vector<ze_device_handle_t> devices;
       if(num_devices > 0) {
         devices.resize(num_devices);
-        
+
         err = zeDeviceGet(drivers[i], &num_devices, devices.data());
 
         for(int dev = 0; dev < num_devices; ++dev) {
@@ -601,7 +623,7 @@ hardware_context *ze_hardware_manager::get_device(std::size_t index) {
 
 device_id ze_hardware_manager::get_device_id(std::size_t index) const {
   return device_id{backend_descriptor{
-    hardware_platform::level_zero, api_platform::level_zero}, 
+    hardware_platform::level_zero, api_platform::level_zero},
     static_cast<int>(index)
   };
 }

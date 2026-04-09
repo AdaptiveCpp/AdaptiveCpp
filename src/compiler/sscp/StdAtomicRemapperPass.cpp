@@ -96,14 +96,14 @@ bool needsBitcastsForIntAtomics(llvm::Module& M, llvm::Type* T) {
 llvm::Value *bitcastToIntN(llvm::Module &M, llvm::Value *V, int BitSize,
                            llvm::Instruction *InsertBefore) {
   auto *TargetType = llvm::IntegerType::get(M.getContext(), BitSize);
-  return new llvm::BitCastInst(V, TargetType, "", InsertBefore);
+  return new llvm::BitCastInst(V, TargetType, "", llvmutils::makeInsertionPoint(InsertBefore));
 }
 
 llvm::Value* ptrcastToIntNPtr(llvm::Module &M, llvm::Value *V, int BitSize,
                            llvm::Instruction *InsertBefore) {
   auto *TargetType = llvm::IntegerType::get(M.getContext(), BitSize);
   return new llvm::BitCastInst(
-      V, getPointerType(TargetType, V->getType()->getPointerAddressSpace()), "", InsertBefore);
+      V, getPointerType(TargetType, V->getType()->getPointerAddressSpace()), "", llvmutils::makeInsertionPoint(InsertBefore));
 }
 
 bool llvmBinOpToAcppBinOp(llvm::AtomicRMWInst::BinOp Op, rmw_op& Out) {
@@ -474,8 +474,8 @@ llvm::PreservedAnalyses StdAtomicRemapperPass::run(llvm::Module &M,
 
     // Create alloca and store expected value - this we can later use
     // as pointer argument for the builtin
-    llvm::AllocaInst* ExpectedAI = new llvm::AllocaInst(CI->getCompareOperand()->getType(), 0, "", CI);
-    llvm::StoreInst *ExpectedStore = new llvm::StoreInst(CI->getCompareOperand(), ExpectedAI, CI);
+    llvm::AllocaInst* ExpectedAI = new llvm::AllocaInst(CI->getCompareOperand()->getType(), 0, "", llvmutils::makeInsertionPoint(CI));
+    llvm::StoreInst *ExpectedStore = new llvm::StoreInst(CI->getCompareOperand(), ExpectedAI, llvmutils::makeInsertionPoint(CI));
     if (auto *NewI = createAtomicCmpExchange(
             M, !CI->isWeak(), CI->getNewValOperand(), CI->getPointerOperand(), ExpectedAI,
             llvmOrderingToAcppOrdering(SuccessOrder), llvmOrderingToAcppOrdering(FailureOrder),

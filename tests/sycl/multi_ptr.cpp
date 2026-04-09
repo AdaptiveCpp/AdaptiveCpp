@@ -11,8 +11,6 @@
 
 #include "sycl_test_suite.hpp"
 
-using namespace cl;
-
 BOOST_AUTO_TEST_SUITE(multi_ptr_test_suite)
 
 using sycl::access::address_space;

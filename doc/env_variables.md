@@ -32,6 +32,12 @@
 * `ACPP_JITOPT_IADS_RELATIVE_THRESHOLD_MIN_DATA`: JIT-time optimization *invariant argument detection & specialization* (active if `ACPP_ADAPTIVITY_LEVEL >= 2`): Only consider kernels with at least many invocations for the relative threshold described above. Default: 1024.
 * `ACPP_JITOPT_IADS_RELATIVE_EVICTION_THRESHOLD`: JIT-time optimization *invariant argument detection & specialization* (active if `ACPP_ADAPTIVITY_LEVEL >= 2`): If the relative frequency of a kernel argument value falls below this threshold, the statistics entry for the the argument value may be evicted if space for other values is needed.
 * `ACPP_ALLOCATION_TRACKING`: If set to 1, allows the AdaptiveCpp runtime to track and register the allocations that it manages. This enables additional JIT-time optimizations. Set to 0 to disable. (Default: 0)
+* `ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY`: If set, override the default vector math library to be used during JIT compilation. Allowed values:
+  * `none`: Disable usage of vector math library.
+  * `libmvec`: Use GNU libmvec vectorized libm implementation (Only available on x86_64 if LLVM version < 21).
+  * `svml`: Use Intel SVML.
+  * `sleef`: Use SLEEF.
+  * `armpl`: Use amath from Arm Performance Libraries.
 
 ## Environment variables to control dumping IR during JIT compilation
 

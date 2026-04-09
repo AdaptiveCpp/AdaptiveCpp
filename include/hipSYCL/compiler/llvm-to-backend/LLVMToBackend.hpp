@@ -42,10 +42,9 @@ namespace compiler {
 
 struct PassHandler;
 
-struct TranslationHints {
-  std::optional<std::size_t> RequestedLocalMemSize;
-  std::optional<std::size_t> SubgroupSize;
-  std::optional<rt::range<3>> WorkGroupSize;
+struct KernelStats {
+  std::string Name;
+  bool IsFreeOfIndirectAccess;
 };
 
 class LLVMToBackendTranslator {
@@ -100,6 +99,10 @@ public:
 
   const std::vector<std::string>& getKernels () const {
     return Kernels;
+  }
+
+  const std::vector<KernelStats>& getCompiledKernelStats() const {
+    return KernelCompilationStats;
   }
 
   std::string getErrorLogAsString() const {
@@ -252,6 +255,8 @@ private:
   // map from kernel name to list of (param index, alignment)
   std::unordered_map<std::string, std::vector<std::pair<int, int>>> KnownPtrParamAlignments;
   std::unordered_map<std::string, uint64_t> ReflectionFields;
+
+  std::vector<KernelStats> KernelCompilationStats;
 
 };
 

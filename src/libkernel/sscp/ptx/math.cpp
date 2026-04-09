@@ -106,7 +106,12 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x,
 }
 
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN2(hypot, __nv_hypotf, __nv_hypot)
-HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(ilogb, __nv_ilogbf, __nv_ilogb)
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f32(float x) {
+  return __nv_ilogbf(x);
+}
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f64(double x) {
+  return __nv_ilogb(x);
+}
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ldexp_f32(float x,
                                                     __acpp_int32 k) {
@@ -137,8 +142,8 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) 
 }
 
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(log, __nv_logf, __nv_log)
-HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(log2, __nv_log2f, __nv_log)
-HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(log10, __nv_log10f, __nv_log)
+HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(log2, __nv_log2f, __nv_log2)
+HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(log10, __nv_log10f, __nv_log10)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(log1p, __nv_log1pf, __nv_log1p)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(logb, __nv_logbf, __nv_logb)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN3(mad, __nv_fmaf, __nv_fma)

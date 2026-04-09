@@ -51,6 +51,7 @@ add_library(acpp-rt SHARED
   hw_model/memcpy.cpp
   serialization/serialization.cpp
   support/reflection.cpp
+  support/minicoro_wrapper.cpp
   pcuda/pcuda_device_topology.cpp
   pcuda/pcuda_error.cpp
   pcuda/pcuda_stream.cpp
@@ -78,7 +79,7 @@ target_include_directories(acpp-rt
 set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "acpp-rt")
 if(WIN32)
   set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
-  if(ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(acpp-rt PRIVATE /EHs)
   endif()
 
@@ -142,7 +143,7 @@ if(WITH_CUDA_BACKEND)
     set_property(TARGET rt-backend-cuda PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-cuda PRIVATE /EHs)
   endif()
 
@@ -192,7 +193,7 @@ if(WITH_ROCM_BACKEND)
     set_property(TARGET rt-backend-hip PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-hip PRIVATE /EHs)
   endif()
 
@@ -210,7 +211,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_event.cpp
     ze/ze_queue.cpp
     ze/ze_code_object.cpp)
-  
+
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   target_link_libraries(rt-backend-ze PRIVATE acpp-rt -lze_loader)
 
@@ -226,11 +227,12 @@ if(WITH_LEVEL_ZERO_BACKEND)
     set_property(TARGET rt-backend-ze PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-ze PRIVATE /EHs)
   endif()
 
   install(TARGETS rt-backend-ze
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -241,18 +243,18 @@ if(WITH_OPENCL_BACKEND)
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-Headers
     GIT_TAG 265df85aec478d14a5c5880d7bb92d7dd52714ef
   )
-  
+
   FetchContent_MakeAvailable(ocl-headers)
-  
+
   add_library(ocl-headers INTERFACE)
   target_include_directories(ocl-headers INTERFACE ${ocl-headers_SOURCE_DIR})
-  
+
   FetchContent_Declare(ocl-cxx-headers
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-CLHPP
     GIT_TAG 67d100e70612341707725b6648ccca4c10b0dc31
   )
   FetchContent_MakeAvailable(ocl-cxx-headers)
-  
+
   add_library(ocl-cxx-headers INTERFACE)
   target_include_directories(ocl-cxx-headers INTERFACE ${ocl-cxx-headers_SOURCE_DIR}/include)
 
@@ -280,12 +282,13 @@ if(WITH_OPENCL_BACKEND)
   if(is_ipo_supported)
     set_property(TARGET rt-backend-ocl PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
-  
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-ocl PRIVATE /EHs)
   endif()
 
   install(TARGETS rt-backend-ocl
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -304,8 +307,12 @@ if(WITH_CPU_BACKEND)
     get_target_property(hipSYCL_OpenMP_CXX_LIBRARIES omp LINK_LIBRARIES)
     string(JOIN " " hipSYCL_OpenMP_CXX_LIBRARIES ${hipSYCL_OpenMP_CXX_LIBRARIES})
     set(hipSYCL_OpenMP_CXX_LIBRARIES "${LIBOMP_LIB_NAME} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
-    
-    set(OMP_COMPILE_FLAGS ${OPENMP_TEST_OPENMP_FLAGS})
+
+    if (MSVC)
+      set(OMP_COMPILE_FLAGS "/openmp")
+    else()
+      set(OMP_COMPILE_FLAGS ${OPENMP_TEST_OPENMP_FLAGS})
+    endif()
     separate_arguments(OMP_COMPILE_FLAGS)
     set(OMP_TARGET omp)
     get_target_property(OMP_INCLUDE_DIR omp BINARY_DIR)
@@ -313,7 +320,7 @@ if(WITH_CPU_BACKEND)
     # OMP_ROOT and/or OpenMP_ROOT is not defined by default on Mac
     if (APPLE AND NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
       execute_process(COMMAND brew list libomp
-      COMMAND grep libomp.a 
+      COMMAND grep libomp.a
       COMMAND sed -E "s/\\/lib\\/.*//"
       OUTPUT_VARIABLE DefaultOMP_ROOT
       OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -347,7 +354,7 @@ if(WITH_CPU_BACKEND)
 
     set(OMP_TARGET OpenMP::OpenMP_CXX)
   endif()
-  
+
   find_path( NUMA_INCLUDE_DIR NAMES numa.h)
   find_library( NUMA_LIBRARY NAMES numa)
 
@@ -359,8 +366,10 @@ if(WITH_CPU_BACKEND)
     target_include_directories(rt-backend-omp PRIVATE ${NUMA_INCLUDE_DIR})
   endif()
 
+  target_compile_definitions(rt-backend-omp PRIVATE -DDEFAULT_VEC_MATH_LIB="${DEFAULT_VEC_MATH_LIB}")
+
   target_include_directories(rt-backend-omp PRIVATE
-    ${HIPSYCL_SOURCE_DIR}/include 
+    ${HIPSYCL_SOURCE_DIR}/include
     ${ACPP_BINARY_ROOT}/include
     ${OMP_INCLUDE_DIR})
 
@@ -377,8 +386,8 @@ if(WITH_CPU_BACKEND)
   if(is_ipo_supported)
     set_property(TARGET rt-backend-omp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
-  
-  if(WIN32 AND ACPP_LLVM_COMPONENT AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+
+  if(WIN32 AND ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(rt-backend-omp PRIVATE /EHs)
   endif()
 
@@ -388,3 +397,43 @@ if(WITH_CPU_BACKEND)
       ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
+if (WITH_METAL_BACKEND)
+  find_path(METAL_INCLUDE_DIR
+    NAMES Metal/Metal.hpp
+    PATHS
+      $ENV{METAL_INCLUDE_DIR}
+      ${METAL_INCLUDE_DIR}
+      /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Metal.framework/Headers
+      /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/Metal.framework/Headers
+      /System/Library/Frameworks/Metal.framework/Headers
+    PATH_SUFFIXES include
+  )
+  if(NOT METAL_INCLUDE_DIR)
+    message(FATAL_ERROR "Could not find Metal/Metal.hpp. Please specify METAL_INCLUDE_DIR.")
+  endif()
+
+  add_library(rt-backend-metal SHARED
+    metal/metal_backend.cpp
+    metal/metal_hardware_manager.cpp
+    metal/metal_queue.cpp
+    metal/metal_allocator.cpp
+    metal/metal_code_object.cpp
+    metal/metal_event.cpp)
+
+  target_include_directories(rt-backend-metal PRIVATE
+    ${HIPSYCL_SOURCE_DIR}/include
+    ${ACPP_BINARY_ROOT}/include
+    ${METAL_INCLUDE_DIR}
+    )
+
+  target_compile_definitions(rt-backend-metal PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+  target_link_libraries(rt-backend-metal PRIVATE llvm-to-metal)
+
+  target_link_libraries(rt-backend-metal PRIVATE acpp-rt)
+  target_link_libraries(rt-backend-metal PRIVATE "-framework Metal" "-framework Foundation" "-framework CoreFoundation" "-framework IOKit" )
+
+  install(TARGETS rt-backend-metal
+      RUNTIME DESTINATION bin/hipSYCL
+      LIBRARY DESTINATION lib/hipSYCL
+      ARCHIVE DESTINATION lib/hipSYCL)
+endif ()

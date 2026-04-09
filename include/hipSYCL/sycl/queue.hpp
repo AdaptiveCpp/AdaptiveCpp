@@ -52,7 +52,7 @@ class automatic_placeholder_requirement_impl;
 using queue_submission_hooks =
   function_set<sycl::handler&>;
 using queue_submission_hooks_ptr = 
-  shared_ptr_class<queue_submission_hooks>;
+  std::shared_ptr<queue_submission_hooks>;
 
 }
 
@@ -967,7 +967,7 @@ public:
   template <typename T, int dim, access_mode mode, target tgt,
             accessor_variant isPlaceholder>
   event copy(accessor<T, dim, mode, tgt, isPlaceholder> src,
-             shared_ptr_class<T> dest) {
+             std::shared_ptr<T> dest) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.require(src);
       cgh.copy(src, dest);
@@ -976,7 +976,7 @@ public:
   
   template <typename T, int dim, access_mode mode, target tgt,
             accessor_variant isPlaceholder>
-  event copy(shared_ptr_class<T> src,
+  event copy(std::shared_ptr<T> src,
              accessor<T, dim, mode, tgt, isPlaceholder> dest) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.require(dest);
@@ -1045,6 +1045,12 @@ public:
 
   std::size_t AdaptiveCpp_hash_code() const {
     return _impl->node_group_id;
+  }
+
+  std::shared_ptr<rt::inorder_executor>
+  AdaptiveCpp_extract_inorder_executor() const {
+    return std::static_pointer_cast<rt::inorder_executor>(
+        _impl->dedicated_inorder_executor);
   }
 
   rt::inorder_executor* AdaptiveCpp_inorder_executor() const {

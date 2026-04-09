@@ -40,6 +40,7 @@
 #include <system_error>
 #include <vector>
 #include <sstream>
+#include <fstream>
 
 #ifdef ACPP_HIPRTC_LINK
 #define __HIP_PLATFORM_AMD__
@@ -123,6 +124,14 @@ bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::s
   return true;
 }
 
+// From a string like gfxABC:flag+:flag2- only returns gfxABC
+std::string discardConfigurationFromTargetName(const std::string& TargetDevice) {
+  auto ColonPos = TargetDevice.find(":");
+  if(ColonPos != std::string::npos)
+    return TargetDevice.substr(0, ColonPos);
+  return TargetDevice;
+}
+
 }
 
 
@@ -131,12 +140,9 @@ bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::s
 class RocmDeviceLibs {
 private:
   static std::string extractISAAsString(const std::string &TargetDevice) {
-    std::string Result = TargetDevice;
     // First remove the subtarget in strings like gfxABC:xnack-:sramecc-
     // So, find first : and throw away the stuff afterwards to obtain gfxABC
-    auto ColonPos = Result.find(":");
-    if(ColonPos != std::string::npos)
-      Result = Result.substr(0, ColonPos);
+    std::string Result = discardConfigurationFromTargetName(TargetDevice);
 
     // Remove gfx prefix
     if(Result.find("gfx") != 0)
@@ -162,6 +168,9 @@ private:
   static std::string getDefaultABIVersionLib(const std::string& DeviceLibDir) {
     std::error_code EC;
     std::vector<std::string> Files = common::filesystem::list_regular_files(DeviceLibDir, EC);
+    for(auto& S : Files) {
+      S = common::filesystem::filename(S);
+    }
     if(EC)
       return "";
     
@@ -228,7 +237,8 @@ public:
       NeededBitcodeLibs.push_back("oclc_abi_version_" + std::to_string(ForceCodeObjectModel) +
                                   ".bc");
     } else {
-      NeededBitcodeLibs.push_back(getDefaultABIVersionLib(DeviceLibPath));
+      std::string DefaultABILib = getDefaultABIVersionLib(DeviceLibPath);
+      NeededBitcodeLibs.push_back(DefaultABILib);
     }
 
     if(IsFastMath) {
@@ -259,7 +269,12 @@ LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &K
 
 bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
+#if LLVM_VERSION_MAJOR > 20
+  M.setTargetTriple(llvm::Triple(TargetTriple));
+#else
   M.setTargetTriple(TargetTriple);
+#endif
+
 #if LLVM_VERSION_MAJOR >= 18
   M.setDataLayout("e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:"
                   "32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:"
@@ -295,8 +310,7 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   }
 
   std::string BuiltinBitcodeFile = 
-    common::filesystem::join_path(common::filesystem::get_install_directory(),
-      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-full.bc"});
+    common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-amdgpu-amdhsa-full.bc");
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
@@ -367,6 +381,58 @@ bool LLVMToAmdgpuTranslator::applyBuildFlag(const std::string &Flag) {
 
 bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::string &Output) {
 #ifdef ACPP_HIPRTC_LINK
+  llvm::SmallVector<char> InputFile;
+  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-amdgpu", "bc", InputFile, llvm::sys::fs::OF_None)){
+    this->registerError("LLVMToAmdgpu: Could not create temp input file" + E.message());
+    return false;
+  }
+  llvm::StringRef InputFileName = InputFile.data();
+
+  llvm::SmallVector<char> OptOutputFile;
+  if(auto E = llvm::sys::fs::createTemporaryFile("acpp-sscp-amdgpu-opt", "bc", OptOutputFile, llvm::sys::fs::OF_None)){
+    this->registerError("LLVMToAmdgpu: Could not create temp file" + E.message());
+    return false;
+  }
+  llvm::StringRef OptOutputFileName = OptOutputFile.data();
+
+  AtScopeExit RemoveInputFile([&](){auto Err = llvm::sys::fs::remove(InputFileName);});
+  AtScopeExit RemoveOptOutputFile([&](){auto Err = llvm::sys::fs::remove(OptOutputFileName);});
+
+  {
+    std::ofstream bcfile{InputFileName.str(), std::ios::out | std::ios::binary | std::ios::trunc};
+    bcfile.write(Bitcode.data(), Bitcode.size());
+  }
+  const std::string OptPath = getOptPath();
+  
+  llvm::SmallVector<llvm::StringRef, 16> OptInvocation {
+    OptPath,
+    "-O3", 
+    InputFileName, 
+    "-o", OptOutputFileName};
+
+  std::string OptTargetFlag = "--mcpu="+discardConfigurationFromTargetName(TargetDevice);
+  if(!TargetDevice.empty())
+    OptInvocation.push_back(OptTargetFlag);
+
+
+  int OptR =
+      llvm::sys::ExecuteAndWait(OptPath, OptInvocation);
+  if(OptR != 0) {
+    this->registerError("LLVMToAmdgpu: opt invocation failed with exit code " +
+                        std::to_string(OptR));
+    return false;
+  }
+  std::string OptOutput;
+  {
+    auto Buff = llvm::MemoryBuffer::getFile(OptOutputFileName);
+    if (std::error_code ec = Buff.getError()) {
+      this->registerError("LLVMToAmdgpu: Could not read temp file " + OptOutputFileName.str() +
+                          ec.message());
+      return false;
+    }
+    OptOutput = (*Buff)->getBuffer().str();
+  }
+
   // Currently hipRTC link does not take into account options anyway.
   // It just compiles for the currently active HIP device.
   std::vector<hiprtcJIT_option> options {};
@@ -381,8 +447,8 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
   }
 
 
-  void* Data = static_cast<void*>(const_cast<char*>(Bitcode.data()));
-  err = hiprtcLinkAddData(LS, HIPRTC_JIT_INPUT_LLVM_BITCODE, Data, Bitcode.size(),
+  void* Data = static_cast<void*>(const_cast<char*>(OptOutput.data()));
+  err = hiprtcLinkAddData(LS, HIPRTC_JIT_INPUT_LLVM_BITCODE, Data, OptOutput.size(),
                           "hipSYCL SSCP Bitcode", 0, 0, 0);
 
   auto addBitcodeFile = [&](const std::string &BCFileName) -> bool {
@@ -530,7 +596,7 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
   }
 
   auto ReadResult =
-      llvm::MemoryBuffer::getFile(OutputFileName, -1);
+      llvm::MemoryBuffer::getFile(OutputFileName);
 
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToAmdgpu: Could not read result file" + Err.message());

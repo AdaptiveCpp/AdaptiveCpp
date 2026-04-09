@@ -49,6 +49,7 @@ using backend = hipsycl::rt::backend_id;
  #define SYCL_EXT_ACPP_BACKEND_OCL
  #define SYCL_EXT_ACPP_BACKEND_LEVEL_ZERO
  #define SYCL_EXT_ACPP_BACKEND_OMP
+ #define SYCL_EXT_ACPP_BACKEND_METAL
 #endif
 
 }

@@ -11,7 +11,7 @@ It currently supports the following programming models:
 2. **C++ standard parallelism**: Additionally, AdaptiveCpp features experimental support for offloading C++ algorithms from the parallel STL. See [here](doc/stdpar.md) for details on which algorithms can be offloaded. **AdaptiveCpp is currently the only solution capable of demonstrating C++ standard parallelism performance across NVIDIA, AMD and Intel GPUs, and in most cases outperforms vendor compilers.**
 3. **PCUDA (portable CUDA)**, a dialect of the CUDA/HIP programming model is currently in an experimental support state. See [here](doc/pcuda.md) for details. AdaptiveCpp PCUDA allows for CUDA or HIP code to be compiled to a single binary that can offload kernels to CPUs, NVIDIA GPUs, AMD GPUs and Intel GPUs.
 
-AdaptiveCpp supports CPUs (including x86, arm and other LLVM-supported architectures) as well as GPUs from Intel, NVIDIA, and AMD. This includes the ability to generate a single binary that can offload to all supported devices.
+AdaptiveCpp supports CPUs (including x86, arm and other LLVM-supported architectures) as well as GPUs from Intel, NVIDIA, AMD, and Apple. This includes the ability to generate a single binary that can offload to all supported devices.
 
 AdaptiveCpp's compilation flows include
 1. A powerful, generic LLVM JIT compiler. This is AdaptiveCpp's default, most portable and usually most performant compilation flow. It is also the **world's only SYCL compiler that only needs to parse the source code a single time** across both host and device compilation.
@@ -61,10 +61,11 @@ If you are a student at Heidelberg University and wish to work on AdaptiveCpp, p
 
 AdaptiveCpp is a production platform for heterogeneous computing, but also a research project. As such, if you use AdaptiveCpp in your research, we kindly request that you cite one of the following publications, depending on your focus:
 
-* A general overview, SYCL 2020, performance and the relationship with oneAPI: *Aksel Alpay, Bálint Soproni, Holger Wünsche, and Vincent Heuveline. 2022. Exploring the possibility of a hipSYCL-based implementation of oneAPI. In International Workshop on OpenCL (IWOCL'22). Association for Computing Machinery, New York, NY, USA, Article 10, 1–12. https://doi.org/10.1145/3529538.3530005*
-* C++ standard parallelism offloading support (stdpar): *Aksel Alpay and Vincent Heuveline. 2024. AdaptiveCpp Stdpar: C++ Standard Parallelism Integrated Into a SYCL Compiler. In Proceedings of the 12th International Workshop on OpenCL and SYCL (IWOCL '24). Association for Computing Machinery, New York, NY, USA, Article 5, 1–12. https://doi.org/10.1145/3648115.3648117*
 * The generic single-pass compiler: *Aksel Alpay and Vincent Heuveline. 2023. One Pass to Bind Them: The First Single-Pass SYCL Compiler with Unified Code Representation Across Backends. In Proceedings of the 2023 International Workshop on OpenCL (IWOCL '23). Association for Computing Machinery, New York, NY, USA, Article 7, 1–12. https://doi.org/10.1145/3585341.3585351*
+* JIT-time optimizations in the generic single-pass compiler: *Aksel Alpay and Vincent Heuveline. 2025. Adaptivity in AdaptiveCpp: Optimizing Performance by Leveraging Runtime Information During JIT-Compilation. In Proceedings of the 13th International Workshop on OpenCL and SYCL (IWOCL '25). Association for Computing Machinery, New York, NY, USA, Article 2, 1–12. https://doi.org/10.1145/3731125.3731127*
+* C++ standard parallelism offloading support (stdpar): *Aksel Alpay and Vincent Heuveline. 2024. AdaptiveCpp Stdpar: C++ Standard Parallelism Integrated Into a SYCL Compiler. In Proceedings of the 12th International Workshop on OpenCL and SYCL (IWOCL '24). Association for Computing Machinery, New York, NY, USA, Article 5, 1–12. https://doi.org/10.1145/3648115.3648117*
 * Our CPU compiler: *Joachim Meyer, Aksel Alpay, Sebastian Hack, Holger Fröning, and Vincent Heuveline. 2023. Implementation Techniques for SPMD Kernels on CPUs. In Proceedings of the 2023 International Workshop on OpenCL (IWOCL '23). Association for Computing Machinery, New York, NY, USA, Article 1, 1–12. https://doi.org/10.1145/3585341.3585342*
+* A general overview, SYCL 2020, performance and the relationship with oneAPI: *Aksel Alpay, Bálint Soproni, Holger Wünsche, and Vincent Heuveline. 2022. Exploring the possibility of a hipSYCL-based implementation of oneAPI. In International Workshop on OpenCL (IWOCL'22). Association for Computing Machinery, New York, NY, USA, Article 10, 1–12. https://doi.org/10.1145/3529538.3530005*
 * The original talk and the idea of implementing SYCL on non-OpenCL backends: *Aksel Alpay and Vincent Heuveline. 2020. SYCL beyond OpenCL: The architecture, current state and future direction of hipSYCL. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 8, 1. DOI:https://doi.org/10.1145/3388333.3388658*
 
 (The latter is a talk and available [online](https://www.youtube.com/watch?v=kYrY80J4ZAs). Note that some of the content in this talk is outdated by now)
@@ -79,6 +80,7 @@ We gratefully acknowledge [contributions](https://github.com/illuhad/hipSYCL/gra
 * AdaptiveCpp runtime [specification](doc/runtime-spec.md)
 * AdaptiveCpp [compilation model](doc/compilation.md)
 * AdaptiveCpp [parallel algorithms library](doc/algorithms.md)
+* [Deploying AdaptiveCpp-generated binaries to end users](doc/deployment.md)
 * How to use raw HIP/CUDA inside AdaptiveCpp code to create [optimized code paths](doc/hip-source-interop.md)
 * A simple SYCL example code for testing purposes can be found [here](doc/examples.md).
 * [SYCL Extensions implemented in AdaptiveCpp](doc/extensions.md)

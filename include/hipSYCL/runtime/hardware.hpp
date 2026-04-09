@@ -36,11 +36,17 @@ enum class device_support_aspect {
   usm_system_allocations,
   execution_timestamps,
   sscp_kernels,
-  work_item_independent_forward_progress
+  work_item_independent_forward_progress,
+  fp64,
+  atomic64,
 };
 
 enum class device_uint_property {
   max_compute_units,
+  max_work_group_range0,
+  max_work_group_range1,
+  max_work_group_range2,
+  max_work_group_range_size,
   max_global_size0,
   max_global_size1,
   max_global_size2,
@@ -95,7 +101,10 @@ enum class device_uint_property {
 
   vendor_id,
   architecture,
-  backend_id
+  backend_id,
+
+  queue_priority_range_low,
+  queue_priority_range_high
 };
 
 enum class device_uint_list_property {
@@ -119,7 +128,7 @@ public:
   virtual std::string get_device_arch() const = 0;
 
   virtual bool has(device_support_aspect aspect) const = 0;
-  
+
   virtual std::size_t get_property(device_uint_property prop) const = 0;
 
   virtual std::vector<std::size_t>
@@ -129,7 +138,7 @@ public:
   virtual std::string get_profile() const = 0;
 
   virtual std::size_t get_platform_index() const= 0;
-  
+
   virtual ~hardware_context(){}
 };
 

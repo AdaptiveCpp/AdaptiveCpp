@@ -54,7 +54,11 @@ enum class kernel_build_option : int {
 
   amdgpu_target_device,
 
-  spirv_dynamic_local_mem_allocation_size
+  spirv_dynamic_local_mem_allocation_size,
+
+  host_vector_math_library,
+
+  metal_max_args_for_flat_mode
 };
 
 enum class kernel_build_flag : int {

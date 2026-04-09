@@ -16,6 +16,7 @@
 import json
 import os
 import os.path
+import re
 import sys
 import subprocess
 import string
@@ -34,6 +35,112 @@ class OptionNotSet(Exception):
   def __init__(self, msg):
     super().__init__(msg)
 
+class DeploymentComponentUnavailable(Exception):
+  def __init__(self, msg):
+    super().__init__(msg)
+
+
+###################### Windows library dependency scanner ###################
+# Figures out dependencies for deployment on Windows
+
+
+
+class windows_library_dependency_scanner:
+  def __init__(self, dumpbin_path):
+    self._dumpbin_path = dumpbin_path
+    self._dll_line_re = re.compile(r'^\s*([A-Za-z0-9\.\-_]+\.dll)\s*$', re.IGNORECASE)
+    self._local_dlls = set()
+    self._dependency_map = {}
+    self._seen = set()
+
+  def _get_system_dirs(self):
+    # Common system directories; maybe other directories should be added
+    system_root = os.environ.get('SystemRoot', r'C:\Windows')
+    return [
+      os.path.join(system_root, 'System32'),
+      os.path.join(system_root, 'SysWOW64'),
+    ]
+
+  def _find_dll_path(self, dll_name, scan_path):
+    # 1. Deployment directory
+    for root, dirs, files in os.walk(scan_path):
+        for f in files:
+            if f.lower() == dll_name:
+                return os.path.abspath(os.path.join(root, f))
+    # 2. PATH directories
+    for path in os.environ.get('PATH', '').split(os.pathsep):
+        dll_path = os.path.join(path, dll_name)
+        if os.path.isfile(dll_path):
+            return dll_path
+    # 3. System directories
+    for sysdir in self._get_system_dirs():
+        dll_path = os.path.join(sysdir, dll_name)
+        if os.path.isfile(dll_path):
+            return dll_path
+    # Not found
+    return None
+
+  def _get_dumpbin_deps(self, path):
+    deps = []
+    try:
+      out = subprocess.check_output([self._dumpbin_path, '/DEPENDENTS', path], stderr=subprocess.STDOUT, universal_newlines=True)
+      for line in out.splitlines():
+        line = line.strip()
+        for line in out.splitlines():
+          m = self._dll_line_re.match(line)
+          if m:
+            deps.append(m.group(1).lower())
+    except subprocess.CalledProcessError:
+      pass
+    return deps
+
+  def _scan_file(self, path, scan_path):
+    path = os.path.abspath(path)
+    if path in self._seen:
+        return
+    self._seen.add(path)
+    deps = self._get_dumpbin_deps(path)
+    self._dependency_map[path] = deps
+    for dep in deps:
+      for root, dirs, files in os.walk(scan_path):
+        for fname in files:
+          if fname.lower() == dep:
+            dep_path = os.path.join(root, fname)
+            self._scan_file(dep_path, scan_path)
+            break
+
+  def run(self, scan_path):
+    self._local_dlls = set()
+    self._dependency_map = {}
+    self._seen = set()
+
+    for root, dirs, files in os.walk(scan_path):
+      for fname in files:
+        if fname.lower().endswith('.dll'):
+          self._local_dlls.add(fname.lower())
+
+    for root, dirs, files in os.walk(scan_path):
+      for fname in files:
+        if fname.lower().endswith('.exe') or fname.lower().endswith('.dll'):
+          self._scan_file(os.path.join(root, fname), scan_path)
+
+    all_deps = set()
+    for deps in self._dependency_map.values():
+      for dep in deps:
+        if dep not in self._local_dlls:
+          all_deps.add(dep)
+
+    print('External DLL dependencies (with resolved paths where possible):')
+    for dep in sorted(all_deps):
+      path = self._find_dll_path(dep, scan_path)
+      if path:
+        print(path)
+      else:
+        print(dep + ' (not found)')
+
+
+
+###################### HCF implementation for explicit multipass ##############
 class hcf_node:
   def __init__(self, node_name, nesting_level=0):
     self._subnodes = []
@@ -153,6 +260,121 @@ ACPP_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_i
   def write_header(self, filename):
     with open(filename, 'w') as f:
       f.write(str(self))
+
+class deployment_db:
+  def __init__(self, config_file_dirs, config):
+    self._data = {}
+    for d in [os.path.join(x, "deploy") for x in config_file_dirs]:
+      files = os.listdir(d)
+      for f in files:
+        if f.lower().endswith(".json") and f.startswith("acpp-deployment-manifest-"):
+          component = f.replace("acpp-deployment-manifest-","").replace(".json","").lower()
+          self._data[component] = {}
+          with open(os.path.join(d, f), 'r') as manifest_file:
+            data = json.load(manifest_file)
+            for entry in data:
+              if entry != "" and not entry.endswith("-NOTFOUND"):
+                self._data[component][self._parse_entry_origin_string(entry, config)] = data[entry]
+
+  def _parse_entry_origin_string(self, entry, config):
+    if "SHARED_LIB:" in entry:
+      entry = entry.replace("SHARED_LIB:","")
+      filename = os.path.basename(entry)
+      if sys.platform.startswith('win32'):
+        filename = filename + ".dll"
+      elif sys.platform == "darwin":
+        filename = "lib"+filename+".dylib"
+      else:
+        filename = "lib"+filename+".so"
+      entry = os.path.join(os.path.dirname(entry), filename)
+    return config.substitute_generic_template_string(entry)
+
+  def deployment_manifest(self, component):
+    lower_component = component.lower()
+    if not lower_component in self._data:
+      raise DeploymentComponentUnavailable("Deployment component '"+component+"' is unvailable.")
+    return self._data[component]
+
+class deployment_engine:
+  def __init__(self, deployment_db):
+    self._deployment_db = deployment_db
+
+  # relative symlink in same directory
+  def _relative_symlink(self, target, link):
+    if os.path.exists(link):
+      os.unlink(link)
+    
+    os.symlink(os.path.basename(target), link)
+
+  def _get_last_so_version(self, filename):
+    components = filename.split(".")
+    if components[len(components)-1].isdigit():
+      return (components[len(components)-1], ".".join(components[:-1]))
+    return (None, filename)
+
+  def _get_so_versions(self, target, so_version_path):
+    result = []
+    for f in os.listdir(so_version_path):
+      full_path = os.path.join(so_version_path, f)
+      if os.path.islink(full_path):
+        real_target=os.path.realpath(full_path)
+        if real_target == target and os.path.basename(real_target) != os.path.basename(full_path):
+          result.append(full_path)
+    return result
+
+  def _is_shared_library(self, filename):
+    sv=self._get_last_so_version(filename)
+    while sv[0] != None:
+      sv=self._get_last_so_version(sv[1])
+    return sv[1].endswith(".so") or sv[1].endswith(".dylib") or sv[1].endswith(".dll")
+
+  def _deploy(self, origin, target, target_root_path):
+    
+    if origin.endswith("/*"):
+      root=origin.replace("/*","")
+      for f in os.listdir(root):
+        full_path = os.path.join(root, f)
+        if os.path.isfile(full_path):
+          self._deploy(full_path, target, target_root_path)
+      return
+    
+    # os.path.join("abc", "/") returns '/', not 'abc/'.
+    # Remove leading / to fix.
+    if target.startswith("/"):
+      target=target.replace("/","",1)
+    # target is assumed to be a directory!
+
+    full_target_path = os.path.join(target_root_path, target)
+    print("  ",origin,"->",full_target_path)
+
+
+    os.makedirs(full_target_path,0o777, True)
+    
+    if self._is_shared_library(origin) and os.path.islink(origin):
+      # first deploy link target 
+      real_origin = os.path.realpath(origin)
+      self._deploy(real_origin, target, target_root_path)
+
+      # find all SO-versions and create symlinks for all so version subversion if applicable
+      so_version = self._get_last_so_version(os.path.basename(real_origin))
+      if so_version[0] != None:
+        # find all SO-versions
+        so_versions = set(
+          self._get_so_versions(real_origin, os.path.dirname(origin))+
+          self._get_so_versions(real_origin, os.path.dirname(real_origin)))
+        for sv in so_versions:
+          self._relative_symlink(
+            os.path.join(full_target_path,os.path.basename(real_origin)),
+            os.path.join(full_target_path,os.path.basename(sv)))
+    else:
+      destination = os.path.join(full_target_path, os.path.basename(origin))
+      shutil.copy(origin, destination)
+
+  def deploy_component(self, component, target_path):
+    manifest = self._deployment_db.deployment_manifest(component)
+    
+    for f in manifest:
+      self._deploy(f, manifest[f], target_path)
 
 class config_db:
   # Scans the provided directory for json files
@@ -301,10 +523,10 @@ class acpp_config:
       * omp - OpenMP CPU backend
                Backend Flavors:
                - omp.library-only: Works with any OpenMP enabled CPU compiler.
-                                   Uses Boost.Fiber for nd_range parallel_for support.
+                                   Uses Minicoro for nd_range parallel_for support.
                - omp.accelerated: Uses clang as host compiler to enable compiler support
                                   for nd_range parallel_for (see --acpp-use-accelerated-cpu).
-      * cuda - CUDA backend
+      * cuda - Legacy CUDA interoperability backend
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
                Backend Flavors:
@@ -314,7 +536,7 @@ class acpp_config:
                                            multipass mode.
       * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
                if given requires the format ccXY.
-      * hip  - HIP backend
+      * hip  - Legacy HIP interoperability backend
                Requires specification of targets of the form gfxXYZ,
                e.g. gfx906 for Vega 20, gfx900 for Vega 10
                Backend Flavors:
@@ -333,7 +555,17 @@ class acpp_config:
       * after-sync  - Prefetch all allocations used by the first kernel submitted after each synchronization point.
                       (Prefetches running on non-idling queues can be expensive!)
       * first       - Prefetch allocations only the very first time they are used in a kernel
-      * auto        - Let AdaptiveCpp decide (default)""")
+      * auto        - Let AdaptiveCpp decide (default)"""),
+      'deploy' : option("--acpp-deploy", "ACPP_DEPLOY", "default-deploy",
+"""  If set, enables deployment, i.e. AdaptiveCpp will attempt to collect all AdaptiveCpp dependencies 
+    of generated binaries in the specified directory. The format is:
+    deployment-target1,deployment-target2,...,deployment-targetN:/path/to/deploy/to
+    Supported deployment targets are:
+      * core        - Core AdaptiveCpp components and OpenMP CPU backend. This will always be required.
+      * cuda        - CUDA backend for NVIDIA hardware
+      * hip         - HIP backend for AMD hardware
+      * ocl         - OpenCL backend (e.g. Intel hardware)
+      * all         - All of the above targets""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
@@ -363,6 +595,10 @@ class acpp_config:
 """  If set, assume availability of system-level unified shared memory where every pointer from regular
   malloc() is accessible on GPU. This disables automatic hijacking of memory allocations at the compiler
   level by AdaptiveCpp."""),
+      'stdpar-multi-queue-scheduling' : option("--acpp-stdpar-mqs", "ACPP_STDPAR_MQS", "default-is-stdpar-mqs",
+"""  Experimental! If set, enables AdaptiveCpp to automatically schedule stdpar algorithms across
+  multiple queues, and potentially multiple devices.
+  This is *exclusively* supported with --acpp-targets=generic."""),
       'stdpar-unconditional-offload' : option("--acpp-stdpar-unconditional-offload", "ACPP_STDPAR_UNCONDITIONAL_OFFLOAD", "default-is-stdpar-unconditional-offload",
 """  Normally, heuristics are employed to determine whether algorithms should be offloaded.
   This particularly affects small problem sizes. If this flag is set, supported parallel STL
@@ -370,6 +606,8 @@ class acpp_config:
       'is-export-all' : option("--acpp-export-all", "ACPP_EXPORT_ALL", "default-export-all",
 """  (Experimental) Treat all functions implicitly as SYCL_EXTERNAL. Only supported with generic target.
   This currently only works with translation units that include the sycl.hpp header."""),
+      'no-warn-legacy-flows' : option("--acpp-no-warn-legacy-flows", "ACPP_NO_WARN_LEGACY_FLOWS", "default-no-warn-legacy-flows",
+"""  Do not warn when the old 'hip' and 'cuda' targets are used."""),
       'pcuda' : option("--acpp-pcuda", "ACPP_PCUDA", "default-pcuda",
 """  Enable AdaptiveCpp portable CUDA (PCUDA) support as input language.
   This is *exclusively* supported with --acpp-targets=generic."""),
@@ -418,9 +656,8 @@ class acpp_config:
     elif os.path.exists(global_config_dir):
       config_file_directories.append(global_config_dir)
     self._config_db = config_db(config_file_directories)
-
-
     self._common_compiler_args = self._get_std_compiler_args()
+    self._deployment_db = deployment_db(config_file_directories, self)
 
 
   def _upgrade_legacy_arg(self, arg):
@@ -557,6 +794,22 @@ class acpp_config:
   def _substitute_omp_template_string(self, template_string):
     return self._substitute_template_string(
       template_string, self._get_omp_substitution_vars())
+  
+  def substitute_generic_template_string(self, template_string):
+    substitution_dict = {}
+    try:
+      substitution_dict.update(self._get_omp_substitution_vars())
+    except OptionNotSet:
+      pass
+    try:
+      substitution_dict.update(self._get_cuda_substitution_vars())
+    except OptionNotSet:
+      pass
+    try:
+      substitution_dict.update(self._get_rocm_substitution_vars())
+    except OptionNotSet:
+      pass
+    return self._substitute_template_string(template_string, substitution_dict)
 
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]
@@ -629,6 +882,42 @@ class acpp_config:
         for t in targets:
           if not t in result[platform]:
             result[platform].append(t)
+
+    return result
+
+  def _parse_deployment(self, deployment_arg):
+    available_components = ["core", "cuda", "hip", "ocl"]
+
+    deployment_components=deployment_arg.replace("'","").replace('"',"").split(':')
+
+    if len(deployment_components) == 0:
+      return {}
+
+    if len(deployment_components) < 2:
+      raise RuntimeError("Invalid deployment target description: "+deployment_arg)
+    elif len(deployment_components) > 2:
+      first = deployment_components[0]
+      second = ":".join(deployment_components[1:])
+      deployment_components = [first, second]
+
+    
+    target_path = deployment_components[1]
+
+    deployment_components = deployment_components[0].split(",")
+    deployment_components = [d.lower() for d in deployment_components]
+    enable_all = False
+    for d in deployment_components:
+      if d == "all":
+        enable_all = True
+      if not d in available_components and d != "all":
+        raise RuntimeError("Invalid deployment component: "+d)
+    
+    if enable_all:
+      deployment_components = available_components
+
+    result = {}
+    for d in deployment_components:
+      result[d] = target_path
 
     return result
 
@@ -733,6 +1022,14 @@ class acpp_config:
     return self._targets
 
   @property
+  def deployment(self):
+    try:
+      d = raw_target_string = self._retrieve_option("deploy")
+      return self._parse_deployment(d)
+    except OptionNotSet:
+      return {}
+
+  @property
   def cuda_path(self):
     return self._retrieve_option("cuda-path")
 
@@ -826,6 +1123,13 @@ class acpp_config:
       return self._is_flag_set("is-dryrun")
     except OptionNotSet:
       return False
+    
+  @property
+  def no_warn_legacy_flows(self):
+    try:
+      return self._is_flag_set("no-warn-legacy-flows")
+    except OptionNotSet:
+      return False
 
   @property
   def is_dryrun_only_std_flags(self):
@@ -873,6 +1177,13 @@ class acpp_config:
   def is_stdpar_unconditional_offload(self):
     try:
       return self._is_flag_set("stdpar-unconditional-offload")
+    except OptionNotSet:
+      return False
+  
+  @property
+  def is_stdpar_mqs(self):
+    try:
+      return self._is_flag_set("stdpar-multi-queue-scheduling")
     except OptionNotSet:
       return False
 
@@ -969,6 +1280,10 @@ class acpp_config:
   @property
   def config_db(self):
     return self._config_db
+  
+  @property
+  def deployment_db(self):
+    return self._deployment_db
 
   def is_pure_linking_stage(self):
     return len(self.source_file_arguments) == 0
@@ -1678,6 +1993,7 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    self._is_stdpar_mqs = config.is_stdpar_mqs
     self._is_pcuda = config.is_pcuda
     self._clang_opt_args = config.default_clang_optimization_args
     self._acpp_pcuda_pp_path = os.path.join(config.acpp_binary_path, "acpp-pcuda-pp")
@@ -1697,6 +2013,17 @@ class compiler:
                       "simultaneously in non-explicit multipass; enabling explicit "
                       "multipass compilation.")
         self._is_explicit_multipass = True
+    
+    if "hip" in self._targets or "cuda" in self._targets:
+      if config.has_plugin_sscp_compiler:
+        if not config.no_warn_legacy_flows:
+          print_warning("The 'hip' and 'cuda' compilation flows are not typically useful outside "
+                        "of specific interoperability use cases or applications that have "
+                        "been engineered specifically around them (e.g. GROMACS)."
+                        "\n\nFor all other use cases, they may not result in best performance!\n\n"
+                        "Please use 'generic' target for better performance, portability, and usability!\n"
+                        "(use --acpp-no-warn-legacy-flows to silence this warning)")
+
     if self._is_pcuda and "generic" not in self._targets:
       raise RuntimeError("PCUDA support requires generic target.")
 
@@ -1893,9 +2220,14 @@ class compiler:
         "-mllvm", "-acpp-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
       ]
+      if self._is_stdpar_mqs:
+        args += ["-D__ACPP_STDPAR_ENABLE_AUTO_MULTIQUEUE__"]
+      
 
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-acpp-stdpar-no-malloc-to-usm", "-D__ACPP_STDPAR_ASSUME_SYSTEM_USM__"]
+      else:
+        args += ["-mllvm", "-acpp-stdpar-assume-no-stack-pointers"]
       if self._is_stdpar_unconditional_offload:
         args += ["-D__ACPP_STDPAR_UNCONDITIONAL_OFFLOAD__"]
 
@@ -2086,6 +2418,42 @@ class compiler:
       print("acpp: Using temporary directory:",temp_dir)
       return self._run(temp_dir)
 
+def run_deployment(config, component_path_map):
+  print("Starting deployment...")
+  de = deployment_engine(config.deployment_db)
+  target_path=""
+  for c in component_path_map:
+    target_path=component_path_map[c]
+    print("\nDeploying component: "+c+" -> "+target_path)
+    try:
+      de.deploy_component(c, target_path)
+    except DeploymentComponentUnavailable:
+      print_warning("Requested deployment component '"+c+"' is unavailable; skipping (was AdaptiveCpp built with support for it?)")
+
+  print("Deployment complete. Note that AdaptiveCpp cannot know how every of its dependencies was itself built in detail.")
+  print("Because of this, it only deploys its *direct* dependencies and certain indirect dependencies known for common setups.")
+
+  if sys.platform.startswith('win32'):
+    
+    print("#############################################")
+    print("acpp will now attempt to detect all indirect transitive dependencies. Please consider whether you would like to also include those!")
+    print("\nThis step will fail if dumpbin.exe is not in your PATH. In this case, please add dumpbin.exe to your PATH and run again!")
+    print("#############################################")
+    wlds = windows_library_dependency_scanner(r'dumpbin.exe')
+    wlds.run(os.path.abspath(target_path))
+    print("Please consider whether you would like to include these indirect dependencies in your deployment package.")
+  else:
+    print("To avoid surprises, it is strongly recommended to check for remaining indirect dependencies outside the deployment tree, e.g. by running\n")
+
+    command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v {targetdir} | awk '{{print $3;}}' | sort | uniq".format(
+      targetdir=os.path.abspath(target_path))
+    print(command)
+    print("\nand consider whether you would like to also ship those libraries with your application.")
+
+  print("Note 1: libcuda.so and libdrm* are typically provided by graphics drivers and typically should NOT be distributed by you! Similarly, you usually should not deploy your own libc.")
+  print("Note 2: Please ensure that the deployment path is in the library search path for your application, e.g. by setting LD_LIBRARY_PATH.")
+  print("Note 3: OpenCL backend: AdaptiveCpp only deploys the OpenCL ICD loader; end users are expected to install an OpenCL implementation for their hardware.")
+  print("Note 4: If the deployment package is too large for your liking, consider distributing individual optional packages for specific backends. Only the 'core' deployment target is mandatory for AdaptiveCpp!")
 def print_config(config):
   config_db = config.config_db
   print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")
@@ -2143,7 +2511,11 @@ if __name__ == '__main__':
       print_usage(config)
       sys.exit(-1)
 
+    is_pure_deployment=True
     for arg in args:
+      if not arg.startswith("--acpp-deploy="):
+        is_pure_deployment=False
+
       if arg == "--help":
         print_usage(config)
         sys.exit(0)
@@ -2153,7 +2525,7 @@ if __name__ == '__main__':
         sys.exit(0)
       elif arg.startswith("-fsycl"):
         raise RuntimeError("The {} flag is a component from a different SYCL implementation. "
-              "This flag is neither neither needed nor meaningful for AdaptiveCpp. "
+              "This flag is neither needed nor meaningful for AdaptiveCpp. "
               "Its use is unsupported.".format(arg))
 
     if not config.is_pure_linking_stage():
@@ -2162,8 +2534,17 @@ if __name__ == '__main__':
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
               "enable optimizations.")
 
-    c = compiler(config)
-    sys.exit(c.run())
+    if not is_pure_deployment:
+      c = compiler(config)
+      retval = c.run()
+      if retval != 0:
+        sys.exit(retval)
+    
+    deployment_spec = config.deployment
+    if len(deployment_spec) > 0:
+      run_deployment(config, deployment_spec)
+
+    sys.exit(0)
   except Exception as e:
     print_error("fatal: "+str(e))
     sys.exit(-1)

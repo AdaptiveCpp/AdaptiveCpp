@@ -54,7 +54,7 @@ HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(asinh, __ocml_asinh)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(asinpi, __ocml_asinpi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(atan, __ocml_atan)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(atan2, __ocml_atan2)
-HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(atanh, __ocml_atan)
+HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(atanh, __ocml_atanh)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(atanpi, __ocml_atanpi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(atan2pi, __ocml_atan2pi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(cbrt, __ocml_cbrt)
@@ -112,19 +112,23 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_frexp_f32(float x, __acpp_int32 *y) {
 }
 
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x, __acpp_int32 *y) {
-  __acpp_int32 w;
   if(__ockl_is_private_addr(y))
     return __ocml_frexp_f64(x, to_private(y));
   else {
     __acpp_int32 w;
-    float res = __ocml_frexp_f64(x, to_private(&w));
+    double res = __ocml_frexp_f64(x, to_private(&w));
     *y = w;
     return res;
   }
 }
 
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(hypot, __ocml_hypot)
-HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(ilogb, __ocml_ilogb)
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f32(float x) {
+  return __ocml_ilogb_f32(x);
+}
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f64(double x) {
+  return __ocml_ilogb_f64(x);
+}
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ldexp_f32(float x, __acpp_int32 k) {
   return __ocml_ldexp_f32(x, k);

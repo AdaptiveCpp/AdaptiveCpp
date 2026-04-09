@@ -111,7 +111,10 @@ static constexpr std::array IntrinsicReplacementMap = {
   IntrinsicMapping{"llvm.log2.f64", "__acpp_sscp_log2_f64"},
   IntrinsicMapping{"llvm.log10.f32", "__acpp_sscp_log10_f32"},
   IntrinsicMapping{"llvm.log10.f64", "__acpp_sscp_log10_f64"},
-  // asin seems fine (presumably acos and atan as well)
+  // asin seems fine (presumably acos well?)
+  // atan at least with LLVM 20 needs remapping
+  IntrinsicMapping{"llvm.atan.f32", "__acpp_sscp_atan_f32"},
+  IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"}
   // sqrt seems fine
 };
 
@@ -141,7 +144,12 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-i128:128:128-f32:32:32-"
       "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64";
 
+#if LLVM_VERSION_MAJOR > 20
+  M.setTargetTriple(llvm::Triple(Triple));
+#else
   M.setTargetTriple(Triple);
+#endif
+
   M.setDataLayout(DataLayout);
 
   // Initialize libdevice parameters. These values are < 0 in case no explicit
@@ -177,10 +185,9 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   replaceBrokenLLVMIntrinsics(M);
 
-  std::string BuiltinBitcodeFile = 
-    common::filesystem::join_path(common::filesystem::get_install_directory(),
-      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-ptx-full.bc"});
-  
+  std::string BuiltinBitcodeFile =
+      common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-ptx-full.bc");
+
   std::string LibdeviceFile = getDeviceLibPath();
   HIPSYCL_DEBUG_INFO << "LLVMToPtx: Using libdevice at " << LibdeviceFile << "\n";
 
@@ -239,9 +246,11 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while flushing" << InputStream.error().message() << '\n'; }
   }
 
+  std::string PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
+
   const std::string OptPath = getOptPath();
-  int OptR =
-      llvm::sys::ExecuteAndWait(OptPath, {OptPath, "-O3", InputFileName, "-o", OptOutputFileName});
+  int OptR = llvm::sys::ExecuteAndWait(
+      OptPath, {OptPath, PtxTargetArg, "-O3", InputFileName, "-o", OptOutputFileName});
 
   if(OptR != 0) {
     this->registerError("LLVMToPtx: opt invocation failed with exit code " +
@@ -252,7 +261,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   const std::string LLCPath = getLLCPath();
 
   std::string PtxVersionArg = "--mattr=+ptx" + std::to_string(PtxVersion);
-  std::string PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
+  
   llvm::SmallVector<llvm::StringRef, 16> Invocation{LLCPath,
                                                     "--mtriple=nvptx64-nvidia-cuda",
                                                     "--march=nvptx64",
@@ -286,7 +295,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
     return false;
   }
   
-  auto ReadResult = llvm::MemoryBuffer::getFile(OutputFileName, -1);
+  auto ReadResult = llvm::MemoryBuffer::getFile(OutputFileName);
   
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToPtx: Could not read result file" + Err.message());

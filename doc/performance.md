@@ -45,12 +45,14 @@ AdaptiveCpp supports all forms of USM universally on all backends and supported 
 Additionally, SYCL provides the `sycl::buffer`/`sycl::accessor` model.
 
 Generally, SYCL buffers are inferior to USM when it comes to performance:
+
 * **All types of USM have significantly lower host-side runtime overhead compared to buffers**, and can substantially outperform buffers, especially for short running kernels where submission latencies matter. This is especially true when in-order queues are used (See e.g. this paper for details: https://dl.acm.org/doi/fullHtml/10.1145/3648115.3648120)
     * With USM, the programmer can express dependencies statically, while the SYCL buffer-accessor model must figure out dependencies at runtime. Similarly, USM allows to statically express allocation/deallocation and data transfers, while with buffers non-trivial mechanisms in the SYCL runtime need to automatically manage these operations. This can add overhead.
 * Buffer accessors are not lightweight objects, and can increase register pressure in kernels compared to USM pointers.
 * Buffers may behave in unexpected ways that can silently introduce performance issues, for example buffer destructors synchronize in certain cases to wait for work to complete.
 
 For shared USM specifically:
+
 * Performance of shared USM typically depends on memory access patterns and driver quality. Depending on the operating system and hardware, very good performance is also possible with shared USM.
   * On CPU, shared USM is identical to device USM by design, and consequently there is no performance overhead
   * Performance on NVIDIA GPUs is typically excellent
@@ -63,6 +65,7 @@ Shared USM is the most productive memory management model that SYCL has, and can
 
 
 In summary:
+
 * **When control and maximum performance is needed, use device USM (`sycl::malloc_device`)**
 * **When maximum productivity is needed, use shared USM (`sycl::malloc_shared`)**
 * **Never use buffers. They do not bring significant advantages compared to USM, but can introduce substantial drawbacks!**
@@ -89,8 +92,6 @@ This optimization process is complete when the following warning is no longer pr
 
 The extent of this can be controlled using the environment variable `ACPP_ADAPTIVITY_LEVEL`. A value of 0 disables the feature. The default is 1. Higher levels are expected to result in higher peak performance, but may require more application runs to converge to this performance. The default level of 1 usually guarantees peak performance for the second application run.
 
-Setting `ACPP_ALLOCATION_TRACKING=1` enables additional optimizations at adaptivity level 1.
-
 At adaptivity level >= 2, AdaptiveCpp will enable additional, aggressive optimizations.
 In particular, AdaptiveCpp will attempt to detect invariant kernel arguments, and hardwire those as constants during JIT time. In some cases, this can result in substantial performance increases. It is thus advisable to try setting `ACPP_ADAPTIVITY_LEVEL=2` and running the application a couple of times (typically 3-4 times).
 
@@ -99,8 +100,9 @@ Note: Applications that are highly latency-sensitive may notice a slightly incre
 **For peak performance, you should not disable adaptivity, and run the application until the warning above is no longer printed.**
 
 We recommend:
+
 * Experiment with `ACPP_ADAPTIVITY_LEVEL=1` and `ACPP_ADAPTIVITY_LEVEL=2`
-* Experiment with `ACPP_ALLOCATION_TRACKING=1` and `ACPP_ALLOCATION_TRACKING=0`.
+* Experiment with `ACPP_ALLOCATION_TRACKING=1` and `ACPP_ALLOCATION_TRACKING=0`. `ACPP_ALLOCATION_TRACKING=1` (default for SYCL and PCUDA) might generate faster kernels, but `ACPP_ALLOCATION_TRACKING=0` might have slightly (!) lower kernel submission latencies.
 
 *Note: Adaptivity levels higher than 2 are currently not implemented.*
 
@@ -136,6 +138,7 @@ Clearing the cache can be accomplished by simply clearing the cache directory, e
 * Consider using the `ACPP_EXT_COARSE_GRAINED_EVENTS` [(extension documentation)](extensions.md) extension if you rarely use events returned from the `queue`. This extension allows the runtime to elide backend event creation.
 * Stdpar kernels typically have lower submission latency compared to SYCL kernels.
 * If you are using `ACPP_ADAPTIVITY_LEVEL >= 2`, try also with lower adaptivity levels. The aggressive optimizations enabled at `ACPP_ADAPTIVITY_LEVEL >= 2` may come with a slight increase in kernel launch latency.
+* Try disabling allocation tracking: `ACPP_ALLOCATION_TRACKING=0`.
 
 ## Stdpar
 
@@ -145,4 +148,5 @@ Clearing the cache can be accomplished by simply clearing the cache directory, e
 * AdaptiveCpp by default tries to prefetch allocations that are used in kernels. This is usually beneficial for performance. In latency-bound scenarios however, enqueuing these additional operations may result in additional undesired overheads. You may want to disable memory prefetching using `ACPP_STDPAR_PREFETCH_MODE=never` in these cases.
 * In general it may be a good idea to try out the different prefetch modes, as different devices and applications may react differently to different prefetch modes (even devices from the same backend may not behave the same!)
 * AdaptiveCpp is the only stdpar implementation that can detect and elide unnecessary synchronization for stdpar kernels, and execute them asynchronously if possible. This is however only possible if it can prove that asynchronous execution is safe and correct. This analysis currently does not work beyond the boundaries of one translation unit. I.e. invoking code where AdaptiveCpp does not see the definition when compiling a TU prevents eliding synchronization of previously submitted stdpar operations. Concentrating kernels and stdpar code in as few as possible translation units may thus be beneficial.
+* AdaptiveCpp can automatically detect non-aliasing input allocations, which can improve performance of generated kernels. This is however not enabled for stdpar  by default (unless system USM is enabled) because it might hurt latency-sensitive applications in stdpar specifically. It might be a good idea to check if you can get a speedup from this feature. Set `ACPP_ALLOCATION_TRACKING=1` to try.
 * For more details on performance in the C++ parallelism model specifically, see also [here](stdpar.md).

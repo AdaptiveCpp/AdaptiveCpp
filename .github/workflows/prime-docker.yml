@@ -21,6 +21,9 @@ on:
         default: "2"
       rocm:
         description: 'ROCm Version (default 5.4.3)'
+      force:
+        description: 'Force build the image'
+        default: "false"
 
 jobs:
   prep-container:
@@ -43,3 +46,4 @@ jobs:
           CUDA_PATCH_VERSION: ${{ inputs.cuda_patch_version }}
           BASE_TAG: ${{ inputs.os }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_BUILD: ${{ inputs.force != 'false' }}

@@ -13,7 +13,6 @@
 #include <type_traits>
 
 #include "sycl_test_suite.hpp"
-using namespace cl;
 
 BOOST_FIXTURE_TEST_SUITE(queue_tests, reset_device_fixture)
 
@@ -36,9 +35,8 @@ BOOST_AUTO_TEST_CASE(queue_wait) {
 }
 
 BOOST_AUTO_TEST_CASE(queue_memcpy_host_to_host) {
-  try {
-    sycl::queue q{sycl::gpu_selector_v, sycl::property::queue::in_order{}};
-
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (q.get_device().has(sycl::aspect::usm_host_allocations)) {
     auto source = sycl::malloc_host(sizeof(int), q);
     auto dest = malloc(sizeof(int));
 
@@ -46,9 +44,76 @@ BOOST_AUTO_TEST_CASE(queue_memcpy_host_to_host) {
 
     sycl::free(source, q);
     free(dest);
-  } catch (sycl::exception e) {
-    BOOST_CHECK(true); // Skip the test if no GPU available
   }
+}
+
+BOOST_AUTO_TEST_CASE(inorder_queue_d2h_h2d_ordering) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+
+  constexpr std::size_t N = 1 << 20;
+
+  uint32_t *a = sycl::malloc_device<uint32_t>(N, q);
+  uint32_t *b = sycl::malloc_device<uint32_t>(N, q);
+  BOOST_REQUIRE(a);
+  BOOST_REQUIRE(b);
+
+  std::vector<uint32_t> host(N);
+  std::vector<uint32_t> check(N);
+
+  for (int iter = 1; iter <= 5; ++iter) {
+    q.parallel_for(sycl::range<1>{N}, [=](sycl::id<1> idx) {
+      auto i = idx[0];
+      a[i] = static_cast<std::uint32_t>(iter) ^ static_cast<std::uint32_t>(i * 2654435761u);
+    });
+    q.memcpy(host.data(), a, N * sizeof(uint32_t));        // device -> host
+    q.memcpy(b, host.data(), N * sizeof(uint32_t));        // host -> device
+    q.memcpy(check.data(), b, N * sizeof(uint32_t)).wait();// device -> host
+
+    for (std::size_t i = 0; i < N; ++i) {
+      auto expected = static_cast<uint32_t>(iter) ^ static_cast<uint32_t>(i * 2654435761u);
+      BOOST_CHECK_EQUAL(check[i], expected);
+      if (check[i] != expected) {
+        break;
+      }
+    }
+  }
+
+  sycl::free(a, q);
+  sycl::free(b, q);
+}
+
+BOOST_AUTO_TEST_CASE(inorder_queue_d2h_h2h_h2d_ordering) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+
+  constexpr std::size_t N = 1 << 20;
+
+  uint32_t *dev = sycl::malloc_device<uint32_t>(N, q);
+  BOOST_REQUIRE(dev);
+
+  std::vector<uint32_t> host_a(N);
+  std::vector<uint32_t> host_b(N);
+  std::vector<uint32_t> check(N);
+
+  for (int iter = 1; iter <= 5; ++iter) {
+    q.parallel_for(sycl::range<1>{N}, [=](sycl::id<1> idx) {
+      auto i = idx[0];
+      dev[i] = static_cast<uint32_t>(iter) ^ static_cast<uint32_t>(i * 2654435761u);
+    });
+    q.memcpy(host_a.data(), dev, N * sizeof(uint32_t));           // device -> host
+    q.memcpy(host_b.data(), host_a.data(), N * sizeof(uint32_t)); // host -> host
+    q.memcpy(dev, host_b.data(), N * sizeof(uint32_t));           // host -> device
+    q.memcpy(check.data(), dev, N * sizeof(uint32_t)).wait();     // device -> host
+
+    for (std::size_t i = 0; i < N; ++i) {
+      auto expected = static_cast<uint32_t>(iter) ^ static_cast<uint32_t>(i * 2654435761u);
+      BOOST_CHECK_EQUAL(check[i], expected);
+      if (check[i] != expected) {
+        break;
+      }
+    }
+  }
+
+  sycl::free(dev, q);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

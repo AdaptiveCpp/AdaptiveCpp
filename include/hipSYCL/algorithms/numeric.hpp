@@ -32,32 +32,12 @@ namespace hipsycl::algorithms {
 
 namespace detail {
 
-template<class T, class Op>
-struct identity {
-  static constexpr bool is_known() { return false; }
-};
-
-#define HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(op, value)                    \
-  template <class T> struct identity<T, op> {                                  \
-    static constexpr bool is_known() { return true; }                          \
-    static T get_identity() { return value; }                                  \
-  };
-
-// TODO: Need to restrict this to fundamental types
-HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(std::plus<T>, T{})
-HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(std::multiplies<T>, T{1})
-
-HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(sycl::plus<T>, T{})
-HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(sycl::multiplies<T>, T{1})
-HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(sycl::minimum<T>, std::numeric_limits<T>::max())
-HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(sycl::maximum<T>, std::numeric_limits<T>::min())
-
 
 template<class T, class BinaryOp>
 auto get_reduction_operator_configuration(const BinaryOp& op) {
-  if constexpr(detail::identity<T, BinaryOp>::is_known()) {
+  if constexpr(sycl::has_known_identity_v<BinaryOp, T>) {
     return reduction::reduction_binary_operator<T, BinaryOp, true>{
-        op, detail::identity<T, BinaryOp>::get_identity()};
+        op, sycl::known_identity_v<BinaryOp, T>};
   } else {
     return reduction::reduction_binary_operator<T, BinaryOp, false>{op};
   }

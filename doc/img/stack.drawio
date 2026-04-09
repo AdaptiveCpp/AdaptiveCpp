@@ -139,6 +139,20 @@
         <mxCell id="8m3grs9t8cQVGRIS-w48-2" value="OpenMP / LLVM-supported CPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" vertex="1" parent="1">
           <mxGeometry x="94" y="681" width="90" height="60" as="geometry" />
         </mxCell>
+        <mxCell id="metal-1" value="MSL JIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" vertex="1" parent="1">
+          <mxGeometry x="700" y="617" width="90" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="metal-2" value="Apple GPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="695" y="681" width="110" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="metal-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ecabpJtwDSr2gYmt2dEg-25" target="metal-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="280" y="580" />
+              <mxPoint x="745" y="580" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

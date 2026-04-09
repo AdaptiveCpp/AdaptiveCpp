@@ -173,7 +173,7 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceCount(int *count) {
 
   if(!count)
     return pcudaErrorInvalidValue;
-    
+
 
   int b = pcuda_application::get().tls_state().get_backend();
   int p = pcuda_application::get().tls_state().get_platform();
@@ -242,7 +242,7 @@ ACPP_PCUDA_API pcudaError_t pcudaGetPlatform(int *p) {
 
   if(!p)
       return pcudaErrorInvalidValue;
-  
+
   *p = pcuda_application::get().tls_state().get_platform();
   return pcudaSuccess;
 }
@@ -268,7 +268,7 @@ ACPP_PCUDA_API pcudaError_t pcudaSetDevice(int val) {
 ACPP_PCUDA_API pcudaError_t pcudaSetPlatform(int val) {
   return_if_prior_error();
 
-  
+
   if(pcuda_application::get().tls_state().set_platform(val))
     return pcuda_application::get().tls_state().set_device(0)
                ? pcudaSuccess
@@ -283,7 +283,7 @@ ACPP_PCUDA_API pcudaError_t pcudaSetBackend(int val) {
   if(pcuda_application::get().tls_state().set_backend(val)) {
     return pcudaSetPlatform(0);
   }
-  
+
   return pcudaErrorInvalidValue;
 }
 
@@ -311,12 +311,12 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *pro
 
   int b = pcuda_application::get().tls_state().get_backend();
   int p = pcuda_application::get().tls_state().get_platform();
-  
+
   auto* dev = pcuda_application::get()
       .pcuda_rt()
       .get_topology()
       .get_device(b, p, device);
-  
+
   if(!dev)
     return  pcudaErrorInvalidDevice;
 
@@ -343,7 +343,7 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *pro
   // subgroup size :(
   prop->warpSize =
       device_ctx->get_property(device_uint_list_property::sub_group_sizes)[0];
-  
+
   prop->memPitch = 0;
   prop->maxThreadsPerBlock =
       device_ctx->get_property(device_uint_property::max_group_size);
@@ -353,7 +353,7 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *pro
       device_ctx->get_property(device_uint_property::max_group_size1);
   prop->maxThreadsDim[2] =
       device_ctx->get_property(device_uint_property::max_group_size2);
-  
+
   prop->maxGridSize[0] = std::numeric_limits<int>::max(); // TODO
   prop->maxGridSize[1] = std::numeric_limits<int>::max(); // TODO
   prop->maxGridSize[2] = std::numeric_limits<int>::max(); // TODO
@@ -398,6 +398,8 @@ ACPP_PCUDA_API pcudaError_t pcudaGetDeviceProperties(struct pcudaDeviceProp *pro
       device_ctx->get_property(device_uint_property::global_mem_cache_size);
   prop->maxThreadsPerMultiProcessor =
       device_ctx->get_property(device_uint_property::max_group_size);
+  prop->pcudaHasFp64 = device_ctx->has(device_support_aspect::fp64);
+  prop->pcudaHasAtomic64 = device_ctx->has(device_support_aspect::atomic64);
   return pcudaSuccess;
 }
 
@@ -524,7 +526,7 @@ ACPP_PCUDA_API pcudaError_t pcudaAllocateDevice(void** ptr, size_t s) {
       ->backends()
       .get(dev->get_backend())
       ->get_allocator(*dev);
-  
+
   void* mem = allocate_device(allocator, 0, s, {});
   if(!mem)
     return pcudaErrorMemoryAllocation;
@@ -549,7 +551,7 @@ ACPP_PCUDA_API pcudaError_t pcudaAllocateHost(void** ptr, size_t s) {
       ->backends()
       .get(dev->get_backend())
       ->get_allocator(*dev);
-  
+
   void* mem = allocate_host(allocator, 0, s, {});
   if(!mem)
     return pcudaErrorMemoryAllocation;
@@ -575,7 +577,7 @@ ACPP_PCUDA_API pcudaError_t pcudaAllocateShared(void **ptr, size_t s,
       ->backends()
       .get(dev->get_backend())
       ->get_allocator(*dev);
-  
+
   void* mem = allocate_shared(allocator, s, {});
   if(!mem)
     return pcudaErrorMemoryAllocation;
@@ -839,7 +841,7 @@ ACPP_PCUDA_API pcudaError_t pcudaStreamWaitEvent(pcudaStream_t stream,
                                  pcuda_application::get().pcuda_rt().get_rt());
   node->mark_submitted(event->get_event_shared_ptr());
   node->assign_to_device(event->get_device());
-  
+
   bool  is_same_platform = true;
   if(event->get_device().get_backend() != q->get_device().get_backend())
     is_same_platform = false;
@@ -856,17 +858,17 @@ ACPP_PCUDA_API pcudaError_t pcudaStreamWaitEvent(pcudaStream_t stream,
         b->get_hardware_manager()
             ->get_device(q->get_device().get_id())
             ->get_platform_index();
-    
+
     if(evt_platform_index != queue_platform_index)
       is_same_platform = false;
   }
-  
+
   result err;
   if(is_same_platform) {
     err = q->submit_queue_wait_for(node);
   } else {
     err = q->submit_external_wait_for(node);
-  } 
+  }
 
   // This should not happen, so let's make a sticky error
   if(!err.is_success()) {

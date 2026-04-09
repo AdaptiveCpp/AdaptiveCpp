@@ -102,16 +102,26 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     }
   }
   
-  //asssemble signature ptr ptr i32 ptr for @__acpp_sscp_assert_fail
-  llvm::SmallVector<llvm::Value*> ACPPSSCPAssertFailArgs;
-  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantPointerNull::get(llvm::PointerType::get(M.getContext(), 0)));
-  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantPointerNull::get(llvm::PointerType::get(M.getContext(), 0)));
-  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), -42));
-  ACPPSSCPAssertFailArgs.push_back(llvm::ConstantPointerNull::get(llvm::PointerType::get(M.getContext(), 0)));
-
   // create calls to __acpp_sscp_assert_fail and terminate with unreachable instructions in place of __cxa_throw invokes
   llvm::SmallVector<llvm::UnreachableInst*> UnreachableForCXAInvokes;
   for (int i=0; i<cxaThrowInvokes.size(); i++) {
+    // construct device assertion signature
+    const char *assertionStr = "Exception in Device Code";
+    const char *fileStr = M.getSourceFileName().c_str();
+    int lineNumber = -42;
+    if (llvm::DebugLoc DL = cxaThrowInvokes[i]->getDebugLoc()) { // if -g flag was used grab the line number
+        lineNumber = DL.getLine();
+    }
+    std::string functionNameStr = cxaThrowInvokes[i]->getParent()->getParent()->getName().str();
+    const char *functionName = functionNameStr.c_str(); 
+    llvm::IRBuilder<> builder(cxaThrowInvokes[i]);
+
+    llvm::SmallVector<llvm::Value*> ACPPSSCPAssertFailArgs;
+    ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(assertionStr));
+    ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(fileStr));
+    ACPPSSCPAssertFailArgs.push_back(builder.getInt32(lineNumber));
+    ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(functionName));
+  
     auto *Call = llvm::CallInst::Create(ACPPSSCPAssertFailDeclaration, ACPPSSCPAssertFailArgs);
     Call->insertBefore(cxaThrowInvokes[i]);
     auto *Unreachable = new llvm::UnreachableInst(M.getContext(), cxaThrowInvokes[i]); 
@@ -126,6 +136,24 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
   // create calls to __acpp_sscp_assert_fail in place of __cxa_throw calls
   llvm::SmallVector<llvm::CallInst*> AssertForCXACalls;
   for (int i=0; i<cxaThrowCalls.size(); i++) {
+    // construct device assertion signature
+    const char *assertionStr = "Exception in Device Code";
+    const char *fileStr = M.getSourceFileName().c_str();
+    int lineNumber = -42;
+    if (llvm::DebugLoc DL = cxaThrowCalls[i]->getDebugLoc()) { // if -g flag was used grab the line number
+        lineNumber = DL.getLine();
+    }
+
+    std::string functionNameStr = cxaThrowCalls[i]->getParent()->getParent()->getName().str();
+    const char *functionName = functionNameStr.c_str(); 
+    llvm::IRBuilder<> builder(cxaThrowCalls[i]);
+
+    llvm::SmallVector<llvm::Value*> ACPPSSCPAssertFailArgs;
+    ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(assertionStr));
+    ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(fileStr));
+    ACPPSSCPAssertFailArgs.push_back(builder.getInt32(lineNumber));
+    ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(functionName));
+  
     auto *Call = llvm::CallInst::Create(ACPPSSCPAssertFailDeclaration, ACPPSSCPAssertFailArgs);
     Call->insertBefore(cxaThrowCalls[i]);
     AssertForCXACalls.push_back(Call);
@@ -216,5 +244,6 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
 }
 
 }
+
 
 

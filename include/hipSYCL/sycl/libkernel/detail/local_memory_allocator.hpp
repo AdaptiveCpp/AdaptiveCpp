@@ -163,18 +163,11 @@ private:
 
 ACPP_KERNEL_TARGET
 inline void* hiplike_dynamic_local_memory() {
-  __acpp_if_target_cuda(
+  __acpp_if_target_hiplike(
     extern __shared__ int local_mem [];
     return static_cast<void*>(local_mem);
   );
-  __acpp_if_target_hip(
-    // __amdgcn_get_dynamicgroupbaseptr is an AMDGPU clang compiler builtin that is no
-    // longer available in newer ROCm/LLVM versions. Use extern __shared__ instead,
-    // which is the standard portable way to obtain the dynamic LDS base in HIP and CUDA.
-    extern __shared__ char _acpp_lds_base[];
-    return static_cast<void*>(_acpp_lds_base);
-  );
-  
+
   return nullptr;
 }
 

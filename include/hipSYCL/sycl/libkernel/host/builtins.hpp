@@ -306,7 +306,7 @@ HIPSYCL_BUILTIN T __acpp_rint(T x) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __acpp_rootn(T x, int y) noexcept {
-  return std::pow(x, T{1}/T{y});
+  return std::pow(x, T{1}/static_cast<T>(y));
 }
 
 template<class T>

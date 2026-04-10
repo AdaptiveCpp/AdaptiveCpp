@@ -201,7 +201,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_rint, rintf, rint)
 
 template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_rootn(T x, int y) noexcept {
-  return hiplike_builtins::__acpp_pow(x, T{1}/T{y});
+  return hiplike_builtins::__acpp_pow(x, T{1}/static_cast<T>(y));
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_round, roundf, round)

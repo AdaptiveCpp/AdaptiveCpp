@@ -907,6 +907,79 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
   }
 }
 
+// Focused test for rootn: positive bases with integer roots so the expected
+// results are exactly representable and visually verifiable (8^(1/3)=2,
+// 81^(1/4)=3, 125^(1/3)=5, 100^(1/2)=10, ...). Separate from
+// math_genfloat_genint so a rootn regression is immediately identifiable.
+BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_rootn, T, math_test_genfloats) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = sycl;
+
+  using IntType = s::detail::builtin_input_intlike_t<T>;
+
+  s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
+  // build inputs and allocate outputs
+
+  s::buffer<T> base_in{{1}};
+  s::buffer<IntType> exp_in{{1}};
+  s::buffer<T> out{{1}};
+  {
+    auto base_inputs = base_in.get_host_access();
+    auto exp_inputs = exp_in.get_host_access();
+    auto outputs = out.get_host_access();
+    s::vec<DT, 16> v1{8.0, 16.0, 27.0, 32.0, 81.0, 64.0, 125.0, 100.0,
+                      8.0, 16.0, 27.0, 32.0, 81.0, 64.0, 125.0, 100.0};
+    s::vec<int, 16> v2{3, 4, 3, 5, 4, 6, 3, 2,
+                       3, 4, 3, 5, 4, 6, 3, 2};
+    base_inputs[0] = get_math_input<DT, D>(v1);
+    exp_inputs[0] = get_math_input<int, D>(v2);
+    outputs[0] = T{DT{0}};
+  }
+
+  // run rootn
+
+  queue.submit([&](s::handler &cgh) {
+    auto base_inputs = base_in.template get_access<s::access::mode::read>(cgh);
+    auto exp_inputs = exp_in.template get_access<s::access::mode::read>(cgh);
+    auto outputs = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class math_rootn, D, DT>>([=]() {
+      outputs[0] = s::rootn(base_inputs[0], exp_inputs[0]);
+    });
+  });
+
+  // check results
+
+  {
+    auto base_inputs = base_in.get_host_access();
+    auto exp_inputs = exp_in.get_host_access();
+    auto outputs = out.get_host_access();
+
+    for(int c = 0; c < std::max(D,1); ++c) {
+      // Reference is computed in double so the comparison happens at double
+      // precision. boost::unit_test::tolerance is type-keyed: tolerance(0.0001)
+      // registers a tolerance for `double` only, so a `float == float`
+      // comparison falls back to exact equality and any backend that returns
+      // a result differing by even one ULP from std::pow would fail. This
+      // matches the existing math_genfloat_genint pattern (line 906) and the
+      // DEFINE_*_MATH_TEST macros below.
+      BOOST_TEST(comp(outputs[0], c) ==
+                 std::pow(static_cast<double>(comp(base_inputs[0], c)),
+                          1.0 / static_cast<double>(comp(exp_inputs[0], c))));
+    }
+  }
+}
+
 #define SKIP_IF_NO_FP64(queue, DT)                                              \
   if constexpr(std::is_same_v<DT, double>) {                                    \
     if (!(queue).get_device().has(sycl::aspect::fp64)) {                        \

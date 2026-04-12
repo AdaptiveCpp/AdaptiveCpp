@@ -1,26 +1,48 @@
-# AdaptiveCpp installation instructions for CUDA
+# NVIDIA CUDA Installation Guide
 
-## If using clang
+AdaptiveCpp supports NVIDIA GPUs through two primary paths: using **Clang** (recommended for performance and generic flows) or **NVC++** (from the NVIDIA HPC SDK).
 
-Please install CUDA 10.0 or later.
+## Requirements
 
-clang usually produces CUDA programs with very competitive performance compared to nvcc or nvc++. For more information on compiling CUDA with clang, please read [the LLVM documentation on CUDA support](http://llvm.org/docs/CompileCudaWithLLVM.html). **Note that the requirements on the CUDA installation described there.**
+- **CUDA Toolkit**: Version 10.0 or later.
+- **Hardware**: Any NVIDIA GPU supported by your chosen CUDA version.
 
-If you use a very recent CUDA version, you might get a warning when compiling with AdaptiveCpp that clang does not support your CUDA version and treats like an older version. This warning can usually safely be ignored.
+---
 
-CMake variables:
+## Path 1: Using Clang (Recommended)
 
-* `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda` to point AdaptiveCpp to the CUDA root installation directory (e.g. `/usr/local/cuda`), if cmake doesn't find the right CUDA installation.
-* `-DWITH_CUDA_BACKEND=ON` if AdaptiveCpp does not automatically enable the CUDA backend 
+Clang usually produces CUDA programs with very competitive performance compared to `nvcc` or `nvc++`.
 
-## If using nvc++
+> [!NOTE]
+> For more information on compiling CUDA with Clang, please read the [LLVM CUDA documentation](http://llvm.org/docs/CompileCudaWithLLVM.html).
 
-Please install the latest release of the NVIDIA HPC SDK and make sure to point AdaptiveCpp to nvc++ (see below).
-Please install CUDA 10.0 or later. You can also rely on the CUDA bundled with the NVIDIA HPC SDK
+### Troubleshooting Version Warnings
+If you use a very recent CUDA version, Clang might issue a warning that it does not yet officially support that version and will treat it as an older one. This warning can usually be safely ignored.
 
-CMake variables:
+---
 
-* `-DNVCXX_COMPILER=/path/to/nvc++`
-* You can use the CUDA bundled with nvc++. Make sure to point AdaptiveCpp to the right CUDA installation using `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda`. 
-* `-DWITH_CUDA_BACKEND=ON` if AdaptiveCpp does not automatically enable the CUDA backend
-* `-DWITH_CUDA_NVCXX_ONLY=ON` enable if you want to use the CUDA backend exclusively with nvc++ and not clang. This will allow you to use nvc++ without having to install LLVM.
+## Path 2: Using NVC++ (NVIDIA HPC SDK)
+
+This path allows you to use `nvc++` as the underlying compiler. It is particularly useful if you want to avoid a full LLVM installation.
+
+- **Requirement**: Install the latest release of the [NVIDIA HPC SDK](https://developer.nvidia.com/hpc-sdk).
+- **Tip**: You can use the CUDA toolkit bundled with the HPC SDK.
+
+---
+
+## CMake Configuration
+
+Pass these variables during the AdaptiveCpp build to configure CUDA support:
+
+| Variable | Description |
+| :--- | :--- |
+| `-DWITH_CUDA_BACKEND=ON` | Force enable the CUDA backend. |
+| `-DCUDA_TOOLKIT_ROOT_DIR` | Path to the CUDA installation (e.g., `/usr/local/cuda`). |
+| `-DNVCXX_COMPILER` | Path to the `nvc++` executable (only if using Path 2). |
+| `-DWITH_CUDA_NVCXX_ONLY=ON` | Enable if you want to use `nvc++` exclusively without LLVM/Clang. |
+
+### Verification
+After installation, verify that AdaptiveCpp can see your NVIDIA GPU:
+```bash
+acpp-info
+```

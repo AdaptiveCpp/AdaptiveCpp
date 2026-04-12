@@ -1,30 +1,55 @@
-# AdaptiveCpp installation instructions for ROCm
+# AMD ROCm Installation Guide
 
-Please install ROCm 4.0 or later as described in the ROCm readme. Make sure to also install HIP (runtime libraries and headers).
+AdaptiveCpp supports AMD GPUs via the ROCm stack. Support is provided through the **generic single-pass compiler** (recommended) or the **HIP interoperability compiler**.
 
-## The main compiler: Generic single-pass (--acpp-targets=generic)
+## Requirements
 
-AdaptiveCpp's main compiler, the generic single-pass compiler, requires that AdaptiveCpp's LLVM version is <= the LLVM version that ships with ROCm.
+- **ROCm**: Version 4.0 or later (ROCm >= 5.3 recommended).
+- **HIP**: Runtime libraries and headers must be installed.
+- **Hardware**: Any AMD GPU supported by your chosen ROCm version.
 
-ROCm >= 5.3 is recommended.
+---
 
-## The hip interoperability compiler (--acpp-targets=hip)
+## Path 1: Generic Single-Pass Compiler (Recommended)
 
-When using AdaptiveCpp's hip interoperability compiler (`--acpp-targets=hip`), newer ROCm versions may require building AdaptiveCpp against newer clang versions as well. For example, ROCm 4.5 requires clang 13+.
+This is the primary way to use AdaptiveCpp. It requires a compatible LLVM version.
 
-## Using AdaptiveCpp with LLVM bundled from ROCm (not recommended)
+> [!IMPORTANT]
+> The LLVM version used to build AdaptiveCpp must be **less than or equal to** the LLVM version that ships with your ROCm installation.
 
-Instead of building AdaptiveCpp against a regular clang/LLVM, it is also possible (but not necessarily recommended, see below) to build AdaptiveCpp against the clang/LLVM that ships with ROCm. This can be interesting if other available clang/LLVM installations are not new enough to work with the ROCm installation.
+- **Recommended ROCm version**: 5.3 or later.
+- **Targets**: Use `--acpp-targets=generic` with your application.
 
-* **Such configurations may work, but are generally less tested.**
-* Also note that the LLVM distributions shipping with ROCm are not official LLVM releases, and depending on when the upstream development was last merged, may have slightly diverging functionality. There are multiple known cases where this causes problems: 
-  * the clang 14 from ROCm 5.0 lacks functionality that is present in official clang 14 releases. You can work around those issues by setting `-DACPP_COMPILER_FEATURE_PROFILE=minimal` at the expense of missing features, such as reduced kernel performance on CPUs and lack of [SSCP](compilation.md) support.
-* **Due to the potential loss of key AdaptiveCpp functionality such as the generic SSCP compiler, these configurations are typically not recommended.**
+---
 
-*Note: AdaptiveCpp is by default configured to utilize the ROCm compilation flags that apply for recent clang and ROCm versions. If you are using an older clang (<= 10) or ROCm < 4, you might have to adjust `-DROCM_CXX_FLAGS` (not recommended!).*
+## Path 2: HIP Interoperability Compiler
 
-## CMake variables:
+This path uses the legacy interoperability compiler. It may require specific Clang versions depending on the ROCm version (e.g., ROCm 4.5 requires Clang 13+).
 
-* `-DROCM_PATH=/path/to/rocm` (default: /opt/rocm)
-* `-DWITH_ROCM_BACKEND=ON` if AdaptiveCpp does not automatically enable the ROCm backend 
+- **Targets**: Use `--acpp-targets=hip` with your application.
+
+---
+
+## Using LLVM from ROCm (Not Recommended)
+
+While you can build AdaptiveCpp against the LLVM bundled with ROCm, it is **not recommended** because ROCm's LLVM is often a vendor fork that lacks features present in official LLVM releases. This can lead to:
+- Reduced kernel performance.
+- Loss of SSCP/generic compiler support.
+
+---
+
+## CMake Configuration
+
+Pass these variables during the AdaptiveCpp build to configure ROCm support:
+
+| Variable | Description |
+| :--- | :--- |
+| `-DWITH_ROCM_BACKEND=ON` | Force enable the ROCm backend. |
+| `-DROCM_PATH` | Path to the ROCm installation (Default: `/opt/rocm`). |
+
+### Verification
+After installation, verify that AdaptiveCpp can see your AMD GPU:
+```bash
+acpp-info
+```
 

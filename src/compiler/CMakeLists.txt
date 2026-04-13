@@ -12,8 +12,8 @@ else()
   add_compile_definitions(ACPP_LLVM_COMPONENT)
 endif()
 
-if(NOT HIPSYCL_DEBUG_LEVEL)
-  set(HIPSYCL_DEBUG_LEVEL 2 CACHE INTEGER)
+if(NOT DEFINED HIPSYCL_DEBUG_LEVEL)
+  message(FATAL_ERROR "HIPSYCL_DEBUG_LEVEL was not defined by the top-level CMakeLists.txt.")
 endif()
 
 if(WIN32)
@@ -258,6 +258,7 @@ if(WITH_SSCP_COMPILER)
     sscp/AggregateArgumentExpansionPass.cpp
     sscp/StdBuiltinRemapperPass.cpp
     sscp/StdAtomicRemapperPass.cpp
+    sscp/ExceptionToAssertionPass.cpp
     sscp/DeviceAssertPass.cpp
     sscp/pcuda/FreeKernelCall.cpp
     sscp/pcuda/StaticLocalMemoryPass.cpp
@@ -295,10 +296,6 @@ else()
   set(REFLECTION_BUILTINS "")
 endif()
 
-
-set(DEVICE_EXCEPTIONS
-  reflection/ExceptionToAssertionPass.cpp)
-add_definitions(-DHIPSYCL_WITH_DEVICE_EXCEPTIONS)
 
 
 set(COMPILER_LIBRARY_SOURCES

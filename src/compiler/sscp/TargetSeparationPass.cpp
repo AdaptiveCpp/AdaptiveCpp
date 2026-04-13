@@ -17,7 +17,7 @@
 #include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
 #include "hipSYCL/compiler/sscp/DynamicFunctionSupport.hpp"
 #include "hipSYCL/compiler/sscp/StdAtomicRemapperPass.hpp"
-#include "hipSYCL/compiler/reflection/ExceptionToAssertionPass.hpp"
+#include "hipSYCL/compiler/sscp/ExceptionToAssertionPass.hpp"
 #include "hipSYCL/compiler/sscp/DeviceAssertPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"

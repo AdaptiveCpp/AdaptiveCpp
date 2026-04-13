@@ -14,7 +14,7 @@
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
-#include "hipSYCL/compiler/reflection/ExceptionToAssertionPass.hpp"
+#include "hipSYCL/compiler/sscp/ExceptionToAssertionPass.hpp"
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Support/Alignment.h>
@@ -22,7 +22,7 @@
 #include <vector>
 #include <llvm/Transforms/Utils/ValueMapper.h>
 #include <llvm/Transforms/Utils/Cloning.h>
-
+#include <limits> // std::numeric_limits<int>::max()
 
 namespace hipsycl {
 namespace compiler {
@@ -32,32 +32,23 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
 
   static const char* CXAThrow = "__cxa_throw";
   static const char* ACPPSSCPAssertFail = "__acpp_sscp_assert_fail";
-  //static const char* GlibcxxAssertFailBuiltinName = "__acpp_sscp_glibcxx_assert_fail";
   static const char* CXAAllocExc = "__cxa_allocate_exception";
 
   // declare __acpp_sscp_assert_fail
   // detect if C++ throws occur in source code
-  llvm::Function* oldcxaThrow = nullptr;
-  for(auto& F : M)
-    if(F.getName().contains(CXAThrow)) {
-      oldcxaThrow = &F;
-    }
-  if (!oldcxaThrow) {
-    llvm::errs() << "Function " << CXAThrow << " not found. Assuming there is no use of exceptions in source code.\n";
-    return llvm::PreservedAnalyses::none();
-  }
-
+  llvm::Function* OldCXAThrow = M.getFunction(OldCXAThrow);
 
   // declare __acpp_sscp_assert_fail if not yet declared
   llvm::Type* llvmCharType;
   llvm::Function* ACPPSSCPAssertFailDeclaration;
   #if LLVM_VERSION_MAJOR >= 16
-      llvmCharType = llvm::PointerType::get(M.getContext(), 0);
+  llvmCharType = llvm::PointerType::get(M.getContext(), 0);
   #else
-      llvmCharType = llvm::PointerType::get(llvm::Type::getInt8Ty(M.getContext()), 0);
+  llvmCharType = llvm::PointerType::get(llvm::Type::getInt8Ty(M.getContext()), 0);
   #endif
-  if(auto* F = M.getFunction(ACPPSSCPAssertFail))
+  if(auto* F = M.getFunction(ACPPSSCPAssertFail)){
     ACPPSSCPAssertFailDeclaration=F;
+  }
   else {
     llvm::SmallVector<llvm::Type*> ParamTs;
     // assertion
@@ -108,7 +99,7 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     // construct device assertion signature
     const char *assertionStr = "Exception in Device Code";
     const char *fileStr = M.getSourceFileName().c_str();
-    int lineNumber = -42;
+    int lineNumber = std::numeric_limits<int>::max();
     if (llvm::DebugLoc DL = cxaThrowInvokes[i]->getDebugLoc()) { // if -g flag was used grab the line number
         lineNumber = DL.getLine();
     }

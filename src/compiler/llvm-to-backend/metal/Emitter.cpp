@@ -219,6 +219,9 @@ uint3 __acpp_sscp_metal_num_groups [[threadgroups_per_grid]];
 uint3 __acpp_sscp_metal_local_id [[thread_position_in_threadgroup]];
 uint3 __acpp_sscp_metal_local_size [[threads_per_threadgroup]];
 
+threadgroup void * constant __acpp_sscp_metal_dynamic_local_memory [[threadgroup(0)]];
+constant uint& constant __acpp_sscp_metal_dynamic_local_memory_size [[buffer(0)]];
+
 )__";
 
   emitTypes();
@@ -499,7 +502,6 @@ bool MetalEmitter::emitArgStruct(Function& F) {
 
 bool MetalEmitter::emitSignature(Function& F) {
   bool isKernel = kernelNames.count(F.getName().str()) > 0;
-  bool needDlm = needsDynamicLocalMemory.count(&F) > 0;
 
   bool useArgStruct = isKernel && F.arg_size() > opt.maxArgsForFlatMode;
   if (isKernel) {
@@ -510,7 +512,7 @@ bool MetalEmitter::emitSignature(Function& F) {
   os << returnType << " " << F.getName().str() << " (";
 
   bool first = true;
-  int bufIdx = 0;
+  int bufIdx = 1; // index=0 is reserved for dynamic local memory size if needed, so start from 1
   if (useArgStruct) {
     first = false;
     os << "device " << inputStructName << "& __args [[buffer(" << bufIdx++ << ")]]";
@@ -530,20 +532,6 @@ bool MetalEmitter::emitSignature(Function& F) {
       } else {
         os << typeName << " " << valueName(&A);
       }
-    }
-  }
-
-  if (needDlm) {
-    if (!first) {
-      os << ", ";
-    }
-
-    if (isKernel) {
-      os << "threadgroup void* __acpp_sscp_metal_dynamic_local_memory [[threadgroup(0)]], ";
-      os << "constant uint& __acpp_sscp_metal_dynamic_local_memory_size [[buffer(" << bufIdx++ << ")]]";
-    } else {
-      os << "threadgroup void* __acpp_sscp_metal_dynamic_local_memory, ";
-      os << "uint __acpp_sscp_metal_dynamic_local_memory_size";
     }
   }
 
@@ -1265,13 +1253,6 @@ bool MetalEmitter::emitCallInstruction(const CallInst* CI, const std::string& na
     }
     callExpr += emitExpr(CI->getArgOperand(i));
   }
-  if (needsDynamicLocalMemory.count(callee)) {
-    if (argsSize > 0) {
-      callExpr += ", ";
-    }
-    callExpr += "__acpp_sscp_metal_dynamic_local_memory, ";
-    callExpr += "__acpp_sscp_metal_dynamic_local_memory_size";
-  }
   callExpr += ")";
 
   if (!CI->getType()->isVoidTy()) {
@@ -1598,8 +1579,6 @@ unsigned MetalEmitter::getPhysicalPointerAddressSpace(const Value* V) {
 }
 
 void MetalEmitter::analyzeCallInsts() {
-  std::unordered_map<const Function*, std::vector<const Function*>> calls;
-
   for (auto& F : M) {
     if (F.isDeclaration()) {
       continue;
@@ -1621,30 +1600,6 @@ void MetalEmitter::analyzeCallInsts() {
         mapType(returnType);
         for (auto& Arg : Callee->args()) {
           mapType(Arg.getType());
-        }
-        const StringRef calleeName = Callee->getName();
-        if (calleeName == "__acpp_sscp_metal_symbol_local_memory" || calleeName == "__acpp_sscp_metal_symbol_local_memory_size") {
-          needsDynamicLocalMemory.insert(&F);
-        } else if (!Callee->isDeclaration()) {
-          calls[&F].push_back(Callee);
-        }
-      }
-    }
-  }
-
-  // transitive closure, TODO: union-find
-  bool changed = true;
-  while (changed) {
-    changed = false;
-    for (auto& [F, callees] : calls) {
-      if (needsDynamicLocalMemory.count(F)) {
-        continue;
-      }
-      for (auto* Callee : callees) {
-        if (needsDynamicLocalMemory.count(Callee)) {
-          needsDynamicLocalMemory.insert(F);
-          changed = true;
-          break;
         }
       }
     }

@@ -108,7 +108,6 @@ private:
   //
   std::unordered_map<const llvm::Value*, unsigned> inferredPtrAS;
 
-  std::unordered_set<const llvm::Function*> needsDynamicLocalMemory;
   int inputStructCounter = 0;
   std::string inputStructName;
 

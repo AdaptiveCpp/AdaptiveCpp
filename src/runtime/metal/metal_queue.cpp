@@ -45,17 +45,19 @@ void encode_arguments(
   void** args,
   std::size_t* arg_sizes,
   std::size_t num_args,
-  const std::vector<int>& is_pointer_arg
+  const std::vector<int>& is_pointer_arg,
+  NS::UInteger buf_offset = 0
 ) {
   for (std::size_t i = 0; i < num_args; ++i) {
+    NS::UInteger buf_idx = i + buf_offset;
     if (is_pointer_arg[i]) {
       void* usm_ptr = *(void**)args[i];
       auto [buffer, offset, _] = allocator->get_usm_block(usm_ptr);
       if (buffer) {
-        encoder->setBuffer(buffer, offset, i);
+        encoder->setBuffer(buffer, offset, buf_idx);
       }
     } else {
-      encoder->setBytes(args[i], arg_sizes[i], i);
+      encoder->setBytes(args[i], arg_sizes[i], buf_idx);
     }
   }
 }
@@ -69,9 +71,10 @@ void encode_arguments_argbuffer(
   std::size_t* arg_sizes,
   std::size_t num_args,
   const std::vector<int>& is_pointer_arg,
-  std::vector<NS::SharedPtr<MTL::Buffer>>& buffers_out
+  std::vector<NS::SharedPtr<MTL::Buffer>>& buffers_out,
+  NS::UInteger buf_offset = 0
 ) {
-  NS::SharedPtr<MTL::ArgumentEncoder> arg_enc = NS::TransferPtr(function->newArgumentEncoder(0));
+  NS::SharedPtr<MTL::ArgumentEncoder> arg_enc = NS::TransferPtr(function->newArgumentEncoder(buf_offset));
 
   const size_t arg_len = arg_enc->encodedLength();
   auto arg_buffer_out = buffers_out.emplace_back(NS::TransferPtr(device->newBuffer(arg_len, MTL::ResourceStorageModeShared)));
@@ -92,7 +95,7 @@ void encode_arguments_argbuffer(
     }
   }
 
-  encoder->setBuffer(arg_buffer_out.get(), 0, 0);
+  encoder->setBuffer(arg_buffer_out.get(), 0, buf_offset);
 }
 
 result launch_kernel_from_library(
@@ -118,6 +121,7 @@ result launch_kernel_from_library(
   auto entry = std::string(kernel_name);
   // Get the kernel function from library
   NS::String* function_name = NS::String::string(entry.c_str(), NS::UTF8StringEncoding);
+
   NS::SharedPtr<MTL::Function> function = NS::TransferPtr(library->newFunction(function_name));
 
   if (!function) {
@@ -159,7 +163,8 @@ result launch_kernel_from_library(
   }
 
   encoder->setComputePipelineState(pipeline_state.get());
-  auto user_local_mem_size = local_mem_size;
+  uint32_t user_local_mem_size = local_mem_size;
+
   auto threads_per_group = group_size[0] * group_size[1] * group_size[2];
   // Allocate scratch for workgroup algorithms (reduction, scan, shuffle).
   // Different algorithms have different scratch requirements:
@@ -170,20 +175,19 @@ result launch_kernel_from_library(
   // TODO: inspect kernel_info to determine which algorithms are actually used and only allocate
   // as much scratch as needed (e.g. reduction-only kernels need far less than local_size * 8 bytes).
   auto additional_local_mem = threads_per_group * sizeof(uint64_t);
-
   local_mem_size = user_local_mem_size + additional_local_mem;
-  if (local_mem_size != 0) {
-    encoder->setThreadgroupMemoryLength(align_up(local_mem_size, 16), 0);
-  }
 
+  encoder->setThreadgroupMemoryLength(align_up(local_mem_size, 16), 0);
+
+  const NS::UInteger buf_offset = 1; // buffer(0) is reserved for dynamic local memory size, so start from 1
+  encoder->setBytes(&user_local_mem_size, sizeof(uint32_t), 0);
   std::vector<NS::SharedPtr<MTL::Buffer>> buffers_out;
   if (!arg_buffer_used) {
-    encode_arguments(encoder, device, allocator, args, arg_sizes, num_args, is_pointer_arg);
+    encode_arguments(encoder, device, allocator, args, arg_sizes, num_args, is_pointer_arg, buf_offset);
   } else {
     encode_arguments_argbuffer(
-      encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out);
+      encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out, buf_offset);
   }
-  encoder->setBytes(&user_local_mem_size, sizeof(uint32_t), arg_buffer_used ? 1 : num_args);
 
   MTL::Size num_groups_size = MTL::Size::Make(
     num_groups[0],

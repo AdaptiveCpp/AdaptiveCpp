@@ -27,7 +27,6 @@ jobs:
           LLVM_VERSION: ${{ matrix.clang }}
           ROCM_VERSION: ""
           CUDA_MAJOR_VERSION: ""
-          VULKAN_VERSION: ""
           BASE_TAG: ${{ matrix.os }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}    
       - uses: beacon-biosignals/matrix-output@v1

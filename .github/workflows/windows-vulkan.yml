@@ -163,22 +163,22 @@ jobs:
     - name: acpp-info
       run: acpp-info -l
 
-        #- name: build generic SSCP tests
-        #  run: |
-        #    md $env:GITHUB_WORKSPACE/build/tests-sscp
-        #    cd $env:GITHUB_WORKSPACE/build/tests-sscp
-        #    cmake -GNinja -DACPP_TARGETS="generic" `
-        #      -DCMAKE_BUILD_TYPE=Release `
-        #      -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/AdaptiveCpp" `
-        #      "$env:GITHUB_WORKSPACE/AdaptiveCpp/tests" `
-        #      -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
-        #      -DBoost_COMPILER="clangw${{matrix.base_compiler}}" `
-        #      -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw${{matrix.base_compiler}}\\\"'
+    - name: build generic SSCP tests
+      run: |
+        md $env:GITHUB_WORKSPACE/build/tests-sscp
+        cd $env:GITHUB_WORKSPACE/build/tests-sscp
+        cmake -GNinja -DACPP_TARGETS="generic" `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/AdaptiveCpp" `
+          "$env:GITHUB_WORKSPACE/AdaptiveCpp/tests" `
+          -DBoost_DIR="$env:GITHUB_WORKSPACE/install/lib/cmake/Boost-1.83.0" `
+          -DBoost_COMPILER="clangw${{matrix.base_compiler}}" `
+          -DCMAKE_CXX_FLAGS='-DBOOST_LIB_TOOLSET=\\\"clangw${{matrix.base_compiler}}\\\"'
 
-        #    ninja -j2
+        ninja -j2
 
-        #- name: run SSCP Vulkan tests
-        #  run: |
-        #    cd $env:GITHUB_WORKSPACE/build/tests-sscp
-        #    $env:ACPP_VISIBILITY_MASK="vk"
-        #    .\sycl_tests.exe
+    - name: run SSCP Vulkan tests
+      run: |
+        cd $env:GITHUB_WORKSPACE/build/tests-sscp
+        $env:ACPP_VISIBILITY_MASK="vk"
+        .\sycl_tests.exe

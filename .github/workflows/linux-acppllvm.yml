@@ -6,7 +6,7 @@ on:
   
 jobs:
   prep-container:
-    name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}, ${{ matrix.backend }}
+    name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}, ${{ matrix.cuda_or_rocm }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: read
@@ -17,10 +17,9 @@ jobs:
     strategy:
       matrix:
         clang: ['17']
-        backend: ['cuda', 'rocm', 'vulkan']
+        cuda_or_rocm: ['cuda', 'rocm']
         cuda: ['11']
         rocm_version: ['5.6.1']
-        vulkan_version: ['1.4.341.1'] # LunarG SDK Version
         os: [ubuntu-22.04]
     steps:
       - uses: actions/checkout@v4
@@ -31,9 +30,8 @@ jobs:
         id: docker
         with:
           LLVM_VERSION: ${{ matrix.clang }}
-          ROCM_VERSION: ${{ matrix.backend == 'rocm' && matrix.rocm_version || '' }}
-          VULKAN_VERSION: ${{ matrix.backend == 'vulkan' && matrix.vulkan_version || '' }}
-          CUDA_MAJOR_VERSION: ${{ matrix.backend == 'cuda' && matrix.cuda || '' }}
+          ROCM_VERSION: ${{ matrix.cuda_or_rocm == 'rocm' && matrix.rocm_version || '' }}
+          CUDA_MAJOR_VERSION: ${{ matrix.cuda_or_rocm == 'cuda' && matrix.cuda || '' }}
           BASE_TAG: ${{ matrix.os }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}    
       - uses: beacon-biosignals/matrix-output@v1
@@ -43,11 +41,11 @@ jobs:
             name: ${{ matrix.clang }}-${{ matrix.os }}
             base_compiler: ${{ matrix.clang }}
             os: ${{ matrix.os }}
-            backend: ${{ matrix.backend }}
+            cuda_or_rocm: ${{ matrix.cuda_or_rocm }}
             image: ${{ steps.docker.outputs.docker_image }}
 
   test-acpp-llvm:
-    name: AdaptiveCpp LLVM ${{ matrix.clang_version }} and ${{ matrix.docker.backend }}
+    name: AdaptiveCpp LLVM ${{ matrix.clang_version }} and ${{ matrix.docker.cuda_or_rocm }}
     needs: prep-container
     runs-on: ${{ matrix.docker.os }}
     container:
@@ -68,67 +66,33 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: ${{ github.job }}-${{matrix.clang_version}}-${{matrix.docker.backend}}
+        key: ${{ github.job }}-${{matrix.clang_version}}-${{matrix.docker.cuda_or_rocm}}
         restore-keys: |
           ${{ github.job }}
-    - name: cache clspv
-      if: ${{ matrix.docker.backend == 'vulkan' }}
-      id: cache-clspv
-      uses: actions/cache@v4
-      with:
-        path: ${{github.workspace}}/clspv/build/install
-        key: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
-
-    - name: checkout clspv
-      if: (matrix.docker.backend == 'vulkan') && (steps.cache-clspv.outputs.cache-hit != 'true')
-      uses: actions/checkout@v4
-      with:
-        repository: google/clspv
-        path: clspv
-        ref: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
-
-    - name: build clspv
-      if: (matrix.docker.backend == 'vulkan') && (steps.cache-clspv.outputs.cache-hit != 'true')
-      run: |
-        cd $GITHUB_WORKSPACE/clspv
-        python3 utils/fetch_sources.py
-        cmake -GNinja -S $GITHUB_WORKSPACE/clspv -B $GITHUB_WORKSPACE/clspv/build -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/clspv/build/install -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-        cmake --build $GITHUB_WORKSPACE/clspv/build --target install
-
     - name: clone LLVM
       run: |
         git clone --recurse-submodules https://github.com/llvm/llvm-project --depth 1 --single-branch -b release/${{matrix.clang_version}}.x llvm
     - name: configure build
-      if: ${{ matrix.docker.backend == 'cuda' }}
+      if: ${{ matrix.docker.cuda_or_rocm == 'cuda' }}
       run: |
         echo "TARGETS_TO_BUILD=;NVPTX" >> $GITHUB_ENV
-        echo "BUILD_VULKAN=OFF" >> $GITHUB_ENV
         mkdir -p ${GITHUB_WORKSPACE}/install/lib/
         cp /opt/cuda/lib64/stubs/libcuda.so ${GITHUB_WORKSPACE}/install/lib/libcuda.so
         cp /opt/cuda/lib64/stubs/libcuda.so ${GITHUB_WORKSPACE}/install/lib/libcuda.so.1
     - name: configure build
-      if: ${{ matrix.docker.backend == 'rocm' }}
+      if: ${{ matrix.docker.cuda_or_rocm == 'rocm' }}
       run: |
         echo "TARGETS_TO_BUILD=;AMDGPU" >> $GITHUB_ENV
-        echo "BUILD_VULKAN=OFF" >> $GITHUB_ENV
-    - name: configure build
-      if: ${{ matrix.docker.backend == 'vulkan' }}
-      run: |
-        echo "PATH=$GITHUB_WORKSPACE/clspv/build/install/bin:$PATH" >> $GITHUB_ENV
-        echo "BUILD_VULKAN=ON" >> $GITHUB_ENV
-        vulkaninfo --summary
     - name: build Adaptive Cpp
       run: |
         mkdir build && cd build
-        cmake ../llvm/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/install -DLLVM_TARGETS_TO_BUILD="X86;${TARGETS_TO_BUILD}" -DLLVM_ENABLE_PROJECTS="clang;openmp;lld" -DLLVM_PARALLEL_LINK_JOBS=1 -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON -DLLVM_EXTERNAL_PROJECTS=AdaptiveCpp -DLLVM_EXTERNAL_ADAPTIVECPP_SOURCE_DIR=`pwd`/../AdaptiveCpp -DLLVM_ADAPTIVECPP_LINK_INTO_TOOLS=ON -DWITH_OPENCL_BACKEND=OFF -DWITH_VULKAN_BACKEND=${BUILD_VULKAN} -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda -DROCM_PATH=/opt/rocm -DOPENMP_ENABLE_LIBOMPTARGET=OFF
+        cmake ../llvm/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/install -DLLVM_TARGETS_TO_BUILD="X86;${TARGETS_TO_BUILD}" -DLLVM_ENABLE_PROJECTS="clang;openmp;lld" -DLLVM_PARALLEL_LINK_JOBS=1 -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON -DLLVM_EXTERNAL_PROJECTS=AdaptiveCpp -DLLVM_EXTERNAL_ADAPTIVECPP_SOURCE_DIR=`pwd`/../AdaptiveCpp -DLLVM_ADAPTIVECPP_LINK_INTO_TOOLS=ON -DWITH_OPENCL_BACKEND=OFF -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda -DROCM_PATH=/opt/rocm -DOPENMP_ENABLE_LIBOMPTARGET=OFF
         ninja -j2 install
 
         echo "CC=clang" >> $GITHUB_ENV
         echo "CXX=clang++" >> $GITHUB_ENV
         echo "PATH=${GITHUB_WORKSPACE}/install/bin:$PATH" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib:${GITHUB_WORKSPACE}/install/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-    - name: list devices
-      run: ${GITHUB_WORKSPACE}/install/bin/acpp-info -l
     - name: build CPU tests
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
@@ -142,14 +106,14 @@ jobs:
         cmake -GNinja -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/AdaptiveCpp/tests  -DLLVM_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/llvm
         ninja -j2
     - name: build CUDA tests
-      if: ${{ matrix.docker.backend == 'cuda' }}
+      if: ${{ matrix.docker.cuda_or_rocm == 'cuda' }}
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
         cmake -GNinja -DACPP_TARGETS="cuda:sm_60" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/AdaptiveCpp/tests  -DLLVM_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/llvm
         ninja -j2
     - name: build ROCm tests
-      if: ${{ matrix.docker.backend == 'rocm' }}
+      if: ${{ matrix.docker.cuda_or_rocm == 'rocm' }}
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
@@ -162,9 +126,4 @@ jobs:
     - name: run SSCP CPU tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="omp" ./sycl_tests
-    - name: run SSCP Vulkan tests
-      if: ${{ matrix.docker.backend == 'vulkan' }}
-      run: |
-        cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="vk" ./sycl_tests
+        ./sycl_tests

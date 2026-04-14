@@ -1,0 +1,158 @@
+name: Linux Vulkan
+
+on: [push, pull_request]
+
+jobs:
+  prep-container:
+    name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: read
+      packages: write
+      actions: read
+    outputs:
+      docker_matrix: ${{ steps.matrix-output.outputs.json }}
+    strategy:
+      matrix:
+        clang: ['17']
+        os: [ubuntu-22.04]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 20
+      - uses: ./.github/workflows/create-ci-docker
+        id: docker
+        with:
+          LLVM_VERSION: ${{ matrix.clang }}
+          ROCM_VERSION: ""
+          CUDA_MAJOR_VERSION: ""
+          BASE_TAG: ${{ matrix.os }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: beacon-biosignals/matrix-output@v1
+        id: matrix-output
+        with:
+          yaml: |
+            name: ${{ matrix.clang }}-${{ matrix.os }}
+            base_compiler: ${{ matrix.clang }}
+            os: ${{ matrix.os }}
+            image: ${{ steps.docker.outputs.docker_image }}
+
+  test-acpp-llvm:
+    name: AdaptiveCpp LLVM ${{ matrix.clang_version }} and Vulkan
+    needs: prep-container
+    runs-on: ${{ matrix.docker.os }}
+    container:
+      image: ${{ matrix.docker.image }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        docker: ${{fromJson(needs.prep-container.outputs.docker_matrix)}}
+        clang_version: ['18', '20']
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+        path: AdaptiveCpp
+
+    - name: Install Vulkan SDK
+      uses: jakoch/install-vulkan-sdk-action@v1
+      with:
+        vulkan_version: 1.4.341.1
+        cache: true
+        stripdown: true
+
+    # Install mesa 25.x vulkan driver
+    - name: Install LLVMpipe
+      run: |
+        apt-add-repository 'ppa:kisak/turtle' -y
+        apt-get update
+        apt-get install -y mesa-vulkan-drivers
+
+    - name: vulkaninfo
+      run: |
+        vulkaninfo --summary
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{ github.job }}-${{matrix.clang_version}}
+        restore-keys: |
+          ${{ github.job }}
+
+    - name: cache clspv
+      id: cache-clspv
+      uses: actions/cache@v4
+      with:
+        path: ${{github.workspace}}/clspv/build/install
+        key: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
+
+    - name: checkout clspv
+      if: steps.cache-clspv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: google/clspv
+        path: clspv
+        ref: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
+
+    - name: build clspv
+      if: steps.cache-clspv.outputs.cache-hit != 'true'
+      run: |
+        cd $GITHUB_WORKSPACE/clspv
+        python3 utils/fetch_sources.py
+        cmake -GNinja -S $GITHUB_WORKSPACE/clspv -B $GITHUB_WORKSPACE/clspv/build \
+              -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/clspv/build/install \
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        cmake --build $GITHUB_WORKSPACE/clspv/build --target install
+
+    - name: clone LLVM
+      run: |
+        git clone --recurse-submodules https://github.com/llvm/llvm-project --depth 1 --single-branch -b release/${{matrix.clang_version}}.x llvm
+
+    - name: build Adaptive Cpp
+      run: |
+        mkdir build && cd build
+        cmake ../llvm/llvm -GNinja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/install \
+              -DLLVM_TARGETS_TO_BUILD="X86" \
+              -DLLVM_ENABLE_PROJECTS="clang;openmp;lld" \
+              -DLLVM_PARALLEL_LINK_JOBS=1 \
+              -DLLVM_BUILD_LLVM_DYLIB=ON \
+              -DLLVM_LINK_LLVM_DYLIB=ON \
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -DLLVM_EXTERNAL_PROJECTS=AdaptiveCpp \
+              -DLLVM_EXTERNAL_ADAPTIVECPP_SOURCE_DIR=`pwd`/../AdaptiveCpp \
+              -DLLVM_ADAPTIVECPP_LINK_INTO_TOOLS=ON \
+              -DWITH_OPENCL_BACKEND=OFF \
+              -DWITH_VULKAN_BACKEND=ON \
+              -DOPENMP_ENABLE_LIBOMPTARGET=OFF \
+              -DCMAKE_PROGRAM_PATH=$GITHUB_WORKSPACE/clspv/build/install/bin
+        ninja -j2 install
+
+        echo "PATH=${GITHUB_WORKSPACE}/install/bin:$PATH" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/install/lib:${GITHUB_WORKSPACE}/install/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+    - name: list devices
+      run: ${GITHUB_WORKSPACE}/install/bin/acpp-info -l
+
+    - name: build generic SSCP tests
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        cmake -GNinja ${GITHUB_WORKSPACE}/AdaptiveCpp/tests \
+              -DCMAKE_C_COMPILER=${GITHUB_WORKSPACE}/install/bin/clang \
+              -DCMAKE_CXX_COMPILER=${GITHUB_WORKSPACE}/install/bin/clang++ \
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -DACPP_TARGETS="generic" \
+              -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/AdaptiveCpp  \
+              -DLLVM_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/llvm
+        ninja -j2
+
+    - name: run SSCP Vulkan tests
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK="vk" ./sycl_tests

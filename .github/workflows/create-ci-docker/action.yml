@@ -19,9 +19,6 @@ inputs:
   CUDA_DRIVER_VERSION:
     required: true
     default: '450.51.05'
-  VULKAN_VERSION:
-    required: true
-    default: '1.4.341.1'
   BASE_TAG:
     required: true
     default: 'ubuntu-22.04'
@@ -106,8 +103,8 @@ runs:
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}-
     - name: Docker metadata no CUDA no ROCm
       uses: docker/metadata-action@v5
-      id: metadata-no-cuda-no-rocm-no-vulkan
-      if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION == '' && inputs.VULKAN_VERSION == ''
+      id: metadata-no-cuda-no-rocm
+      if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION == ''
       with:
         images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
         tags: |
@@ -117,20 +114,6 @@ runs:
         flavor: |
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-
-    - name: Docker metadata Vulkan Only
-      uses: docker/metadata-action@v5
-      id: metadata-vulkan-only
-      if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION == '' && inputs.VULKAN_VERSION != ''
-      with:
-        images: ghcr.io/${{steps.make-tagged-os.outputs.REPO_OWNER}}/adaptivecpp-ci-linux
-        tags: |
-          type=raw,enable=${{ github.ref_name == 'develop' || github.event_name == 'pull_request' }},value=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-vulkan-${{ inputs.vulkan_version }},prefix=
-          type=sha
-          type=ref,event=branch
-        flavor: |
-          latest=false
-          prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-vulkan-${{ inputs.vulkan_version }}-
-
     
     - name: Select metadata to use
       id: select-metadata
@@ -149,13 +132,9 @@ runs:
           TAGS="${{ steps.metadata-no-cuda.outputs.tags }}"
           VERSION="${{ steps.metadata-no-cuda.outputs.version }}"
           FALLBACK_TAG="${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}"
-        elif [[ -z "${{ inputs.CUDA_MAJOR_VERSION }}" && -z "${{ inputs.ROCM_VERSION }}" && -n "${{ inputs.VULKAN_VERSION }}" ]]; then
-          TAGS="${{ steps.metadata-vulkan-only.outputs.tags }}"
-          VERSION="${{ steps.metadata-vulkan-only.outputs.version }}"
-          FALLBACK_TAG="${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-vulkan-${{ inputs.VULKAN_VERSION }}"
         else
-          TAGS="${{ steps.metadata-no-cuda-no-rocm-no-vulkan.outputs.tags }}"
-          VERSION="${{ steps.metadata-no-cuda-no-rocm-no-vulkan.outputs.version }}"
+          TAGS="${{ steps.metadata-no-cuda-no-rocm.outputs.tags }}"
+          VERSION="${{ steps.metadata-no-cuda-no-rocm.outputs.version }}"
           FALLBACK_TAG="${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}"
         fi
         echo "docker_image=${TAGS}" | head -n 1 >> $GITHUB_OUTPUT
@@ -201,5 +180,4 @@ runs:
           CUDA_MINOR_VERSION=${{ inputs.CUDA_MINOR_VERSION }}
           CUDA_PATCH_VERSION=${{ inputs.CUDA_PATCH_VERSION }}
           CUDA_DRIVER_VERSION=${{ inputs.CUDA_DRIVER_VERSION }}
-          VULKAN_VERSION=${{ inputs.VULKAN_VERSION }}
           BASE=${{ steps.make-tagged-os.outputs.BASE_OS }}

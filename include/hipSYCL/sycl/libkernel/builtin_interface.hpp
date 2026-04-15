@@ -342,6 +342,11 @@ HIPSYCL_BUILTIN T __acpp_tanh(T x) noexcept {
 }
 
 template<class T>
+HIPSYCL_BUILTIN T __acpp_tanpi(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_tanpi, x);
+}
+
+template<class T>
 HIPSYCL_BUILTIN T __acpp_tgamma(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_tgamma, x);
 }

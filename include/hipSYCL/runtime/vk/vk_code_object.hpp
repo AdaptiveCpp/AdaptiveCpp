@@ -105,6 +105,8 @@ struct spv_kernel_argument {
                                   const spv_kernel_argument &arg);
 };
 
+// Define a hash function for 3D `rt::range` such that `rt::range<3>` can be
+// used as a key in a std::map/unordered_map object
 struct range_hash {
   size_t operator()(const rt::range<3> &key) const {
     uint64_t result = uint16_t(key[0]);

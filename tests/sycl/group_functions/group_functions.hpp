@@ -272,10 +272,12 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
   if(queue.get_device().get_backend() == sycl::backend::hip) {
     local_sizes = std::vector<size_t>{256};
     global_sizes = std::vector<size_t>{1024};
-  } else if(queue.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != queue.get_device().get_info<sycl::info::device::name>().find("RADV PHOENIX")) {
-    // Radv Pheonix can't correctly synchronize local size greater than 128
-    // See issue #10 in doc/vulkan.md
+  } else if (queue.get_device().get_backend() == sycl::backend::vk &&
+             std::string::npos !=
+                 queue.get_device().get_info<sycl::info::device::name>().find(
+                     "RADV")) {
+    // Radv Pheonix and NAVI24 can't correctly synchronize local size greater
+    // than 128 See issue #10 in doc/vulkan.md
     local_sizes = std::vector<size_t>{128};
     global_sizes = std::vector<size_t>{512};
   }
@@ -335,14 +337,15 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
     // currently only groupsizes between 128 and 256 are supported for HIP
     local_sizes = std::vector<size_t>{16};
     global_sizes = std::vector<size_t>{32};
-  } else if(queue.get_device().get_backend() == sycl::backend::vk &&
-    std::string::npos != queue.get_device().get_info<sycl::info::device::name>().find("RADV PHOENIX")) {
-    // Radv Pheonix can't correctly synchronize local size greater than 128
-    // See issue #10 in doc/vulkan.md
+  } else if (queue.get_device().get_backend() == sycl::backend::vk &&
+             std::string::npos !=
+                 queue.get_device().get_info<sycl::info::device::name>().find(
+                     "RADV")) {
+    // Radv Pheonix and NAVI24 can't correctly synchronize local size greater
+    // than 128 See issue #10 in doc/vulkan.md
     local_sizes = std::vector<size_t>{16};
     global_sizes = std::vector<size_t>{32};
   }
-
 
   for (int i = 0; i < local_sizes.size(); ++i) {
     size_t local_size  = local_sizes[i];

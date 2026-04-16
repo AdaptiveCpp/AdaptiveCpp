@@ -62,31 +62,26 @@ public:
       const kernel_configuration &config) override;
 
 private:
-  /*
-   * Helper functions
-   */
+  // Helper functions
   vk::CommandBuffer get_command_buffer();
+
   void submit_command_buffer(vk::CommandBuffer &cmd_buf);
 
   std::pair<vk_alloc_info *, bool>
   find_or_create_allocation(vk::DeviceAddress ptr, unsigned size);
 
-  /*
-   * Members of tracking backend device
-   */
+  // Members for tracking backend device
   vk_hardware_manager *_hw_manager;
   const std::size_t _device_index;
   vk_hardware_context *_dev_ctx;
 
-  /*
-   * Command submission members
-   */
+  // Members for command submission
   uint32_t _cmd_buf_alloc_size =
       24; // Batch size of command-buffers to allocate
   std::unique_ptr<vk::raii::CommandPool> _cmd_pool;
   vk::raii::CommandBuffers _cmd_bufs; // Owns the RAII lifetime
   std::vector<vk::CommandBuffer> _available_cmd_bufs;
-  std::map<uint64_t, vk::CommandBuffer> _executing_cmd_bufs; // ordered
+  std::map<uint64_t, vk::CommandBuffer> _executing_cmd_bufs; // ordered map
 
   // Maps command signal value to any temporary memory allocations
   // that need freed asynchronously when it completes
@@ -110,9 +105,7 @@ private:
     mutable std::mutex _mutex;
   } _temp_allocs;
 
-  /*
-   * Synchronization members
-   */
+  // Members for command synchronization
   uint64_t _timeline_value = 0;
   vk::raii::Semaphore _semaphore;
   // Events that come from other queues from the same backend
@@ -120,9 +113,7 @@ private:
   worker_thread _host_worker;
   mutable std::mutex _mutex;
 
-  /*
-   * SSCP members
-   */
+  // Members for SSCP
   vk_sscp_code_object_invoker _sscp_invoker;
   std::shared_ptr<kernel_cache> _kernel_cache;
   common::spin_lock _sscp_submission_spin_lock;

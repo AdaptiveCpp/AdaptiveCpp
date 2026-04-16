@@ -191,8 +191,9 @@ extension is a key part of the implementation as it allows us to implement
 device USM. By using `vkGetBufferDeviceAddress` we can get a device addressable to
 give to the user that they can use in a kernel. However, host/shared USM isn't
 supportable as this pointer isn't valid on host, the underlying Vulkan buffer needs
-memory mapped to a make that possible which is an intermediate step that the
-SYCL runtime performs when the user invokes a SYCL API using a device USM pointer.
+memory mapped to a make that possible. This mapping is an implementation detail that the
+SYCL runtime performs when it needs to access the data at a device USM pointer on host,
+for example when implementing `sycl::buffer`.
 
 In order to implement `memcpy` using the asynchronous command-buffer API, we
 need to use the VK buffer objects tied to those device addressable USM
@@ -241,7 +242,7 @@ a logical devices is created by the user based on the available physical devices
 and their capabilities. During the creation of the logical device the SYCL runtime
 finds the first Vulkan queue family which supports compute, and creates a single
 single queue to tie to the logical device. All `sycl::queue` objects created map
-to that single queue, but each have control their own command-buffers to use
+to that single queue, but each have control over their own command-buffers to use
 with that queue.
 
 Each queue submission is in it's own command-buffer, recorded with a single-submit bit.
@@ -292,7 +293,7 @@ can detect and set.
 
 #### libKernel
 
-To implement the kernel functions declared by `libKernel` many of them are mapped to
+To implement the kernel functions declared by `libkernel` many of them are mapped to
 OpenCL-C builtin functions, which `clspv` then knows how to implement correctly for
 SPIR-V. However, clspv only supports OpenCL-C version 1.2 and some builtins (e.g.
 work-group collectives) require builtins from OpenCL 3.0. In such cases a more
@@ -414,7 +415,7 @@ Assorted AMD MI200 test fails that needs further investigation:
 
 ### Issue 10
 
-> Issue only appears in RADV Phoenix
+> Issue appears in RADV Phoenix and RADV NAVI24
 
 Workgroup size of larger than 128 leads to errors in `group_functions_tests/group_barrier`
 where the result indexes above thread id 128 is no longer synchronized with

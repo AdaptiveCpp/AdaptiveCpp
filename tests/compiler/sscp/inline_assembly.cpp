@@ -26,9 +26,10 @@ int main()
 {
   sycl::queue q = get_queue();
 
-  unsigned* data = sycl::malloc_shared<unsigned>(4, q);
+  unsigned* data = sycl::malloc_device<unsigned>(4, q);
   for(int i = 0; i < 4; ++i)
-    data[i] = 0;
+    q.memset(data + i, 0, sizeof(unsigned));
+  q.wait();
 
   q.parallel_for(sycl::range{1024}, [=](auto idx) {
      __acpp_if_target_sscp(
@@ -40,12 +41,14 @@ int main()
      );
    }).wait();
 
+  int result;
+  q.memcpy(&result, data, sizeof(int)).wait();
+
   // CHECK: 1
 #ifdef __x86_64__
   if(q.get_device().get_backend() != sycl::backend::omp) {
     std::cout << 1 << std::endl;  
   } else {
-    unsigned result = *data;
     std::cout << (result > 1) << std::endl;
   }
 #else

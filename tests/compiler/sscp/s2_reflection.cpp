@@ -18,7 +18,7 @@ extern "C" bool __acpp_sscp_jit_reflect_knows_random_unknown_thing();
 
 int main() {
   sycl::queue q = get_queue();
-  int* data = sycl::malloc_shared<int>(7, q);
+  int* data = sycl::malloc_device<int>(7, q);
 
   q.single_task([data]{
     __acpp_if_target_device(
@@ -33,6 +33,9 @@ int main() {
     );
   }).wait();
 
+  std::vector<int> host_data(7, 0);
+  q.memcpy(host_data.data(), data, 7 * sizeof(int)).wait();
+
   auto dev = q.get_device().AdaptiveCpp_device_id();
   hipsycl::rt::runtime_keep_alive_token rt;
   hipsycl::rt::hardware_context *ctx = rt.get()
@@ -42,27 +45,27 @@ int main() {
                                            ->get_device(dev.get_id());
 
   // CHECK: 1
-  std::cout << (data[0] == static_cast<int>(dev.get_backend())) << std::endl;
+  std::cout << (host_data[0] == static_cast<int>(dev.get_backend())) << std::endl;
   // CHECK: 1
-  std::cout << (data[1] ==
+  std::cout << (host_data[1] ==
                 static_cast<int>(ctx->get_property(
                     hipsycl::rt::device_uint_property::architecture)))
             << std::endl;
   // CHECK: 1
-  std::cout << (data[2] == static_cast<int>(ctx->is_cpu())) << std::endl;
+  std::cout << (host_data[2] == static_cast<int>(ctx->is_cpu())) << std::endl;
 
   // We don't have a mechanism yet to query compiler backends on the host, so
   // cannot test data[3] for now.
 
   // CHECK: 1
-  std::cout << (data[4] ==
+  std::cout << (host_data[4] ==
                 static_cast<int>(ctx->get_property(
                     hipsycl::rt::device_uint_property::vendor_id))) << std::endl;
 
   // CHECK: 1
-  std::cout << data[5] << std::endl;
+  std::cout << host_data[5] << std::endl;
   // CHECK: 0
-  std::cout << data[6] << std::endl;
+  std::cout << host_data[6] << std::endl;
 
   q.single_task([=]() {
     __acpp_if_target_device(
@@ -76,13 +79,16 @@ int main() {
           sycl::AdaptiveCpp_jit::reflection_query::runtime_backend>();
     );
   }).wait();
+
+  q.memcpy(host_data.data(), data, 2 * sizeof(int)).wait();
+
   // CHECK: 1
-  std::cout << (data[0] == (q.get_device().get_backend() ==
+  std::cout << (host_data[0] == (q.get_device().get_backend() ==
                             sycl::backend::omp))
             << std::endl;
 
   // CHECK: 1
-  std::cout << data[1] << std::endl;
+  std::cout << host_data[1] << std::endl;
 
   sycl::free(data, q);
 }

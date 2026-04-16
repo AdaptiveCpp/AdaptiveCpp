@@ -37,18 +37,20 @@ void test_c_array(sycl::queue& q) {
 }
 
 void test_std_array(sycl::queue& q) {
-  int* data = sycl::malloc_shared<int>(4, q);
+  int* data = sycl::malloc_device<int>(4, q);
   q.single_task([=]() {
     for (int i = 0; i < 4; ++i)
       data[i] = array_table[i];
   }).wait();
 
+  std::vector<int> result(4);
+  q.memcpy(result.data(), data, sizeof(int) * 4).wait();
   for (int i = 0; i < 4; ++i) {
     // CHECK: 100
     // CHECK: 200
     // CHECK: 300
     // CHECK: 400
-    std::cout << data[i] << std::endl;
+    std::cout << result[i] << std::endl;
   }
   sycl::free(data, q);
 }

@@ -413,6 +413,11 @@ double tan(double);
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tan_f32(float x) { return tan(x); }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tan_f64(double x) { return tan(x); }
 
+float tanpi(float);
+double tanpi(double);
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanpi_f32(float x) { return tanpi(x); }
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tanpi_f64(double x) { return tanpi(x); }
+
 float tanh(float);
 double tanh(double);
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanh_f32(float x) { return tanh(x); }

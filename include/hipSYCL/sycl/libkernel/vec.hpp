@@ -474,13 +474,13 @@ public:
 #define HIPSYCL_DEFINE_VECTOR_ACCESS_IF(condition, name, id)                   \
   template <int Dim = N,                                                       \
             std::enable_if_t<(id < N) && (condition), bool> = true>            \
-  ACPP_UNIVERSAL_TARGET T &name() {                                         \
+  ACPP_UNIVERSAL_TARGET T &name() {                                            \
     return _data.template get<id>();                                           \
   }                                                                            \
                                                                                \
   template <int Dim = N,                                                       \
             std::enable_if_t<(id < N) && (condition), bool> = true>            \
-  ACPP_UNIVERSAL_TARGET T name() const {                                    \
+  ACPP_UNIVERSAL_TARGET const T& name() const {                                \
     return _data.template get<id>();                                           \
   }
 

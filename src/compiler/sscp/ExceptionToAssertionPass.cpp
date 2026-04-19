@@ -15,6 +15,7 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
 #include "hipSYCL/compiler/sscp/ExceptionToAssertionPass.hpp"
+#include "hipSYCL/compiler/sscp/DeviceAssertPass.hpp" // getAssertFailBuiltin
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Support/Alignment.h>
@@ -34,38 +35,6 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
   static const char* ACPPSSCPAssertFail = "__acpp_sscp_assert_fail";
   static const char* CXAAllocExc = "__cxa_allocate_exception";
 
-  // declare __acpp_sscp_assert_fail
-  // detect if C++ throws occur in source code
-  llvm::Function* OldCXAThrow = M.getFunction(OldCXAThrow);
-
-  // declare __acpp_sscp_assert_fail if not yet declared
-  llvm::Type* llvmCharType;
-  llvm::Function* ACPPSSCPAssertFailDeclaration;
-  #if LLVM_VERSION_MAJOR >= 16
-  llvmCharType = llvm::PointerType::get(M.getContext(), 0);
-  #else
-  llvmCharType = llvm::PointerType::get(llvm::Type::getInt8Ty(M.getContext()), 0);
-  #endif
-  if(auto* F = M.getFunction(ACPPSSCPAssertFail)){
-    ACPPSSCPAssertFailDeclaration=F;
-  }
-  else {
-    llvm::SmallVector<llvm::Type*> ParamTs;
-    // assertion
-    ParamTs.push_back(llvmCharType);
-    // file
-    ParamTs.push_back(llvmCharType);
-    // line
-    ParamTs.push_back(llvm::Type::getInt32Ty(M.getContext()));
-    // function name
-    ParamTs.push_back(llvmCharType);
-    auto FC = M.getOrInsertFunction(ACPPSSCPAssertFail,
-                                    llvm::FunctionType::get(llvm::Type::getVoidTy(M.getContext()),
-                                                            llvm::ArrayRef<llvm::Type *>{ParamTs},
-                                                            false));
-    ACPPSSCPAssertFailDeclaration = llvm::dyn_cast<llvm::Function>(FC.getCallee());
-    ACPPSSCPAssertFailDeclaration->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
-  }
 
   //store all invokes and calls of __cxa_throw for later
   llvm::SmallVector<llvm::InvokeInst*> cxaThrowInvokes;
@@ -97,7 +66,7 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
   llvm::SmallVector<llvm::UnreachableInst*> UnreachableForCXAInvokes;
   for (int i=0; i<cxaThrowInvokes.size(); i++) {
     // construct device assertion signature
-    const char *assertionStr = "Exception in Device Code";
+    const char *assertionStr = "ExceptionToAssertionPass: Exception in Device Code";
     const char *fileStr = M.getSourceFileName().c_str();
     int lineNumber = std::numeric_limits<int>::max();
     if (llvm::DebugLoc DL = cxaThrowInvokes[i]->getDebugLoc()) { // if -g flag was used grab the line number
@@ -113,7 +82,7 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     ACPPSSCPAssertFailArgs.push_back(builder.getInt32(lineNumber));
     ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(functionName));
   
-    auto *Call = llvm::CallInst::Create(ACPPSSCPAssertFailDeclaration, ACPPSSCPAssertFailArgs);
+    auto *Call = llvm::CallInst::Create(DeviceAssertPass::getAssertFailBuiltin(M), ACPPSSCPAssertFailArgs);
     Call->insertBefore(cxaThrowInvokes[i]);
     auto *Unreachable = new llvm::UnreachableInst(M.getContext(), cxaThrowInvokes[i]); 
     UnreachableForCXAInvokes.push_back(Unreachable);
@@ -128,9 +97,9 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
   llvm::SmallVector<llvm::CallInst*> AssertForCXACalls;
   for (int i=0; i<cxaThrowCalls.size(); i++) {
     // construct device assertion signature
-    const char *assertionStr = "Exception in Device Code";
+    const char *assertionStr = "ExceptionToAssertionPass: Exception in Device Code";
     const char *fileStr = M.getSourceFileName().c_str();
-    int lineNumber = -42;
+    int lineNumber = std::numeric_limits<int>::max();
     if (llvm::DebugLoc DL = cxaThrowCalls[i]->getDebugLoc()) { // if -g flag was used grab the line number
         lineNumber = DL.getLine();
     }
@@ -145,7 +114,7 @@ llvm::PreservedAnalyses ExceptionToAssertionPass::run(llvm::Module &M, llvm::Mod
     ACPPSSCPAssertFailArgs.push_back(builder.getInt32(lineNumber));
     ACPPSSCPAssertFailArgs.push_back(builder.CreateGlobalStringPtr(functionName));
   
-    auto *Call = llvm::CallInst::Create(ACPPSSCPAssertFailDeclaration, ACPPSSCPAssertFailArgs);
+    auto *Call = llvm::CallInst::Create(DeviceAssertPass::getAssertFailBuiltin(M), ACPPSSCPAssertFailArgs);
     Call->insertBefore(cxaThrowCalls[i]);
     AssertForCXACalls.push_back(Call);
   }

@@ -14,7 +14,7 @@ jobs:
       docker_matrix: ${{ steps.matrix-output.outputs.json }}
     strategy:
       matrix:
-        clang: [15, 16, 17, 18, 19, 20, 21]
+        clang: [15, 16, 17, 18, 19, 20]
         os: [ubuntu-22.04]
         cuda_major_version: [11]
         cuda_minor_version: [0]
@@ -27,6 +27,12 @@ jobs:
             cuda_minor_version: 0
             cuda_patch_version: 2
             rocm: 5.6.1
+          - clang: 21
+            os: ubuntu-22.04
+            cuda_major_version: 11
+            cuda_minor_version: 0
+            cuda_patch_version: 2
+            rocm: 6.3.1
     steps:
       - uses: actions/checkout@v4
         with:

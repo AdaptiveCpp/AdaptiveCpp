@@ -26,6 +26,12 @@ class Buffer;
 namespace hipsycl {
 namespace rt {
 
+struct metal_mmap_region;
+
+// Metal USM allocator. Reserves a large VA range via mmap and wraps sub-regions
+// with newBuffer(ptr,...) so that all shared/host buffers satisfy:
+//   buffer->gpuAddress() - (uintptr_t)buffer->contents() == _delta (constant).
+// _delta is used for pointer translation between CPU and GPU address spaces.
 class metal_allocator : public backend_allocator
 {
 public:
@@ -63,16 +69,21 @@ public:
   // Returns the Metal buffer and offset for a given USM pointer
   std::tuple<MTL::Buffer*, size_t, usm_alloc_type> get_usm_block(const void* ptr) const;
 private:
+  MTL::Buffer* alloc_buffer(size_t size_bytes);
+  void calibrate();
+
   MTL::Device* _device = nullptr;
   device_id _device_id;
+  const size_t _page_size;
+  size_t _delta;
 
   struct usm_block {
     MTL::Buffer* buffer;
-    size_t size;
     usm_alloc_type alloc_type;
   };
   std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
+  std::unique_ptr<metal_mmap_region> _mmap_region;
 };
 
 

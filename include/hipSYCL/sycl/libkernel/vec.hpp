@@ -15,7 +15,7 @@
 #include "half.hpp"
 #include "multi_ptr.hpp"
 #include "bit_cast.hpp"
-#include "builtin_interface.hpp"
+#include "hipSYCL/sycl/libkernel/builtin_interface.hpp"
 
 #include <cstdint>
 #include <type_traits>

@@ -416,6 +416,36 @@ HIPSYCL_HALF_MATH_BUILTIN(UNARY_T, sin)
 HIPSYCL_HALF_MATH_BUILTIN(UNARY_T, sqrt)
 HIPSYCL_HALF_MATH_BUILTIN(UNARY_T, tan)
 }
+
+template<typename T, int N, class VectorStorage>
+template<typename ConvertT, rounding_mode RM>
+ACPP_UNIVERSAL_TARGET vec<ConvertT, N> vec<T, N, VectorStorage>::convert() const {
+
+  vec<ConvertT, N> result;
+
+  for (int i = 0; i < N; ++i) {
+    // TODO handle float to float conversion. Here only float to integer rounding is
+    // implemented
+    if constexpr (std::is_floating_point_v<T> && std::is_integral_v<ConvertT>) {
+      if constexpr (RM == rounding_mode::rte || RM == rounding_mode::automatic) {
+        result[i] = static_cast<ConvertT>(sycl::rint(_data[i]));
+      } else if constexpr (RM == rounding_mode::rtz) {
+        result[i] = static_cast<ConvertT>(sycl::trunc(_data[i]));
+      } else if constexpr (RM == rounding_mode::rtp) {
+        result[i] = static_cast<ConvertT>(sycl::ceil(_data[i]));
+      } else if constexpr (RM == rounding_mode::rtn) {
+        result[i] = static_cast<ConvertT>(sycl::floor(_data[i]));
+      } else {
+        result[i] = static_cast<ConvertT>(_data[i]);
+      }
+    } else {
+        result[i] = static_cast<ConvertT>(_data[i]);
+    }
+  }
+
+  return result;
+}
+
 }
 
 #endif

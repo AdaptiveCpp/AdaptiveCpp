@@ -54,7 +54,11 @@ result submit_ocl_kernel(cl::Kernel& kernel,
                        << " of size " << arg_sizes[i] << " at " << kernel_args[i]
                        << std::endl;
 
-    err = kernel.setArg(i, static_cast<std::size_t>(arg_sizes[i]), kernel_args[i]);
+    if(info->get_argument_type(i) == hcf_kernel_info::argument_type::pointer) {
+      err = kernel.setArg(i, *reinterpret_cast<void**>(kernel_args[i]));
+    } else {
+      err = kernel.setArg(i, static_cast<std::size_t>(arg_sizes[i]), kernel_args[i]);
+    }
 
     if(err != CL_SUCCESS) {
       return make_error(

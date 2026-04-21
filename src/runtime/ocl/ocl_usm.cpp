@@ -285,6 +285,16 @@ public:
     return err;
   }
 
+  bool accepts_arbitrary_pointer_kernel_arguments() const override {
+    // TODO Only for USM extension version >= 1.1
+    return true;
+  }
+
+  cl_int set_kernel_pointer_arg(cl::Kernel &k, unsigned i,
+                                const void *ptr) override {
+    return _set_kernel_arg_mem_pointer(k.get(), i, ptr);
+  }
+
 private:
   template <class Func>
   void initialize_func(Func &out, const char *name, cl_platform_id id) {
@@ -462,6 +472,15 @@ public:
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
     return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM, cl_bool{true});
+  }
+
+  bool accepts_arbitrary_pointer_kernel_arguments() const override {
+    return false;
+  }
+
+  cl_int set_kernel_pointer_arg(cl::Kernel &k, unsigned i,
+                                const void *ptr) override {
+    return k.setArg(i, ptr);
   }
 
 private:

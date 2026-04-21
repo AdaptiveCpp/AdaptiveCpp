@@ -56,6 +56,19 @@ public:
 
   virtual cl_int enable_indirect_usm_access(cl::Kernel&) = 0;
 
+  // SYCL requires that arbitrary pointers are accepted as kernel arguments
+  // (e.g. nullptr, host pointers) as long as they are not accessed. Some APIs
+  // may validate pointers more strictly, in which case AdaptiveCpp may have to
+  // fallback to another strategy (wrapping pointers in structs to hide them
+  // from the OpenCL driver).
+  virtual bool accepts_arbitrary_pointer_kernel_arguments() const = 0;
+
+  // If AdaptiveCpp passes in raw pointer arguments
+  // (accepts_arbitrary_pointer_kernel_arguments() is true), uses to set the
+  // argument.
+  virtual cl_int set_kernel_pointer_arg(cl::Kernel &, unsigned i,
+                                        const void *ptr) = 0;
+
   static std::unique_ptr<ocl_usm> from_intel_extension(ocl_hardware_manager* hw_mgr, int device_index);
   static std::unique_ptr<ocl_usm> from_fine_grained_system_svm(ocl_hardware_manager* hw_mgr, int device_index);
 };

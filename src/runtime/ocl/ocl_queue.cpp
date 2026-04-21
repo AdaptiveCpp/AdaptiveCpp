@@ -57,8 +57,9 @@ result submit_ocl_kernel(cl::Kernel& kernel,
     if(info->get_argument_type(i) == hcf_kernel_info::argument_type::pointer &&
       usm->accepts_arbitrary_pointer_kernel_arguments()) {
 
-      void* arg_location = kernel_args[i];
-      const void* ptr = *reinterpret_cast<void**>(arg_location);
+      const void* arg_location = kernel_args[i];
+      void* ptr;
+      std::memcpy(&ptr, arg_location, sizeof(void*));
       usm->set_kernel_pointer_arg(kernel, static_cast<unsigned>(i), ptr);
 
     } else {

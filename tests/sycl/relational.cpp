@@ -125,7 +125,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
       return;
     }
   }
-
   s::buffer<T> in{{1}};
   s::buffer<OutType> out{{FUN_COUNT}};
   {

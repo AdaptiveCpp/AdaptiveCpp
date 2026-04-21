@@ -137,12 +137,6 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     BOOST_TEST_MESSAGE("Skipping test since device has no shared USM support");
   }
 
-  // See doc/vulkan.md issue #6
-  if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
-    return;
-  }
-
   if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
     BOOST_TEST_MESSAGE("Skipping test since device has no shared USM support");
     return;
@@ -186,7 +180,7 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     T expected_mul_result =
       std::accumulate(input1, input1 + input_size, T{1}, std::multiplies<T>{});
 
-      if constexpr(std::is_floating_point_v<T>) {
+    if constexpr(std::is_floating_point_v<T>) {
       BOOST_TEST(expected_add_result == *output0, tolerance);
       BOOST_TEST(expected_mul_result == *output1, tolerance);
     } else {

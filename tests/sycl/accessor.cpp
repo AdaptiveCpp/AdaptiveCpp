@@ -377,11 +377,13 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
   auto host_acc3d = buff3.get_access<s::access::mode::read>();
 
   for(size_t x = 0; x < buff_size3d[0]; ++x)
-    for (size_t y = 0; y < buff_size3d[1]; ++y) {
+    for(size_t y = 0; y < buff_size3d[1]; ++y) {
+
       size_t linear_id2d = static_cast<int>(x*buff_size2d[1] + y);
       s::id<2> id2d{x,y};
       BOOST_CHECK(host_acc2d[id2d] == linear_id2d);
       BOOST_CHECK(host_acc2d.get_pointer()[linear_id2d] == linear_id2d);
+
       for(size_t z = 0; z < buff_size3d[2]; ++z) {
         size_t linear_id3d = x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z;
         s::id<3> id3d{x,y,z};
@@ -623,14 +625,14 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
   {
     s::buffer<int> buf(host_data.data(), N);
 
-    q.submit([&](s::handler &cgh) {
-       s::accessor<int> acc(buf, cgh, range, offset);
+    q.submit([&](s::handler &cgh){
+      s::accessor<int> acc(buf, cgh, range, offset);
 
-       cgh.single_task([=]() {
-         for (auto it = acc.begin(); it != acc.end(); ++it)
-           *it = -1;
-       });
-     }).wait();
+      cgh.single_task([=]() {
+        for (auto it = acc.begin(); it != acc.end(); ++it)
+          *it = -1;
+      });
+    }).wait();
   }
 
   for (int i=0; i < offset[0]; ++i)

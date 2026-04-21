@@ -101,7 +101,12 @@ jobs:
           ${GITHUB_WORKSPACE}/tests
         ninja
 
-    - name: run Vulkan tests (sycl)
+    - name: run SYCL tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ACPP_VISIBILITY_MASK="vk" ./sycl_tests
+
+    - name: run lit SSCP tests
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        ACPP_VISIBILITY_MASK="vk" ninja check-sscp

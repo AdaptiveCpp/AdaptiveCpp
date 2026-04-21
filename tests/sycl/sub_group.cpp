@@ -18,6 +18,7 @@ BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
 BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
   namespace s = sycl;
   s::queue q;
+
   const auto dev = q.get_device();
   const auto sg_sizes = dev.get_info<s::info::device::sub_group_sizes>();
   BOOST_TEST_REQUIRE(!sg_sizes.empty());
@@ -38,7 +39,6 @@ BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
   size_t remain = WG % SG;
   size_t cntSG = 0, cntR = 0, cntOther = 0;
 
-
   for (size_t i = 0; i < WG; ++i) {
     if (data[i] == SG) ++cntSG;
     else if(data[i] == remain) ++cntR;
@@ -55,7 +55,6 @@ BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
 BOOST_AUTO_TEST_CASE(sub_group) {
   namespace s = sycl;
   s::queue q;
-
   s::range<1> size1d{1024};
   s::range<2> size2d{32, 32};
   s::range<3> size3d{16, 16, 16};

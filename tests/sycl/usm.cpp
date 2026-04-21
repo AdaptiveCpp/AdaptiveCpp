@@ -180,7 +180,6 @@ BOOST_AUTO_TEST_CASE(shared_allocation_functions) {
   sycl::free(aligned_shared_ptr, q);
 }
 
-
 BOOST_AUTO_TEST_CASE(explicit_queue_dependencies) {
   sycl::queue q;
 
@@ -1423,5 +1422,7 @@ BOOST_AUTO_TEST_CASE(two_queue) {
   sycl::free(dev_ptr2, q2);
 }
 
+=======
+>>>>>>> 69cc2cf4 (Add LIT SSCP testing)
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

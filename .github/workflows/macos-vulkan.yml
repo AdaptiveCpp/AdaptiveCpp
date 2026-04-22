@@ -21,7 +21,7 @@ jobs:
       run: |
         set +e
         brew update
-        brew install llvm@19 lld@19 libomp boost ninja molten-vk
+        brew install llvm@19 lld@19 libomp boost ninja molten-vk lit
         set -e
 
     - name: Vulkan SDK
@@ -109,4 +109,7 @@ jobs:
     - name: run lit SSCP tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="vk" ninja check-sscp
+
+        PATH=$(brew --prefix llvm@19)/bin:$PATH \
+        ACPP_VISIBILITY_MASK="vk" \
+        ninja check-sscp

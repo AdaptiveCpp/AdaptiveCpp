@@ -148,16 +148,19 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__acpp_get_ngroups_z,
 // must be reversed before it can be used in a performant manner!
 inline ACPP_KERNEL_TARGET size_t get_global_id_x()
 {
+  __acpp_if_target_sscp(return __acpp_sscp_get_global_id_x(););
   return __acpp_gid_x * __acpp_lsize_x + __acpp_lid_x;
 }
 
 inline ACPP_KERNEL_TARGET size_t get_global_id_y()
 {
+  __acpp_if_target_sscp(return __acpp_sscp_get_global_id_y(););
   return __acpp_gid_y * __acpp_lsize_y + __acpp_lid_y;
 }
 
 inline ACPP_KERNEL_TARGET size_t get_global_id_z()
 {
+  __acpp_if_target_sscp(return __acpp_sscp_get_global_id_z(););
   return __acpp_gid_z * __acpp_lsize_z + __acpp_lid_z;
 }
 

@@ -60,7 +60,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
       const void* arg_location = kernel_args[i];
       void* ptr;
       std::memcpy(&ptr, arg_location, sizeof(void*));
-      usm->set_kernel_pointer_arg(kernel, static_cast<unsigned>(i), ptr);
+      err = usm->set_kernel_pointer_arg(kernel, static_cast<unsigned>(i), ptr);
 
     } else {
       // If we don't have arbitrary pointer argument support, the JIT compiler

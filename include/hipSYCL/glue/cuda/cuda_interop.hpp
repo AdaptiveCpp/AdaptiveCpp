@@ -55,26 +55,6 @@ template <> struct backend_interop<sycl::backend::cuda> {
     return static_cast<native_queue_type>(q->get_native_type());
   }
 
-  static native_queue_type
-  get_native_queue(rt::device_id dev, rt::backend_executor *executor) {
-    rt::multi_queue_executor *mqe =
-        dynamic_cast<rt::multi_queue_executor *>(executor);
-
-    if (!mqe) {
-      rt::register_error(
-          __acpp_here(),
-          rt::error_info{"Invalid argument to get_native_queue()"});
-      return native_queue_type{};
-    }
-
-    rt::inorder_queue *q = nullptr;
-    mqe->for_each_queue(
-        dev, [&](rt::inorder_queue *current_queue) { q = current_queue; });
-    assert(q);
-
-    return static_cast<native_queue_type>(q->get_native_type());
-  }
-      
   static sycl::device make_sycl_device(int device_id) {
     return sycl::device{
         rt::device_id{rt::backend_descriptor{rt::hardware_platform::cuda,

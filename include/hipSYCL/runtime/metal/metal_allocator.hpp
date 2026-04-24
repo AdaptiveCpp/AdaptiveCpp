@@ -69,6 +69,19 @@ public:
 
   // Returns the Metal buffer and offset for a given USM pointer
   std::tuple<MTL::Buffer*, size_t, usm_alloc_type> get_usm_block(const void* ptr) const;
+
+  size_t get_delta() const { return _delta; }
+
+  template<typename F>
+  void for_each_buffer(F&& f) const {
+    std::lock_guard<std::mutex> lock{_mutex};
+    for (auto& [ptr, block] : _ptr_to_block) {
+      if (block.buffer) {
+        f(block.buffer);
+      }
+    }
+  }
+
 private:
   MTL::Buffer* alloc_buffer(size_t size_bytes);
   void calibrate();

@@ -183,8 +183,11 @@ result launch_kernel_from_library(
 
   encoder->setThreadgroupMemoryLength(align_up(local_mem_size, 16), 0);
 
-  const NS::UInteger buf_offset = 1; // buffer(0) is reserved for dynamic local memory size, so start from 1
+  // buffer(0) = dynamic local memory size, buffer(1) = gpu-to-host addr delta for pointer translation
+  const NS::UInteger buf_offset = 2;
   encoder->setBytes(&user_local_mem_size, sizeof(uint32_t), 0);
+  int64_t addr_delta = static_cast<int64_t>(allocator->get_delta());
+  encoder->setBytes(&addr_delta, sizeof(int64_t), 1);
   std::vector<NS::SharedPtr<MTL::Buffer>> buffers_out;
   if (!arg_buffer_used) {
     encode_arguments(encoder, device, allocator, args, arg_sizes, num_args, is_pointer_arg, buf_offset);
@@ -192,6 +195,11 @@ result launch_kernel_from_library(
     encode_arguments_argbuffer(
       encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out, buf_offset);
   }
+
+  // TODO: switch to MTL4 API for O(1) buffer bindings
+  allocator->for_each_buffer([&](MTL::Buffer* buf) {
+    encoder->useResource(buf, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
+  });
 
   MTL::Size num_groups_size = MTL::Size::Make(
     num_groups[0],
@@ -815,12 +823,6 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   const auto& retained_indices = jit_output_metadata.kernel_retained_arguments_indices;
   if (retained_indices.has_value()) {
     _arg_mapper.apply_dead_argument_elimination_mask(retained_indices.value());
-  }
-  if (!jit_output_metadata.is_free_of_indirect_access) {
-    HIPSYCL_DEBUG_WARNING
-      << "metal_queue: kernel '" << kernel_name
-      << "' may perform indirect memory access, which is currently not supported by the Metal backend and can lead to undefined behavior (e.g., invalid or out-of-bounds memory access)."
-      << std::endl;
   }
 
   // Get the Metal library from the code object

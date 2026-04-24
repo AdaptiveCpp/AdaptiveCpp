@@ -621,10 +621,6 @@ enqueue_kernel(int max_iterations, Node* start, sycl::queue q) {
 
 BOOST_AUTO_TEST_CASE(linked_list_single_alloc) {
   sycl::queue q{sycl::property::queue::in_order{}};
-  if (q.get_device().get_backend() == sycl::backend::metal) {
-    BOOST_TEST_MESSAGE("Not yet supported on Metal backend");
-    return;
-  }
 
   const int num_nodes = 3;
   linked_list::Node *nodes = sycl::malloc_device<linked_list::Node>(num_nodes, q);
@@ -648,10 +644,6 @@ BOOST_AUTO_TEST_CASE(linked_list_single_alloc) {
 
 BOOST_AUTO_TEST_CASE(linked_list_separate_alloc) {
   sycl::queue q{sycl::property::queue::in_order{}};
-  if (q.get_device().get_backend() == sycl::backend::metal) {
-    BOOST_TEST_MESSAGE("Not yet supported on Metal backend");
-    return;
-  }
 
   constexpr int num_nodes = 3;
   linked_list::Node* nodes[num_nodes];
@@ -674,6 +666,663 @@ BOOST_AUTO_TEST_CASE(linked_list_separate_alloc) {
   for (int i = 0; i < num_nodes; i++) {
     sycl::free(nodes[i], q);
   }
+}
+
+namespace {
+namespace shared_indirection {
+
+struct ListNode {
+  int id;
+  ListNode *next;
+};
+
+struct TreeNode {
+  int id;
+  TreeNode *left;
+  TreeNode *right;
+};
+
+struct RotateNode {
+  int key;
+  RotateNode *left;
+  RotateNode *right;
+};
+
+struct ColVal {
+  int col;
+  float val;
+};
+
+struct RowSlice {
+  ColVal *data;
+  int len;
+};
+
+constexpr int TrieAlpha = 26;
+
+struct TrieNode {
+  TrieNode *children[TrieAlpha];
+  bool is_end;
+};
+
+bool trie_contains(TrieNode *root, const char *word, int len) {
+  TrieNode *cur = root;
+  for (int i = 0; i < len; ++i) {
+    int c = word[i] - 'a';
+    if (c < 0 || c >= TrieAlpha) {
+      return false;
+    }
+    cur = cur->children[c];
+    if (!cur) {
+      return false;
+    }
+  }
+  return cur->is_end;
+}
+
+struct GraphNode {
+  int id;
+  int num_neighbors;
+  GraphNode **neighbors;
+};
+
+int bfs_reachable(GraphNode *src) {
+  constexpr int MaxV = 16;
+  bool visited[MaxV] = {};
+  GraphNode *queue[MaxV];
+  int head = 0, tail = 0;
+
+  visited[src->id] = true;
+  queue[tail++] = src;
+
+  while (head < tail) {
+    GraphNode *cur = queue[head++];
+    for (int i = 0; i < cur->num_neighbors; ++i) {
+      GraphNode *nb = cur->neighbors[i];
+      if (!visited[nb->id]) {
+        visited[nb->id] = true;
+        queue[tail++] = nb;
+      }
+    }
+  }
+  return tail;
+}
+
+constexpr int BTreeT = 2;
+constexpr int BTreeMaxKeys = 2 * BTreeT - 1;
+constexpr int BTreeMaxChildren = 2 * BTreeT;
+
+struct BTreeNode {
+  int keys[BTreeMaxKeys];
+  BTreeNode *children[BTreeMaxChildren];
+  int num_keys;
+  bool leaf;
+};
+
+int btree_search(BTreeNode *root, int key) {
+  BTreeNode *cur = root;
+  while (cur) {
+    int i = 0;
+    while (i < cur->num_keys && key > cur->keys[i]) {
+      ++i;
+    }
+    if (i < cur->num_keys && cur->keys[i] == key) {
+      return 1;
+    }
+    if (cur->leaf) {
+      return 0;
+    }
+    cur = cur->children[i];
+  }
+  return 0;
+}
+
+} // namespace shared_indirection
+} // namespace
+
+BOOST_AUTO_TEST_CASE(shared_double_indirection) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  static constexpr int N = 16;
+  static constexpr std::size_t PtrBytes = N * sizeof(int *);
+  static constexpr std::size_t ValBytes = N * sizeof(int);
+
+  char *base = sycl::malloc_shared<char>(PtrBytes + ValBytes, q);
+  int **ptrs = reinterpret_cast<int **>(base);
+  int *values = reinterpret_cast<int *>(base + PtrBytes);
+  int *results = sycl::malloc_shared<int>(N, q);
+
+  for (int i = 0; i < N; ++i) {
+    values[i] = (i + 1) * 10;
+    ptrs[i] = &values[i];
+    results[i] = 0;
+  }
+
+  q.parallel_for(sycl::range<1>(N), [=](sycl::id<1> idx) {
+    int i = static_cast<int>(idx[0]);
+    results[i] = *ptrs[i];
+  });
+  q.wait();
+
+  for (int i = 0; i < N; ++i)
+    BOOST_CHECK(results[i] == (i + 1) * 10);
+
+  sycl::free(base, q);
+  sycl::free(results, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_trie_search) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using namespace shared_indirection;
+  static constexpr int MaxNodes = 32;
+  static constexpr int NumQueries = 8;
+  static constexpr int WordLen = 8;
+
+  struct Query {
+    char word[WordLen];
+    int len;
+    int expected;
+  };
+
+  TrieNode *nodes = sycl::malloc_shared<TrieNode>(MaxNodes, q);
+  for (int i = 0; i < MaxNodes; ++i) {
+    for (int c = 0; c < TrieAlpha; ++c)
+      nodes[i].children[c] = nullptr;
+    nodes[i].is_end = false;
+  }
+
+  int next = 0;
+  TrieNode *root = &nodes[next++];
+  auto insert = [&](const char *word) {
+    TrieNode *cur = root;
+    for (int i = 0; word[i]; ++i) {
+      int c = word[i] - 'a';
+      if (!cur->children[c])
+        cur->children[c] = &nodes[next++];
+      cur = cur->children[c];
+    }
+    cur->is_end = true;
+  };
+
+  insert("cat");
+  insert("car");
+  insert("card");
+  insert("care");
+  insert("dog");
+  insert("do");
+
+  Query host_queries[NumQueries] = {
+    {"cat", 3, 1},  {"car", 3, 1}, {"card", 4, 1}, {"care", 4, 1},
+    {"dog", 3, 1},  {"do", 2, 1},  {"ca", 2, 0},   {"door", 4, 0}};
+
+  Query *queries = sycl::malloc_shared<Query>(NumQueries, q);
+  int *results = sycl::malloc_shared<int>(NumQueries, q);
+  for (int i = 0; i < NumQueries; ++i) {
+    queries[i] = host_queries[i];
+    results[i] = 0;
+  }
+
+  q.parallel_for(sycl::range<1>(NumQueries), [=](sycl::id<1> idx) {
+    int i = static_cast<int>(idx[0]);
+    results[i] = trie_contains(root, queries[i].word, queries[i].len) ? 1 : 0;
+  });
+  q.wait();
+
+  for (int i = 0; i < NumQueries; ++i) {
+    BOOST_CHECK(results[i] == host_queries[i].expected);
+  }
+
+  sycl::free(nodes, q);
+  sycl::free(queries, q);
+  sycl::free(results, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_graph_bfs) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using namespace shared_indirection;
+  static constexpr int V = 6;
+  static constexpr int PtrSlots = 7;
+  std::size_t node_bytes = V * sizeof(GraphNode);
+  std::size_t ptr_bytes = PtrSlots * sizeof(GraphNode *);
+
+  char *block = sycl::malloc_shared<char>(node_bytes + ptr_bytes, q);
+  GraphNode *nodes = reinterpret_cast<GraphNode *>(block);
+  GraphNode **ptr_pool = reinterpret_cast<GraphNode **>(block + node_bytes);
+
+  for (int i = 0; i < V; ++i) {
+    nodes[i].id = i;
+    nodes[i].num_neighbors = 0;
+    nodes[i].neighbors = nullptr;
+  }
+  for (int i = 0; i < PtrSlots; ++i) {
+    ptr_pool[i] = nullptr;
+  }
+
+  nodes[0].num_neighbors = 2;
+  nodes[0].neighbors = &ptr_pool[0];
+  ptr_pool[0] = &nodes[1];
+  ptr_pool[1] = &nodes[2];
+  nodes[1].num_neighbors = 1;
+  nodes[1].neighbors = &ptr_pool[2];
+  ptr_pool[2] = &nodes[3];
+  nodes[2].num_neighbors = 2;
+  nodes[2].neighbors = &ptr_pool[3];
+  ptr_pool[3] = &nodes[3];
+  ptr_pool[4] = &nodes[4];
+  nodes[3].num_neighbors = 1;
+  nodes[3].neighbors = &ptr_pool[5];
+  ptr_pool[5] = &nodes[5];
+  nodes[4].num_neighbors = 1;
+  nodes[4].neighbors = &ptr_pool[6];
+  ptr_pool[6] = &nodes[5];
+
+  int *results = sycl::malloc_shared<int>(V, q);
+  for (int i = 0; i < V; ++i)
+    results[i] = 0;
+
+  q.parallel_for(sycl::range<1>(V), [=](sycl::id<1> idx) {
+    int i = static_cast<int>(idx[0]);
+    results[i] = bfs_reachable(&nodes[i]);
+  });
+  q.wait();
+
+  static constexpr int expected[V] = {6, 3, 4, 2, 2, 1};
+  for (int i = 0; i < V; ++i) {
+    BOOST_CHECK(results[i] == expected[i]);
+  }
+
+  sycl::free(block, q);
+  sycl::free(results, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_sparse_matvec) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using namespace shared_indirection;
+  static constexpr int R = 4;
+  static constexpr int NNZ = 8;
+  std::size_t row_bytes = R * sizeof(RowSlice);
+  std::size_t cv_bytes = NNZ * sizeof(ColVal);
+
+  char *block = sycl::malloc_shared<char>(row_bytes + cv_bytes, q);
+  RowSlice *rows = reinterpret_cast<RowSlice *>(block);
+  ColVal *pool = reinterpret_cast<ColVal *>(block + row_bytes);
+
+  pool[0] = {0, 1.0f};
+  pool[1] = {2, 2.0f};
+  pool[2] = {1, 3.0f};
+  pool[3] = {3, 4.0f};
+  pool[4] = {0, 5.0f};
+  pool[5] = {1, 6.0f};
+  pool[6] = {2, 7.0f};
+  pool[7] = {3, 8.0f};
+  rows[0] = {&pool[0], 2};
+  rows[1] = {&pool[2], 2};
+  rows[2] = {&pool[4], 3};
+  rows[3] = {&pool[7], 1};
+
+  float *x = sycl::malloc_shared<float>(R, q);
+  float *y = sycl::malloc_shared<float>(R, q);
+  x[0] = 1.f;
+  x[1] = 2.f;
+  x[2] = 3.f;
+  x[3] = 4.f;
+  for (int i = 0; i < R; ++i) {
+    y[i] = 0.f;
+  }
+
+  q.parallel_for(sycl::range<1>(R), [=](sycl::id<1> idx) {
+    int i = static_cast<int>(idx[0]);
+    ColVal *data = rows[i].data;
+    float acc = 0.f;
+    for (int k = 0; k < rows[i].len; ++k)
+      acc += data[k].val * x[data[k].col];
+    y[i] = acc;
+  });
+  q.wait();
+
+  static constexpr float expected[R] = {7.f, 22.f, 38.f, 32.f};
+  for (int i = 0; i < R; ++i) {
+    BOOST_CHECK(y[i] == expected[i]);
+  }
+
+  sycl::free(block, q);
+  sycl::free(x, q);
+  sycl::free(y, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_linked_list_append) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using shared_indirection::ListNode;
+  static constexpr int NumNodes = 4;
+  ListNode *nodes = sycl::malloc_shared<ListNode>(NumNodes + 1, q);
+
+  for (int i = 0; i < NumNodes; ++i) {
+    nodes[i].id = i * 10;
+    nodes[i].next = (i + 1 < NumNodes) ? &nodes[i + 1] : nullptr;
+  }
+  nodes[NumNodes].id = NumNodes * 10;
+  nodes[NumNodes].next = nullptr;
+
+  ListNode *head = &nodes[0];
+  ListNode *new_node = &nodes[NumNodes];
+  q.single_task([=]() {
+    ListNode *curr = head;
+    while (curr->next) {
+      curr = curr->next;
+    }
+    curr->next = new_node;
+  });
+  q.wait();
+
+  int count = 0;
+  int last_id = -1;
+  for (ListNode *curr = head; curr && count <= NumNodes + 1; curr = curr->next) {
+    last_id = curr->id;
+    ++count;
+  }
+  BOOST_CHECK(count == NumNodes + 1);
+  BOOST_CHECK(last_id == NumNodes * 10);
+
+  sycl::free(nodes, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_memcpy_ptr_array) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using shared_indirection::ListNode;
+  static constexpr int N = 4;
+  ListNode *nodes = sycl::malloc_shared<ListNode>(N, q);
+  ListNode **ptrs = sycl::malloc_shared<ListNode *>(N, q);
+  int *result = sycl::malloc_shared<int>(1, q);
+
+  for (int i = 0; i < N; ++i) {
+    nodes[i].id = i;
+    nodes[i].next = (i + 1 < N) ? &nodes[i + 1] : nullptr;
+    ptrs[i] = &nodes[i];
+  }
+  *result = 0;
+
+  q.single_task([=]() {
+    ListNode *local_ptrs[N];
+    __builtin_memcpy(local_ptrs, ptrs, N * sizeof(ListNode *));
+
+    int sum = nodes[0].id;
+    for (int i = 0; i < N; ++i) {
+      sum += local_ptrs[i]->id;
+    }
+    *result = sum;
+  });
+  q.wait();
+
+  BOOST_CHECK(*result == 6);
+
+  sycl::free(nodes, q);
+  sycl::free(ptrs, q);
+  sycl::free(result, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_reverse_list) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using shared_indirection::ListNode;
+  static constexpr int N = 5;
+  ListNode *nodes = sycl::malloc_shared<ListNode>(N, q);
+  ListNode **new_head = sycl::malloc_shared<ListNode *>(1, q);
+  *new_head = nullptr;
+
+  for (int i = 0; i < N; ++i) {
+    nodes[i].id = i;
+    nodes[i].next = (i + 1 < N) ? &nodes[i + 1] : nullptr;
+  }
+
+  ListNode *head = &nodes[0];
+  q.single_task([=]() {
+    ListNode *prev = nullptr;
+    ListNode *curr = head;
+    while (curr) {
+      ListNode *next = curr->next;
+      curr->next = prev;
+      prev = curr;
+      curr = next;
+    }
+    *new_head = prev;
+  });
+  q.wait();
+
+  int count = 0;
+  for (ListNode *curr = *new_head; curr && count < N + 1; curr = curr->next) {
+    BOOST_CHECK(curr->id == N - 1 - count);
+    ++count;
+  }
+  BOOST_CHECK(count == N);
+
+  sycl::free(nodes, q);
+  sycl::free(new_head, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_ptr_swap) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using shared_indirection::ListNode;
+  static constexpr int N = 6;
+  ListNode *nodes = sycl::malloc_shared<ListNode>(N, q);
+
+  for (int i = 0; i < 3; ++i) {
+    nodes[i].id = i;
+    nodes[i].next = (i < 2) ? &nodes[i + 1] : nullptr;
+  }
+  for (int i = 3; i < 6; ++i) {
+    nodes[i].id = i;
+    nodes[i].next = (i < 5) ? &nodes[i + 1] : nullptr;
+  }
+
+  ListNode *head_a = &nodes[0];
+  ListNode *head_b = &nodes[3];
+  q.single_task([=]() {
+    ListNode *a1 = head_a->next;
+    ListNode *b1 = head_b->next;
+    ListNode *a2 = a1->next;
+    ListNode *b2 = b1->next;
+    a1->next = b2;
+    b1->next = a2;
+  });
+  q.wait();
+
+  int ids_a[3];
+  int ca = 0;
+  for (ListNode *n = head_a; n && ca < 3; n = n->next) {
+    ids_a[ca++] = n->id;
+  }
+  int ids_b[3];
+  int cb = 0;
+  for (ListNode *n = head_b; n && cb < 3; n = n->next) {
+    ids_b[cb++] = n->id;
+  }
+
+  BOOST_CHECK(ca == 3);
+  BOOST_CHECK(ids_a[0] == 0);
+  BOOST_CHECK(ids_a[1] == 1);
+  BOOST_CHECK(ids_a[2] == 5);
+  BOOST_CHECK(cb == 3);
+  BOOST_CHECK(ids_b[0] == 3);
+  BOOST_CHECK(ids_b[1] == 4);
+  BOOST_CHECK(ids_b[2] == 2);
+
+  sycl::free(nodes, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_binary_tree_traversal) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using shared_indirection::TreeNode;
+  static constexpr int NumNodes = 7;
+  TreeNode *nodes = sycl::malloc_shared<TreeNode>(NumNodes, q);
+  int *result = sycl::malloc_shared<int>(1, q);
+  *result = 0;
+
+  for (int i = 0; i < NumNodes; ++i) {
+    int left = 2 * i + 1;
+    int right = 2 * i + 2;
+    nodes[i].id = i;
+    nodes[i].left = (left < NumNodes) ? &nodes[left] : nullptr;
+    nodes[i].right = (right < NumNodes) ? &nodes[right] : nullptr;
+  }
+
+  TreeNode *root = &nodes[0];
+  q.single_task([=]() {
+    TreeNode *stack[NumNodes];
+    int top = 0;
+    int sum = 0;
+    stack[top++] = root;
+    while (top > 0) {
+      TreeNode *curr = stack[--top];
+      sum += curr->id;
+      if (curr->right) {
+        stack[top++] = curr->right;
+      }
+      if (curr->left) {
+        stack[top++] = curr->left;
+      }
+    }
+    *result = sum;
+  });
+  q.wait();
+
+  BOOST_CHECK(*result == NumNodes * (NumNodes - 1) / 2);
+
+  sycl::free(nodes, q);
+  sycl::free(result, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_tree_rotate) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using shared_indirection::RotateNode;
+  static constexpr int NumNodes = 10;
+  RotateNode *nodes = sycl::malloc_shared<RotateNode>(NumNodes, q);
+  RotateNode **new_roots = sycl::malloc_shared<RotateNode *>(2, q);
+
+  nodes[0] = {10, &nodes[1], &nodes[2]};
+  nodes[1] = {5, &nodes[3], &nodes[4]};
+  nodes[2] = {15, nullptr, nullptr};
+  nodes[3] = {2, nullptr, nullptr};
+  nodes[4] = {7, nullptr, nullptr};
+  nodes[5] = {20, &nodes[6], &nodes[7]};
+  nodes[6] = {8, &nodes[8], &nodes[9]};
+  nodes[7] = {25, nullptr, nullptr};
+  nodes[8] = {6, nullptr, nullptr};
+  nodes[9] = {9, nullptr, nullptr};
+  new_roots[0] = nullptr;
+  new_roots[1] = nullptr;
+
+  RotateNode *root0 = &nodes[0];
+  RotateNode *root1 = &nodes[5];
+  q.parallel_for(sycl::range<1>(2), [=](sycl::id<1> idx) {
+    RotateNode *x = idx[0] == 0 ? root0 : root1;
+    RotateNode *p = x->left;
+    RotateNode *b = p->right;
+    x->left = b;
+    p->right = x;
+    new_roots[idx[0]] = p;
+  });
+  q.wait();
+
+  RotateNode *r0 = new_roots[0];
+  BOOST_CHECK(r0->key == 5);
+  BOOST_CHECK(r0->left->key == 2);
+  BOOST_CHECK(r0->right->key == 10);
+  BOOST_CHECK(r0->right->left->key == 7);
+  BOOST_CHECK(r0->right->right->key == 15);
+
+  RotateNode *r1 = new_roots[1];
+  BOOST_CHECK(r1->key == 8);
+  BOOST_CHECK(r1->left->key == 6);
+  BOOST_CHECK(r1->right->key == 20);
+  BOOST_CHECK(r1->right->left->key == 9);
+  BOOST_CHECK(r1->right->right->key == 25);
+
+  sycl::free(nodes, q);
+  sycl::free(new_roots, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_btree_search) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  using namespace shared_indirection;
+  static constexpr int NumNodes = 4;
+  static constexpr int NumThreads = 1024;
+  BTreeNode *nodes = sycl::malloc_shared<BTreeNode>(NumNodes, q);
+  int *results = sycl::malloc_shared<int>(NumThreads, q);
+
+  for (int i = 0; i < NumNodes; ++i) {
+    for (int k = 0; k < BTreeMaxKeys; ++k) {
+      nodes[i].keys[k] = 0;
+    }
+    for (int c = 0; c < BTreeMaxChildren; ++c) {
+      nodes[i].children[c] = nullptr;
+    }
+    nodes[i].num_keys = 0;
+    nodes[i].leaf = true;
+  }
+
+  nodes[0].keys[0] = 1;
+  nodes[0].keys[1] = 2;
+  nodes[0].num_keys = 2;
+  nodes[1].keys[0] = 4;
+  nodes[1].keys[1] = 5;
+  nodes[1].keys[2] = 6;
+  nodes[1].num_keys = 3;
+  nodes[2].keys[0] = 8;
+  nodes[2].keys[1] = 9;
+  nodes[2].num_keys = 2;
+  nodes[3].keys[0] = 3;
+  nodes[3].keys[1] = 7;
+  nodes[3].num_keys = 2;
+  nodes[3].leaf = false;
+  nodes[3].children[0] = &nodes[0];
+  nodes[3].children[1] = &nodes[1];
+  nodes[3].children[2] = &nodes[2];
+
+  BTreeNode *root = &nodes[3];
+  q.parallel_for(sycl::range<1>(NumThreads), [=](sycl::id<1> idx) {
+    int key = static_cast<int>(idx[0]);
+    results[key] = btree_search(root, key);
+  });
+  q.wait();
+
+  for (int key = 0; key < NumThreads; ++key) {
+    int expected = key >= 1 && key <= 9 ? 1 : 0;
+    BOOST_CHECK(results[key] == expected);
+  }
+
+  sycl::free(nodes, q);
+  sycl::free(results, q);
 }
 
 BOOST_AUTO_TEST_CASE(usm_shared_ptr_gpu_delta_constant) {

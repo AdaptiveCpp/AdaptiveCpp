@@ -66,6 +66,28 @@ BOOST_AUTO_TEST_CASE(device_allocation_functions) {
   sycl::free(aligned_device_mem_ptr, q);
 }
 
+BOOST_AUTO_TEST_CASE(invalid_pointer_argument) {
+  sycl::queue q;
+
+  void** data_in = sycl::malloc_device<void*>(1, q);
+  void** data_out = sycl::malloc_device<void*>(1, q);
+
+  void* data = reinterpret_cast<void*>(0x1);
+  q.memcpy(data_in, &data, sizeof(void*)).wait();
+
+  q.single_task([=](){
+    *data_out = *data_in;
+  }).wait();
+
+  void* data_result = nullptr;
+  q.memcpy(&data_result, data_out, sizeof(void*)).wait();
+  BOOST_CHECK(data_result == reinterpret_cast<void*>(0x1));
+
+  sycl::free(data_in, q);
+  sycl::free(data_out, q);
+
+}
+
 BOOST_AUTO_TEST_CASE(host_allocation_functions) {
   // Basic check that allocations work
   sycl::queue q;

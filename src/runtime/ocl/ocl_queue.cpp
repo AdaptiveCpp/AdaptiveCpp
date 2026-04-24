@@ -46,22 +46,35 @@ result submit_ocl_kernel(cl::Kernel& kernel,
                         const std::size_t *arg_sizes, std::size_t num_args,
                         ocl_usm* usm,
                         const hcf_kernel_info *info,
+                        const std::optional<std::vector<int>>& dae_retained_arguments_mask,
                         cl::Event* evt_out = nullptr) {
 
+  // We assume that if this returns true, then the JIT compiler was configured
+  // to not wrap pointers, so that we can pass them directly.
+  bool can_submit_arbitrary_pointer_arguments =
+      usm->accepts_arbitrary_pointer_kernel_arguments();
+
   cl_int err = 0;
+
   for(std::size_t i = 0; i < num_args; ++i ){
     HIPSYCL_DEBUG_INFO << "ocl_queue: Setting kernel argument " << i
                        << " of size " << arg_sizes[i] << " at " << kernel_args[i]
                        << std::endl;
 
-    if(info->get_argument_type(i) == hcf_kernel_info::argument_type::pointer &&
-      usm->accepts_arbitrary_pointer_kernel_arguments()) {
+    std::size_t original_index = i;
+    if(dae_retained_arguments_mask.has_value()) {
+      original_index = dae_retained_arguments_mask.value()[i];
+    }
+    
+    if (can_submit_arbitrary_pointer_arguments &&
+        info->get_argument_type(original_index) ==
+            hcf_kernel_info::argument_type::pointer) {
 
       const void* arg_location = kernel_args[i];
       void* ptr;
       std::memcpy(&ptr, arg_location, sizeof(void*));
+      
       err = usm->set_kernel_pointer_arg(kernel, static_cast<unsigned>(i), ptr);
-
     } else {
       // If we don't have arbitrary pointer argument support, the JIT compiler
       // should have been configured to wrap pointers, so that we can always
@@ -622,6 +635,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       kernel, _queue, group_size, num_groups, _arg_mapper.get_mapped_args(),
       const_cast<std::size_t *>(_arg_mapper.get_mapped_arg_sizes()),
       _arg_mapper.get_mapped_num_args(), hw_ctx->get_usm_provider(), kernel_info,
+      obj->get_jit_output_metadata().kernel_retained_arguments_indices,
       &completion_evt);
 
   if(!submission_err.is_success())

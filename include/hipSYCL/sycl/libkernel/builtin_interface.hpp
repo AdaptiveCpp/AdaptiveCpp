@@ -708,7 +708,7 @@ HIPSYCL_BUILTIN bool __acpp_islessgreater(T x, T y) noexcept
 template<class T>
 HIPSYCL_BUILTIN bool __acpp_isordered(T x, T y) noexcept
 {
-  return __acpp_isequal(x, x) && __acpp_isequal(y, y);
+  return !__acpp_isnan(x) && !__acpp_isnan(y);
 }
 
 template<class T>

@@ -67,6 +67,11 @@ public:
       // On CPU, we can be more relaxed in a couple of places as
       // USM will generally "just work"
       _is_cpu = _hw_mgr->get_device(device_index)->is_cpu();
+
+      // USM spec says that we can pass in arbitrary pointers
+      // if we also have shared USM. This was further relaxed in
+      // USM 1.1, however, not all implementations support that yet.
+      _supports_arbitrary_pointer_args = has_usm_shared_allocations();
     }
   }
 
@@ -286,8 +291,7 @@ public:
   }
 
   bool accepts_arbitrary_pointer_kernel_arguments() const override {
-    // TODO Only for USM extension version >= 1.1
-    return true;
+    return _supports_arbitrary_pointer_args;
   }
 
   cl_int set_kernel_pointer_arg(cl::Kernel &k, unsigned i,
@@ -325,6 +329,7 @@ private:
   cl::Device _dev;
   ocl_hardware_manager* _hw_mgr;
   bool _is_cpu = false;
+  bool _supports_arbitrary_pointer_args;
 };
 
 

@@ -82,7 +82,9 @@ std::optional<std::string> extractStringConstant(llvm::Value* V, std::string& er
   if (auto* gv = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
     GV = gv;
   } else if (auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
-    if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
+    if (CE->getOpcode() == llvm::Instruction::AddrSpaceCast) {
+      return extractStringConstant(CE->getOperand(0), errorStr);
+    } else if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
       GV = llvm::dyn_cast<llvm::GlobalVariable>(CE->getOperand(0));
     }
   }
@@ -1510,7 +1512,8 @@ unsigned MetalEmitter::getPhysicalPointerAddressSpace(const Value* V) {
     return it->second;
   }
 
-  // If the value is an addrspacecast, get the original address space
+  inferredPtrAS[V] = 0; // to break cycles in PHIs and Loads
+
   if (auto* Alloca = dyn_cast<AllocaInst>(V)) {
     return (inferredPtrAS[V] = 5 /* private */);
   }

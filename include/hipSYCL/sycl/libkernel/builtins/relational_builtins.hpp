@@ -33,6 +33,11 @@ namespace detail {
     return builtin_func(x);                                                                  \
   }
 
+#define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_BINARY_T_T_RET_BOOL(T, builtin_name, builtin_func) \
+  HIPSYCL_BUILTIN bool builtin_name(T x, T y) noexcept {                                        \
+    return builtin_func(x, y);                                                                  \
+  }
+
 #define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_TEMPLATE_UNARY_T_RET_BOOL(tester, builtin_name, builtin_func) \
   template<typename NonScalar1>                                                                            \
   HIPSYCL_BUILTIN                                                                                          \
@@ -48,6 +53,32 @@ namespace detail {
       ret[i] = builtin_func(x[i]);                                                                         \
     }                                                                                                      \
     return ret;                                                                                            \
+  }
+
+#define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_TEMPLATE_BINARY_T_T_RET_BOOL(tester, builtin_name, builtin_func) \
+  template<typename NonScalar1, typename NonScalar2>                                                          \
+  HIPSYCL_BUILTIN                                                                                             \
+  std::enable_if_t<                                                                                           \
+    detail::builtin_inputs_are_compatible_v<                                                                  \
+      NonScalar1, NonScalar2                                                                                  \
+    > &&                                                                                                      \
+    tester<NonScalar1>::value,                                                                                \
+    detail::builtin_input_boollike_t<NonScalar1>                                                              \
+  > builtin_name(NonScalar1 x, NonScalar2 y) noexcept {                                                       \
+    detail::builtin_input_boollike_t<NonScalar1> ret;                                                         \
+    constexpr bool isMarray = std::is_same_v<NonScalar1,                                                      \
+                                             sycl::marray<detail::builtin_input_element_t<NonScalar1>,        \
+                                                          detail::builtin_input_num_elems_v<NonScalar1> > >;  \
+    if constexpr (isMarray) {                                                                                 \
+      for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                       \
+        ret[i] = builtin_func(x[i], y[i]);                                                                    \
+      }                                                                                                       \
+    } else {                                                                                                  \
+      for (std::size_t i = 0; i < detail::builtin_input_num_elems_v<NonScalar1>; i++) {                       \
+        ret[i] = builtin_func(x[i], y[i]) ? -1 : 0;                                                           \
+      }                                                                                                       \
+    }                                                                                                         \
+    return ret;                                                                                               \
   }
 
 #define HIPSYCL_RELATIONAL_BUILTIN_OVERLOADED_IMPL(h, template_h, builtin_name, builtin_func) \
@@ -69,5 +100,14 @@ HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isinf)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isfinite)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isnormal)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, signbit)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isequal)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isnotequal)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isgreater)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isgreaterequal)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isless)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, islessequal)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, islessgreater)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isordered)
+HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isunordered)
 }
 #endif

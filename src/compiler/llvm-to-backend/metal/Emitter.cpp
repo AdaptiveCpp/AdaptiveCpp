@@ -1115,7 +1115,7 @@ void MetalEmitter::emitFCmpInstruction(const FCmpInst* FC, const std::string& na
       os << indent(level) << name << " = (" << lhs << " == " << rhs << ");\n";
       break;
     case FCmpInst::FCMP_ONE:
-      os << indent(level) << name << " = (" << lhs << " != " << rhs << ");\n";
+      os << indent(level) << name << " = (isordered(" << lhs << ", " << rhs << ") && (" << lhs << " != " << rhs << "));\n";
       break;
     case FCmpInst::FCMP_OGT:
       os << indent(level) << name << " = (" << lhs << " > " << rhs << ");\n";

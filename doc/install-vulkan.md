@@ -213,9 +213,12 @@ In future `VK_KHR_device_address_commands` could be used to implement
 #### Compute Pipeline
 
 A compute pipeline is created for each kernel JIT compiled for a specific workgroup size.
-As we are JIT compiling kernels, each translation unit that the clspv compiler sees only
-contains a single kernel in it, and therefore only use a single descriptor set and binding
-when creating the kernels.
+When we JIT compiling kernels with
+[adaptivity level](https://dl.acm.org/doi/10.1145/3731125.3731127) 1 and higher, each
+translation unit (TU) that the clspv compiler sees only contains a single kernel in it.
+Whereas on adaptivity level 0 the TU contains mulitple kernels. The clspv tool will
+create a single descriptor set for all the kernels in the TU, with each kernel only
+caring about arguments at it's specific offsets in the buffer bound to that descriptor set.
 
 When a kernel is re-submitted in the SYCL application the existing `vk_executable_object`
 is found in the cache with the JIT compiled SPIR-V kernel code. This will already
@@ -224,10 +227,12 @@ If the workgroup size of the kernel enqueue is the same as previously then the
 old cached `vk_kernel_pipeline` instance will be used with the Vulkan compute pipeline created
 for that specific workgroup size. Otherwise, if the workgroup size is different, a
 new `vk_kernel_pipeline` object will be created to instantiate a Vulkan compute pipeline
-for that workgroup size. However, the AdaptiveCpp SSCP compiler seem to create a
-new executable for each work-group size with the information embedded in the required
-work-group size metadata so in practice a new `vk_executable_object` is created for
-each work-group size variant of a kernel.
+for that workgroup size. At adaptivity level 1 (the default) and above the AdaptiveCpp SSCP
+compiler creates a new executable for each work-group size with the information embedded in the required
+work-group size metadata. In this case a new `vk_executable_object` is created for
+each work-group size variant of a kernel. At adaptivity level 0, a specialization
+constant is used to set the work-group size on the same `vk_executable_object` object for each
+work-group size variant.
 
 For small numbers of kernel arguments, no buffer descriptors may be required and all
 arguments can be set pushing push constants before the invocation of the Vulkan
@@ -306,6 +311,10 @@ generic implementation is fallen back to.
 * Get SYCL running on Android device.
 * Add CI for KosmicKrisp mesa Vulkan on Metal implementation.
 * Add CI to self-hosted runners.
+* Fix LIT tests
+* Fix Adaptivity Level 0 SYCL tests. Issues compiling linked list USM test
+  and with unused kernel arguments (See https://github.com/google/clspv/issues/1593),
+  as SSCP dead argument elimination only occurs with a single kernel in the TU.
 
 ## Test Status
 

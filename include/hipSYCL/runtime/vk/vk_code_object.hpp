@@ -159,7 +159,7 @@ private:
 };
 
 struct spv_reflection_data {
-  uint32_t _id = 0;
+  uint32_t _uint_id = 0; // We only need to care about parsing uint constants
   std::unordered_map<uint32_t, uint32_t> _constants;
   std::unordered_map<uint32_t, std::string> _strings;
   vk_executable_object *_code_obj;
@@ -170,8 +170,7 @@ class vk_executable_object : public code_object {
 public:
   vk_executable_object(vk_hardware_context *hw_ctx, hcf_object_id source,
                        const std::string &code_image,
-                       const kernel_configuration &config,
-                       std::vector<std::string> kernel_names);
+                       const kernel_configuration &config);
   ~vk_executable_object();
 
   result get_build_result() const;
@@ -195,6 +194,8 @@ public:
 
   // Only works if the module has been built successfully
   result get_kernel(std::string_view name, vk_kernel_object *&out) const;
+  void add_kernel_name(const std::string &kernel);
+  void add_kernel_handle(const std::string &kernel);
   void add_kernel_arg(const std::string &kernel, spv_kernel_argument arg);
   void set_kernel_reqd_wg_size(const std::string &kernel, unsigned, unsigned,
                                unsigned);

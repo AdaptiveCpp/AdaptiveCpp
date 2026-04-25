@@ -563,8 +563,8 @@ result vk_queue::submit_sscp_kernel_from_code_object(
       code_object_configuration_id,
       kernel_base_config_parameter::runtime_device, _dev_ctx->get_device());
 
-  std::vector<std::string> kernel_names = {std::string(kernel_name)};
   auto jit_compiler = [&](std::string &compiled_image) -> bool {
+    std::vector<std::string> kernel_names;
     std::string selected_image_name =
         adaptivity_engine.select_image_and_kernels(&kernel_names);
 
@@ -596,8 +596,8 @@ result vk_queue::submit_sscp_kernel_from_code_object(
 
   auto code_object_constructor =
       [&](const std::string &compiled_image) -> code_object * {
-    vk_executable_object *exec_obj = new vk_executable_object{
-        _dev_ctx, hcf_object, compiled_image, _config, kernel_names};
+    vk_executable_object *exec_obj =
+        new vk_executable_object{_dev_ctx, hcf_object, compiled_image, _config};
     result r = exec_obj->get_build_result();
 
     if (!r.is_success()) {

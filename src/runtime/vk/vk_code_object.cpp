@@ -345,6 +345,37 @@ static spv_arg_kind get_spv_arg_kind(uint32_t inst) {
   return spv_arg_kind::invalid;
 };
 
+// Reads reflection data only to parse names of all the kernels
+static spv_result_t parse_kernel_names(void *user_data,
+                                       const spv_parsed_instruction_t *inst) {
+  auto *parse_data = reinterpret_cast<spv_reflection_data *>(user_data);
+  switch (inst->opcode) {
+  case spv::OpString:
+    parse_data->_strings[inst->result_id] =
+        std::string(reinterpret_cast<const char *>(&inst->words[2]));
+    break;
+  case spv::OpExtInst:
+    if (inst->ext_inst_type == SPV_EXT_INST_TYPE_NONSEMANTIC_CLSPVREFLECTION) {
+      auto ext_inst = inst->words[4];
+      switch (ext_inst) {
+      case NonSemanticClspvReflectionKernel: {
+        const auto &name = parse_data->_strings[inst->words[6]];
+        parse_data->_code_obj->add_kernel_name(name);
+        break;
+      }
+      default:
+        break;
+      }
+    }
+    break;
+  default:
+    break;
+  }
+  return SPV_SUCCESS;
+}
+
+// Reads reflection data to create and initialize internal vk_kernel_object
+// instances
 static spv_result_t parse_reflection(void *user_data,
                                      const spv_parsed_instruction_t *inst) {
   auto *parse_data = reinterpret_cast<spv_reflection_data *>(user_data);
@@ -358,11 +389,11 @@ static spv_result_t parse_reflection(void *user_data,
   }
   case spv::OpTypeInt:
     if (inst->words[2] == 32 && inst->words[3] == 0) {
-      parse_data->_id = inst->result_id;
+      parse_data->_uint_id = inst->result_id;
     }
     break;
   case spv::OpConstant:
-    if (inst->words[1] == parse_data->_id) {
+    if (inst->words[1] == parse_data->_uint_id) {
       parse_data->_constants[inst->result_id] = inst->words[3];
     }
     break;
@@ -378,6 +409,7 @@ static spv_result_t parse_reflection(void *user_data,
       case NonSemanticClspvReflectionKernel: {
         const auto &name = parse_data->_strings[inst->words[6]];
         parse_data->_strings[inst->result_id] = name;
+        parse_data->_code_obj->add_kernel_handle(name);
         break;
       }
       case NonSemanticClspvReflectionArgumentInfo:
@@ -522,12 +554,12 @@ static void verify_spv_capabilities(const uint16_t phys_dev_features,
   }
 }
 
-vk_executable_object::vk_executable_object(
-    vk_hardware_context *hw_ctx, hcf_object_id source,
-    const std::string &code_image, const kernel_configuration &config,
-    std::vector<std::string> kernel_names)
+vk_executable_object::vk_executable_object(vk_hardware_context *hw_ctx,
+                                           hcf_object_id source,
+                                           const std::string &code_image,
+                                           const kernel_configuration &config)
     : _source{source}, _hw_ctx(hw_ctx), _id{config.generate_id()},
-      _shader_module(nullptr), _kernel_names(kernel_names) {
+      _shader_module(nullptr) {
   _spv_ctx = spvContextCreate(SPV_ENV_VULKAN_1_3);
   if (_spv_ctx == nullptr)
     print_error(__acpp_here(), error_info{"failed to create spirv context"});
@@ -537,22 +569,35 @@ vk_executable_object::vk_executable_object(
       reinterpret_cast<const uint32_t *>(code_image.c_str()));
   _shader_module = _hw_ctx->get_device().createShaderModule(create_info);
 
-  for (const std::string &kernel_name : _kernel_names) {
-    _kernel_handles.insert({kernel_name, vk_kernel_object(kernel_name, this)});
-  }
-
-  spv_reflection_data reflection;
-  reflection._code_obj = this;
-  auto result =
-      spvBinaryParse(_spv_ctx, &reflection,
-                     reinterpret_cast<const uint32_t *>(code_image.c_str()),
-                     code_image.size() / 4 /* SPIRV word size */, nullptr,
-                     parse_reflection, nullptr);
+  // Parse reflection data in 2 passes:
+  //
+  // Do a first pass that of the SPIR-V for parsing kernels in the executable,
+  // so we can first create a vector of kernel name strings that won't later be
+  // reallocated after we've started using string_views into it.
+  //
+  // Do a second pass to create and initialize the internal `vk_kernel_object`
+  // instances.
+  spv_reflection_data pass1;
+  pass1._code_obj = this;
+  auto result = spvBinaryParse(
+      _spv_ctx, &pass1, reinterpret_cast<const uint32_t *>(code_image.c_str()),
+      code_image.size() / 4 /* SPIRV word size */, nullptr, parse_kernel_names,
+      nullptr);
   if (result != SPV_SUCCESS) {
     print_error(__acpp_here(), error_info{"failed to parse spirv"});
   }
 
-  verify_spv_capabilities(_hw_ctx->get_phys_dev_features(), reflection._caps);
+  spv_reflection_data pass2;
+  pass2._code_obj = this;
+  result = spvBinaryParse(
+      _spv_ctx, &pass2, reinterpret_cast<const uint32_t *>(code_image.c_str()),
+      code_image.size() / 4 /* SPIRV word size */, nullptr, parse_reflection,
+      nullptr);
+  if (result != SPV_SUCCESS) {
+    print_error(__acpp_here(), error_info{"failed to parse spirv"});
+  }
+
+  verify_spv_capabilities(_hw_ctx->get_phys_dev_features(), pass2._caps);
 
   for (auto &kern : _kernel_handles) {
     kern.second.create_descriptor_pool();
@@ -564,12 +609,39 @@ vk_executable_object::vk_executable_object(
 
 vk_executable_object::~vk_executable_object() { spvContextDestroy(_spv_ctx); }
 
+void vk_executable_object::add_kernel_name(const std::string &kernel) {
+  auto it =
+      std::find(std::begin(_kernel_names), std::end(_kernel_names), kernel);
+  if (it != _kernel_names.end()) {
+    std::string err_str{"vk_executable_object: Kernel already exists - "};
+    err_str.append(kernel);
+    print_error(__acpp_here(), error_info{err_str});
+    return;
+  }
+  _kernel_names.push_back(kernel);
+}
+
+void vk_executable_object::add_kernel_handle(const std::string &kernel) {
+  auto it =
+      std::find(std::begin(_kernel_names), std::end(_kernel_names), kernel);
+  if (it == _kernel_names.end()) {
+    std::string err_str{"vk_executable_object: Kernel has not been created - "};
+    err_str.append(kernel);
+    print_error(__acpp_here(), error_info{err_str});
+    return;
+  }
+  std::string &name = *it;
+
+  _kernel_handles.insert({name, vk_kernel_object(name, this)});
+}
+
 void vk_executable_object::add_kernel_arg(const std::string &kernel,
                                           spv_kernel_argument arg) {
   auto it = _kernel_handles.find(kernel);
   if (it == _kernel_handles.end()) {
-    print_error(__acpp_here(),
-                error_info{"vk_executable_object: Unknown kernel name"});
+    std::string err_str{"vk_executable_object: Unknown kernel name "};
+    err_str.append(kernel);
+    print_error(__acpp_here(), error_info{err_str});
     return;
   }
   auto &kernel_handle = it->second;
@@ -584,8 +656,9 @@ void vk_executable_object::set_kernel_reqd_wg_size(const std::string &kernel,
                                                    unsigned z) {
   auto it = _kernel_handles.find(kernel);
   if (it == _kernel_handles.end()) {
-    print_error(__acpp_here(),
-                error_info{"vk_executable_object: Unknown kernel name"});
+    std::string err_str{"vk_executable_object: Unknown kernel name "};
+    err_str.append(kernel);
+    print_error(__acpp_here(), error_info{err_str});
     return;
   }
   auto &kernel_handle = it->second;
@@ -656,9 +729,11 @@ result vk_executable_object::get_kernel(std::string_view name,
   if (!_build_status.is_success())
     return _build_status;
   const auto &it = _kernel_handles.find(name);
-  if (it == _kernel_handles.end())
-    return make_error(__acpp_here(),
-                      error_info{"vk_executable_object: Unknown kernel name"});
+  if (it == _kernel_handles.end()) {
+    std::string err_str{"vk_executable_object: Unknown kernel name "};
+    err_str.append(name);
+    return make_error(__acpp_here(), error_info{err_str});
+  }
   out = &it->second;
   return make_success();
 }

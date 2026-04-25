@@ -119,7 +119,7 @@ jobs:
           wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
           echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list
           apt-get update
-          apt-get install -y intel-oneapi-runtime-opencl intel-oneapi-runtime-compilers ocl-icd-libopencl1 ocl-icd-opencl-dev
+          apt-get install -y intel-oneapi-runtime-opencl-2024 intel-oneapi-runtime-compilers-2024 ocl-icd-libopencl1 ocl-icd-opencl-dev
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build

@@ -198,12 +198,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   // llvm-spirv translator does not like GEPs into 0-size arrays.
   rewriteZeroSizeArrayGEPs(M);
-  if(M.getModuleFlag("wchar_size")) {
-    // not sure if the right value is 4 or 2, please check.
-    auto* WcharSize = llvm::ConstantInt::get(M.getContext(), llvm::APInt{32, 4});
-    M.setModuleFlag(llvm::Module::ModFlagBehavior::Override, "wchar_size",
-                    llvm::ConstantAsMetadata::get(WcharSize));
-  }
+  
   AddressSpaceMap ASMap = getAddressSpaceMap();
   KernelFunctionParameterRewriter ParamRewriter{
     // llvm-spirv wants ByVal attribute for all aggregates passed in by-value

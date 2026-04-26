@@ -304,6 +304,10 @@ namespace {
     return std::sin(x * pi);
   }
 
+  double ref_tanpi(double x) {
+    return std::tan(x * pi);
+  }
+
   double ref_lgamma(double x) {
     return std::lgamma(x);
   }
@@ -1071,6 +1075,7 @@ DEFINE_UNARY_MATH_TEST(asinpi, 0.0001, ref_asinpi, INPUT_TRIG)
 DEFINE_UNARY_MATH_TEST(atanpi, 0.0001, ref_atanpi, INPUT_TRIG)
 DEFINE_UNARY_MATH_TEST(cospi,  0.0001, ref_cospi,  INPUT_TRIG)
 DEFINE_UNARY_MATH_TEST(sinpi,  0.0001, ref_sinpi,  INPUT_TRIG)
+DEFINE_UNARY_MATH_TEST(tanpi,  0.0001, ref_tanpi,  INPUT_TRIG)
 DEFINE_UNARY_MATH_TEST(erf,    0.0007, ref_erf,    INPUT_ERF)
 DEFINE_UNARY_MATH_TEST(erfc,   0.0007, ref_erfc,   INPUT_ERF)
 DEFINE_UNARY_MATH_TEST(lgamma, 0.001,  ref_lgamma, INPUT_GAMMA)

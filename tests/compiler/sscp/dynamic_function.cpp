@@ -34,10 +34,10 @@ void execute_operations_without_definition2(int* data, sycl::item<1> idx);
 
 int main() {
   sycl::queue q = get_queue();
-  int*data = sycl::malloc_shared<int>(1, q);
+  int* data = sycl::malloc_device<int>(1, q);
 
   {
-    *data = 0;
+    q.memset(data, 0, sizeof(int)).wait();
 
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define(&execute_operations_without_definition, &myfunction1);
@@ -46,12 +46,16 @@ int main() {
     }));
 
     q.wait();
+
+    int host;
+    q.memcpy(&host, data, sizeof(int)).wait();
+
     // CHECK: 1
     std::cout << *data << std::endl;
   }
 
   {
-    *data = 0;
+    q.memset(data, 0, sizeof(int)).wait();
 
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define(&execute_operations_without_definition, &myfunction1);
@@ -60,12 +64,16 @@ int main() {
     }));
 
     q.wait();
+
+    int host;
+    q.memcpy(&host, data, sizeof(int)).wait();
+
     // CHECK: 1
     std::cout << *data << std::endl;
   }
 
   {
-    *data = 0;
+    q.memset(data, 0, sizeof(int)).wait();
 
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define(&execute_operations_without_definition2, &myfunction1);
@@ -74,12 +82,16 @@ int main() {
     }));
 
     q.wait();
+
+    int host;
+    q.memcpy(&host, data, sizeof(int)).wait();
+
     // CHECK: 1
     std::cout << *data << std::endl;
   }
 
   {
-    *data = 0;
+    q.memset(data, 0, sizeof(int)).wait();
 
     sycl::AdaptiveCpp_jit::dynamic_function_config dyn_function_config;
     dyn_function_config.define_as_call_sequence(&execute_operations_without_definition, {&myfunction1, &myfunction2});
@@ -88,6 +100,10 @@ int main() {
     }));
 
     q.wait();
+
+    int host;
+    q.memcpy(&host, data, sizeof(int)).wait();
+
     // CHECK: 3
     std::cout << *data << std::endl;
   }

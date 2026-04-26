@@ -19,7 +19,7 @@
 
 BOOST_FIXTURE_TEST_SUITE(usm_tests, reset_device_fixture)
 
-BOOST_AUTO_TEST_CASE(allocation_functions) {
+BOOST_AUTO_TEST_CASE(device_allocation_functions) {
   // Basic check that allocations work
   sycl::queue q;
 
@@ -28,21 +28,10 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
   int *device_mem_ptr = sycl::malloc_device<int>(count, q);
   int *aligned_device_mem_ptr =
       sycl::aligned_alloc_device<int>(sizeof(int), count, q);
-  int *host_ptr = sycl::malloc_host<int>(count, q);
-  int *aligned_host_ptr =
-      sycl::aligned_alloc_host<int>(sizeof(int), count, q);
-  int *shared_ptr = sycl::malloc_shared<int>(count, q);
-  int *aligned_shared_ptr =
-      sycl::aligned_alloc_shared<int>(sizeof(int), count, q);
   std::vector<int> unregistered_data(100);
-  
-  
+
   BOOST_TEST(device_mem_ptr != nullptr);
   BOOST_TEST(aligned_device_mem_ptr != nullptr);
-  BOOST_TEST(host_ptr != nullptr);
-  BOOST_TEST(aligned_host_ptr != nullptr);
-  BOOST_TEST(shared_ptr != nullptr);
-  BOOST_TEST(aligned_shared_ptr != nullptr);
 
   auto verify_allocation_type = [&](void *ptr, sycl::usm::alloc expected) {
     sycl::usm::alloc type = sycl::get_pointer_type(ptr, q.get_context());
@@ -52,23 +41,11 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
   if (q.get_context().is_host()) {
     verify_allocation_type(device_mem_ptr, sycl::usm::alloc::host);
     verify_allocation_type(aligned_device_mem_ptr, sycl::usm::alloc::host);
-    verify_allocation_type(host_ptr, sycl::usm::alloc::host);
-    verify_allocation_type(aligned_host_ptr, sycl::usm::alloc::host);
-    verify_allocation_type(shared_ptr, sycl::usm::alloc::host);
-    verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::host);
     verify_allocation_type(unregistered_data.data(), sycl::usm::alloc::host);
   }
   else {
     verify_allocation_type(device_mem_ptr, sycl::usm::alloc::device);
     verify_allocation_type(aligned_device_mem_ptr, sycl::usm::alloc::device);
-    verify_allocation_type(host_ptr, sycl::usm::alloc::host);
-    verify_allocation_type(aligned_host_ptr, sycl::usm::alloc::host);
-    // As of yet, ROCm does not have proper shared allocations
-    // and gives us device-accessible host memory instead.
-    if(q.get_device().get_backend() != sycl::backend::hip) {
-      verify_allocation_type(shared_ptr, sycl::usm::alloc::shared);
-      verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::shared);
-    }
     verify_allocation_type(unregistered_data.data(), sycl::usm::alloc::unknown);
   }
 
@@ -84,19 +61,101 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
 
   verify_device(device_mem_ptr);
   verify_device(aligned_device_mem_ptr);
-  verify_device(host_ptr);
-  verify_device(aligned_host_ptr);
-  verify_device(shared_ptr);
-  verify_device(aligned_shared_ptr);
-  
-  
+
   sycl::free(device_mem_ptr, q);
   sycl::free(aligned_device_mem_ptr, q);
+}
+
+BOOST_AUTO_TEST_CASE(host_allocation_functions) {
+  // Basic check that allocations work
+  sycl::queue q;
+  if (!q.get_device().has(sycl::aspect::usm_host_allocations)) {
+    return;
+  }
+
+  std::size_t count = 1024;
+
+  int *host_ptr = sycl::malloc_host<int>(count, q);
+  int *aligned_host_ptr =
+      sycl::aligned_alloc_host<int>(sizeof(int), count, q);
+
+  BOOST_TEST(host_ptr != nullptr);
+  BOOST_TEST(aligned_host_ptr != nullptr);
+
+  auto verify_allocation_type = [&](void *ptr, sycl::usm::alloc expected) {
+    sycl::usm::alloc type = sycl::get_pointer_type(ptr, q.get_context());
+    BOOST_CHECK(type == expected);
+  };
+
+  verify_allocation_type(host_ptr, sycl::usm::alloc::host);
+  verify_allocation_type(aligned_host_ptr, sycl::usm::alloc::host);
+
+  auto verify_device = [&](void *ptr) {
+    // TODO: For a more robust testing if we actually
+    // have multiple devices available, we should perform
+    // allocations on multiple devices and check that
+    // they are all retrieved correctly, instead of
+    // just working on a default queue
+    sycl::device dev = sycl::get_pointer_device(ptr, q.get_context());
+    BOOST_CHECK(dev == q.get_device());
+  };
+
+  verify_device(host_ptr);
+  verify_device(aligned_host_ptr);
+
   sycl::free(host_ptr, q);
   sycl::free(aligned_host_ptr, q);
+}
+
+BOOST_AUTO_TEST_CASE(shared_allocation_functions) {
+  // Basic check that allocations work
+  sycl::queue q;
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    return;
+  }
+
+  std::size_t count = 1024;
+
+  int *shared_ptr = sycl::malloc_shared<int>(count, q);
+  int *aligned_shared_ptr =
+      sycl::aligned_alloc_shared<int>(sizeof(int), count, q);
+
+  BOOST_TEST(shared_ptr != nullptr);
+  BOOST_TEST(aligned_shared_ptr != nullptr);
+
+  auto verify_allocation_type = [&](void *ptr, sycl::usm::alloc expected) {
+    sycl::usm::alloc type = sycl::get_pointer_type(ptr, q.get_context());
+    BOOST_CHECK(type == expected);
+  };
+
+  if (q.get_context().is_host()) {
+    verify_allocation_type(shared_ptr, sycl::usm::alloc::host);
+    verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::host);
+  }
+  else {
+    // As of yet, ROCm does not have proper shared allocations
+    // and gives us device-accessible host memory instead.
+    if(q.get_device().get_backend() != sycl::backend::hip) {
+      verify_allocation_type(shared_ptr, sycl::usm::alloc::shared);
+      verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::shared);
+    }
+  }
+
+  auto verify_device = [&](void *ptr) {
+    // TODO: For a more robust testing if we actually
+    // have multiple devices available, we should perform
+    // allocations on multiple devices and check that
+    // they are all retrieved correctly, instead of
+    // just working on a default queue
+    sycl::device dev = sycl::get_pointer_device(ptr, q.get_context());
+    BOOST_CHECK(dev == q.get_device());
+  };
+
+  verify_device(shared_ptr);
+  verify_device(aligned_shared_ptr);
+
   sycl::free(shared_ptr, q);
   sycl::free(aligned_shared_ptr, q);
-
 }
 
 BOOST_AUTO_TEST_CASE(explicit_queue_dependencies) {
@@ -173,17 +232,21 @@ BOOST_AUTO_TEST_CASE(in_order_queue) {
 
 BOOST_AUTO_TEST_CASE(allocations_in_kernels) {
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  bool host_usm_support = q.get_device().has(sycl::aspect::usm_host_allocations);
+  bool shared_usm_support = q.get_device().has(sycl::aspect::usm_shared_allocations);
 
   std::size_t test_size = 4096;
-  int *shared_allocation = sycl::malloc_shared<int>(test_size, q);
+  int *shared_allocation = shared_usm_support ? sycl::malloc_shared<int>(test_size, q) : nullptr;
   int *explicit_allocation = sycl::malloc_device<int>(test_size, q);
-  int *mapped_host_allocation = sycl::malloc_host<int>(test_size, q);
-  
+  int *mapped_host_allocation = host_usm_support ? sycl::malloc_host<int>(test_size, q) : nullptr;
+
   q.single_task<class usm_alloc_single_task>([=]() {
     for (int i = 0; i < test_size; ++i) {
-      shared_allocation[i] = i;
+      if (shared_allocation)
+        shared_allocation[i] = i;
       explicit_allocation[i] = i;
-      mapped_host_allocation[i] = i;
+      if (mapped_host_allocation)
+        mapped_host_allocation[i] = i;
     }
   });
 
@@ -192,9 +255,11 @@ BOOST_AUTO_TEST_CASE(allocations_in_kernels) {
                                        // Use idx directly to also make sure
                                        // that implicit conversion to size_t
                                        // works
-                                       shared_allocation[idx] += 1;
+                                       if (shared_allocation)
+                                         shared_allocation[idx] += 1;
                                        explicit_allocation[idx] += 1;
-                                       mapped_host_allocation[idx] += 1;
+                                       if (mapped_host_allocation)
+                                         mapped_host_allocation[idx] += 1;
                                      });
 
   q.parallel_for<class usm_alloc_pf2>(sycl::range<1>{test_size},
@@ -202,17 +267,21 @@ BOOST_AUTO_TEST_CASE(allocations_in_kernels) {
                                        // Use item directly to also make sure
                                        // that implicit conversion to size_t
                                        // works
-                                       shared_allocation[idx] += 1;
+                                       if (shared_allocation)
+                                         shared_allocation[idx] += 1;
                                        explicit_allocation[idx] += 1;
-                                       mapped_host_allocation[idx] += 1;
+                                       if (mapped_host_allocation)
+                                         mapped_host_allocation[idx] += 1;
                                      });
 
   q.parallel_for<class usm_alloc_ndrange_pf>(
       sycl::nd_range<1>{sycl::range<1>{test_size}, sycl::range<1>{128}},
       [=](sycl::nd_item<1> idx) {
-        shared_allocation[idx.get_global_id(0)] += 1;
+        if (shared_allocation)
+          shared_allocation[idx.get_global_id(0)] += 1;
         explicit_allocation[idx.get_global_id(0)] += 1;
-        mapped_host_allocation[idx.get_global_id(0)] += 1;
+        if (mapped_host_allocation)
+          mapped_host_allocation[idx.get_global_id(0)] += 1;
       });
 
   std::vector<int> host_explicit_allocation(test_size);
@@ -221,15 +290,20 @@ BOOST_AUTO_TEST_CASE(allocations_in_kernels) {
   q.wait();
 
   for (int i = 0; i < test_size; ++i){
-    BOOST_TEST(shared_allocation[i] == i + 3);
+    if (shared_allocation)
+      BOOST_TEST(shared_allocation[i] == i + 3);
     BOOST_TEST(host_explicit_allocation[i] == i + 3);
-    BOOST_TEST(mapped_host_allocation[i] == i + 3);
+    if (mapped_host_allocation)
+      BOOST_TEST(mapped_host_allocation[i] == i + 3);
   }
 
-  sycl::free(shared_allocation, q);
+  if (shared_allocation)
+    sycl::free(shared_allocation, q);
   sycl::free(explicit_allocation, q);
-  sycl::free(mapped_host_allocation, q);
+  if (mapped_host_allocation)
+    sycl::free(mapped_host_allocation, q);
 }
+
 BOOST_AUTO_TEST_CASE(memcpy) {
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
   sycl::queue ooo_q;
@@ -262,6 +336,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
   }
   // memcpy host->shared
   // memcpy shared->host
+  if (q.get_device().has(sycl::aspect::usm_shared_allocations))
   {
     int *shared_mem = sycl::malloc_shared<int>(test_size, q);
     test_device_host_copies(shared_mem);
@@ -270,6 +345,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
 
   // memcpy device->shared
   // memcpy shared->device
+  if (q.get_device().has(sycl::aspect::usm_shared_allocations))
   {
     int *device_mem = sycl::malloc_device<int>(test_size, q);
     int *shared_mem = sycl::malloc_shared<int>(test_size, q);
@@ -299,6 +375,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
   }
 
   // memcpy host->host
+  if (q.get_device().has(sycl::aspect::usm_host_allocations))
   {
     int *host_mem = sycl::malloc_host<int>(test_size, q);
     int *host_mem2 = sycl::malloc_host<int>(test_size, q);
@@ -334,6 +411,8 @@ BOOST_AUTO_TEST_CASE(memcpy) {
     sycl::free(device_mem2, q);
   }
   // memcpy shared->shared
+
+  if (q.get_device().has(sycl::aspect::usm_shared_allocations))
   {
     int *shared_mem = sycl::malloc_shared<int>(test_size, q);
     int *shared_mem2 = sycl::malloc_shared<int>(test_size, q);
@@ -351,6 +430,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
     sycl::free(shared_mem2, q);
   }
   // memcpy host->host, out-of-order queue
+  if (q.get_device().has(sycl::aspect::usm_host_allocations))
   {
     int *mem = sycl::malloc_host<int>(test_size, ooo_q);
     int *mem2 = sycl::malloc_host<int>(test_size, ooo_q);
@@ -368,8 +448,11 @@ BOOST_AUTO_TEST_CASE(memcpy) {
     sycl::free(mem2, ooo_q);
   }
 }
+
 BOOST_AUTO_TEST_CASE(usm_fill) {
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
 
   std::size_t test_size = 4096;
   int* shared_mem = sycl::malloc_shared<int>(test_size, q);
@@ -413,6 +496,8 @@ BOOST_AUTO_TEST_CASE(memset) {
 }
 BOOST_AUTO_TEST_CASE(prefetch) {
   sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+      return;
 
   std::size_t test_size = 4096;
   int *shared_mem = sycl::malloc_shared<int>(test_size, q);
@@ -444,6 +529,9 @@ BOOST_AUTO_TEST_CASE(allocation_zero_bytes) {
   // We just check that no errors are thrown
   sycl::queue q;
 
+  bool host_support = q.get_device().has(sycl::aspect::usm_host_allocations);
+  bool shared_support = q.get_device().has(sycl::aspect::usm_shared_allocations);
+
   int *device_mem_ptr = sycl::malloc_device<int>(0, q);
   if (device_mem_ptr)
     sycl::free(device_mem_ptr, q);
@@ -451,18 +539,20 @@ BOOST_AUTO_TEST_CASE(allocation_zero_bytes) {
       sycl::aligned_alloc_device<int>(sizeof(int), 0, q);
   if (aligned_device_mem_ptr)
     sycl::free(aligned_device_mem_ptr, q);
-  int *host_ptr = sycl::malloc_host<int>(0, q);
+
+  int *host_ptr = host_support ? sycl::malloc_host<int>(0, q) : nullptr;
   if (host_ptr)
     sycl::free(host_ptr, q);
-  int *aligned_host_ptr =
-      sycl::aligned_alloc_host<int>(sizeof(int), 0, q);
+  int *aligned_host_ptr = host_support ?
+      sycl::aligned_alloc_host<int>(sizeof(int), 0, q) : nullptr;
   if (aligned_host_ptr)
     sycl::free(aligned_host_ptr, q);
-  int *shared_ptr = sycl::malloc_shared<int>(0, q);
+
+  int *shared_ptr = shared_support ? sycl::malloc_shared<int>(0, q) : nullptr;
   if (shared_ptr)
     sycl::free(shared_ptr, q);
-  int *aligned_shared_ptr =
-      sycl::aligned_alloc_shared<int>(sizeof(int), 0, q);
+  int *aligned_shared_ptr = shared_support ?
+      sycl::aligned_alloc_shared<int>(sizeof(int), 0, q) : nullptr;
   if (aligned_shared_ptr)
     sycl::free(aligned_shared_ptr, q);
 }

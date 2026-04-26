@@ -41,6 +41,11 @@ public:
                                std::string_view kernel_name,
                                const rt::hcf_kernel_info* kernel_info,
                                const kernel_configuration& config) override;
+
+  virtual rt::range<3>
+  select_group_size(const rt::range<3> &global_range,
+                    const rt::range<3> &group_size) const override;
+
 private:
   ocl_queue* _queue;
 };

@@ -206,6 +206,9 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tan_f64(double);
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanh_f32(float);
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tanh_f64(double);
 
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanpi_f32(float);
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tanpi_f64(double);
+
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tgamma_f32(float);
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tgamma_f64(double);
 

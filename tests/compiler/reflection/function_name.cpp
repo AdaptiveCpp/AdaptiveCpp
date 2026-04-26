@@ -6,8 +6,7 @@
 // RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -fsanitize=undefined
 // RUN: %t | FileCheck %s
-// RUN: %acpp %s -o %t --acpp-targets=generic -fsanitize=address
-// RUN: %t | FileCheck %s
+// RUN: %if !system-darwin %{ %acpp %s -o %t --acpp-targets=generic -fsanitize=address && %t | FileCheck %s %}
 
 #include <iostream>
 #include "hipSYCL/glue/reflection.hpp"

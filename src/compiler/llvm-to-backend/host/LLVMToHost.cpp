@@ -180,30 +180,31 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
         !llvmutils::starts_with(GV.getName(), "__acpp_cbs"))
       GV.setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
   }
-
-  llvm::ModulePassManager MPM;
-  PH.ModuleAnalysisManager->clear(); // for some reason we need to reset the analyses... otherwise
-                                     // we get a crash at IPSCCP
-
-  PH.PassBuilder->registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
-    MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
-  });
-  PH.PassBuilder->registerModuleAnalyses(*PH.ModuleAnalysisManager);
-
-  registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true);
-  HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done registering\n";
-
-  llvm::FunctionPassManager FPM;
-  FPM.addPass(HostKernelWrapperPass{KnownLocalMemSize, KnownGroupSizeX, KnownGroupSizeY, KnownGroupSizeZ});
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
-
-  MPM.run(M, *PH.ModuleAnalysisManager);
+  
   HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done toBackendFlavor\n";
   return true;
 }
 
 bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     std::string &out) {
+
+  withPassBuilderAndMAM([&](llvm::PassBuilder &PB, llvm::ModuleAnalysisManager &MAM) {
+    llvm::ModulePassManager MPM;
+    PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
+      MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
+    });
+    PB.registerModuleAnalyses(MAM);
+
+    registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true);
+    HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done registering\n";
+
+    llvm::FunctionPassManager FPM;
+    FPM.addPass(HostKernelWrapperPass{KnownLocalMemSize, KnownGroupSizeX, KnownGroupSizeY,
+                                      KnownGroupSizeZ});
+    MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+
+    MPM.run(FlavoredModule, MAM);
+  });
 
   llvm::SmallVector<char> InputFile;
   int InputFD;

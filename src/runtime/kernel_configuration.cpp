@@ -37,7 +37,8 @@ public:
       {"ptx-ftz", kernel_build_flag::ptx_ftz},
       {"ptx-approx-div", kernel_build_flag::ptx_approx_div},
       {"ptx-approx-sqrt", kernel_build_flag::ptx_approx_sqrt},
-      {"spirv-enable-intel-llvm-spirv-options", kernel_build_flag::spirv_enable_intel_llvm_spirv_options}
+      {"spirv-enable-intel-llvm-spirv-options", kernel_build_flag::spirv_enable_intel_llvm_spirv_options},
+      {"spirv-enable-pointer-wrapping", kernel_build_flag::spirv_enable_pointer_wrapping}
     };
 
     for(const auto& elem : _options) {

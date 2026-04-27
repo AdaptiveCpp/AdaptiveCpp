@@ -14,6 +14,7 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/ocl/ocl_queue.hpp"
+#include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -31,6 +32,32 @@ result ocl_sscp_code_object_invoker::submit_kernel(
   return _queue->submit_sscp_kernel_from_code_object(
       hcf_object, kernel_name, kernel_info, num_groups, group_size,
       local_mem_size, args, arg_sizes, num_args, config);
+}
+
+rt::range<3> ocl_sscp_code_object_invoker::select_group_size(
+    const rt::range<3> &global_range, const rt::range<3> &group_size) const {
+
+  auto *dev =
+      _queue->get_hardware_manager()->get_device(_queue->get_device().get_id());
+
+  rt::range<3> selected_group_size = group_size;
+  if(dev->is_cpu()) {
+    auto global_size = global_range.size();
+    if(global_size >= 2048)
+      selected_group_size = rt::range<3>{1024, 1, 1};
+    else
+      selected_group_size = rt::range<3>{128, 1, 1};
+  } else {
+    if (global_range[1] == 1 && global_range[2] == 1) {
+      selected_group_size = rt::range<3>{128, 1, 1};
+    } else if (global_range[2] == 1) {
+      selected_group_size = rt::range<3>{16, 16, 1};
+    } else {
+      selected_group_size = rt::range<3>{8, 8, 4};
+    }
+  }
+  
+  return selected_group_size;
 }
 
 ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device& dev,

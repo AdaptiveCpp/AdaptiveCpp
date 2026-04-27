@@ -11,6 +11,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/localmem.hpp"
 
 // Compiler will set a proper size for this array based on local memory size
+// Compiler will leverage __acpp_sscp_* naming for improved indirect access analysis
 extern "C" __attribute__((address_space(3))) int __acpp_sscp_spirv_dynamic_local_mem [];
 
 HIPSYCL_SSCP_BUILTIN __attribute__((address_space(3))) void *

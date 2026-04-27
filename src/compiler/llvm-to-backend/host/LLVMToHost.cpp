@@ -24,6 +24,7 @@
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
@@ -179,6 +180,19 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
     if (GV.isConstant() && GV.hasInitializer() &&
         !llvmutils::starts_with(GV.getName(), "__acpp_cbs"))
       GV.setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
+  }
+
+  if(auto* Barrier = M.getFunction("__acpp_cbs_barrier")) {
+#if LLVM_VERSION_MAJOR >= 16
+    Barrier->setMemoryEffects(llvm::MemoryEffects::unknown());
+#else
+    Barrier->removeFnAttr(llvm::Attribute::ReadNone);
+    Barrier->removeFnAttr(llvm::Attribute::ReadOnly);
+    Barrier->removeFnAttr(llvm::Attribute::WriteOnly);
+    Barrier->removeFnAttr(llvm::Attribute::ArgMemOnly);
+    Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOnly);
+    Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOrArgMemOnly);
+#endif
   }
   
   HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done toBackendFlavor\n";

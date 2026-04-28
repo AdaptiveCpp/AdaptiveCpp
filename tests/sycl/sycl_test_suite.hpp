@@ -45,4 +45,10 @@ auto make_test_value(const T<1>& a, const T<2>& b, const T<3>& c) {
 template<typename T, int dimensions, typename extra=T>
 struct kernel_name {};
 
+inline bool isMoltenVKDevice(const sycl::queue &q) {
+  return (q.get_device().get_backend() == sycl::backend::vk) &&
+         (std::string::npos !=
+          q.get_device().get_info<sycl::info::device::name>().find(
+              "Apple Paravirtual"));
+}
 #endif

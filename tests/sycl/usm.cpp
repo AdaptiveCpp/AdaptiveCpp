@@ -69,6 +69,11 @@ BOOST_AUTO_TEST_CASE(device_allocation_functions) {
 BOOST_AUTO_TEST_CASE(invalid_pointer_argument) {
   sycl::queue q;
 
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
+    return;
+  }
+
   void** data_in = sycl::malloc_device<void*>(1, q);
   void** data_out = sycl::malloc_device<void*>(1, q);
 
@@ -1422,7 +1427,5 @@ BOOST_AUTO_TEST_CASE(two_queue) {
   sycl::free(dev_ptr2, q2);
 }
 
-=======
->>>>>>> 69cc2cf4 (Add LIT SSCP testing)
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

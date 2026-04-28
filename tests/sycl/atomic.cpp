@@ -50,9 +50,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
                               exchange_test_types) {
   sycl::queue q;
 
-  if (std::string::npos !=
-      q.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(q)) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -265,9 +263,7 @@ BOOST_AUTO_TEST_CASE(fetch_add_unsigned_int) {
 
 BOOST_AUTO_TEST_CASE(fetch_op) {
 
-  if (std::string::npos !=
-      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(sycl::queue{})) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -418,9 +414,7 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
   // This is mainly a compile-test. Testing atomic memory semantics is hard...
 
   sycl::queue q;
-  if (std::string::npos !=
-      q.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(q)) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }

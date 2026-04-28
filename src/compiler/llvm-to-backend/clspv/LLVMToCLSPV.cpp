@@ -165,7 +165,7 @@ void rewriteZeroSizeArrayGEPs(llvm::Module &M) {
 
 LLVMToCLSPVTranslator::LLVMToCLSPVTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{static_cast<int>(sycl::AdaptiveCpp_jit::
-                                                   compiler_backend::spirv),
+                                                   compiler_backend::clspv),
                               KN, KN},
       KernelNames{KN} {}
 

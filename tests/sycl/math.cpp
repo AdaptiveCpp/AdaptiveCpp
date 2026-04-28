@@ -523,9 +523,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints) {
 
   s::queue queue;
 
-  if (std::string::npos !=
-      queue.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(queue)) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -866,9 +864,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
   // build inputs and allocate outputs
 
   s::queue queue;
-  if (std::string::npos !=
-      queue.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(queue)) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -941,9 +937,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_rootn, T, math_test_genfloats) {
   using IntType = s::detail::builtin_input_intlike_t<T>;
 
   s::queue queue;
-  if (std::string::npos !=
-      queue.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(queue)) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -1061,10 +1055,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_##name, T, math_test_genfloats) {           \
     using DT = vector_elem_t<T>;                                               \
     namespace s = sycl;                                                        \
     s::queue queue;                                                            \
-                                                                               \
-    if (std::string::npos !=                                                   \
-        queue.get_device().get_info<sycl::info::device::name>().find(          \
-            "Apple Paravirtual")) {                                            \
+    if (isMoltenVKDevice(queue)) {                                             \
       BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");     \
       return;                                                                  \
     }                                                                          \
@@ -1117,9 +1108,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_ilogb, T, math_test_genfloats) {
   using IntType = vector_coerce_elem_t<int, T>;
   namespace s = sycl;
   s::queue queue;
-  if (std::string::npos !=
-      queue.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(queue)) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }

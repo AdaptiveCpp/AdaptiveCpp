@@ -60,9 +60,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
-  if (std::string::npos !=
-      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(sycl::queue{})) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -235,9 +233,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
-  if (std::string::npos !=
-      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(sycl::queue{})) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -429,9 +425,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_and, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
-  if (std::string::npos !=
-      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(sycl::queue{})) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }
@@ -476,9 +470,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_xor, T, test_types) {
-  if (std::string::npos !=
-      sycl::queue{}.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(sycl::queue{})) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }

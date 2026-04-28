@@ -18,9 +18,7 @@ BOOST_FIXTURE_TEST_SUITE(vec_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(vec_api) {
   sycl::queue queue;
-  if (std::string::npos !=
-      queue.get_device().get_info<sycl::info::device::name>().find(
-          "Apple Paravirtual")) {
+  if (isMoltenVKDevice(queue)) {
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
     return;
   }

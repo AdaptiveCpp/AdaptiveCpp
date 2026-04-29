@@ -687,10 +687,13 @@ BOOST_AUTO_TEST_CASE(usm_shared_ptr_gpu_delta_constant) {
   static constexpr int sizes[K] = {4096, 8192, 1, 16384, 512, 32768, 2048, 65536};
 
   int* a[K];
-  for (int k = 0; k < K; ++k)
+  for (int k = 0; k < K; ++k) {
     a[k] = sycl::malloc_shared<int>(sizes[k], q);
+    BOOST_REQUIRE_MESSAGE(a[k] != nullptr, "malloc_shared failed at k=" << k);
+  }
 
   uint64_t* gpu_addrs = sycl::malloc_shared<uint64_t>(K, q);
+  BOOST_REQUIRE(gpu_addrs != nullptr);
 
   int *p0=a[0], *p1=a[1], *p2=a[2], *p3=a[3],
       *p4=a[4], *p5=a[5], *p6=a[6], *p7=a[7];

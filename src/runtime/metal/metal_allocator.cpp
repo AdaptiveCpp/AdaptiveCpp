@@ -104,27 +104,32 @@ struct metal_mmap_region {
     if (size == 0) {
       return nullptr;
     }
+    const size_t requested_size = size;
     size = align_up(size, _alignment);
 
     std::lock_guard<std::mutex> lock{_mutex};
 
     uintptr_t aligned_addr = align_up(reinterpret_cast<uintptr_t>(addr), _alignment);
     if (aligned_addr != reinterpret_cast<uintptr_t>(addr)) {
+      dump_alloc_at_failure(addr, requested_size, size, "requested address is not aligned");
       return nullptr;
     }
 
     auto it = _free_blocks.upper_bound(addr);
     if (it == _free_blocks.begin()) {
+      dump_alloc_at_failure(addr, requested_size, size, "requested address is before the first free block");
       return nullptr;
     }
     --it;
     char* ptr = static_cast<char*>(it->first);
     if (ptr + it->second <= static_cast<char*>(addr)) {
       // addr is after the end of the free block
+      dump_alloc_at_failure(addr, requested_size, size, "requested address is after the containing free block");
       return nullptr;
     }
     if (static_cast<char*>(addr) + size > ptr + it->second) {
       // addr + size exceeds the end of the free block
+      dump_alloc_at_failure(addr, requested_size, size, "requested range exceeds the containing free block");
       return nullptr;
     }
     size_t remaining = (ptr + it->second) - (static_cast<char*>(addr) + size);
@@ -139,6 +144,21 @@ struct metal_mmap_region {
     }
     madvise(addr, size, MADV_FREE_REUSE);
     return addr;
+  }
+
+  void dump_alloc_at_failure(void* addr, size_t requested_size,
+                             size_t aligned_size, const char* reason) const {
+    std::cerr << "metal_mmap_region::alloc_at failed: " << reason
+              << ", requested=[" << addr << ", "
+              << static_cast<void*>(static_cast<char*>(addr) + aligned_size)
+              << "), requested_size=" << requested_size
+              << ", aligned_size=" << aligned_size << "\n";
+    std::cerr << "free blocks:\n";
+    for (const auto& [free_ptr, free_size] : _free_blocks) {
+      std::cerr << "  [" << free_ptr << ", "
+                << static_cast<void*>(static_cast<char*>(free_ptr) + free_size)
+                << "), size=" << free_size << "\n";
+    }
   }
 
   void free(void* ptr, size_t size) {

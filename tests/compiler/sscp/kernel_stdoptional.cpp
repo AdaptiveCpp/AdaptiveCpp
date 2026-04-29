@@ -4,6 +4,8 @@
 // RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -g
 // RUN: %t | FileCheck %s
+// UNSUPPORTED: cuda || hip || ocl || ze
+
 #include <iostream>
 #include <optional>
 #include <string>

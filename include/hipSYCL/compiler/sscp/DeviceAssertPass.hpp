@@ -26,7 +26,7 @@ public:
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);
 
-  //static members relevant for compiler passes touching device assertions (e.g. DeviceAssertion.cpp, ExceptionToAssertion.cpp)
+  //static members relevant for compiler passes touching device assertions (e.g. DeviceAssertPass.cpp, ExceptionToAssertion.cpp)
 
   // void __assert_fail(const char * assertion, const char * file, unsigned int line, const char * function);
   // void  __glibcxx_assert_fail(const char* __file, int __line, const char* __function, const char* __condition)

@@ -203,7 +203,7 @@ metal_allocator::metal_allocator(MTL::Device* device, const device_id &id)
   , _device_id{id}
   , _page_size{static_cast<size_t>(getpagesize())}
   , _delta{(size_t)-1}
-  , _mmap_region(std::make_unique<metal_mmap_region>(
+  , _mmap_region(std::make_shared<metal_mmap_region>(
       static_cast<size_t>(get_total_ram() * mmap_region_size_fraction), _page_size))
 {
   calibrate();
@@ -277,6 +277,8 @@ void metal_allocator::raw_free(void *mem)
   std::lock_guard<std::mutex> lock{_mutex};
   auto it = _ptr_to_block.find(mem);
   if (it != _ptr_to_block.end()) {
+    std::cerr << "metal_allocator::raw_free: mem=" << mem
+              << ", buffer=" << it->second.buffer << "\n";
     if(it->second.buffer) {
       it->second.buffer->release();
     } else {
@@ -346,13 +348,18 @@ MTL::Buffer* metal_allocator::alloc_buffer(size_t size_bytes) {
       return nullptr;
     }
 
+    auto mmap_region = _mmap_region;
     buffer = _device->newBuffer(
       region_ptr, aligned, MTL::ResourceStorageModeShared,
       ^(void*, NS::UInteger) {
-        _mmap_region->free(region_ptr, stride);
+        std::cerr << "metal_allocator: releasing mmap-backed buffer region=["
+                  << region_ptr << ", "
+                  << static_cast<void*>(static_cast<char*>(region_ptr) + stride)
+                  << "), stride=" << stride << "\n";
+        mmap_region->free(region_ptr, stride);
       });
     if (!buffer) {
-      _mmap_region->free(region_ptr, stride);
+      mmap_region->free(region_ptr, stride);
       return nullptr;
     }
 

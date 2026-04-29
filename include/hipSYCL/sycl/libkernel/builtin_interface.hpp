@@ -659,6 +659,64 @@ HIPSYCL_BUILTIN int __acpp_signbit(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__acpp_signbit, x);
 }
 
+// Relational binary functions below are directly implemented here
+// Potential improvement: use HIPSYCL_RETURN_DISPATCH_BUILTIN and specialize for SPIRV as done in
+// https://github.com/intel/llvm/blob/sycl/sycl/include/sycl/detail/builtins/relational_functions.inc#L130
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_isequal(T x, T y) noexcept
+{
+  return x == y;
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_isnotequal(T x, T y) noexcept
+{
+  return x != y;
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_isgreater(T x, T y) noexcept
+{
+  return x > y;
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_isgreaterequal(T x, T y) noexcept
+{
+  return x >= y;
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_isless(T x, T y) noexcept
+{
+  return x < y;
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_islessequal(T x, T y) noexcept
+{
+  return x <= y;
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_islessgreater(T x, T y) noexcept
+{
+  return (x < y) || (x > y);
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_isordered(T x, T y) noexcept
+{
+  return !__acpp_isnan(x) && !__acpp_isnan(y);
+}
+
+template<class T>
+HIPSYCL_BUILTIN bool __acpp_isunordered(T x, T y) noexcept
+{
+  return __acpp_isnan(x) || __acpp_isnan(y);
+}
+
 }
 }
 }

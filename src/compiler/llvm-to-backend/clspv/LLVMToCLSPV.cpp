@@ -16,9 +16,6 @@
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/AddrSpaceCastRemovalPass.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/clspv/AddrSpaceRestorePass.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/clspv/AtomicAddrSpacePass.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/clspv/ICMPNullFixupPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/PtrToIntPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/RemoveUnusedIntrinsicsPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/SROAParallelForPass.hpp"
@@ -411,13 +408,10 @@ bool LLVMToCLSPVTranslator::optimizeFlavoredIR(llvm::Module &M,
       llvm::createModuleToFunctionPassAdaptor(RemoveUnusedIntrinsicsPass()));
   MPM.addPass(
       llvm::createModuleToFunctionPassAdaptor(AddrSpaceCastRemovalPass()));
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(ICMPNullFixupPass()));
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(SROAParallelForPass()));
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(
       llvm::SROAPass(llvm::SROAOptions::PreserveCFG)));
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(PtrToIntPass()));
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(AddrSpaceRestorePass()));
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(AtomicAddrSpacePass()));
   MPM.run(M, *PH.ModuleAnalysisManager);
 
   return Result;

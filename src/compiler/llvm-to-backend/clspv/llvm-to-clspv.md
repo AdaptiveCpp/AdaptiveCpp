@@ -78,13 +78,11 @@ in the pipeline to make the IR cleaner.
 ### AddrSpaceCastRemovalPass
 
 Remove casting away the address space from arguments, as otherwise
-clspv doesn't know how to lower the generic pointer to SPIR-V.
-
-### ICMPNullFixupPass
-
-Pass for fixing icmp instructions comparing a pointer with non-zero address
-space in the first operand against a nullptr with no address space in the
-second, by giving the nullptr constant the same address space.
+clspv doesn't know how to lower the generic pointer to SPIR-V. This
+is done by first removing address space cast instructions and replacing
+uses with the operand. Then fixing up instructions that are no longer
+correctly formed, e.g mem intrinsics expecting no address space but
+now have one.
 
 ### SROAParallelForPass
 
@@ -103,18 +101,3 @@ can be put into a Vulkan uniform buffer at a specific offset.
 Pass for fixing resulting SROA components from large structs so that we don't
 lose the address space of pointers between `PtrToInt` then `IntToPtr` on a
 Value.
-
-### AddrSpaceRestorePass
-
-General pass for fixing instructions that have lost address space during
-optimization until this point.
-
-* GEP
-* MemCpyInst - Need to recreate builtin declaration with address spaces.
-* MemSetInst - Need to recreate builtin declaration with address spaces.
-
-### AtomicAddrSpacePass
-
-Pass for fixing up atomic builtin calls that take an opaque ptr without an address
-space but pointer value for used for builtin parameter has an addrspace. Done
-by creating an address space cast for the relevant operand.

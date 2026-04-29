@@ -1,9 +1,8 @@
 name: AdaptiveCpp-LLVM
 
-on: 
-  push:
-  pull_request:
-  
+on:
+  workflow_dispatch:
+
 jobs:
   prep-container:
     name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}, ${{ matrix.cuda_or_rocm }}

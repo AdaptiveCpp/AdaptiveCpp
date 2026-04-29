@@ -2,28 +2,6 @@ name: Prime docker container
 
 on:
   workflow_dispatch:
-    inputs:
-      clang:
-        description: 'LLVM Version to install'
-        required: true
-        default: "20"
-      os:
-        description: 'Base Operating System'
-        required: true
-        default: "ubuntu-22.04"
-      cuda_major_version:
-        description: 'CUDA Major Version (default 11)'
-      cuda_minor_version:
-        description: 'CUDA Minor Version'
-        default: "0"
-      cuda_patch_version:
-        description: 'CUDA Patch Version'
-        default: "2"
-      rocm:
-        description: 'ROCm Version (default 5.4.3)'
-      force:
-        description: 'Force build the image'
-        default: "false"
 
 jobs:
   prep-container:

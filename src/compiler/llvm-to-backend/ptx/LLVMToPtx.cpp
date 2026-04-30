@@ -104,14 +104,20 @@ static constexpr std::array IntrinsicReplacementMap = {
   IntrinsicMapping{"llvm.cos.f64", "__acpp_sscp_cos_f64"},
   IntrinsicMapping{"llvm.sin.f32", "__acpp_sscp_sin_f32"},
   IntrinsicMapping{"llvm.sin.f64", "__acpp_sscp_sin_f64"},
-  // tan seems fine
+  // tan not fine in LLVM 21
+  IntrinsicMapping{"llvm.tan.f32", "__acpp_sscp_tan_f32"},
+  IntrinsicMapping{"llvm.tan.f64", "__acpp_sscp_tan_f64"},
   IntrinsicMapping{"llvm.log.f32", "__acpp_sscp_log_f32"},
   IntrinsicMapping{"llvm.log.f64", "__acpp_sscp_log_f64"},
   IntrinsicMapping{"llvm.log2.f32", "__acpp_sscp_log2_f32"},
   IntrinsicMapping{"llvm.log2.f64", "__acpp_sscp_log2_f64"},
   IntrinsicMapping{"llvm.log10.f32", "__acpp_sscp_log10_f32"},
   IntrinsicMapping{"llvm.log10.f64", "__acpp_sscp_log10_f64"},
-  // asin seems fine (presumably acos well?)
+  // asin and a cos not fine in LLVM 21
+  IntrinsicMapping{"llvm.asin.f32", "__acpp_sscp_asin_f32"},
+  IntrinsicMapping{"llvm.asin.f64", "__acpp_sscp_asin_f64"},
+  IntrinsicMapping{"llvm.acos.f32", "__acpp_sscp_acos_f32"},
+  IntrinsicMapping{"llvm.acos.f64", "__acpp_sscp_acos_f64"},
   // atan at least with LLVM 20 needs remapping
   IntrinsicMapping{"llvm.atan.f32", "__acpp_sscp_atan_f32"},
   IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"}

@@ -25,6 +25,8 @@ bool vk_node_event::is_complete() const {
 
 void vk_node_event::wait() {
   vk::Semaphore semaphore = _queue->get_semaphore();
+  HIPSYCL_DEBUG_INFO << "vk_event: semaphore " << semaphore << " wait on "
+                     << _signal_val << std::endl;
   vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &_signal_val);
   while (vk::Result::eTimeout ==
          _queue->get_dev_ctx()->get_device().waitSemaphores(wait_info,

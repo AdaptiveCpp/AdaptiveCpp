@@ -304,6 +304,11 @@ SPIR-V. However, clspv only supports OpenCL-C version 1.2 and some builtins (e.g
 work-group collectives) require builtins from OpenCL 3.0. In such cases a more
 generic implementation is fallen back to.
 
+The existing spirv `libkernel` library is not used because it is implemented
+in terms of the
+[SPIRV-LLVM Translator IR expectations](https://github.com/KhronosGroup/SPIRV-LLVM-Translator/blob/main/docs/SPIRVRepresentationInLLVM.rst)
+which are not recognized by other tools like `clspv`.
+
 ## Future Work
 
 * Test with real application.

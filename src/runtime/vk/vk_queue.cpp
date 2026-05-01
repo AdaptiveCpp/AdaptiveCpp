@@ -121,10 +121,11 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
     vk_alloc_info *src_alloc_info = src_alloc.first;
     _host_worker(
         [=]() mutable {
-          HIPSYCL_DEBUG_INFO
-              << "vk_queue: temp allocation source copy async thread - wait "
-              << wait_value << std::endl;
           vk::Semaphore semaphore = *_semaphore;
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation source copy async thread - "
+              << "semaphore " << semaphore << " wait value " << wait_value
+              << std::endl;
           vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
           while (vk::Result::eTimeout ==
                  _dev_ctx->get_device().waitSemaphores(wait_info, UINT64_MAX)) {
@@ -139,8 +140,9 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
           _dev_ctx->get_device().signalSemaphore(signal_info);
 
           HIPSYCL_DEBUG_INFO
-              << "vk_queue: temp allocation source copy async thread - signal "
-              << signal_value << std::endl;
+              << "vk_queue: temp allocation source copy async thread - "
+              << "semaphore " << semaphore << " signal value " << signal_value
+              << std::endl;
         });
 
     temp_allocs.first = src_alloc_info;
@@ -227,10 +229,11 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
     const uint64_t signal_value = ++_timeline_value;
     _host_worker(
         [=]() mutable {
-          HIPSYCL_DEBUG_INFO
-              << "vk_queue: temp allocation deallocate async thread - wait "
-              << wait_value << std::endl;
           vk::Semaphore semaphore = *_semaphore;
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation deallocate async thread - "
+              << "semaphore " << semaphore << " wait value " << wait_value
+              << std::endl;
           vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
           while (vk::Result::eTimeout ==
                  _dev_ctx->get_device().waitSemaphores(wait_info, UINT64_MAX)) {
@@ -258,7 +261,8 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
 
           HIPSYCL_DEBUG_INFO
               << "vk_queue: temp allocation deallocate async thread - signal "
-              << signal_value << std::endl;
+              << "semaphore " << semaphore << " signal value " << signal_value
+              << std::endl;
         });
   }
 
@@ -351,19 +355,22 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
   const uint64_t signal_value = ++_timeline_value;
 
   HIPSYCL_DEBUG_INFO << "vk_queue: submit command-buffer with "
-                     << "semaphore wait value " << wait_value
-                     << " & signal value " << signal_value << std::endl;
+                     << "semaphore " << *_semaphore << " wait value "
+                     << wait_value << " & signal value " << signal_value
+                     << std::endl;
 
   std::vector<vk::Semaphore> semaphores{_semaphore};
   std::vector<uint64_t> wait_values{wait_value};
   for (auto &evt : _wait_deps) {
     auto vk_evt = static_cast<vk_node_event *>(evt.get());
-    semaphores.push_back(vk_evt->get_event());
+    const auto external_semaphore = vk_evt->get_event();
+    semaphores.push_back(external_semaphore);
     const uint64_t external_signal_val = vk_evt->get_signal_val();
     wait_values.push_back(external_signal_val);
 
     HIPSYCL_DEBUG_INFO << "vk_queue: command-buffer submit extra wait "
-                       << "on semaphore with signal val " << external_signal_val
+                       << "on semaphore " << external_semaphore
+                       << " with signal val " << external_signal_val
                        << std::endl;
   }
 
@@ -421,12 +428,11 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
   const uint64_t wait_value = _timeline_value;
   const uint64_t signal_value = ++_timeline_value;
 
-  HIPSYCL_DEBUG_INFO << "vk_queue: host async memset with semaphore wait val "
-                     << wait_value << " and signal val " << signal_value
-                     << std::endl;
   _host_worker([=]() mutable {
-    HIPSYCL_DEBUG_INFO << "vk_queue: memset async thread wait\n";
     vk::Semaphore semaphore = *_semaphore;
+    HIPSYCL_DEBUG_INFO << "vk_queue: memset async thread -"
+                       << "semaphore " << semaphore << " wait value "
+                       << wait_value << std::endl;
     vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
     while (vk::Result::eTimeout ==
            _dev_ctx->get_device().waitSemaphores(wait_info, UINT64_MAX)) {
@@ -441,7 +447,9 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
     vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
     _dev_ctx->get_device().signalSemaphore(signal_info);
 
-    HIPSYCL_DEBUG_INFO << "vk_queue: memset async thread signal\n";
+    HIPSYCL_DEBUG_INFO << "vk_queue: memset async thread signal -"
+                       << "semaphore " << semaphore << " signal value "
+                       << signal_value << std::endl;
   });
 
   return make_success();
@@ -449,6 +457,9 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
 
 result vk_queue::wait() {
   vk::Semaphore semaphore = *_semaphore;
+  HIPSYCL_DEBUG_INFO << "vk_queue: wait on semaphore " << semaphore
+                     << " wait value " << _timeline_value << std::endl;
+
   vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &_timeline_value);
   while (vk::Result::eTimeout ==
          _dev_ctx->get_device().waitSemaphores(wait_info, UINT64_MAX)) {
@@ -472,10 +483,12 @@ result vk_queue::submit_external_wait_for(const dag_node_ptr &node) {
                      << std::endl;
 
   _host_worker([=]() mutable {
-    HIPSYCL_DEBUG_INFO << "vk_queue: external wait async thread - wait\n";
+    vk::Semaphore semaphore = *_semaphore;
+    HIPSYCL_DEBUG_INFO << "vk_queue: external wait async thread - "
+                       << "semaphore " << semaphore << " wait value "
+                       << wait_value << std::endl;
 
     // Wait on in-order queue deps
-    vk::Semaphore semaphore = *_semaphore;
     vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
     while (vk::Result::eTimeout ==
            _dev_ctx->get_device().waitSemaphores(wait_info, UINT64_MAX)) {
@@ -489,7 +502,9 @@ result vk_queue::submit_external_wait_for(const dag_node_ptr &node) {
     vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
     _dev_ctx->get_device().signalSemaphore(signal_info);
 
-    HIPSYCL_DEBUG_INFO << "vk_queue: external wait async thread - signal\n";
+    HIPSYCL_DEBUG_INFO << "vk_queue: external wait async thread -"
+                       << "semaphore " << semaphore << " signal value "
+                       << signal_value << std::endl;
   });
 
   return make_success();

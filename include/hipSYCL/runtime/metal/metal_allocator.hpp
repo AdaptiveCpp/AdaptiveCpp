@@ -15,6 +15,7 @@
 #include "../hints.hpp"
 
 #include <map>
+#include <memory>
 
 namespace MTL {
 
@@ -83,7 +84,7 @@ private:
   };
   std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
-  std::unique_ptr<metal_mmap_region> _mmap_region;
+  std::shared_ptr<metal_mmap_region> _mmap_region;
 };
 
 

@@ -72,8 +72,9 @@ bool __acpp_sscp_work_group_any(bool predicate) {
     }
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
-
-  return scratch[0];
+  bool tmp = scratch[0];
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  return tmp;
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
@@ -112,8 +113,9 @@ bool __acpp_sscp_work_group_all(bool predicate) {
     }
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
-
-  return scratch[0];
+  bool tmp = scratch[0];
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  return tmp;
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN

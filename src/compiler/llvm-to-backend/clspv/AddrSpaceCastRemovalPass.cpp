@@ -252,6 +252,7 @@ bool removeCasts(llvm::Function &F) {
             Op->replaceAllUsesWith(ASCop);
             DidGEPTransform = true;
           }
+          CEI->deleteValue(); // Don't leak instruction without parent
         }
       }
     }

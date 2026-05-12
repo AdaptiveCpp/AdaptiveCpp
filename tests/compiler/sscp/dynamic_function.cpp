@@ -51,7 +51,7 @@ int main() {
     q.memcpy(&host, data, sizeof(int)).wait();
 
     // CHECK: 1
-    std::cout << *data << std::endl;
+    std::cout << host << std::endl;
   }
 
   {
@@ -69,7 +69,7 @@ int main() {
     q.memcpy(&host, data, sizeof(int)).wait();
 
     // CHECK: 1
-    std::cout << *data << std::endl;
+    std::cout << host << std::endl;
   }
 
   {
@@ -87,7 +87,7 @@ int main() {
     q.memcpy(&host, data, sizeof(int)).wait();
 
     // CHECK: 1
-    std::cout << *data << std::endl;
+    std::cout << host << std::endl;
   }
 
   {
@@ -105,7 +105,7 @@ int main() {
     q.memcpy(&host, data, sizeof(int)).wait();
 
     // CHECK: 3
-    std::cout << *data << std::endl;
+    std::cout << host << std::endl;
   }
 
 

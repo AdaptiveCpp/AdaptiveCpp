@@ -88,6 +88,10 @@ void encode_arguments_argbuffer(
       if (buffer) {
         arg_enc->setBuffer(buffer, offset, i);
         encoder->useResource(buffer, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
+      } else {
+        // Argument buffer memory may be reused (e.g. mmap-backed region), so
+        // stale pointer slots must be explicitly zeroed rather than left as-is.
+        arg_enc->setBuffer(nullptr, 0, i);
       }
     } else {
       auto* dst = arg_enc->constantData(i);
@@ -846,6 +850,9 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
 }
 
 metal_inorder_queue::~metal_inorder_queue() {
+  // Drain pending work before releasing queue-owned Metal objects that may be
+  // referenced by completion handlers.
+  wait();
   _event_listener->release();
   _shared_event->release();
   _command_queue->release();

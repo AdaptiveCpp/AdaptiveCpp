@@ -43,6 +43,7 @@ private:
   std::vector<std::string> KernelNames;
   unsigned DynamicLocalMemSize = 0;
   bool UseIntelLLVMSpirvArgs = false;
+  bool WrapPointerArguments = false;
 };
 
 }

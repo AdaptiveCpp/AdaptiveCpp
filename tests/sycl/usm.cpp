@@ -66,6 +66,28 @@ BOOST_AUTO_TEST_CASE(device_allocation_functions) {
   sycl::free(aligned_device_mem_ptr, q);
 }
 
+BOOST_AUTO_TEST_CASE(invalid_pointer_argument) {
+  sycl::queue q;
+
+  void** data_in = sycl::malloc_device<void*>(1, q);
+  void** data_out = sycl::malloc_device<void*>(1, q);
+
+  void* data = reinterpret_cast<void*>(0x1);
+  q.memcpy(data_in, &data, sizeof(void*)).wait();
+
+  q.single_task([=](){
+    *data_out = *data_in;
+  }).wait();
+
+  void* data_result = nullptr;
+  q.memcpy(&data_result, data_out, sizeof(void*)).wait();
+  BOOST_CHECK(data_result == reinterpret_cast<void*>(0x1));
+
+  sycl::free(data_in, q);
+  sycl::free(data_out, q);
+
+}
+
 BOOST_AUTO_TEST_CASE(host_allocation_functions) {
   // Basic check that allocations work
   sycl::queue q;
@@ -368,7 +390,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
 
     for (std::size_t i = 0; i < test_size; ++i)
       BOOST_TEST(host_data[i] == initial_data[i]);
-    
+
     sycl::free(device_mem, q);
     sycl::free(device_mem2, q);
     sycl::free(shared_mem, q);
@@ -398,7 +420,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
     int *device_mem = sycl::malloc_device<int>(test_size, q);
     int *device_mem2 = sycl::malloc_device<int>(test_size, q);
     std::vector<int> host_data(test_size);
-    
+
     q.memcpy(device_mem, initial_data.data(), test_size * sizeof(int));
     q.memcpy(device_mem2, device_mem, test_size * sizeof(int));
     q.memcpy(host_data.data(), device_mem2, test_size * sizeof(int));
@@ -437,13 +459,13 @@ BOOST_AUTO_TEST_CASE(memcpy) {
 
     for (std::size_t i = 0; i < test_size; ++i)
       mem[i] = initial_data[i];
-    
+
     q.memcpy(mem2, mem, sizeof(int) * test_size);
     q.wait();
 
     for (std::size_t i = 0; i < test_size; ++i)
       BOOST_TEST(mem2[i] == initial_data[i]);
-    
+
     sycl::free(mem, ooo_q);
     sycl::free(mem2, ooo_q);
   }
@@ -509,7 +531,7 @@ BOOST_AUTO_TEST_CASE(prefetch) {
   q.parallel_for<class usm_prefetch_test_kernel>(
       sycl::range<1>{test_size},
       [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
-  
+
   q.wait();
 
   // Test prefetching to host using a host_queue
@@ -520,7 +542,7 @@ BOOST_AUTO_TEST_CASE(prefetch) {
   }
   for (std::size_t i = 0; i < test_size; ++i)
     BOOST_TEST(shared_mem[i] == i + 1);
-  
+
   sycl::free(shared_mem, q);
 }
 
@@ -652,6 +674,53 @@ BOOST_AUTO_TEST_CASE(linked_list_separate_alloc) {
   for (int i = 0; i < num_nodes; i++) {
     sycl::free(nodes[i], q);
   }
+}
+
+BOOST_AUTO_TEST_CASE(usm_shared_ptr_gpu_delta_constant) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    return;
+  }
+
+  static constexpr int K = 8;
+  static constexpr int sizes[K] = {4096, 8192, 1, 16384, 512, 32768, 2048, 65536};
+
+  int* a[K];
+  for (int k = 0; k < K; ++k)
+    a[k] = sycl::malloc_shared<int>(sizes[k], q);
+
+  uint64_t* gpu_addrs = sycl::malloc_shared<uint64_t>(K, q);
+
+  int *p0=a[0], *p1=a[1], *p2=a[2], *p3=a[3],
+      *p4=a[4], *p5=a[5], *p6=a[6], *p7=a[7];
+
+  q.single_task([=]() {
+    gpu_addrs[0] = reinterpret_cast<uint64_t>(p0);
+    gpu_addrs[1] = reinterpret_cast<uint64_t>(p1);
+    gpu_addrs[2] = reinterpret_cast<uint64_t>(p2);
+    gpu_addrs[3] = reinterpret_cast<uint64_t>(p3);
+    gpu_addrs[4] = reinterpret_cast<uint64_t>(p4);
+    gpu_addrs[5] = reinterpret_cast<uint64_t>(p5);
+    gpu_addrs[6] = reinterpret_cast<uint64_t>(p6);
+    gpu_addrs[7] = reinterpret_cast<uint64_t>(p7);
+  });
+  q.wait();
+
+  int64_t first_delta = static_cast<int64_t>(gpu_addrs[0] - reinterpret_cast<uint64_t>(a[0]));
+  bool all_same = true;
+  for (int k = 1; k < K; ++k) {
+    int64_t delta = static_cast<int64_t>(gpu_addrs[k] - reinterpret_cast<uint64_t>(a[k]));
+    if (delta != first_delta) {
+      all_same = false;
+      BOOST_TEST_MESSAGE("delta mismatch at k=" << k
+        << " expected=" << first_delta << " got=" << delta);
+    }
+  }
+  BOOST_CHECK(all_same);
+
+  for (int k = 0; k < K; ++k) sycl::free(a[k], q);
+  sycl::free(gpu_addrs, q);
 }
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this

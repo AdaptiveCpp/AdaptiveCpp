@@ -82,7 +82,9 @@ std::optional<std::string> extractStringConstant(llvm::Value* V, std::string& er
   if (auto* gv = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
     GV = gv;
   } else if (auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
-    if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
+    if (CE->getOpcode() == llvm::Instruction::AddrSpaceCast) {
+      return extractStringConstant(CE->getOperand(0), errorStr);
+    } else if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
       GV = llvm::dyn_cast<llvm::GlobalVariable>(CE->getOperand(0));
     }
   }
@@ -1115,7 +1117,7 @@ void MetalEmitter::emitFCmpInstruction(const FCmpInst* FC, const std::string& na
       os << indent(level) << name << " = (" << lhs << " == " << rhs << ");\n";
       break;
     case FCmpInst::FCMP_ONE:
-      os << indent(level) << name << " = (" << lhs << " != " << rhs << ");\n";
+      os << indent(level) << name << " = (isordered(" << lhs << ", " << rhs << ") && (" << lhs << " != " << rhs << "));\n";
       break;
     case FCmpInst::FCMP_OGT:
       os << indent(level) << name << " = (" << lhs << " > " << rhs << ");\n";
@@ -1510,7 +1512,8 @@ unsigned MetalEmitter::getPhysicalPointerAddressSpace(const Value* V) {
     return it->second;
   }
 
-  // If the value is an addrspacecast, get the original address space
+  inferredPtrAS[V] = 0; // to break cycles in PHIs and Loads
+
   if (auto* Alloca = dyn_cast<AllocaInst>(V)) {
     return (inferredPtrAS[V] = 5 /* private */);
   }

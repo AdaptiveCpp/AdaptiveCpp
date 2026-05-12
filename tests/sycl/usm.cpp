@@ -1175,6 +1175,9 @@ BOOST_AUTO_TEST_CASE(shared_binary_tree_traversal) {
   sycl::queue q{sycl::property::queue::in_order{}};
   if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
     return;
+  // TODO: crashes on AMD (HIP) - possibly a compiler issue with local pointer arrays in kernels
+  if (q.get_device().get_backend() == sycl::backend::hip)
+    return;
 
   using shared_indirection::TreeNode;
   static constexpr int NumNodes = 7;

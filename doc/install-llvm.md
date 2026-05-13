@@ -18,12 +18,12 @@ Install
 * libomp (including development headers)
 * lld
 
-For example, the required steps to install clang 20 on an Ubuntu system are:
+For example, the required steps to install clang 21 on an Ubuntu system are:
 ```
 wget https://apt.llvm.org/llvm.sh #Convenience script that sets up the repositories
 chmod +x llvm.sh
-./llvm.sh 20 #Set up repositories for clang 20
-apt install -y libclang-20-dev clang-tools-20 libomp-20-dev llvm-20-dev lld-20
+./llvm.sh 21 #Set up repositories for clang 21
+apt install -y libclang-21-dev clang-tools-21 libomp-21-dev llvm-21-dev lld-21
 ```
 
 #### Only if you wish to compile LLVM from source (not recommended)
@@ -34,10 +34,10 @@ It is generally not necessary to compile LLVM by yourself. However, if you wish 
 - Generate `libLLVM.so`: `-DLLVM_BUILD_LLVM_DYLIB=ON` (only required if the SSCP compilation flow is enabled when building AdaptiveCpp, which is true by default for supported versions of LLVM)
 - Enable the correct backends for your hardware: `nvptx` for NVIDIA GPUs and `amdgpu` for AMD GPUs.
 
-An example build of LLVM 20 from source might look like this:
+An example build of LLVM 21 from source might look like this:
 
 ```
-git clone https://github.com/llvm/llvm-project -b release/20.x
+git clone https://github.com/llvm/llvm-project -b release/21.x
 cd llvm-project
 mkdir -p build
 cd build

@@ -21,8 +21,9 @@
 #define HIPSYCL_DEBUG_LEVEL HIPSYCL_DEBUG_LEVEL_WARNING
 #endif
 
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
+#include <mutex>
 #include <string>
 
 #ifndef HIPSYCL_COMPILER_COMPONENT
@@ -43,6 +44,11 @@ public:
 
   std::ostream &get_stream() const { return _output_stream; }
   int get_debug_level() const { return _debug_level; }
+
+  void atomic_print(const char *prefix, std::stringbuf *str_buf) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _output_stream << prefix << str_buf;
+  }
 
 private:
 
@@ -70,6 +76,7 @@ private:
 
   int _debug_level;
   std::ostream& _output_stream;
+  std::mutex _mutex;
 };
 
 }
@@ -79,6 +86,13 @@ private:
   if (level > ::hipsycl::common::output_stream::get().get_debug_level())       \
     ;                                                                          \
   else ::hipsycl::common::output_stream::get().get_stream() << prefix
+
+#define HIPSYCL_DEBUG_ATOMIC(level, prefix, msg)                               \
+  if (level > ::hipsycl::common::output_stream::get().get_debug_level())       \
+    ;                                                                          \
+  else                                                                         \
+    ::hipsycl::common::output_stream::get().atomic_print(prefix, msg)
+
 #else
 #define HIPSYCL_DEBUG_STREAM(level, prefix)                                    \
   if (level > ::hipsycl::common::output_stream::get().get_debug_level())       \
@@ -105,10 +119,20 @@ private:
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_WARNING, \
                       HIPSYCL_DEBUG_PREFIX_WARNING)
 
-
 #define HIPSYCL_DEBUG_INFO \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_INFO, \
                       HIPSYCL_DEBUG_PREFIX_INFO)
+
+#define HIPSYCL_DEBUG_ERROR_ATOMIC(msg)                                        \
+  HIPSYCL_DEBUG_ATOMIC(HIPSYCL_DEBUG_LEVEL_ERROR, HIPSYCL_DEBUG_PREFIX_ERROR,  \
+                       msg)
+
+#define HIPSYCL_DEBUG_WARNING_ATOMIC(msg)                                      \
+  HIPSYCL_DEBUG_ATOMIC(HIPSYCL_DEBUG_LEVEL_WARNING,                            \
+                       HIPSYCL_DEBUG_PREFIX_WARNING, msg)
+
+#define HIPSYCL_DEBUG_INFO_ATOMIC(msg)                                         \
+  HIPSYCL_DEBUG_ATOMIC(HIPSYCL_DEBUG_LEVEL_INFO, HIPSYCL_DEBUG_PREFIX_INFO, msg)
 
 #define HIPSYCL_DEBUG_EXECUTE(level, content) \
   if(level <= ::hipsycl::common::output_stream::get().get_debug_level()) \

@@ -113,10 +113,12 @@ void *vk_allocator::raw_allocate(size_t, size_t size_bytes,
                            std::move(device_mem)};
   _allocs.insert({ptr, std::move(alloc_info)});
 
-  HIPSYCL_DEBUG_INFO << "vk_allocator: allocated " << size_bytes
-                     << " bytes at 0x" << std::hex << ptr << std::dec
-                     << std::endl;
-
+  {
+    std::stringstream ss;
+    ss << "vk_allocator: allocated " << size_bytes << " bytes at 0x" << std::hex
+       << ptr << std::dec << std::endl;
+    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
+  }
   return reinterpret_cast<void *>(ptr);
 }
 
@@ -182,8 +184,11 @@ result vk_allocator::query_pointer(const void *ptr, pointer_info &out) const {
 
 result vk_allocator::mem_advise(const void *addr, std::size_t num_bytes,
                                 int advise) const {
-  HIPSYCL_DEBUG_WARNING << "vk_allocator: Ignoring mem_advise() hint"
-                        << std::endl;
+  {
+    std::stringstream ss;
+    ss << "vk_allocator: Ignoring mem_advise() hint" << std::endl;
+    HIPSYCL_DEBUG_WARNING_ATOMIC(ss.rdbuf());
+  }
   return make_success();
 }
 

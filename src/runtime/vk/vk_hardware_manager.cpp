@@ -522,14 +522,14 @@ vk_hardware_manager::vk_hardware_manager()
       _instance.enumeratePhysicalDevices();
   int device_index = 0;
   for (const auto &phys_dev : devices) {
-    // Check device supports at least v1.3
-    bool supports_vulkan1_3 =
-        phys_dev.getProperties().apiVersion >= VK_API_VERSION_1_3;
-    if (!supports_vulkan1_3) {
+    // Check device supports at least v1.2
+    bool supports_vulkan1_2 =
+        phys_dev.getProperties().apiVersion >= VK_API_VERSION_1_2;
+    if (!supports_vulkan1_2) {
       {
         std::stringstream ss;
         ss << "vk_hardware_manager: physical device " << device_index
-           << "doesn't support Vulkan 1.3, skipping." << std::endl;
+           << "doesn't support Vulkan 1.2, skipping." << std::endl;
         HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
       }
       device_index++;

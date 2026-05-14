@@ -12,8 +12,11 @@ the generic SSCP compilation flow.
 
 ## Requirements
 
-* For a Vulkan backend device to be reported through SYCL a Vulkan 1.3 or later
-physical device is required.
+* For a Vulkan backend device to be reported through SYCL a Vulkan 1.2 or later
+  physical device is required. Vulkan 1.2 is the minimum version as it is the
+  release where timeline semaphore and buffer device address features are made core
+  (optional) features rather than through `VK_KHR_timeline_semaphore` and
+  `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
 * A `clspv` executable, from commit `75d2471da8d697ae5a04d06cf14a1667b74200e8` and later.
@@ -271,7 +274,8 @@ memcopy.
 
 #### clspv
 
-Kernels are compiled by using the LLVM-IR input to clspv to create Vulkan consumable SPIR-V.
+Kernels are compiled by using the LLVM-IR input to clspv to create Vulkan consumable SPIR-V
+version 1.3 (supported by Vulkan 1.1 drivers onward).
 This involves the SSCP compiler flavouring the LLVM-IR to resemble OpenCL-C generated IR,
 which is then lowered appropriately by clspv. Transformations are defined in the
 `llvm-to-clspv` tool to achieve this. For more information on the transformations

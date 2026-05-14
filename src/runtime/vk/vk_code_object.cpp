@@ -571,6 +571,7 @@ vk_executable_object::vk_executable_object(vk_hardware_context *hw_ctx,
                                            const kernel_configuration &config)
     : _source{source}, _hw_ctx(hw_ctx), _id{config.generate_id()},
       _shader_module(nullptr) {
+  // SPIR-V version 1.3 is supported from Vulkan 1.1
   _spv_ctx = spvContextCreate(SPV_ENV_VULKAN_1_3);
   if (_spv_ctx == nullptr)
     print_error(__acpp_here(), error_info{"failed to create spirv context"});

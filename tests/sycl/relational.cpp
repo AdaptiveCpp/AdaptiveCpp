@@ -112,10 +112,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   // build inputs and allocate outputs
 
   s::queue queue;
-  if (isMoltenVKDevice(sycl::queue{})) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(queue.get_device())
 
   if constexpr(std::is_same_v<DT, double>) {
     if (!queue.get_device().has(sycl::aspect::fp64)) {
@@ -193,10 +190,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   // build inputs and allocate outputs
 
   s::queue queue;
-  if (isMoltenVKDevice(sycl::queue{})) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(queue.get_device())
 
   if constexpr(std::is_same_v<DT, double>) {
     if (!queue.get_device().has(sycl::aspect::fp64)) {

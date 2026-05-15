@@ -522,11 +522,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints) {
   // build inputs
 
   s::queue queue;
-
-  if (isMoltenVKDevice(queue)) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(queue.get_device())
 
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
@@ -864,10 +860,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
   // build inputs and allocate outputs
 
   s::queue queue;
-  if (isMoltenVKDevice(queue)) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(queue.get_device())
 
   if constexpr(std::is_same_v<DT, double>) {
     if (!queue.get_device().has(sycl::aspect::fp64)) {
@@ -937,10 +930,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_rootn, T, math_test_genfloats) {
   using IntType = s::detail::builtin_input_intlike_t<T>;
 
   s::queue queue;
-  if (isMoltenVKDevice(queue)) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(queue.get_device())
 
   if constexpr(std::is_same_v<DT, double>) {
     if (!queue.get_device().has(sycl::aspect::fp64)) {
@@ -1055,10 +1045,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_##name, T, math_test_genfloats) {           \
     using DT = vector_elem_t<T>;                                               \
     namespace s = sycl;                                                        \
     s::queue queue;                                                            \
-    if (isMoltenVKDevice(queue)) {                                             \
-      BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");     \
-      return;                                                                  \
-    }                                                                          \
+    SKIP_IF_MOLTENVK(queue.get_device())                                       \
                                                                                \
     SKIP_IF_NO_FP64(queue, DT);                                                \
     s::buffer<T> float_in{{2}};                                                \
@@ -1108,10 +1095,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_ilogb, T, math_test_genfloats) {
   using IntType = vector_coerce_elem_t<int, T>;
   namespace s = sycl;
   s::queue queue;
-  if (isMoltenVKDevice(queue)) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(queue.get_device())
   SKIP_IF_NO_FP64(queue, DT);
   s::buffer<T> float_in{{1}};
   s::buffer<IntType> out{{1}};

@@ -18,10 +18,7 @@ BOOST_FIXTURE_TEST_SUITE(vec_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(vec_api) {
   sycl::queue queue;
-  if (isMoltenVKDevice(queue)) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(queue.get_device())
 
   sycl::buffer<float, 1> results{72};
   sycl::buffer<float, 1> input{4};

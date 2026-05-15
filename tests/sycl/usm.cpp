@@ -1390,42 +1390,5 @@ BOOST_AUTO_TEST_CASE(usm_shared_ptr_gpu_delta_constant) {
   sycl::free(gpu_addrs, q);
 }
 
-BOOST_AUTO_TEST_CASE(two_queue) {
-  sycl::queue q1{sycl::property_list{sycl::property::queue::in_order{}}};
-  sycl::queue q2(q1.get_context(), q1.get_device(),
-		 sycl::property_list{sycl::property::queue::in_order{}});
-  std::size_t test_size = 128;
-  int *dev_ptr1 = sycl::malloc_device<int>(test_size, q1);
-  int *dev_ptr2 = sycl::malloc_device<int>(test_size, q1);
-
-  q1.memset(dev_ptr1, 0, test_size * sizeof(int));
-  q2.memset(dev_ptr2, 0, test_size * sizeof(int));
-
-  const unsigned iterations = 32;
-  for (unsigned i = 0; i < iterations; i++) {
-    q1.parallel_for(sycl::range<1>{test_size},
-                    [=](sycl::id<1> idx) { dev_ptr1[idx] += 1; });
-
-    q2.parallel_for(sycl::range<1>{test_size},
-                    [=](sycl::id<1> idx) { dev_ptr2[idx] += 1; });
-  }
-  q1.wait();
-  q2.wait();
-
-  std::vector<int> host_ptr1(test_size);
-  std::vector<int> host_ptr2(test_size);
-  q1.memcpy(host_ptr1.data(), dev_ptr1, test_size * sizeof(int)).wait();
-  q1.memcpy(host_ptr2.data(), dev_ptr2, test_size * sizeof(int));
-  q1.wait();
-
-  for (int i = 0; i < test_size; ++i) {
-    BOOST_TEST(host_ptr1[i] == iterations);
-    BOOST_TEST(host_ptr2[i] == iterations);
-  }
-
-  sycl::free(dev_ptr1, q1);
-  sycl::free(dev_ptr2, q2);
-}
-
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

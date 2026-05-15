@@ -60,10 +60,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
-  if (isMoltenVKDevice(sycl::queue{})) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(sycl::device{})
 
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
@@ -141,7 +138,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
-  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+  if (sycl::device{}.get_backend() == sycl::backend::vk) {
     BOOST_TEST_MESSAGE("libkernel function not yet implemented");
     return;
   }
@@ -233,12 +230,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
-  if (isMoltenVKDevice(sycl::queue{})) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  sycl::device dev;
+  SKIP_IF_MOLTENVK(dev)
 
-  if(!sycl::queue{}.get_device().is_host()) {
+  if (!dev.is_host()) {
     const size_t   elements_per_thread = 1;
     const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
                                   size_t global_size) {
@@ -425,10 +420,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_and, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
-  if (isMoltenVKDevice(sycl::queue{})) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(sycl::device{})
 
   const size_t elements_per_thread = 1;
   if constexpr(std::is_integral_v<detail::elementType<T>>) {
@@ -470,10 +462,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_xor, T, test_types) {
-  if (isMoltenVKDevice(sycl::queue{})) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(sycl::device{})
 
   const size_t elements_per_thread = 1;
   if constexpr(std::is_integral_v<detail::elementType<T>>) {

@@ -133,9 +133,6 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
 template<class T>
 void test_two_reductions(std::size_t input_size, std::size_t local_size){
   sycl::queue q;
-  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
-    BOOST_TEST_MESSAGE("Skipping test since device has no shared USM support");
-  }
 
   if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
     BOOST_TEST_MESSAGE("Skipping test since device has no shared USM support");

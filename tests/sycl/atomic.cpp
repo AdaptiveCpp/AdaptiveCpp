@@ -49,11 +49,7 @@ using exchange_test_types =
 BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
                               exchange_test_types) {
   sycl::queue q;
-
-  if (isMoltenVKDevice(q)) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(q.get_device())
 
   if constexpr(std::is_same_v<Type, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
@@ -262,11 +258,7 @@ BOOST_AUTO_TEST_CASE(fetch_add_unsigned_int) {
 }
 
 BOOST_AUTO_TEST_CASE(fetch_op) {
-
-  if (isMoltenVKDevice(sycl::queue{})) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(sycl::device{})
 
   auto fetch_add = [](auto& atomic, auto x) {
     return atomic.fetch_add(x);
@@ -374,7 +366,7 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 
 
 BOOST_AUTO_TEST_CASE(fetch_add_sub_local_memory) {
-  if (sycl::queue{}.get_device().get_backend() == sycl::backend::vk) {
+  if (sycl::device{}.get_backend() == sycl::backend::vk) {
     BOOST_TEST_MESSAGE("Skipping test on Vulkan");
     return;
   }
@@ -414,10 +406,7 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
   // This is mainly a compile-test. Testing atomic memory semantics is hard...
 
   sycl::queue q;
-  if (isMoltenVKDevice(q)) {
-    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");
-    return;
-  }
+  SKIP_IF_MOLTENVK(q.get_device())
 
   int* data = sycl::malloc_device<int>(1, q);
   q.memset(data, 0, sizeof(int)).wait();

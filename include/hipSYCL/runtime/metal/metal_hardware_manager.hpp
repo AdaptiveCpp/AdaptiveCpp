@@ -50,6 +50,8 @@ public:
 
   virtual std::size_t get_platform_index() const override;
 
+  MTL::Device* get_mtl_device() const;
+
   virtual ~metal_hardware_context();
 
 private:

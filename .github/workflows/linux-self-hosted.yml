@@ -184,7 +184,7 @@ jobs:
     - name: run Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./sycl_tests
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./sycl_tests -s false
     - name: run PSTL Intel tests (L0)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
@@ -192,8 +192,8 @@ jobs:
     - name: run PSTL Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests -s false
     - name: run PCUDA Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pcuda_tests
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pcuda_tests -s false

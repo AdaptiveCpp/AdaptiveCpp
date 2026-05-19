@@ -188,11 +188,11 @@ jobs:
     - name: run PSTL Intel tests (L0)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests --run_test=pstl_for_each -s false
+        ACPP_STDPAR_MEM_POOL_SIZE=0 ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests --run_test=pstl_for_each -s false
     - name: run PSTL Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests -s false
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_STDPAR_MEM_POOL_SIZE=0  ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests -s false
     - name: run PCUDA Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp

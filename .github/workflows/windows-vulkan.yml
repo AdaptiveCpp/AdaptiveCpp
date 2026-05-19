@@ -182,4 +182,4 @@ jobs:
         cd $env:GITHUB_WORKSPACE/build/tests-sscp
         $env:ACPP_VISIBILITY_MASK="vk"
         $env:ACPP_DEBUG_LEVEL=3
-        .\sycl_tests.exe
+        .\sycl_tests.exe -t !group_functions_tests

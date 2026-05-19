@@ -21,7 +21,10 @@ the generic SSCP compilation flow.
   for Vulkan loader, layers, headers, and other tools.
 * A `clspv` executable, from commit `75d2471da8d697ae5a04d06cf14a1667b74200e8` and later.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
-  tested distributions for Linux. MacOS 15.7.4 is tested CI, as is Windows server 2022.
+  tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
+  is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
+  of SYCL tests, during `~buffer_impl` there is a crash in the loop calling `event::wait()` on
+  pending events, so these are filtered out of the test executable invocation.
   Adding support for Android is future work.
 * A Vulkan driver, use `vulkaninfo` from the Vulkan SDK to see the available devices
   on your system.

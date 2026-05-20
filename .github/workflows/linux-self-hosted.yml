@@ -115,7 +115,7 @@ jobs:
     - name: build
       run : |
         mkdir build && cd build
-        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm ..
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm ..
         make -j3 install
     - name: build generic SSCP tests
       run: |
@@ -161,7 +161,7 @@ jobs:
   test-gpu-intel:
     if: github.repository_id == '140986400'
     name: Intel with clang ${{ matrix.clang_version }}
-    runs-on: [self-hosted, gpu-intel]
+    runs-on: [self-hosted, gpu-intel, xe2]
     strategy:
       matrix:
         clang_version: ['18']
@@ -174,26 +174,26 @@ jobs:
       run : |
         mkdir build && cd build
         cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_LEVEL_ZERO_BACKEND=ON -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
-        make -j3 install
+        make -j10 install
     - name: build generic SSCP tests
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON -DWITH_PCUDA_TESTS=ON  ${GITHUB_WORKSPACE}/tests
-        make -j3
+        make -j10
     - name: run Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./sycl_tests
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./sycl_tests -s false
     - name: run PSTL Intel tests (L0)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests --run_test=pstl_for_each
+        ACPP_STDPAR_MEM_POOL_SIZE=0 ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests --run_test=pstl_for_each -s false
     - name: run PSTL Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_STDPAR_MEM_POOL_SIZE=0  ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests -s false
     - name: run PCUDA Intel tests (OpenCL)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pcuda_tests
+        LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/ ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pcuda_tests -s false

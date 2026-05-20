@@ -51,12 +51,12 @@ Advanced users may want to customize their installation more, or use features th
 | Compilation flow | Target hardware | Short description | Requirements |
 |------------------|-------------------|-------------------|-------------------|
 | `omp.library-only` | Any CPU | OpenMP CPU backend | Any OpenMP compiler |
-| `omp.accelerated` | Any CPU supported by LLVM | OpenMP CPU backend (compiler-accelerated)| LLVM* >= 15 and LLVM* <= 20|
-| `cuda.integrated-multipass` | NVIDIA GPUs | CUDA backend (clang)| CUDA >= 10, LLVM* >= 15 and LLVM* <= 20|
-| `cuda.explicit-multipass` | NVIDIA GPUs | CUDA backend (clang, can be targeted simultaneously with other backends) | CUDA >= 10, LLVM* >= 15 and LLVM* <= 20 |
+| `omp.accelerated` | Any CPU supported by LLVM | OpenMP CPU backend (compiler-accelerated)| LLVM* >= 15 and LLVM* <= 21|
+| `cuda.integrated-multipass` | NVIDIA GPUs | CUDA backend (clang)| CUDA >= 10, LLVM* >= 15 and LLVM* <= 21|
+| `cuda.explicit-multipass` | NVIDIA GPUs | CUDA backend (clang, can be targeted simultaneously with other backends) | CUDA >= 10, LLVM* >= 15 and LLVM* <= 21 |
 | `cuda-nvcxx` | NVIDIA GPUs | CUDA backend (nvc++) | Latest NVIDIA HPC SDK |
-| `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM* >= 15 and LLVM* <= 20 |
-| `generic` | NVIDIA, AMD, Intel GPUs, OpenCL SPIR-V devices, Apple GPUs (experimental) | Generic single-pass compiler | LLVM* >= 15 and LLVM* <= 20. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended and LLVM must be <= the ROCm LLVM version. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. AdaptiveCpp runtime backends for the respective target hardware need to be available. For Apple GPUs, see [Metal installation instructions](install-metal.md). |
+| `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM* >= 15 and LLVM* <= 21 |
+| `generic` | NVIDIA, AMD, Intel GPUs, OpenCL SPIR-V devices, Apple GPUs (experimental) | Generic single-pass compiler | LLVM* >= 15 and LLVM* <= 21. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended and LLVM must be <= the ROCm LLVM version. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. AdaptiveCpp runtime backends for the respective target hardware need to be available. For Apple GPUs, see [Metal installation instructions](install-metal.md). |
 
 \* AdaptiveCpp does not support development versions of LLVM, only official releases are supported.
 

@@ -573,9 +573,6 @@ public:
   }
 
   virtual void* malloc_device(std::size_t size, std::size_t alignment, cl_int& err) override {
-    return this->malloc_shared(size, alignment, err);
-
-
     if(!_is_available) {
       err = CL_INVALID_PLATFORM;
       return nullptr;

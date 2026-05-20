@@ -65,7 +65,7 @@ std::string get_lib_directory() {
   }
   
 #else
-  std::string library_name = HIPSYCL_COMMON_LIBRARY_NAME + std::string{".dll"};
+  std::string library_name = HIPSYCL_COMMON_LIBRARY_NAME;
   if(HMODULE handle = GetModuleHandleA(library_name.c_str()))
   {
     std::vector<char> path_buffer(MAX_PATH);

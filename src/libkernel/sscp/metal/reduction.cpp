@@ -217,7 +217,9 @@ inline T __acpp_sscp_work_group_reduce(T value) {
   }
 
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
-  return scratch[0];
+  T tmp = scratch[0];
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  return tmp;
 }
 
 #define X(type) \

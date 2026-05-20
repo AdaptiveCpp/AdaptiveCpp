@@ -21,12 +21,12 @@ jobs:
         cuda_patch_version: [2]
         rocm: [5.4.3]
         include:
-          - clang: 17
+          - clang: 21
             os: ubuntu-22.04
             cuda_major_version: 11
             cuda_minor_version: 0
             cuda_patch_version: 2
-            rocm: 5.6.1
+            rocm: 6.3.1
     steps:
       - uses: actions/checkout@v4
         with:

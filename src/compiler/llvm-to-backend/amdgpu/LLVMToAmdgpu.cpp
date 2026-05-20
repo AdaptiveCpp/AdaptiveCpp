@@ -275,7 +275,11 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   M.setTargetTriple(TargetTriple);
 #endif
 
-#if LLVM_VERSION_MAJOR >= 18
+#if LLVM_VERSION_MAJOR >= 21
+  M.setDataLayout("e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:"
+                  "32-p8:128:128:128:48-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:"
+                  "256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7:8:9");
+#elif LLVM_VERSION_MAJOR >= 18
   M.setDataLayout("e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:"
                   "32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:"
                   "256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7:8:9");
@@ -308,6 +312,8 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       applyKernelProperties(F);
     }
   }
+
+  replaceLLVMIntrinsicsWithAcppBuiltins(M);
 
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-amdgpu-amdhsa-full.bc");

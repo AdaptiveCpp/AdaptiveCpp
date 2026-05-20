@@ -47,7 +47,7 @@ static constexpr double mmap_region_size_fraction = 10.0;
 
 struct metal_mmap_region {
   metal_mmap_region(size_t capacity, size_t alignment)
-    : _mmap_size(capacity), _capacity(capacity), _alignment(alignment)
+    : _mmap_size(capacity), _alignment(alignment)
   {
     void* ptr = mmap(nullptr, capacity, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (ptr == MAP_FAILED) {
@@ -56,11 +56,11 @@ struct metal_mmap_region {
 
     _base = static_cast<char*>(ptr);
     auto current = reinterpret_cast<char*>(align_up(reinterpret_cast<uintptr_t>(_base), _alignment));
-    capacity = capacity - (current - _base);
-    _midpoint = reinterpret_cast<char*>(align_up(reinterpret_cast<uintptr_t>(current + capacity / 2), _alignment));
+    size_t usable_capacity = capacity - (current - _base);
+    _midpoint = reinterpret_cast<char*>(align_up(reinterpret_cast<uintptr_t>(current + usable_capacity / 2), _alignment));
 
-    madvise(current, _capacity, MADV_FREE_REUSABLE);
-    _free_blocks.emplace(current, _capacity);
+    madvise(current, usable_capacity, MADV_FREE_REUSABLE);
+    _free_blocks.emplace(current, usable_capacity);
   }
 
   ~metal_mmap_region() {
@@ -171,7 +171,6 @@ struct metal_mmap_region {
   char* _base;
   char* _midpoint;
   size_t _mmap_size;
-  size_t _capacity;
   size_t _alignment;
 
   std::mutex _mutex;
@@ -183,7 +182,7 @@ metal_allocator::metal_allocator(MTL::Device* device, const device_id &id)
   , _device_id{id}
   , _page_size{static_cast<size_t>(getpagesize())}
   , _delta{(size_t)-1}
-  , _mmap_region(std::make_unique<metal_mmap_region>(
+  , _mmap_region(std::make_shared<metal_mmap_region>(
       static_cast<size_t>(get_total_ram() * mmap_region_size_fraction), _page_size))
 {
   calibrate();
@@ -326,13 +325,14 @@ MTL::Buffer* metal_allocator::alloc_buffer(size_t size_bytes) {
       return nullptr;
     }
 
+    auto mmap_region = _mmap_region;
     buffer = _device->newBuffer(
       region_ptr, aligned, MTL::ResourceStorageModeShared,
       ^(void*, NS::UInteger) {
-        _mmap_region->free(region_ptr, stride);
+        mmap_region->free(region_ptr, stride);
       });
     if (!buffer) {
-      _mmap_region->free(region_ptr, stride);
+      mmap_region->free(region_ptr, stride);
       return nullptr;
     }
 

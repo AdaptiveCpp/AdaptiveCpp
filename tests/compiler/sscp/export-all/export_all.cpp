@@ -14,13 +14,15 @@ int increment(int x);
 
 int main() {
   sycl::queue q = get_queue();
-  int* data = sycl::malloc_shared<int>(1, q);
+  int* data = sycl::malloc_device<int>(1, q);
   q.single_task([=](){
     *data = increment(123);
   });
   q.wait();
 
+  int host;
+  q.memcpy(&host, data, sizeof(int)).wait();
   // CHECK: 124
-  std::cout << *data << std::endl;
+  std::cout << host << std::endl;
   sycl::free(data, q);
 }

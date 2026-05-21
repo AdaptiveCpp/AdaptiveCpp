@@ -24,17 +24,20 @@ void test() {
 
   int num_functions = 10;
 
-  double init = 0.75;
+  T init = static_cast<T>(0.75);
 
-  T* data = sycl::malloc_shared<T>(num_functions, q);
+  T* data = sycl::malloc_device<T>(num_functions, q);
   for(int i = 0; i < num_functions; ++i)
-    data[i] = static_cast<T>(init);
+    q.memcpy(data + i, &init, sizeof(T));
+  q.wait();
 
   q.single_task([=](){
     data[0] = std::sin(data[0]);
     data[1] = std::cos(data[1]);
     data[2] = std::pow(data[2], init);
-    data[3] = std::pow(data[3], 3);
+    // pow(float, int) is missing in standard after C++11,
+    // will be replaced to llvm.pow.f32.i32 for -O3 -ffast-math
+    data[3] = std::pow(data[3], T(3));
     data[4] = std::exp(data[4]);
     data[5] = std::sqrt(data[5]);
     data[6] = std::tan(data[6]);
@@ -43,31 +46,35 @@ void test() {
     data[9] = std::asin(data[9]);
   }).wait();
 
+  std::vector<T> host(num_functions, T(0));
+  q.memcpy(host.data(), data, sizeof(T) * num_functions).wait();
+
   // CHECK: 1
-  std::cout << check_with_tolerance(data[0], std::sin(init)) << std::endl;
+  std::cout << check_with_tolerance(host[0], std::sin(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[1], std::cos(init)) << std::endl;
+  std::cout << check_with_tolerance(host[1], std::cos(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[2], std::pow(init, init)) << std::endl;
+  std::cout << check_with_tolerance(host[2], std::pow(init, init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[3], std::pow(init, 3)) << std::endl;
+  std::cout << check_with_tolerance(host[3], std::pow(init, 3)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[4], std::exp(init)) << std::endl;
+  std::cout << check_with_tolerance(host[4], std::exp(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[5], std::sqrt(init)) << std::endl;
+  std::cout << check_with_tolerance(host[5], std::sqrt(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[6], std::tan(init)) << std::endl;
+  std::cout << check_with_tolerance(host[6], std::tan(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[7], std::exp2(init)) << std::endl;
+  std::cout << check_with_tolerance(host[7], std::exp2(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[8], std::log(init)) << std::endl;
+  std::cout << check_with_tolerance(host[8], std::log(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[9], std::asin(init)) << std::endl;
+  std::cout << check_with_tolerance(host[9], std::asin(init)) << std::endl;
 
   sycl::free(data, q);
 }
 
 int main() {
   test<float>();
-  test<double>();
+  if(get_queue().get_device().has(sycl::aspect::fp64))
+    test<double>();
 }

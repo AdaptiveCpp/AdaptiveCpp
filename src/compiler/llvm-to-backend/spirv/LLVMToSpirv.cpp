@@ -207,8 +207,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     ASMap[AddressSpace::Private],
     // Actual pointers should be in global memory
     ASMap[AddressSpace::Global],
-    // We need to wrap pointer types
-    true};
+    WrapPointerArguments};
 
   ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 
@@ -382,6 +381,10 @@ bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const st
 bool LLVMToSpirvTranslator::applyBuildFlag(const std::string& Flag) {
   if(Flag == "spirv-enable-intel-llvm-spirv-options") {
     UseIntelLLVMSpirvArgs = true;
+    return true;
+  }
+  if(Flag == "spirv-enable-pointer-wrapping") {
+    WrapPointerArguments = true;
     return true;
   }
   return false;

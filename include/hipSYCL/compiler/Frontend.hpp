@@ -88,7 +88,11 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
         // type that can be constructed on the GPU also can and will be destructed).
         if(auto Ptr = llvm::dyn_cast_or_null<clang::PointerType>(Callee->getThisType()->getCanonicalTypeUnqualified()))
           if(auto Record = llvm::dyn_cast<clang::RecordType>(Ptr->getPointeeType()))
+#if defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR == 7 && ROCM_CLANG_VERSION_MINOR == 2
+            if(auto RecordDecl = llvm::dyn_cast<clang::CXXRecordDecl>(Record->getOriginalDecl()))
+#else
             if(auto RecordDecl = llvm::dyn_cast<clang::CXXRecordDecl>(Record->getDecl()))
+#endif
               if(auto DtorDecl = RecordDecl->getDestructor())
                 TraverseDecl(DtorDecl);
       }
@@ -562,8 +566,14 @@ private:
       // If name tag is invalid, assume unnamed
       return true;
 
+#if defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR == 7 && ROCM_CLANG_VERSION_MINOR == 2
+    if(NameTag->getOriginalDecl()) {
+      return NameTag->getOriginalDecl()->getQualifiedNameAsString() ==
+#else
     if(NameTag->getDecl()) {
       return NameTag->getDecl()->getQualifiedNameAsString() ==
+#endif
+
              "__acpp_unnamed_kernel";
     }
 
@@ -627,7 +637,11 @@ private:
       clang::Decl* ErrorDecl = F;
 
       if(B != KernelBodies.end()) {
+#if defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR == 7 && ROCM_CLANG_VERSION_MINOR == 2
+        ErrorDecl = B->second->getOriginalDecl();
+#else
         ErrorDecl = B->second->getDecl();
+#endif
       }
 
       auto SL = ErrorDecl->getSourceRange().getBegin();
@@ -735,7 +749,11 @@ private:
             if (KernelFunctorType->getAsCXXRecordDecl() &&
                 KernelFunctorType->getAsCXXRecordDecl()->isLambda()) {
               auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
+#if defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR == 7 && ROCM_CLANG_VERSION_MINOR == 2
+                            KernelFunctorType->getOriginalDecl())
+#else
                             KernelFunctorType->getDecl())
+#endif
                             ->getSourceRange()
                             .getBegin();
               auto ID =

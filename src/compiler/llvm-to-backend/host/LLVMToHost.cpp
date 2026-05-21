@@ -70,6 +70,44 @@ std::string get_macos_version() {
   return std::string{buff};
 }
 
+std::string get_macos_sdk_path() {
+  auto xcrun = llvm::sys::findProgramByName("xcrun");
+  if(!xcrun) return {};
+
+  llvm::SmallVector<char, 64> tmpFile;
+  int fd = -1;
+  if(auto ec = llvm::sys::fs::createTemporaryFile("acpp-xcrun", "txt", fd, tmpFile))
+    return {};
+  llvm::StringRef tmpName(tmpFile.data());
+
+  // xcrun --show-sdk-path > tmp
+  llvm::SmallVector<std::optional<llvm::StringRef>, 3> redirects;
+  redirects.push_back(std::nullopt);      // stdin
+  redirects.push_back(tmpName);           // stdout -> file
+  redirects.push_back(std::nullopt);      // stderr
+
+  llvm::SmallVector<llvm::StringRef, 4> args{
+    *xcrun, "--show-sdk-path"
+  };
+
+  int rc = llvm::sys::ExecuteAndWait(*xcrun, args, std::nullopt, redirects);
+  if(rc != 0) {
+    llvm::sys::fs::remove(tmpName);
+    return {};
+  }
+
+  auto bufOrErr = llvm::MemoryBuffer::getFile(tmpName);
+  llvm::sys::fs::remove(tmpName);
+  if(!bufOrErr) return {};
+
+  std::string s = bufOrErr.get()->getBuffer().str();
+
+  // trim whitespace/newline
+  while(!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ' || s.back() == '\t'))
+    s.pop_back();
+  return s;
+}
+
 }
 
 #endif
@@ -110,7 +148,7 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
           ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
-      
+
 #ifdef _WIN32
       // Windows exceptions..
       F->setPersonalityFn(nullptr);
@@ -211,7 +249,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     llvm::raw_fd_ostream InputStream{InputFD, true};
 
     llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
-    
+
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while writing" << InputStream.error().message() << '\n'; }
     InputStream.flush();
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while flushing" << InputStream.error().message() << '\n'; }
@@ -259,7 +297,13 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
 
 #ifdef __APPLE__
-  std::string os_version = get_macos_version();
+  static std::string os_version = get_macos_version();
+  static std::string sdk_path   = get_macos_sdk_path();
+  if (sdk_path.empty()) {
+    this->registerError("LLVMToHost: Could not determine macOS SDK path or version: "
+                        "ensure that Xcode command line tools are installed (run xcode-select --install).");
+    return false;
+  }
   llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
                                                     "-dynamic",
                                                     "-dylib",
@@ -271,9 +315,11 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 #endif                                              // TODO Figure out platform version programmatically
                                                     "-platform_version","macos", os_version, os_version,
                                                     "-mllvm", "-enable-linkonceodr-outlining",
+                                                    "-syslibroot", sdk_path,
                                                     "-o",
                                                     OutputFileName,
                                                     LlcOutputFileName,
+                                                    "-lSystem", // needed to prevent error 'missing LC_LOAD_DYLIB (must link with at least libSystem.dylib'
                                                     };
 #elif defined(_WIN32)
   std::string LldOutputFlag = "/out:"+OutputFileName.str();
@@ -293,6 +339,117 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     LlcOutputFileName,
                                                     };
 #endif
+
+  std::string sleefDir;
+  std::string amathDir;
+  std::string svmlDir;
+  std::string mvecDir;
+
+  switch (VectorMathLibary) {
+
+    case host_vector_math_library::none:
+      HIPSYCL_DEBUG_INFO << "LLVMToHost: ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY is set to none"
+                        << "\". Compiling kernel without vector math library" << "\n";
+      break;
+
+    case host_vector_math_library::sleef:
+#ifdef SLEEF_AVAILABLE
+      sleefDir = getLibSleefDir();
+      if (!sleefDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(sleefDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(sleefDir);
+        LldInvocation.push_back("-lsleefgnuabi");
+        OptInvocation.push_back("-vector-library=sleefgnuabi");
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using SLEEF found at " << sleefDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToHost: Could not find libsleef. Kernel will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting SLEEF but AdaptiveCpp was compiled without "
+                               "its support. Kernel will be compiled without it.\n";
+#endif
+      break;
+
+    case host_vector_math_library::armpl:
+#ifdef AMATH_AVAILABLE
+      amathDir = getLibAmathDir();
+      if (!amathDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(amathDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(amathDir);
+        LldInvocation.push_back("-lamath");
+        OptInvocation.push_back("-vector-library=ArmPL");
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using ARMPL found at " << amathDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToHost: Could not find libamath. Kernel will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting ARMPL but AdaptiveCpp was compiled without "
+                               "its support. Kernel will be compiled without it.\n";
+#endif
+      break;
+
+    case host_vector_math_library::svml:
+#ifdef SVML_AVAILABLE
+      svmlDir = getLibSvmlDir();
+      if (!svmlDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(svmlDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(svmlDir);
+        LldInvocation.push_back("-lsvml");
+        LldInvocation.push_back("-lintlc");
+        OptInvocation.push_back("-vector-library=SVML");
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using SVML found at " << svmlDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING << "LLVMToHost: Could not find libsvml and libintlc library. Kernel "
+                                 "will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting SVML but AdaptiveCpp was compiled without "
+                               "its support. Kernel will be compiled without it.\n";
+#endif
+    break;
+
+    case host_vector_math_library::libmvec:
+#ifdef LIBMVEC_AVAILABLE
+      mvecDir = getLibMvecDir();
+      if (!mvecDir.empty()) {
+        LldInvocation.push_back("-L");
+        LldInvocation.push_back(mvecDir);
+        LldInvocation.push_back("--rpath");
+        LldInvocation.push_back(mvecDir);
+        LldInvocation.push_back("-lmvec");
+#if LLVM_VERSION_MAJOR > 20
+        OptInvocation.push_back("-vector-library=LIBMVEC");
+#else
+        OptInvocation.push_back("-vector-library=LIBMVEC-X86");
+#endif
+
+        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using LIBMVEC found at " << mvecDir << "\n";
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "LLVMToHost: Could not find LIBMVEC. Kernel will be compiled without it.\n";
+      }
+#else
+      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting LIBMVEC but AdaptiveCpp was compiled "
+                               "without its support. Kernel will be compiled without it.\n";
+#endif
+      break;
+
+    default:
+      break;
+
+  }
+
   const llvm::StringRef AdditionalLlcFlags = ACPP_LLC_ADDITIONAL_FLAGS;
   const llvm::StringRef AdditionalOptFlags = ACPP_OPT_ADDITIONAL_FLAGS;
   AdditionalLlcFlags.split(LlcInvocation, ' ', -1, false);
@@ -337,6 +494,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     return false;
   }
 
+  HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
   R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, NULLOPT, Redirects);
 
   if (R != 0) {
@@ -357,6 +515,10 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 }
 
 bool LLVMToHostTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
+  if (Option == "host-vector-math-library") {
+    VectorMathLibary = static_cast<host_vector_math_library>(std::stoi(Value));
+    return true;
+  }
   return false;
 }
 

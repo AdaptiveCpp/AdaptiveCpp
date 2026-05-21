@@ -68,7 +68,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
                     error_code{"CUDA", err}});
     }
   }
-  
+
   for (int dev = 0; dev < num_devices; ++dev) {
     _devices.emplace_back(dev);
   }
@@ -131,7 +131,7 @@ std::size_t cuda_hardware_context::get_platform_index() const {
   return 0;
 }
 
-cuda_hardware_context::cuda_hardware_context(int dev) 
+cuda_hardware_context::cuda_hardware_context(int dev)
   : _dev{dev} {
   _properties = std::make_unique<cudaDeviceProp>();
   auto err = cudaGetDeviceProperties(_properties.get(), dev);
@@ -248,6 +248,12 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::work_item_independent_forward_progress:
     return _properties->major >= 7;
+    break;
+  case device_support_aspect::fp64:
+    return true;
+    break;
+  case device_support_aspect::atomic64:
+    return true;
     break;
   }
   assert(false && "Unknown device aspect");
@@ -466,7 +472,7 @@ std::string cuda_hardware_context::get_driver_version() const {
         error_info{"cuda_hardware_manager: Querying driver version failed",
                    error_code{"CUDA", err}});
   }
-  
+
   return std::to_string(driver_version);
 }
 

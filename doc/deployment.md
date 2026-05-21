@@ -115,4 +115,15 @@ After an update of the deployment package, it might be a good idea to instruct u
 Note that the deployment mechanism pulls in components from backends which, in the case of CUDA, are not under an open source license. However, all CUDA components utilized by AdaptiveCpp and deployed as part of the deployment mechanism are explicitly cleared for redistribution in the [CUDA EULA](https://docs.nvidia.com/cuda/eula/index.html#attachment-a).
 Nevertheless, you may still want to be aware that portions of the software distributed by you may be covered by the CUDA EULA terms.
 
+## Vector math library redistribution
 
+The deployment mechanism may include and redistribute third-party libraries under the following licenses:
+
+- Intel Short Vector Math Library (`svml.so` & `intlc.so`)
+  Provided under the [Intel End User License Agreement (EULA)](https://www.intel.com/content/www/us/en/content-details/777700/intel-end-user-license-agreement-for-developer-tools.html)
+
+- Arm Performance Libraries Math Library (`amath.so`)
+  Provided under the [Arm Performance Libraries End User License Agreement](https://developer.arm.com/documentation/109611/1-0/End-User-License-Agreement--EULA-?lang=en)
+
+- SLEEF Vector Math Library (`sleef.so`)
+  Provided under the [Boost Software License, Version 1.0](https://www.boost.org/LICENSE_1_0.txt)

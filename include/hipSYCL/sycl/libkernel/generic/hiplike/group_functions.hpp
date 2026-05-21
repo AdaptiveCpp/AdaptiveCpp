@@ -15,6 +15,7 @@
 #include "../../backend.hpp"
 #include "../../detail/data_layout.hpp"
 #include "../../detail/thread_hierarchy.hpp"
+#include "../../functional.hpp"
 #include "../../id.hpp"
 #include "../../sub_group.hpp"
 #include "../../vec.hpp"
@@ -177,6 +178,58 @@ bool __acpp_leader_all_of(Group g, T *first, T *last, Predicate pred) {
 }
 }
 
+// shift_left
+template <int Dim, typename T>
+__device__ T __acpp_shift_group_left(
+    group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
+  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+
+  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
+  typename group<Dim>::linear_id_type target_lid = lid + delta;
+
+  scratch[lid] = x;
+  __acpp_group_barrier(g);
+
+  if (target_lid > g.get_local_range().size())
+    target_lid = 0;
+
+  return scratch[target_lid];
+}
+
+template <typename T>
+__device__ T __acpp_shift_group_left(
+    sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+  return detail::__acpp_shuffle_down_impl(x, delta);
+}
+
+// shift_right
+template <int Dim, typename T>
+__device__ T __acpp_shift_group_right(
+    group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
+  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+
+  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
+  typename group<Dim>::linear_id_type target_lid = lid - delta;
+
+  scratch[lid] = x;
+  __acpp_group_barrier(g);
+
+  if (target_lid > g.get_local_range().size()) {
+    target_lid = 0;
+  }
+
+  return scratch[target_lid];
+}
+
+template <typename T>
+__device__ T __acpp_shift_group_right(
+    sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+  return detail::__acpp_shuffle_up_impl(x, delta);
+}
 
 // none_of
 template<int Dim>
@@ -352,102 +405,10 @@ __device__ T __acpp_inclusive_scan_over_group(group<Dim> g, T x,
 
 template <typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ T __acpp_inclusive_scan_over_group(Group g, V x, T init,
-                                                 BinaryOperation binary_op) {
+__device__ T __acpp_inclusive_scan_over_group(Group g, V x,
+                                                 BinaryOperation binary_op, T init) {
   T scan = __acpp_inclusive_scan_over_group(g, T{x}, binary_op);
   return binary_op(scan, init);
-}
-
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ OutPtr __acpp_joint_inclusive_scan(Group g, InPtr first,
-                                                 InPtr last, OutPtr result,
-                                                 BinaryOperation binary_op,
-                                                 T init) {
-  using OutT = std::remove_reference_t<decltype(*result)>;
-
-  auto         lid          = g.get_local_linear_id();
-  auto         wid          = lid / __acpp_warp_size;
-  size_t       lrange       = g.get_local_range().size();
-  const size_t num_elements = last - first;
-  const size_t iterations   = (num_elements + lrange - 1) / lrange;
-
-  const size_t warp_size =
-      (wid == lrange / __acpp_warp_size && lrange % __acpp_warp_size != 0) ? lrange % __acpp_warp_size : __acpp_warp_size;
-
-  size_t offset     = lid;
-  OutT      carry_over = init;
-  OutT      local_x;
-
-  for (int i = 0; i < iterations; ++i) {
-    const size_t offset = lid + i * lrange;
-    local_x = (offset < num_elements) ? first[offset] : OutT{};
-    local_x =
-        __acpp_inclusive_scan_over_group(g, local_x, carry_over, binary_op);
-
-    if (offset < num_elements)
-      result[offset] = local_x;
-
-    carry_over = __acpp_group_broadcast(g, local_x, lrange - 1);
-  }
-
-  return result + num_elements;
-}
-
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ OutPtr __acpp_joint_inclusive_scan(Group g, InPtr first,
-                                                 InPtr last, OutPtr result,
-                                                 BinaryOperation binary_op) {
-  using OutT = std::remove_reference_t<decltype(*result)>;
-
-  auto         lid          = g.get_local_linear_id();
-  auto         wid          = lid / __acpp_warp_size;
-  size_t       lrange       = g.get_local_range().size();
-  const size_t num_elements = last - first;
-  const size_t iterations   = (num_elements + lrange - 1) / lrange;
-
-  OutT carry_over;
-  OutT local_x;
-
-  for (int i = 0; i < iterations; ++i) {
-    const size_t offset = lid + i * lrange;
-    local_x             = (offset < num_elements) ? first[offset] : OutT{};
-    if (i > 0) {
-      local_x =
-          __acpp_inclusive_scan_over_group(g, local_x, carry_over, binary_op);
-    } else {
-      local_x = __acpp_inclusive_scan_over_group(g, local_x, binary_op);
-    }
-
-    if (offset < num_elements)
-      result[offset] = local_x;
-
-    carry_over = __acpp_group_broadcast(g, local_x, lrange - 1);
-  }
-
-  return result + num_elements;
-}
-
-namespace detail { // until scoped-parallelism can be detected
-template <typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ T *
-__acpp_leader_inclusive_scan(Group g, V *first, V *last, T *result,
-                                BinaryOperation binary_op, T init) {
-  return __acpp_joint_inclusive_scan(g, first, last, result, binary_op,
-                                        init);
-}
-
-template<typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__
-T *__acpp_leader_inclusive_scan(Group g, V *first, V *last, T *result,
-                         BinaryOperation binary_op) {
-  return __acpp_joint_inclusive_scan(g, first, last, result, binary_op);
-}
 }
 
 // exclusive_scan
@@ -495,105 +456,7 @@ template<typename Group, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 __device__
 T __acpp_exclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
-  return __acpp_exclusive_scan_over_group(g, x, T{}, binary_op);
-}
-
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ OutPtr __acpp_joint_exclusive_scan(Group g, InPtr first,
-                                                 InPtr last, OutPtr result,
-                                                 T init,
-                                                 BinaryOperation binary_op) {
-  auto lid = g.get_local_linear_id();
-  if (lid == 0 && last - first > 0)
-    result[0] = init;
-  return __acpp_joint_inclusive_scan(g, first, last - 1, result + 1,
-                                        binary_op, init);
-}
-
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ OutPtr __acpp_joint_exclusive_scan(Group g, InPtr first,
-                                                 InPtr last, OutPtr result,
-                                                 BinaryOperation binary_op) {
-  using OutT = std::remove_reference_t<decltype(*result)>;
-  return __acpp_joint_exclusive_scan(
-      g, first, last, result, OutT{},
-      binary_op);
-}
-
-namespace detail { // until scoped-parallelism can be detected
-template <typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ T *__acpp_leader_exclusive_scan(Group g, V *first, V *last,
-                                              T *result, T init,
-                                              BinaryOperation binary_op) {
-  return __acpp_joint_exclusive_scan(g, first, last, result, init,
-                                        binary_op);
-}
-
-template <typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-__device__ T *__acpp_leader_exclusive_scan(Group g, V *first, V *last,
-                                              T *result,
-                                              BinaryOperation binary_op) {
-  return __acpp_joint_exclusive_scan(g, first, last, result, binary_op);
-}
-}
-
-// shift_left
-template <int Dim, typename T>
-__device__ T __acpp_shift_group_left(
-    group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
-  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
-             scratch_storage;
-  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
-
-  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
-  typename group<Dim>::linear_id_type target_lid = lid + delta;
-
-  scratch[lid] = x;
-  __acpp_group_barrier(g);
-
-  if (target_lid > g.get_local_range().size())
-    target_lid = 0;
-
-  return scratch[target_lid];
-}
-
-template <typename T>
-__device__ T __acpp_shift_group_left(
-    sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
-  return detail::__acpp_shuffle_down_impl(x, delta);
-}
-
-// shift_right
-template <int Dim, typename T>
-__device__ T __acpp_shift_group_right(
-    group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
-  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
-             scratch_storage;
-  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
-
-  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
-  typename group<Dim>::linear_id_type target_lid = lid - delta;
-
-  scratch[lid] = x;
-  __acpp_group_barrier(g);
-
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
-    target_lid = 0;
-
-  return scratch[target_lid];
-}
-
-template <typename T>
-__device__ T __acpp_shift_group_right(
-    sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
-  return detail::__acpp_shuffle_up_impl(x, delta);
+  return __acpp_exclusive_scan_over_group(g, x, sycl::known_identity_v<BinaryOperation, std::decay_t<T>>, binary_op);
 }
 
 // permute_group_by_xor
@@ -610,9 +473,9 @@ __device__ T __acpp_permute_group_by_xor(
   scratch[lid] = x;
   __acpp_group_barrier(g);
 
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   return scratch[target_lid];
 }
@@ -639,9 +502,9 @@ __device__ T __acpp_select_from_group(
   scratch[lid] = x;
   __acpp_group_barrier(g);
 
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
+  if (target_lid > g.get_local_range().size()) {
     target_lid = 0;
+  }
 
   return scratch[target_lid];
 }

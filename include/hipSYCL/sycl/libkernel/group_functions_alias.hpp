@@ -93,7 +93,7 @@ template<typename Group, typename V, typename T, typename BinaryOperation>
 [[deprecated("renamed to 'inclusive_scan_over_group' in SYCL 2020 Specification")]]
 ACPP_KERNEL_TARGET
 T group_inclusive_scan(Group g, V x, T init, BinaryOperation binary_op) {
-  return inclusive_scan_over_group(g, x, init, binary_op);
+  return inclusive_scan_over_group(g, x, binary_op, init);
 }
 template<typename Group, typename T, typename BinaryOperation>
 [[deprecated("renamed to 'inclusive_scan_over_group' in SYCL 2020 Specification")]]

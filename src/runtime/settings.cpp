@@ -16,6 +16,7 @@
 
 #include <string>
 #include <fstream>
+#include <optional>
 
 namespace hipsycl {
 namespace rt {
@@ -60,13 +61,13 @@ visibility_mask_t::mapped_type parse_device_visibility_mask(const std::string& s
       if(is_number(components[0])) {
         current.device_index_equality = std::stoi(components[0]);
       } else if(components[0] != "*") {
-        current.device_name_match = components[0]; 
+        current.device_name_match = components[0];
       }
     } else if (components.size() > 1) {
       if(is_number(components[0])) {
         current.platform_index_equality = std::stoi(components[0]);
       } else if(components[0] != "*") {
-        current.platform_name_match = components[0]; 
+        current.platform_name_match = components[0];
       }
 
       if(is_number(components[1])) {
@@ -168,6 +169,8 @@ std::istream &operator>>(std::istream &istr, visibility_mask_t &out) {
       backend = rt::backend_id::omp;
     } else if (name == "ocl" || name == "opencl") {
       backend = rt::backend_id::ocl;
+    } else if (name == "metal") {
+      backend = rt::backend_id::metal;
     } else {
       istr.setstate(std::ios_base::failbit);
       // Don't use HIPSYCL_DEBUG_WARNING, it will cause recursive init error.
@@ -196,6 +199,30 @@ std::istream &operator>>(std::istream &istr, default_selector_behavior& out) {
     out = default_selector_behavior::system;
   else
     istr.setstate(std::ios_base::failbit);
+  return istr;
+}
+
+std::istream &operator>>(std::istream &istr, std::optional<jitopt_host_vector_math_library>& out) {
+  std::string str;
+  istr >> str;
+
+  std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+
+  if (str == "none")
+    out = jitopt_host_vector_math_library::none;
+  else if (str == "svml")
+    out = jitopt_host_vector_math_library::svml;
+  else if (str == "armpl")
+    out = jitopt_host_vector_math_library::armpl;
+  else if (str == "sleef")
+    out = jitopt_host_vector_math_library::sleef;
+  else if (str == "libmvec")
+    out = jitopt_host_vector_math_library::libmvec;
+  else{
+    istr.setstate(std::ios_base::failbit);
+    std::cout << "'" << str << "' is not a valid vector math library option. Valid option are: none, svml, armpl, sleef, libmvec." << std::endl;
+  }
+
   return istr;
 }
 

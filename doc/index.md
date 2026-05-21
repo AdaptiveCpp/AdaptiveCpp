@@ -18,7 +18,7 @@ Welcome to the documentation of AdaptiveCpp!
 
     ---
 
-    We support CPUs and GPUs from all major vendors, either through multipass compilation or through our single-pass SSCP compiler.
+    We support CPUs and GPUs from all major vendors (Intel, NVIDIA, AMD, Apple), either through multipass compilation or through our single-pass SSCP compiler.
 
     [:octicons-arrow-right-24: Usage](./using-acpp.md)
 

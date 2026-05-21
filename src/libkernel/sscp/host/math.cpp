@@ -136,10 +136,10 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_atan2pi_f64(double x, double y) {
 
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_cospi_f32(float x) {
-  return cosf(x) / M_PI;
+  return cosf(x * M_PI);
 }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_cospi_f64(double x) {
-  return cos(x) / M_PI;
+  return cos(x * M_PI);
 }
 
 // fmin(x - floor(x), nextafter(genfloat(1.0), genfloat(0.0)) ). floor(x) is returned in iptr.
@@ -162,7 +162,12 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_frexp_f64(double x,
 }
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2(hypot)
-HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(ilogb)
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f32(float x) {
+  return ilogbf(x);
+}
+HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_ilogb_f64(double x) {
+  return ilogb(x);
+}
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_ldexp_f32(float x,
                                                     __acpp_int32 k) {
@@ -186,6 +191,28 @@ HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y ) {
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) {
   return lgamma_r(x, y);
 }
+#else
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y) {
+  float r = lgammaf(x);
+  if (x >= 0.0f) {
+    *y = 1;
+  } else {
+    int n = (int)floorf(-x);
+    *y = (n & 1) ? 1 : -1;
+  }
+  return r;
+}
+
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) {
+  double r = lgamma(x);
+  if (x >= 0.0) {
+    *y = 1;
+  } else {
+    int n = (int)floor(-x);
+    *y = (n & 1) ? 1 : -1;
+  }
+  return r;
+}
 #endif
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(log)
@@ -196,8 +223,10 @@ HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(logb)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN3_NAME(mad,fmaf,fma)
 
 #if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(__GLIBC__) || __GLIBC_PREREQ(2, 25)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(maxmag,fmaxmagf,fmaxmag)
-HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(minmag,fmaxmagf,fmaxmag)
+HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(minmag,fminmagf,fminmag)
+#endif
 #endif
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_modf_f32(float x, float* y ) {
@@ -244,12 +273,20 @@ HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(sin)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(sinh)
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_sinpi_f32(float x) {
-  return sinf(x) / M_PI;
+  return sinf(x * M_PI);
 }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_sinpi_f64(double x) {
-  return sin(x) / M_PI;
+  return sin(x * M_PI);
 }
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(tan)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(tanh)
+
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanpi_f32(float x) {
+  return tanf(x * float(M_PI));
+}
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tanpi_f64(double x) {
+  return tan(x * M_PI);
+}
+
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(trunc)

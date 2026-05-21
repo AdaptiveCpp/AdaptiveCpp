@@ -365,7 +365,7 @@ if(BUILD_CLANG_PLUGIN)
         message(STATUS "Found ROCm clang: ${ROCM_CLANG_PATH}")
         execute_process(COMMAND ${ROCM_CLANG_PATH} "--version"
           OUTPUT_VARIABLE ROCM_CLANG_VERBOSE_OUTPUT)
-        string(REGEX MATCH "clang version ([0-9]+).([0-9]+).([0-9]+)" ROCM_CLANG_VERSION ${ROCM_CLANG_VERBOSE_OUTPUT})
+        string(REGEX MATCH "clang version ([0-9]+)\\.([0-9]+)\\.([0-9]+)" ROCM_CLANG_VERSION ${ROCM_CLANG_VERBOSE_OUTPUT})
         if(ROCM_CLANG_VERSION)
           set(ROCM_LLVM_MAJOR ${CMAKE_MATCH_1})
           set(ROCM_LLVM_MINOR ${CMAKE_MATCH_2})
@@ -387,7 +387,7 @@ if(BUILD_CLANG_PLUGIN)
       # by Linux distributions as they may be missing the roc-* identifier in the output :(
       execute_process(COMMAND ${CLANG_EXECUTABLE_PATH} "--version"
         OUTPUT_VARIABLE CLANG_VERBOSE_OUTPUT)
-      string(REGEX MATCH "clang version [0-9]+.[0-9]+.[0-9]+ \\(.+ roc-([0-9]+).([0-9]+).([0-9]+)" AMD_CLANG_VERSION ${CLANG_VERBOSE_OUTPUT})
+      string(REGEX MATCH "clang version [0-9]+\\.[0-9]+\\.[0-9]+[a-zA-Z]* \\(.+ roc-([0-9]+)\\.([0-9]+)\\.([0-9]+)" AMD_CLANG_VERSION ${CLANG_VERBOSE_OUTPUT})
 
       if(AMD_CLANG_VERSION)
         set(ROCM_VERSION_MAJOR ${CMAKE_MATCH_1})
@@ -436,8 +436,8 @@ if(BUILD_CLANG_PLUGIN)
     endif()
   endif()
   if(ENFORCE_COMPATIBLE_LLVM AND NOT ACPP_EXPERIMENTAL_LLVM)
-    if(${LLVM_VERSION_MAJOR} GREATER 20)
-      message(SEND_ERROR "LLVM versions greater than 20 are not yet tested/supported, use -DACPP_EXPERIMENTAL_LLVM=ON if you still wish to try your luck.")
+    if(${LLVM_VERSION_MAJOR} GREATER 21)
+      message(SEND_ERROR "LLVM versions greater than 21 are not yet tested/supported, use -DACPP_EXPERIMENTAL_LLVM=ON if you still wish to try your luck.")
     endif()
     if(${LLVM_VERSION_MAJOR} GREATER 17)
       # Starting from LLVM 18, releases will have LLVM_VERSION_MINOR>0
@@ -748,7 +748,12 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${NUMA_LIBRARY}\" : \"/\",
   \"${LLVM_LIBRARY}\" : \"/\",
   \"${OpenMP_omp_LIBRARY}\" : \"/\",
-  \"${OpenMP_gomp_LIBRARY}\" : \"/\"
+  \"${OpenMP_gomp_LIBRARY}\" : \"/\",
+  \"${LIBSLEEF}\" : \"/\",
+  \"${LIBMVEC}\" : \"/\",
+  \"${LIBAMATH}\" : \"/\",
+  \"${LIBSVML}\" : \"/\",
+  \"${LIBINTLC}\" : \"/\"
 }
 ")
 

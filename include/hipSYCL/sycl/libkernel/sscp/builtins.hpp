@@ -112,7 +112,12 @@ HIPSYCL_BUILTIN double __acpp_frexp(double x, int* ptr) noexcept {
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(hypot)
-HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(ilogb)
+HIPSYCL_BUILTIN int __acpp_ilogb(float x) noexcept {
+  return __acpp_sscp_ilogb_f32(x);
+}
+HIPSYCL_BUILTIN int __acpp_ilogb(double x) noexcept {
+  return __acpp_sscp_ilogb_f64(x);
+}
 
 HIPSYCL_BUILTIN float __acpp_ldexp(float x, int k) noexcept {
   return __acpp_sscp_ldexp_f32(x, static_cast<__acpp_int32>(k));
@@ -163,7 +168,7 @@ HIPSYCL_BUILTIN T __acpp_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-HIPSYCL_BUILTIN double __acpp_modf(float x, float* y) noexcept {
+HIPSYCL_BUILTIN float __acpp_modf(float x, float* y) noexcept {
   return __acpp_sscp_modf_f32(x, y);
 }
 
@@ -210,6 +215,7 @@ HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(sinh)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(sinpi)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(tan)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(tanh)
+HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(tanpi)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(trunc)
 
 
@@ -454,7 +460,7 @@ HIPSYCL_BUILTIN T __acpp_clamp(T x, T minval, T maxval) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __acpp_degrees(T x) noexcept {
-  return (180.f / M_PI) * x;
+  return static_cast<T>(180.0 / M_PI) * x;
 }
 
 // __acpp_max() and __acpp_min() are handled by the overloads from the
@@ -467,7 +473,7 @@ HIPSYCL_BUILTIN T __acpp_mix(T x, T y, T a) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __acpp_radians(T x) noexcept {
-  return (M_PI / 180.f) * x;
+  return static_cast<T>(M_PI / 180.0) * x;
 }
 
 template<class T>

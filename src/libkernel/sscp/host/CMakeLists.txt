@@ -26,7 +26,8 @@ if(WITH_LLVM_TO_HOST)
   libkernel_generate_bitcode_target(
       TARGETNAME host 
       TRIPLE ""
-      SOURCES ${HOST_LIBKERNEL_BITCODE_SOURCES})
+      SOURCES ${HOST_LIBKERNEL_BITCODE_SOURCES}
+      ADDITIONAL_ARGS -fno-math-errno -ffp-contract=fast)
 
   libkernel_generate_bitcode_target(
       TARGETNAME host-fast

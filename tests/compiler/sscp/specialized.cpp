@@ -45,17 +45,24 @@ private:
 int main () {
   sycl::queue q = get_queue();
 
-  uint64_t* data = sycl::malloc_shared<uint64_t>(1, q);
+  uint64_t* data = sycl::malloc_device<uint64_t>(1, q);
 
-  *data = 1;
+  uint64_t host = 1;
+  q.memcpy(data, &host, sizeof(uint64_t)).wait();
   q.single_task(test_kernel{data, 0, 2, 3, 4, 5, 6, 7}).wait();
-  // CHECK: 7
-  std::cout << *data << std::endl;
 
-  *data = 1;
+  q.memcpy(&host, data, sizeof(uint64_t)).wait();
+
+  // CHECK: 7
+  std::cout << host << std::endl;
+
+  host = 1;
+  q.memcpy(data, &host, sizeof(uint64_t)).wait();
   q.single_task(test_kernel{data, 1, 2, 3, 1, 1, 1, 7}).wait();
+  q.memcpy(&host, data, sizeof(uint64_t)).wait();
+
   // CHECK: 13
-  std::cout << *data << std::endl;
+  std::cout << host << std::endl;
 
 
   sycl::free(data, q);

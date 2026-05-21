@@ -429,11 +429,11 @@ void scan_kernel(sycl::nd_item<1> idx, T *local_memory, scratch_data<T> scratch,
     sycl::group_barrier(idx.get_group());
 
     // All groups except group 0 need to perform lookback to find their prefix
-    T exclusive_prefix;
+    T exclusive_prefix = local_inclusive_prefix; // avoid UB: must be initialized
     if(effective_group_id != 0) {
       if(local_id == 0) {
         exclusive_prefix = exclusive_prefix_look_back(
-            exclusive_prefix, effective_group_id, scratch.group_status,
+            local_inclusive_prefix, effective_group_id, scratch.group_status,
             scratch.group_aggregate, scratch.inclusive_prefix, op);
       }
       exclusive_prefix = collective_broadcast<T, BinaryOp>(

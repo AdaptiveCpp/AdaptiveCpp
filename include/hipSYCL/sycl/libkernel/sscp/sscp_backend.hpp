@@ -33,11 +33,11 @@
 
  #define __acpp_if_target_host(...)                                         \
   if (__acpp_sscp_is_host) {                                                \
-    __VA_ARGS__                                                                \
+    __VA_ARGS__                                                             \
   }
  #define __acpp_if_target_device(...)                                       \
   if (__acpp_sscp_is_device) {                                              \
-    __VA_ARGS__                                                                \
+    __VA_ARGS__                                                             \
   }
 
 
@@ -57,6 +57,7 @@
  #include "hipSYCL/glue/llvm-sscp/ir_constants.hpp"
  #include "builtins/core.hpp"
  #include "builtins/linear_id.hpp"
+ #include "builtins/global_id.hpp"
  
 #else
  #define ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP 0

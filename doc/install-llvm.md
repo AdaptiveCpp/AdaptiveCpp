@@ -18,12 +18,12 @@ Install
 * libomp (including development headers)
 * lld
 
-For example, the required steps to install clang 16 on an Ubuntu system are:
+For example, the required steps to install clang 21 on an Ubuntu system are:
 ```
 wget https://apt.llvm.org/llvm.sh #Convenience script that sets up the repositories
 chmod +x llvm.sh
-./llvm.sh 16 #Set up repositories for clang 16
-apt install -y libclang-16-dev clang-tools-16 libomp-16-dev llvm-16-dev lld-16
+./llvm.sh 21 #Set up repositories for clang 21
+apt install -y libclang-21-dev clang-tools-21 libomp-21-dev llvm-21-dev lld-21
 ```
 
 #### Only if you wish to compile LLVM from source (not recommended)
@@ -34,10 +34,10 @@ It is generally not necessary to compile LLVM by yourself. However, if you wish 
 - Generate `libLLVM.so`: `-DLLVM_BUILD_LLVM_DYLIB=ON` (only required if the SSCP compilation flow is enabled when building AdaptiveCpp, which is true by default for supported versions of LLVM)
 - Enable the correct backends for your hardware: `nvptx` for NVIDIA GPUs and `amdgpu` for AMD GPUs.
 
-An example build of LLVM 20 from source might look like this:
+An example build of LLVM 21 from source might look like this:
 
 ```
-git clone https://github.com/llvm/llvm-project -b release/20.x
+git clone https://github.com/llvm/llvm-project -b release/21.x
 cd llvm-project
 mkdir -p build
 cd build
@@ -79,9 +79,9 @@ If AdaptiveCpp does not automatically configure the build for the desired clang/
 Verify from the cmake that the selected `clang++` and include headers match the LLVM that you have requested. Example output:
 ```
 ...
--- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-16/cmake/
--- Selecting clang: /usr/bin/clang++-16
--- Using clang include directory: /usr/include/clang/16.0.1/include/..
+-- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-20/cmake
+-- Selecting clang: /usr/lib/llvm-20/bin/clang++
+-- Using clang include directory: /usr/lib/llvm-20/lib/clang/20/include/..
 ...
 ```
 

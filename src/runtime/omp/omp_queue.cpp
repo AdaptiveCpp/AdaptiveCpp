@@ -34,22 +34,23 @@
 #include "hipSYCL/runtime/adaptivity_engine.hpp"
 #include "hipSYCL/runtime/omp/omp_code_object.hpp"
 
-#ifndef WIN32 // MSVC might not have #warning?
+#ifndef _WIN32 // MSVC might not have #warning?
 #ifndef _OPENMP
 #warning Building omp backend with JIT support, but OpenMP parallelization is not available - kernels will run sequentially! This points to an issue in the build system.
 #endif
 #endif
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <unistd.h>
 #else
-#include <Windows.h>
+#include <windows.h>
 #endif
 #endif
 
 #include <omp.h>
 
 #include <memory>
+#include <optional>
 
 namespace hipsycl {
 namespace rt {
@@ -183,7 +184,7 @@ private:
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
 std::size_t get_page_size() {
-#ifndef WIN32
+#ifndef _WIN32
   return static_cast<std::size_t>(sysconf(_SC_PAGESIZE));
 #else
   SYSTEM_INFO si;
@@ -468,6 +469,12 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     _config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
     _config.set_build_option(opt.first, opt.second);
+
+  std::optional<jitopt_host_vector_math_library> host_veclib =
+      application::get_settings().get<setting::jitopt_host_vector_math_library>();
+  if(host_veclib.has_value())
+    _config.set_build_option(kernel_build_option::host_vector_math_library,
+        static_cast<int>(*host_veclib));
 
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(_config);

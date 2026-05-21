@@ -141,11 +141,26 @@ ACPP_WORKGROUP_FLOAT_SCAN(f64)
     }                                                                                              \
   }
 
-ACPP_WORKGROUP_INT_SCAN(i8, int8)
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+__acpp_int8
+__acpp_sscp_work_group_inclusive_scan_i8(__acpp_sscp_algorithm_op op,
+                                         __acpp_int8 x) {
+  return static_cast<__acpp_int8>(__acpp_sscp_work_group_inclusive_scan_i16(
+      op, static_cast<__acpp_int16>(x)));
+}
+
 ACPP_WORKGROUP_INT_SCAN(i16, int16)
 ACPP_WORKGROUP_INT_SCAN(i32, int32)
 ACPP_WORKGROUP_INT_SCAN(i64, int64)
-ACPP_WORKGROUP_INT_SCAN(u8, uint8)
+
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+__acpp_uint8
+__acpp_sscp_work_group_inclusive_scan_u8(__acpp_sscp_algorithm_op op,
+                                         __acpp_uint8 x) {
+  return static_cast<__acpp_uint8>(__acpp_sscp_work_group_inclusive_scan_u16(
+      op, static_cast<__acpp_uint16>(x)));
+}
+
 ACPP_WORKGROUP_INT_SCAN(u16, uint16)
 ACPP_WORKGROUP_INT_SCAN(u32, uint32)
 ACPP_WORKGROUP_INT_SCAN(u64, uint64)

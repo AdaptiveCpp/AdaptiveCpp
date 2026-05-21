@@ -64,13 +64,13 @@ void test(sycl::queue& q) {
       return tolerance;
     }
   };
-    
-  
+
+
   for(int i = 0; i < N; ++i) {
     BOOST_TEST(results[0][i] == a[i] + b[i], tolerance);
     BOOST_TEST(results[1][i] == a[i] - b[i], tolerance);
     BOOST_TEST(results[2][i] == a[i] * b[i], tolerance);
-    
+
     T expected_div = a[i] / (b[i] + static_cast<T>(1));
     BOOST_TEST(results[3][i] == expected_div, get_div_tolerance());
   }
@@ -79,7 +79,13 @@ void test(sycl::queue& q) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(marray_ops, T, marray_test_types) {
   sycl::queue q;
-  
+  if constexpr(std::is_same_v<T, double>) {
+    if (!q.get_device().has(sycl::aspect::fp64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
+      return;
+    }
+  }
+
   test<T, 1>(q);
   test<T, 3>(q);
   test<T, 4>(q);

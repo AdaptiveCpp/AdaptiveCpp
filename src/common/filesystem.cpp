@@ -65,7 +65,7 @@ std::string get_lib_directory() {
   }
   
 #else
-  std::string library_name = HIPSYCL_COMMON_LIBRARY_NAME + std::string{".dll"};
+  std::string library_name = HIPSYCL_COMMON_LIBRARY_NAME;
   if(HMODULE handle = GetModuleHandleA(library_name.c_str()))
   {
     std::vector<char> path_buffer(MAX_PATH);
@@ -206,9 +206,9 @@ persistent_storage &persistent_storage::get() {
 }
 
 persistent_storage::persistent_storage() {
-#ifndef _WIN32
 
   auto get_home = [](std::string &home_out, std::string &subdirectory) -> bool {
+#ifndef _WIN32
     if(const char* home = std::getenv("XDG_DATA_HOME")) {
       home_out = home;
       subdirectory = "acpp";
@@ -220,14 +220,20 @@ persistent_storage::persistent_storage() {
       subdirectory = ".acpp";
       return true;
     }
-        
+
     const char* home = getpwuid(getuid())->pw_dir;
     if(home) {
       home_out = home;
       subdirectory = ".acpp";
       return true;
     }
-
+#else
+    if (const char* lad = std::getenv("LOCALAPPDATA")) {
+      home_out = lad;
+      subdirectory = "acpp";
+      return true;
+    }
+#endif
     return false;
   };
 
@@ -242,11 +248,6 @@ persistent_storage::persistent_storage() {
 
   std::string app_path = get_this_executable_path();
   _this_app_dir = generate_app_dir(app_path);
-  
-#else
-  _base_dir = (fs::current_path() / ".acpp").string();
-  _this_app_dir = (fs::path{_base_dir} / "apps" / "global").string();
-#endif
 
    _jit_cache_dir = (fs::path{_this_app_dir} / "jit-cache").string();
 
@@ -254,11 +255,7 @@ persistent_storage::persistent_storage() {
   fs::create_directories(_this_app_dir);
   fs::create_directories(_jit_cache_dir);
 
-#ifndef _WIN32
   _this_app_db = std::make_unique<db::appdb>(generate_appdb_path(app_path));
-#else
-  _this_app_db = std::make_unique<db::appdb>(generate_appdb_path(""));
-#endif
 }
 
 std::string persistent_storage::generate_app_dir(const std::string& app_path) const {

@@ -27,11 +27,17 @@
 * `ACPP_STDPAR_OHC_MIN_TIME`: stdpar offload heuristic configuration (ohc): If set, offloading decisions will only be reevaluated after at least this much time in seconds has passed.
 * `ACPP_RT_NO_JIT_CACHE_POPULATION`: If set to `1`, prevents the kernel cache from storing SSCP JIT-compiled binaries in the persistent on-disk cache. This can be useful e.g. in an MPI context, where it is sufficient that only one process among many populates the cache.
 * `ACPP_ADAPTIVITY_LEVEL`: Controls the optimization level of the adaptivity engine. This is currently only relevant for the generic SSCP target. A higher value implies JIT-compiling more specialized kernels at the expense of more frequent JIT compilations. A value of 0 disables all adaptivity (not recommended). The default is 1; the maximum implemented adaptivity level is 2.
-* `ACPP_APPDB_DIR`: By default, AdaptiveCpp stores its application db (which in particular includes the per-app JIT cache) in `$HOME/.acpp`. This environment variable can be used to override the location.
+* `ACPP_APPDB_DIR`: By default, AdaptiveCpp stores its application db (which in particular includes the per-app JIT cache) in `$HOME/.acpp` on Linux/macOS and in `%LOCALAPPDATA%\acpp` on Windows. This environment variable can be used to override the location.
 * `ACPP_JITOPT_IADS_RELATIVE_THRESHOLD`: JIT-time optimization *invariant argument detection & specialization* (active if `ACPP_ADAPTIVITY_LEVEL >= 2`): When the same argument has been passed into the kernel for this fraction of all invocations of the kernel, a new kernel will be JIT-compiled with the argument value hard-wired as constant. Not taken into account for the first application run. Default: 0.8.
 * `ACPP_JITOPT_IADS_RELATIVE_THRESHOLD_MIN_DATA`: JIT-time optimization *invariant argument detection & specialization* (active if `ACPP_ADAPTIVITY_LEVEL >= 2`): Only consider kernels with at least many invocations for the relative threshold described above. Default: 1024.
 * `ACPP_JITOPT_IADS_RELATIVE_EVICTION_THRESHOLD`: JIT-time optimization *invariant argument detection & specialization* (active if `ACPP_ADAPTIVITY_LEVEL >= 2`): If the relative frequency of a kernel argument value falls below this threshold, the statistics entry for the the argument value may be evicted if space for other values is needed.
 * `ACPP_ALLOCATION_TRACKING`: If set to 1, allows the AdaptiveCpp runtime to track and register the allocations that it manages. This enables additional JIT-time optimizations. Set to 0 to disable. (Default: 0)
+* `ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY`: If set, override the default vector math library to be used during JIT compilation. Allowed values:
+  * `none`: Disable usage of vector math library.
+  * `libmvec`: Use GNU libmvec vectorized libm implementation (Only available on x86_64 if LLVM version < 21).
+  * `svml`: Use Intel SVML.
+  * `sleef`: Use SLEEF.
+  * `armpl`: Use amath from Arm Performance Libraries.
 
 ## Environment variables to control dumping IR during JIT compilation
 

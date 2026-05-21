@@ -26,7 +26,9 @@ public:
       {"ptx-version", kernel_build_option::ptx_version},
       {"ptx-target-device", kernel_build_option::ptx_target_device},
       {"amdgpu-target-device", kernel_build_option::amdgpu_target_device},
-      {"spirv-dynamic-local-mem-allocation-size", kernel_build_option::spirv_dynamic_local_mem_allocation_size}
+      {"spirv-dynamic-local-mem-allocation-size", kernel_build_option::spirv_dynamic_local_mem_allocation_size},
+      {"host-vector-math-library", kernel_build_option::host_vector_math_library},
+      {"metal-max-args-for-flat-mode", kernel_build_option::metal_max_args_for_flat_mode}
     };
 
     _flags = {
@@ -35,7 +37,8 @@ public:
       {"ptx-ftz", kernel_build_flag::ptx_ftz},
       {"ptx-approx-div", kernel_build_flag::ptx_approx_div},
       {"ptx-approx-sqrt", kernel_build_flag::ptx_approx_sqrt},
-      {"spirv-enable-intel-llvm-spirv-options", kernel_build_flag::spirv_enable_intel_llvm_spirv_options}
+      {"spirv-enable-intel-llvm-spirv-options", kernel_build_flag::spirv_enable_intel_llvm_spirv_options},
+      {"spirv-enable-pointer-wrapping", kernel_build_flag::spirv_enable_pointer_wrapping}
     };
 
     for(const auto& elem : _options) {

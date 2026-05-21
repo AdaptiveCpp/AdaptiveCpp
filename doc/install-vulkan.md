@@ -141,6 +141,38 @@ Compilation fail investigations:
   bitcode is deserialized by clspv. This a symptom that has been seem when an kernel
   tries to pointer chase a linked list.
 
+#### Benchmark Results
+
+Initial benchmarking results are below. Comparing the 5 correctly running HeCbench benchmarks across different
+AdaptiveCpp SYCL backends, using an absolute time metric so "lower is better". We can see that when comparing
+against OpenCL or CUDA on the same hardware (2 v 3, 4 v 5, 6 v 7) Vulkan is always less performant. In
+some cases, such as dslash on NVIDIA Ada, it is an order of magnitude slower. These cases need to be analysed
+and improved as future work.
+
+           | OMP[1]    | OCL CPU[2] | VK CPU[3] | OCL GPU[4] | VK MTL GPU[5] | CUDA GPU[6]  | VK Ada GPU[7] |
+---------- | --------- | ---------- | --------- | ---------- | ------------- | ------------ | ------------- |
+nbody      | 48.6      | 9.8        | 35.4      | 1.6        | 3.7           | 1.3          | 4.2           |
+mandlebrot | 22.3 / 21 | 4.6 / 3.3  | 36 /  27  | 2.5 / 0.7  | 42.1 / 2.5    | 2.6 / 0.2    | 63 / 5.5      |
+ising      | 3.2       | 2.1        | 3.7       | 0.3        | 0.8           | 0.1          | 3.4           |
+dslash     | 2.3       | 2          | 3.9       | 2.2        | 2.3           | 1.4          | 160           |
+sph        | 28.2      | 53         | 36        | 22.7       | 38            | 35.7         | 64.8          |
+
+SYCL Backends:
+1. OpenMP host device
+2. OpenCL CPU driver for Intel Meteorlake
+3. Vulkan on llvmpipe backend (mesa)
+4. OpenCL GPU driver for Intel Meteorlake (Arc GPU)
+5. Vulkan on Intel Meteorlake GPU (mesa)
+6. Cuda backend on NVIDIA RTX 500 Ada
+7. Vulkan backend on NVIDIA RTX 500 Ada (NVIDIA proprietary driver)
+
+Configs:
+* ndbody - `./sycl-generic 128000 10`, time is total time in seconds.
+* mandlebrot - `./sycl-generic 1000`, time is average parallel time / average kernel execution time in ms.
+* ising - `./sycl-generic -x 5120 -y 5120 -w 10 -n 100`, time is elapsed time in seconds.
+* dslash -  `./sycl-generic 256`, time is total execution time in seconds.
+* sph - `./sycl-generic sph`, time is average execution time of sph kernels in ms.
+
 ### PCUDA
 
 Supporting PCUDA is not a primary goal of this backend as it can only
@@ -319,7 +351,7 @@ which are not recognized by other tools like `clspv`.
 ## Future Work
 
 * Test with real application.
-* Benchmark performance of backend.
+* Improve performance of backend, see [benchmark results](#benchmark-results).
 * Get SYCL running on Android device.
 * Add CI for KosmicKrisp mesa Vulkan on Metal implementation.
 * Add CI to self-hosted runners.

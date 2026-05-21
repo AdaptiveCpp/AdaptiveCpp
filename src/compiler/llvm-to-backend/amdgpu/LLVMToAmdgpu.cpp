@@ -320,7 +320,29 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
+
+
+  std::string BuiltinBitcodeFileAtomicGfx90a;
+  if (TargetDevice.find("gfx90a") != std::string::npos){
+    BuiltinBitcodeFileAtomicGfx90a = common::filesystem::join_path(common::filesystem::get_install_directory(),
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-atomic-gfx90a-full.bc"});
+  } else {
+    BuiltinBitcodeFileAtomicGfx90a = common::filesystem::join_path(common::filesystem::get_install_directory(),
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-atomic-gfx90a_fallback-full.bc"});
+  }
+
+
+  if(!this->linkBitcodeFile(M, BuiltinBitcodeFileAtomicGfx90a))
+    return false;
   
+  //Note gfx600-gfx705 does not have basic dpp instructions. If we want to support them we need to create some infra for
+  //Checking what features are available for each target. https://github.com/ROCm/llvm-project/blob/amd-staging/clang/test/CodeGenOpenCL/amdgpu-features.cl
+  std::string BuiltinDpp = common::filesystem::join_path(common::filesystem::get_install_directory(),
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-dpp_builtins-full.bc"});
+  if(!this->linkBitcodeFile(M, BuiltinDpp))
+    return false;
+
+
   AddressSpaceInferencePass ASIPass {ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
   

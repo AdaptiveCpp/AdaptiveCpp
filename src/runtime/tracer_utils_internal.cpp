@@ -50,7 +50,7 @@ void tracer_funcs::initialize_tracer() {
 
   // std::cout << "Hello World from inside the tracer_funcs constructor" << std::endl;
 
-  if (const char *env_p = std::getenv("SYCL_TOOL_LIBRARY")) {
+  if (const char *env_p = std::getenv("SYCL_TOOL_LIBRARIES")) {
     std::string path(env_p);
     std::istringstream path_stream(path);
 

@@ -1947,6 +1947,8 @@ class llvm_sscp_invocation:
 
   def get_cxx_flags(self):
     flags = ["-D__ACPP_ENABLE_LLVM_SSCP_TARGET__",
+            "-include", os.path.join(self._config.acpp_include_path, 
+                "hipSYCL", "glue", "llvm-sscp", "hcf_registration.hpp"),
             "-Xclang", "-disable-O0-optnone", "-mllvm", "-acpp-sscp"]
     
     if self._config.is_export_all:

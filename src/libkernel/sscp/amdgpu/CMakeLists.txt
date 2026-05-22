@@ -1,3 +1,10 @@
+set(amdgpu_libkernel_additional_args -nogpulib)
+
+if(WIN32)
+  list(APPEND amdgpu_libkernel_additional_args
+    -Xclang -fwchar-type=short)
+endif()
+
 if(WITH_LLVM_TO_AMDGPU_AMDHSA)
   libkernel_generate_bitcode_target(
       TARGETNAME amdgpu-amdhsa 
@@ -21,5 +28,5 @@ if(WITH_LLVM_TO_AMDGPU_AMDHSA)
       broadcast.cpp
       scan_inclusive.cpp
       scan_exclusive.cpp
-      ADDITIONAL_ARGS -nogpulib)
+      ADDITIONAL_ARGS ${amdgpu_libkernel_additional_args})
 endif()

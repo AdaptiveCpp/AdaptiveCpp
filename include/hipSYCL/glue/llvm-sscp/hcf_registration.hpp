@@ -9,7 +9,12 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
+
 // This file may be included early; avoid including std headers.
+// THIS FILE SHOULD NOT BE EXPLICITLY INCLUDED; THE COMPILER WILL DO
+// IT AUTOMATICALLY
+
+
 #include "s1_ir_constants.hpp"
 
 

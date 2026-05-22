@@ -14,7 +14,6 @@
 #define ACPP_PCUDA_HPP
 
 #include "hipSYCL/glue/llvm-sscp/s1_ir_constants.hpp"
-#include "hipSYCL/glue/llvm-sscp/hcf_registration.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"

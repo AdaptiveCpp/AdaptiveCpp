@@ -1,11 +1,11 @@
-set(amdgpu_libkernel_additional_args -nogpulib)
-
-if(WIN32)
-  list(APPEND amdgpu_libkernel_additional_args
-    -Xclang -fwchar-type=short)
-endif()
-
 if(WITH_LLVM_TO_AMDGPU_AMDHSA)
+  set(amdgpu_libkernel_additional_args -nogpulib)
+
+  if(WIN32)
+    list(APPEND amdgpu_libkernel_additional_args
+        -Xclang -fwchar-type=short)
+  endif()
+
   libkernel_generate_bitcode_target(
       TARGETNAME amdgpu-amdhsa 
       TRIPLE amdgcn-amd-amdhsa

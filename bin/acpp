@@ -2334,11 +2334,17 @@ class compiler:
       file_replacement_map[s] = outfile
 
     result_args = []
+    consume_next = False
     for arg in args:
       if arg in file_replacement_map:
         result_args.append(file_replacement_map[arg])
       else:
-        result_args.append(arg)
+        if arg == "-include":
+          consume_next = True
+        elif consume_next:
+          consume_next = False
+        else:
+          result_args.append(arg)
     
     return result_args
 

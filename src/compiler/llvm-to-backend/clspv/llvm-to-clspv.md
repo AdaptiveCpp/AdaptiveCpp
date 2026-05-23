@@ -75,6 +75,20 @@ flow less brittle so users can reliably run their kernels.
 `clspv` ignores LLVM freeze, assume, and lifetime intrinsics. Remove them early
 in the pipeline to make the IR cleaner.
 
+## MemsetLoweringPass
+
+`clspv` cannot lower `llvm.memset` intrinsics which take a length parameter
+determined at runtime, see
+[GitHub issue 1604](https://github.com/google/clspv/issues/1604). In addition to
+the limitation that the initializer can only be the constant value `0`.
+
+IR exceeding these constraints can be generated from a loop inside a kernel
+initializing each element of an array/accessor to an invariant value.
+
+This pass handles this case by replacing memset intrinsics taking a dynamic length
+parameter with a naive implementation of memset which uses a loop to copy chunks to
+the destination pointer based on the size of the data type being pointed to.
+
 ### AddrSpaceCastRemovalPass
 
 Remove casting away the address space from arguments, as otherwise

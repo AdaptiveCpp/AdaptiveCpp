@@ -608,13 +608,6 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
 BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
   namespace s = sycl;
 
-  s::queue q;
-  // See doc/vulkan.md issue #1
-  if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE(
-        "Skipping due to issue using memset for non-zero values in clspv");
-    return;
-  }
   constexpr int N = 1024;
   const s::range range(512);
   const s::id offset(10);
@@ -625,10 +618,10 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
   {
     s::buffer<int> buf(host_data.data(), N);
 
-    q.submit([&](s::handler &cgh){
+    s::queue{}.submit([&](s::handler &cgh) {
       s::accessor<int> acc(buf, cgh, range, offset);
 
-      cgh.single_task([=]() {
+      cgh.single_task([=](){
         for (auto it = acc.begin(); it != acc.end(); ++it)
           *it = -1;
       });

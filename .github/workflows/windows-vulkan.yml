@@ -58,7 +58,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{github.workspace}}/clspv/build/install
-        key: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
+        key: ea7c3cd2b0e004f52c2135cc850e684a92ca4cb1
 
     - name: checkout clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'
@@ -66,7 +66,7 @@ jobs:
       with:
         repository: google/clspv
         path: clspv
-        ref: 1562d02b43d8d0fcc0b6b7f0a24bb0b7235813f9
+        ref: ea7c3cd2b0e004f52c2135cc850e684a92ca4cb1
 
     - name: build clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'

@@ -19,7 +19,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable, from commit `75d2471da8d697ae5a04d06cf14a1667b74200e8` and later.
+* A `clspv` executable, from commit `ea7c3cd2b0e004f52c2135cc850e684a92ca4cb1` and later.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -356,9 +356,7 @@ which are not recognized by other tools like `clspv`.
 * Add CI for KosmicKrisp mesa Vulkan on Metal implementation.
 * Add CI to self-hosted runners.
 * Fix LIT tests
-* Fix Adaptivity Level 0 SYCL tests. Issues compiling linked list USM test
-  and with unused kernel arguments (See https://github.com/google/clspv/issues/1593),
-  as SSCP dead argument elimination only occurs with a single kernel in the TU.
+* Fix Adaptivity Level 0 SYCL tests.
 
 ## Test Status
 

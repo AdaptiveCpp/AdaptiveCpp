@@ -102,6 +102,7 @@ private:
   };
 
   protected_state _state;
+  bool _api_accepts_arbirary_pointers;
 
   // SSCP submission data
   common::spin_lock _sscp_submission_spin_lock;

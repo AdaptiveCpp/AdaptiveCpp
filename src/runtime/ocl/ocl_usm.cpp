@@ -67,6 +67,11 @@ public:
       // On CPU, we can be more relaxed in a couple of places as
       // USM will generally "just work"
       _is_cpu = _hw_mgr->get_device(device_index)->is_cpu();
+
+      // USM spec says that we can pass in arbitrary pointers
+      // if we also have shared USM. This was further relaxed in
+      // USM 1.1, however, not all implementations support that yet.
+      _supports_arbitrary_pointer_args = has_usm_shared_allocations();
     }
   }
 
@@ -285,6 +290,15 @@ public:
     return err;
   }
 
+  bool accepts_arbitrary_pointer_kernel_arguments() const override {
+    return _supports_arbitrary_pointer_args;
+  }
+
+  cl_int set_kernel_pointer_arg(cl::Kernel &k, unsigned i,
+                                const void *ptr) override {
+    return _set_kernel_arg_mem_pointer(k.get(), i, ptr);
+  }
+
 private:
   template <class Func>
   void initialize_func(Func &out, const char *name, cl_platform_id id) {
@@ -315,6 +329,7 @@ private:
   cl::Device _dev;
   ocl_hardware_manager* _hw_mgr;
   bool _is_cpu = false;
+  bool _supports_arbitrary_pointer_args;
 };
 
 
@@ -462,6 +477,15 @@ public:
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
     return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM, cl_bool{true});
+  }
+
+  bool accepts_arbitrary_pointer_kernel_arguments() const override {
+    return false;
+  }
+
+  cl_int set_kernel_pointer_arg(cl::Kernel &k, unsigned i,
+                                const void *ptr) override {
+    return k.setArg(i, ptr);
   }
 
 private:

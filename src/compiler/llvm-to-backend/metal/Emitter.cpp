@@ -82,7 +82,9 @@ std::optional<std::string> extractStringConstant(llvm::Value* V, std::string& er
   if (auto* gv = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
     GV = gv;
   } else if (auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
-    if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
+    if (CE->getOpcode() == llvm::Instruction::AddrSpaceCast) {
+      return extractStringConstant(CE->getOperand(0), errorStr);
+    } else if (CE->getOpcode() == llvm::Instruction::GetElementPtr) {
       GV = llvm::dyn_cast<llvm::GlobalVariable>(CE->getOperand(0));
     }
   }
@@ -221,6 +223,7 @@ uint3 __acpp_sscp_metal_local_size [[threads_per_threadgroup]];
 
 threadgroup void * constant __acpp_sscp_metal_dynamic_local_memory [[threadgroup(0)]];
 constant uint& constant __acpp_sscp_metal_dynamic_local_memory_size [[buffer(0)]];
+constant long& constant __acpp_sscp_metal_gpu_to_host_addr_diff [[buffer(1)]];
 
 )__";
 
@@ -512,7 +515,7 @@ bool MetalEmitter::emitSignature(Function& F) {
   os << returnType << " " << F.getName().str() << " (";
 
   bool first = true;
-  int bufIdx = 1; // index=0 is reserved for dynamic local memory size if needed, so start from 1
+  int bufIdx = 2; // index=0 is reserved for dynamic local memory size, index=1 for host-to-device address difference, so start from 2
   if (useArgStruct) {
     first = false;
     os << "device " << inputStructName << "& __args [[buffer(" << bufIdx++ << ")]]";
@@ -1168,6 +1171,13 @@ void MetalEmitter::emitGEPInstruction(const GetElementPtrInst* GEP, const std::s
   std::string base = emitExpr(GEP->getPointerOperand());
   Type* srcElemType = GEP->getSourceElementType();
   std::string typeName = mapType(srcElemType);
+  // Pointer-typed elements (e.g., ptr[]) cannot be expressed in MSL as "device void**"
+  if (srcElemType->isPointerTy()) {
+    auto pointerAS = srcElemType->getPointerAddressSpace();
+    auto elemAddrSpace = getAddressSpaceKeyword(pointerAS);
+    auto structName = "__struct_ptr_to_" + elemAddrSpace;
+    typeName = structName;
+  }
 
   unsigned physAS = getPhysicalPointerAddressSpace(GEP->getPointerOperand());
   std::string addrSpace = getAddressSpaceKeyword(physAS);
@@ -1510,7 +1520,8 @@ unsigned MetalEmitter::getPhysicalPointerAddressSpace(const Value* V) {
     return it->second;
   }
 
-  // If the value is an addrspacecast, get the original address space
+  inferredPtrAS[V] = 0; // to break cycles in PHIs and Loads
+
   if (auto* Alloca = dyn_cast<AllocaInst>(V)) {
     return (inferredPtrAS[V] = 5 /* private */);
   }

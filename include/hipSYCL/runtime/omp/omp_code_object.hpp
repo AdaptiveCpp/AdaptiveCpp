@@ -76,6 +76,7 @@ private:
 
   result _build_result;
   void *_module;
+  bool _remove_kernel_cache_file_in_dtor;
 
   std::vector<std::string> _kernel_names;
   std::unordered_map<std::string_view, omp_sscp_kernel*> _kernels;

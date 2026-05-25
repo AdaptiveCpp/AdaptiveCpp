@@ -1,5 +1,5 @@
 BootStrap: docker
-From: ubuntu:22.04
+From: ubuntu:24.04
 
 %post
 export DEBIAN_FRONTEND=noninteractive
@@ -11,16 +11,20 @@ export NVHPC_MINOR_VERSION="11"
 apt-get update
 apt-get install -y libboost-all-dev wget git libnuma-dev cmake curl unzip apt-transport-https ca-certificates software-properties-common sudo build-essential gettext libcurl4-openssl-dev openssh-client libnuma-dev jq libtbb-dev
 
-wget https://github.com/oneapi-src/level-zero/releases/download/v1.13.5/level-zero-devel_1.13.5+u22.04_amd64.deb
-wget https://github.com/oneapi-src/level-zero/releases/download/v1.13.5/level-zero_1.13.5+u22.04_amd64.deb
+wget https://github.com/oneapi-src/level-zero/releases/download/v1.28.2/level-zero_1.28.2+u22.04_amd64.deb
+wget https://github.com/oneapi-src/level-zero/releases/download/v1.28.2/level-zero_1.28.2+u22.04_amd64.deb.gpg
+wget https://github.com/oneapi-src/level-zero/releases/download/v1.28.2/level-zero-devel_1.28.2+u22.04_amd64.deb
+wget https://github.com/oneapi-src/level-zero/releases/download/v1.28.2/level-zero-devel_1.28.2+u22.04_amd64.deb.gpg
 
-wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.14828.8/intel-igc-core_1.0.14828.8_amd64.deb
-wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.14828.8/intel-igc-opencl_1.0.14828.8_amd64.deb
-wget https://github.com/intel/compute-runtime/releases/download/23.30.26918.9/intel-level-zero-gpu-dbgsym_1.3.26918.9_amd64.ddeb
-wget https://github.com/intel/compute-runtime/releases/download/23.30.26918.9/intel-level-zero-gpu_1.3.26918.9_amd64.deb
-wget https://github.com/intel/compute-runtime/releases/download/23.30.26918.9/intel-opencl-icd-dbgsym_23.30.26918.9_amd64.ddeb
-wget https://github.com/intel/compute-runtime/releases/download/23.30.26918.9/intel-opencl-icd_23.30.26918.9_amd64.deb
-wget https://github.com/intel/compute-runtime/releases/download/23.30.26918.9/libigdgmm12_22.3.0_amd64.deb
+wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.34.4/intel-igc-core-2_2.34.4+21428_amd64.deb
+wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.34.4/intel-igc-opencl-2_2.34.4+21428_amd64.deb
+wget https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/intel-ocloc-dbgsym_26.18.38308.1-0_amd64.ddeb
+wget https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/intel-ocloc_26.18.38308.1-0_amd64.deb
+wget https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/intel-opencl-icd-dbgsym_26.18.38308.1-0_amd64.ddeb
+wget https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/intel-opencl-icd_26.18.38308.1-0_amd64.deb
+wget https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/libigdgmm12_22.10.0_amd64.deb
+wget https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/libze-intel-gpu1-dbgsym_26.18.38308.1-0_amd64.ddeb
+wget https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/libze-intel-gpu1_26.18.38308.1-0_amd64.deb
 
 sudo dpkg -i *.deb
 
@@ -29,12 +33,12 @@ wget -q -O cuda-11.0.sh http://developer.download.nvidia.com/compute/cuda/11.0.2
 sh ./cuda-11.0.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/cuda-11.0 && rm ./cuda-11.0.sh
 echo "CUDA Version 11.0.0" | tee /opt/cuda-11.0/version.txt
 
-wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-${NVHPC_MAJOR_VERSION}-${NVHPC_MINOR_VERSION}_${NVHPC_MAJOR_VERSION}.${NVHPC_MINOR_VERSION}_amd64.deb
-wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-20${NVHPC_MAJOR_VERSION}_${NVHPC_MAJOR_VERSION}.${NVHPC_MINOR_VERSION}_amd64.deb
-apt-get install -y ./nvhpc-*
+#wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-${NVHPC_MAJOR_VERSION}-${NVHPC_MINOR_VERSION}_${NVHPC_MAJOR_VERSION}.${NVHPC_MINOR_VERSION}_amd64.deb
+#wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-20${NVHPC_MAJOR_VERSION}_${NVHPC_MAJOR_VERSION}.${NVHPC_MINOR_VERSION}_amd64.deb
+#apt-get install -y ./nvhpc-*
 
 wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
-echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION} jammy main" | sudo tee /etc/apt/sources.list.d/rocm.list
+echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION} noble main" | sudo tee /etc/apt/sources.list.d/rocm.list
 printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
 apt-get update
 apt-get install -y rocm-dev
@@ -43,3 +47,4 @@ wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
 ./llvm.sh 18
 apt-get install -y libclang-18-dev clang-tools-18 libomp-18-dev
+

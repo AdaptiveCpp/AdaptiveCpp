@@ -15,21 +15,23 @@
 #include "backend.hpp"
 #include "backend_interop.hpp"
 
-#include "hipSYCL/runtime/executor.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 
 namespace hipsycl {
+namespace rt {
+class backend_executor;
+}
 namespace sycl {
 
 class interop_handle {
 public:
   interop_handle() = delete;
   interop_handle(rt::device_id assigned_device, void *kernel_launcher_params)
-      : _dev{assigned_device}, _launcher_params{kernel_launcher_params},
-        _executor{nullptr} {}
+      : _dev{assigned_device}, _launcher_params{kernel_launcher_params} {}
 
+  // Guard against accidentally binding backend_executor* to the void* constructor.
   interop_handle(rt::device_id assigned_device,
-                 rt::backend_executor *executor)
-      : _dev{assigned_device}, _launcher_params{nullptr}, _executor{executor} {}
+                 rt::backend_executor *executor) = delete;
   
   backend get_backend() const noexcept {
     return _dev.get_backend();
@@ -63,11 +65,9 @@ public:
     
     if(_launcher_params)
       return glue::backend_interop<Backend>::get_native_queue(_launcher_params);
-    else if (_executor)
-      return glue::backend_interop<Backend>::get_native_queue(_executor);
 
     HIPSYCL_DEBUG_WARNING
-        << "interop_handle: Neither executor nor kernel launcher was provided, "
+        << "interop_handle: Kernel launcher was not provided, "
            "cannot construct native queue"
         << std::endl;
     
@@ -87,7 +87,6 @@ public:
 private:
   rt::device_id _dev;
   void *_launcher_params;
-  rt::backend_executor *_executor;
 };
 } // namespace sycl
 } // namespace hipsycl

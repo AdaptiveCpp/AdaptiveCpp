@@ -77,6 +77,10 @@ in the pipeline to make the IR cleaner.
 
 ## MemsetLoweringPass
 
+> Note: A fix has since been merged into clspv in for this issue, but
+> results in tests failures when used instead of this pass, needs investigated
+> further.
+
 `clspv` cannot lower `llvm.memset` intrinsics which take a length parameter
 determined at runtime, see
 [GitHub issue 1604](https://github.com/google/clspv/issues/1604). In addition to

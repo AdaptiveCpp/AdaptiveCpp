@@ -55,7 +55,7 @@ void atomic_store_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 void atomic_store_explicit(volatile __acpp_int32
-                               __attribute__((address_space(2))) *
+                               __attribute__((address_space(3))) *
                                ptr,
                            __acpp_int32 x, __acpp_int32 order,
                            __acpp_int32 scope);
@@ -76,7 +76,7 @@ void atomic_store_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 void atomic_store_explicit(volatile __acpp_int64
-                               __attribute__((address_space(2))) *
+                               __attribute__((address_space(3))) *
                                ptr,
                            __acpp_int64 x, __acpp_int32 order,
                            __acpp_int32 scope);
@@ -99,7 +99,7 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     return atomic_store_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_store_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -119,7 +119,7 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
     return atomic_store_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_store_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -138,7 +138,7 @@ __acpp_int32 atomic_load_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_load_explicit(volatile __acpp_int32
-                                      __attribute__((address_space(2))) *
+                                      __attribute__((address_space(3))) *
                                       ptr,
                                   __acpp_int32 order, __acpp_int32 scope);
 
@@ -156,7 +156,7 @@ __acpp_int64 atomic_load_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_load_explicit(volatile __acpp_int64
-                                      __attribute__((address_space(2))) *
+                                      __attribute__((address_space(3))) *
                                       ptr,
                                   __acpp_int32 order, __acpp_int32 scope);
 
@@ -177,7 +177,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
     return atomic_load_explicit(casted_ptr, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_load_explicit(casted_ptr, o, s);
   } else {
     auto casted_ptr =
@@ -197,7 +197,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_load_i64(
     return atomic_load_explicit(casted_ptr, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_load_explicit(casted_ptr, o, s);
   } else {
     auto casted_ptr =
@@ -217,7 +217,7 @@ __acpp_int32 atomic_exchange_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_exchange_explicit(volatile __acpp_int32
-                                          __attribute__((address_space(2))) *
+                                          __attribute__((address_space(3))) *
                                           ptr,
                                       __acpp_int32 x, __acpp_int32 order,
                                       __acpp_int32 scope);
@@ -238,7 +238,7 @@ __acpp_int64 atomic_exchange_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_exchange_explicit(volatile __acpp_int64
-                                          __attribute__((address_space(2))) *
+                                          __attribute__((address_space(3))) *
                                           ptr,
                                       __acpp_int64 x, __acpp_int32 order,
                                       __acpp_int32 scope);
@@ -261,7 +261,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_exchange_i32(
     return atomic_exchange_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_exchange_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -281,7 +281,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_exchange_i64(
     return atomic_exchange_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_exchange_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -301,8 +301,8 @@ bool atomic_compare_exchange_weak_explicit(
 
 // Address space(2), int32
 bool atomic_compare_exchange_weak_explicit(
-    volatile __acpp_int32 __attribute__((address_space(2))) * ptr,
-    __acpp_int32 __attribute__((address_space(2))) * expected,
+    volatile __acpp_int32 __attribute__((address_space(3))) * ptr,
+    __acpp_int32 __attribute__((address_space(3))) * expected,
     __acpp_int32 desired, __acpp_int32 success, __acpp_int32 failure,
     __acpp_int32 scope);
 
@@ -322,8 +322,8 @@ bool atomic_compare_exchange_weak_explicit(
 
 // Address space(2), int64
 bool atomic_compare_exchange_weak_explicit(
-    volatile __acpp_int64 __attribute__((address_space(2))) * ptr,
-    __acpp_int64 __attribute__((address_space(2))) * expected,
+    volatile __acpp_int64 __attribute__((address_space(3))) * ptr,
+    __acpp_int64 __attribute__((address_space(3))) * expected,
     __acpp_int64 desired, __acpp_int32 success, __acpp_int32 failure,
     __acpp_int32 scope);
 
@@ -350,9 +350,9 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_weak_i32(
                                                  desired, so, fo, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     auto casted_expected =
-        (__acpp_int32 __attribute__((address_space(2))) *)expected;
+        (__acpp_int32 __attribute__((address_space(3))) *)expected;
     return atomic_compare_exchange_weak_explicit(casted_ptr, casted_expected,
                                                  desired, so, fo, s);
   } else {
@@ -381,9 +381,9 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_weak_i64(
                                                  desired, so, fo, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     auto casted_expected =
-        (__acpp_int64 __attribute__((address_space(2))) *)expected;
+        (__acpp_int64 __attribute__((address_space(3))) *)expected;
     return atomic_compare_exchange_weak_explicit(casted_ptr, casted_expected,
                                                  desired, so, fo, s);
   } else {
@@ -407,8 +407,8 @@ bool atomic_compare_exchange_strong_explicit(
 
 // Address space(2), int32
 bool atomic_compare_exchange_strong_explicit(
-    volatile __acpp_int32 __attribute__((address_space(2))) * ptr,
-    __acpp_int32 __attribute__((address_space(2))) * expected,
+    volatile __acpp_int32 __attribute__((address_space(3))) * ptr,
+    __acpp_int32 __attribute__((address_space(3))) * expected,
     __acpp_int32 desired, __acpp_int32 success, __acpp_int32 failure,
     __acpp_int32 scope);
 
@@ -428,8 +428,8 @@ bool atomic_compare_exchange_strong_explicit(
 
 // Address space(2), int64
 bool atomic_compare_exchange_strong_explicit(
-    volatile __acpp_int64 __attribute__((address_space(2))) * ptr,
-    __acpp_int64 __attribute__((address_space(2))) * expected,
+    volatile __acpp_int64 __attribute__((address_space(3))) * ptr,
+    __acpp_int64 __attribute__((address_space(3))) * expected,
     __acpp_int64 desired, __acpp_int32 success, __acpp_int32 failure,
     __acpp_int32 scope);
 
@@ -456,9 +456,9 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
                                                    desired, so, fo, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     auto casted_expected =
-        (__acpp_int32 __attribute__((address_space(2))) *)expected;
+        (__acpp_int32 __attribute__((address_space(3))) *)expected;
     return atomic_compare_exchange_strong_explicit(casted_ptr, casted_expected,
                                                    desired, so, fo, s);
 
@@ -488,9 +488,9 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i64(
                                                    desired, so, fo, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     auto casted_expected =
-        (__acpp_int64 __attribute__((address_space(2))) *)expected;
+        (__acpp_int64 __attribute__((address_space(3))) *)expected;
     return atomic_compare_exchange_strong_explicit(casted_ptr, casted_expected,
                                                    desired, so, fo, s);
   } else {
@@ -512,7 +512,7 @@ __acpp_int32 atomic_fetch_and_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_fetch_and_explicit(volatile __acpp_int32
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int32 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -533,7 +533,7 @@ __acpp_int64 atomic_fetch_and_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_fetch_and_explicit(volatile __acpp_int64
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int64 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -556,7 +556,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_and_i32(
     return atomic_fetch_and_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_and_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -576,7 +576,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_and_i64(
     return atomic_fetch_and_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_and_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -594,7 +594,7 @@ __acpp_int32 atomic_fetch_or_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_fetch_or_explicit(volatile __acpp_int32
-                                          __attribute__((address_space(2))) *
+                                          __attribute__((address_space(3))) *
                                           ptr,
                                       __acpp_int32 x, __acpp_int32 order,
                                       __acpp_int32 scope);
@@ -615,7 +615,7 @@ __acpp_int64 atomic_fetch_or_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_fetch_or_explicit(volatile __acpp_int64
-                                          __attribute__((address_space(2))) *
+                                          __attribute__((address_space(3))) *
                                           ptr,
                                       __acpp_int64 x, __acpp_int32 order,
                                       __acpp_int32 scope);
@@ -638,7 +638,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_or_i32(
     return atomic_fetch_or_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_or_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -658,7 +658,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_or_i64(
     return atomic_fetch_or_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_or_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -676,7 +676,7 @@ __acpp_int32 atomic_fetch_xor_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_fetch_xor_explicit(volatile __acpp_int32
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int32 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -697,7 +697,7 @@ __acpp_int64 atomic_fetch_xor_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_fetch_xor_explicit(volatile __acpp_int64
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int64 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -720,7 +720,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_xor_i32(
     return atomic_fetch_xor_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_xor_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -740,7 +740,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_xor_i64(
     return atomic_fetch_xor_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_xor_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -758,7 +758,7 @@ __acpp_int32 atomic_fetch_add_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_fetch_add_explicit(volatile __acpp_int32
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int32 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -781,7 +781,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_add_i32(
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -799,7 +799,7 @@ __acpp_int64 atomic_fetch_add_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_fetch_add_explicit(volatile __acpp_int64
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int64 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -822,7 +822,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_add_i64(
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -840,7 +840,7 @@ __acpp_uint32 atomic_fetch_add_explicit(volatile __acpp_uint32
 
 // Address space(2), uint32
 __acpp_uint32 atomic_fetch_add_explicit(volatile __acpp_uint32
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint32 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -863,7 +863,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_add_u32(
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -881,7 +881,7 @@ __acpp_uint64 atomic_fetch_add_explicit(volatile __acpp_uint64
 
 // Address space(2), uint64
 __acpp_uint64 atomic_fetch_add_explicit(volatile __acpp_uint64
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint64 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -904,7 +904,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_add_u64(
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -922,7 +922,7 @@ __acpp_f32 atomic_fetch_add_explicit(volatile __acpp_f32
 
 // Address space(2), float
 __acpp_f32 atomic_fetch_add_explicit(volatile __acpp_f32
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f32 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -945,7 +945,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_add_f32(
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -963,7 +963,7 @@ __acpp_f64 atomic_fetch_add_explicit(volatile __acpp_f64
 
 // Address space(2), double
 __acpp_f64 atomic_fetch_add_explicit(volatile __acpp_f64
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f64 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -986,7 +986,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_add_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1004,7 +1004,7 @@ __acpp_int32 atomic_fetch_sub_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_fetch_sub_explicit(volatile __acpp_int32
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int32 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -1027,7 +1027,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_sub_i32(
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1045,7 +1045,7 @@ __acpp_int64 atomic_fetch_sub_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_fetch_sub_explicit(volatile __acpp_int64
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int64 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -1068,7 +1068,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_sub_i64(
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1086,7 +1086,7 @@ __acpp_uint32 atomic_fetch_sub_explicit(volatile __acpp_uint32
 
 // Address space(2), uint32
 __acpp_uint32 atomic_fetch_sub_explicit(volatile __acpp_uint32
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint32 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -1109,7 +1109,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_sub_u32(
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1127,7 +1127,7 @@ __acpp_uint64 atomic_fetch_sub_explicit(volatile __acpp_uint64
 
 // Address space(2), uint64
 __acpp_uint64 atomic_fetch_sub_explicit(volatile __acpp_uint64
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint64 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -1150,7 +1150,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_sub_u64(
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1168,7 +1168,7 @@ __acpp_f32 atomic_fetch_sub_explicit(volatile __acpp_f32
 
 // Address space(2), float
 __acpp_f32 atomic_fetch_sub_explicit(volatile __acpp_f32
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f32 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -1191,7 +1191,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_sub_f32(
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1209,7 +1209,7 @@ __acpp_f64 atomic_fetch_sub_explicit(volatile __acpp_f64
 
 // Address space(2), double
 __acpp_f64 atomic_fetch_sub_explicit(volatile __acpp_f64
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f64 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -1232,7 +1232,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_sub_f64(
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_sub_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1250,7 +1250,7 @@ __acpp_int32 atomic_fetch_min_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_fetch_min_explicit(volatile __acpp_int32
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int32 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -1273,7 +1273,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_min_i32(
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1291,7 +1291,7 @@ __acpp_int64 atomic_fetch_min_explicit(volatile __acpp_int64
 
 // Address space(2), int64
 __acpp_int64 atomic_fetch_min_explicit(volatile __acpp_int64
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int64 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -1314,7 +1314,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_min_i64(
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1332,7 +1332,7 @@ __acpp_uint32 atomic_fetch_min_explicit(volatile __acpp_uint32
 
 // Address space(2), uint32
 __acpp_uint32 atomic_fetch_min_explicit(volatile __acpp_uint32
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint32 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -1355,7 +1355,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_min_u32(
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1373,7 +1373,7 @@ __acpp_uint64 atomic_fetch_min_explicit(volatile __acpp_uint64
 
 // Address space(2), uint64
 __acpp_uint64 atomic_fetch_min_explicit(volatile __acpp_uint64
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint64 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -1396,7 +1396,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_min_u64(
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1414,7 +1414,7 @@ __acpp_f32 atomic_fetch_min_explicit(volatile __acpp_f32
 
 // Address space(2), f32
 __acpp_f32 atomic_fetch_min_explicit(volatile __acpp_f32
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f32 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -1437,7 +1437,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1455,7 +1455,7 @@ __acpp_f64 atomic_fetch_min_explicit(volatile __acpp_f64
 
 // Address space(2), f64
 __acpp_f64 atomic_fetch_min_explicit(volatile __acpp_f64
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f64 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -1478,7 +1478,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_min_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1496,7 +1496,7 @@ __acpp_int32 atomic_fetch_max_explicit(volatile __acpp_int32
 
 // Address space(2), int32
 __acpp_int32 atomic_fetch_max_explicit(volatile __acpp_int32
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int32 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -1519,7 +1519,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_max_i32(
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1537,7 +1537,7 @@ __acpp_int64 atomic_fetch_max_explicit(volatile __acpp_int64
 
 // Address space(2), int32
 __acpp_int64 atomic_fetch_max_explicit(volatile __acpp_int64
-                                           __attribute__((address_space(2))) *
+                                           __attribute__((address_space(3))) *
                                            ptr,
                                        __acpp_int64 x, __acpp_int32 order,
                                        __acpp_int32 scope);
@@ -1560,7 +1560,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_max_i64(
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1578,7 +1578,7 @@ __acpp_uint32 atomic_fetch_max_explicit(volatile __acpp_uint32
 
 // Address space(2), uint32
 __acpp_uint32 atomic_fetch_max_explicit(volatile __acpp_uint32
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint32 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -1601,7 +1601,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_max_u32(
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1619,7 +1619,7 @@ __acpp_uint64 atomic_fetch_max_explicit(volatile __acpp_uint64
 
 // Address space(2), uint64
 __acpp_uint64 atomic_fetch_max_explicit(volatile __acpp_uint64
-                                            __attribute__((address_space(2))) *
+                                            __attribute__((address_space(3))) *
                                             ptr,
                                         __acpp_uint64 x, __acpp_int32 order,
                                         __acpp_int32 scope);
@@ -1642,7 +1642,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_max_u64(
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_uint64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_uint64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1660,7 +1660,7 @@ __acpp_f32 atomic_fetch_max_explicit(volatile __acpp_f32
 
 // Address space(2), f32
 __acpp_f32 atomic_fetch_max_explicit(volatile __acpp_f32
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f32 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -1683,7 +1683,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f32 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f32 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
@@ -1701,7 +1701,7 @@ __acpp_f64 atomic_fetch_max_explicit(volatile __acpp_f64
 
 // Address space(2), f64
 __acpp_f64 atomic_fetch_max_explicit(volatile __acpp_f64
-                                         __attribute__((address_space(2))) *
+                                         __attribute__((address_space(3))) *
                                          ptr,
                                      __acpp_f64 x, __acpp_int32 order,
                                      __acpp_int32 scope);
@@ -1724,7 +1724,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_f64 __attribute__((address_space(2))) *)ptr;
+        (volatile __acpp_f64 __attribute__((address_space(3))) *)ptr;
     return atomic_fetch_max_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =

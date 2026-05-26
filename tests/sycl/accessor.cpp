@@ -208,33 +208,24 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     cgh.single_task<class accessor_api_device_accessors>([](){});
   });
 
-  // See doc/vulkan.md issue #4
-  if (queue.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping due to compiler issue");
-  } else {
-    queue.submit([&](s::handler &cgh) {
-      run_test([&](auto buf, auto... args) {
-        return buf.template get_access<s::access::mode::atomic>(cgh, args...);
-      });
-      // mostly compilation test
-      auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
-      auto atomicAcc3D =
-          buf_d.template get_access<s::access::mode::atomic>(cgh);
-      auto localAtomic =
-          s::accessor<int, 1, s::access::mode::atomic,
-                      s::access::target::local>{s::range<1>{2}, cgh};
-      auto localAtomic3D =
-          s::accessor<int, 3, s::access::mode::atomic,
-                      s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
-      cgh.parallel_for<class accessor_api_atomic_device_accessors>(
-          sycl::nd_range<1>{2, 2}, [=](sycl::nd_item<1> item) {
-            atomicAcc[0].exchange(0);
-            atomicAcc3D[0][1][0].exchange(0);
-            localAtomic[0].exchange(0);
-            localAtomic3D[0][1][0].exchange(0);
-          });
+  queue.submit([&](s::handler& cgh) {
+    run_test([&](auto buf, auto... args) {
+      return buf.template get_access<s::access::mode::atomic>(cgh, args...);
     });
-  }
+    // mostly compilation test
+    auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
+    auto atomicAcc3D = buf_d.template get_access<s::access::mode::atomic>(cgh);
+    auto localAtomic = s::accessor<int, 1, s::access::mode::atomic, s::access::target::local>{s::range<1>{2}, cgh};
+    auto localAtomic3D = s::accessor<int, 3, s::access::mode::atomic, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
+    cgh.parallel_for<class accessor_api_atomic_device_accessors>(
+        sycl::nd_range<1>{2, 2},
+        [=](sycl::nd_item<1> item) {
+          atomicAcc[0].exchange(0);
+          atomicAcc3D[0][1][0].exchange(0);
+          localAtomic[0].exchange(0);
+          localAtomic3D[0][1][0].exchange(0);
+    });
+  });
 
   // accessor is default-constructible, copy-constructible, copy-assignable, equality-comparable, swappable
   s::accessor<int, 0> a0;
@@ -357,7 +348,7 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
         acc[x][y] = -1;
     });
   });
-
+  
   q.submit([&](s::handler& cgh){
     auto acc = buff3.get_access<s::access::mode::discard_read_write>(cgh);
     
@@ -372,18 +363,18 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
         acc[x][y][z] = -1;
     });
   });
-
+  
   auto host_acc2d = buff2.get_access<s::access::mode::read>();
   auto host_acc3d = buff3.get_access<s::access::mode::read>();
-
+  
   for(size_t x = 0; x < buff_size3d[0]; ++x)
     for(size_t y = 0; y < buff_size3d[1]; ++y) {
-
+       
       size_t linear_id2d = static_cast<int>(x*buff_size2d[1] + y);
       s::id<2> id2d{x,y};
       BOOST_CHECK(host_acc2d[id2d] == linear_id2d);
       BOOST_CHECK(host_acc2d.get_pointer()[linear_id2d] == linear_id2d);
-
+        
       for(size_t z = 0; z < buff_size3d[2]; ++z) {
         size_t linear_id3d = x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z;
         s::id<3> id3d{x,y,z};

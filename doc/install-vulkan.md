@@ -19,7 +19,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable, from commit `ea7c3cd2b0e004f52c2135cc850e684a92ca4cb1` and later.
+* A `clspv` executable from commit `ea7c3cd2b0e004f52c2135cc850e684a92ca4cb1`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -88,7 +88,6 @@ which are not yet fully supported for use in kernels targeting Vulkan SPIR-V are
 
 | Feature                | Support                                                              |
 | ---------------------- | -------------------------------------------------------------------- |
-| Accessors              | Partially supported, but known issues failing to compile, prefer USM |
 | Reductions             | Not supported, will generate incorrect results rather than error     |
 | Floating point atomics | Not supported, will generate incorrect results rather than error     |
 | `marray`               | Not supported, will fail to compile or generate incorrect results    |
@@ -346,12 +345,15 @@ generic implementation is fallen back to.
 The existing spirv `libkernel` library is not used because it is implemented
 in terms of the
 [SPIRV-LLVM Translator IR expectations](https://github.com/KhronosGroup/SPIRV-LLVM-Translator/blob/main/docs/SPIRVRepresentationInLLVM.rst)
-which are not recognized by other tools like `clspv`.
+which are not recognized by other tools like `clspv`. clspv however can
+represent spirv builtins in IR by using a function call to a mangled name prefixed with
+convention `_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`.
 
 ## Future Work
 
 * Test with real application.
 * Improve performance of backend, see [benchmark results](#benchmark-results).
+* Use SPIR-V builtins to implement  `libkernel` rather than OpenCL-C builtins
 * Get SYCL running on Android device.
 * Add CI for KosmicKrisp mesa Vulkan on Metal implementation.
 * Add CI to self-hosted runners.
@@ -362,7 +364,7 @@ which are not recognized by other tools like `clspv`.
 
 | Suite                     | Status |
 | ------------------------- | ------ |
-| `accessor_tests`          | [Issue 1](#issue-1), [Issue 4](#issue-4) |
+| `accessor_tests`          | Pass   |
 | `atomic_tests`            | [Issue 2](#issue-2), [Issue 8](#issue-8) |
 | `buffer_tests`            | Pass   |
 | `explicit_copy_tests`     | Pass   |
@@ -389,11 +391,6 @@ which are not recognized by other tools like `clspv`.
 | `multi_ptr_test_suite`    | Pass   |
 | `smoke_task_queue`        | [Issue 7](#issue-7) |
 
-### Issue 1
-
-Only memset instructions using zero initializers are lowered by clspv.
-This affects `ranged_accessor_tests/ranged_accessor_1d_iterator` which creates a memset with `-1`.
-
 ### Issue 2
 
 clspv [doesn't support floating point atomics](https://github.com/google/clspv/issues/392#issuecomment-503236450).
@@ -405,13 +402,6 @@ floating point atomics are used in kernel code.
 clspv can't deal with `i48` LLVM IR types generated from `marray<short, 3>` testing. On llvmpipe
 from Mesa 25.0.7 (LLVM 15.0.7) there are also issues with other `marray` types which ACPP is
 built with LLVM 18, but not when built with LLVM 20.
-
-### Issue 4
-
-`accessor_api` issue with clspv consuming the LLVM-IR used to implement the atomic exchange builtin. It looks
-like this is due to the builtin taking a volatile pointer to a address space attribute pointer.
-Idea to fix is to add `__attribute__(addressspace(x))` to libkernel builtin definition, then
-do a clspv compiler pass that gets rid of the volatile load and do a manual mem2reg transform.
 
 ### Issue 5
 

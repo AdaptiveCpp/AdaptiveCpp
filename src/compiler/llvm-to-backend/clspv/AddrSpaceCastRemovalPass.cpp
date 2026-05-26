@@ -19,125 +19,6 @@
 namespace hipsycl {
 namespace compiler {
 
-// Fix atomic builtin calls that take an opaque ptr without an address
-// space but pointer value for used for builtin parameter has an addrspace. Done
-// by creating an address space cast for the relevant operand.
-bool fixupAtomicBuiltins(llvm::Function &F) {
-  static const llvm::SmallVector<llvm::StringRef> AtomicFuncs = {
-      "_Z20atomic_load_explicitPU3AS4VU7_Atomici12memory_order12memory_scope",
-      "_Z20atomic_load_explicitPU3AS4VU7_Atomicl12memory_order12memory_scope",
-      "_Z21atomic_store_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z21atomic_store_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-      "_Z24atomic_exchange_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z24atomic_exchange_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-
-      "_Z25atomic_fetch_add_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_add_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_add_explicitPU3AS4VU7_Atomicjj12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_add_explicitPU3AS4VU7_Atomicmm12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_add_explicitPU3AS4VU7_Atomicdd12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_add_explicitPU3AS4VU7_Atomicff12memory_order12memory_"
-      "scope",
-
-      "_Z25atomic_fetch_sub_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_sub_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_sub_explicitPU3AS4VU7_Atomicjj12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_sub_explicitPU3AS4VU7_Atomicmm12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_sub_explicitPU3AS4VU7_Atomicdd12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_sub_explicitPU3AS4VU7_Atomicff12memory_order12memory_"
-      "scope",
-
-      "_Z25atomic_fetch_min_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_min_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_min_explicitPU3AS4VU7_Atomicjj12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_min_explicitPU3AS4VU7_Atomicmm12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_min_explicitPU3AS4VU7_Atomicff12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_min_explicitPU3AS4VU7_Atomicdd12memory_order12memory_"
-      "scope",
-
-      "_Z25atomic_fetch_max_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_max_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_max_explicitPU3AS4VU7_Atomicjj12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_max_explicitPU3AS4VU7_Atomicmm12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_max_explicitPU3AS4VU7_Atomicff12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_max_explicitPU3AS4VU7_Atomicdd12memory_order12memory_"
-      "scope",
-
-      "_Z25atomic_fetch_and_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_and_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-
-      "_Z25atomic_fetch_xor_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z25atomic_fetch_xor_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-
-      "_Z24atomic_fetch_or_explicitPU3AS4VU7_Atomicii12memory_order12memory_"
-      "scope",
-      "_Z24atomic_fetch_or_explicitPU3AS4VU7_Atomicll12memory_order12memory_"
-      "scope",
-
-      "_Z37atomic_compare_exchange_weak_explicitPU3AS4VU7_"
-      "AtomiciPU3AS4ii12memory_orderS4_12memory_scope",
-      "_Z37atomic_compare_exchange_weak_explicitPU3AS4VU7_"
-      "AtomiciPU3AS4jj12memory_orderS4_12memory_scope",
-
-      "_Z39atomic_compare_exchange_strong_explicitPU3AS1VU7_"
-      "AtomiciPU3AS4ii12memory_orderS4_12memory_scope",
-      "_Z39atomic_compare_exchange_strong_explicitPU3AS1VU7_"
-      "AtomiciPU3AS4jj12memory_orderS4_12memory_scope",
-  };
-
-  bool DidTransform = false;
-  for (auto &BB : F) {
-    for (auto &I : BB) {
-      if (auto CI = llvm::dyn_cast<llvm::CallInst>(&I)) {
-        auto Func = CI->getCalledFunction();
-        auto Name = Func->getName();
-        if (std::find(AtomicFuncs.begin(), AtomicFuncs.end(), Name) !=
-            AtomicFuncs.end()) {
-          auto Arg0 = CI->getArgOperand(0);
-          auto ArgType = Arg0->getType();
-          if (ArgType->getPointerAddressSpace() != 0) {
-            llvm::IRBuilder Builder(CI);
-            llvm::PointerType *GenType =
-                llvm::PointerType::get(F.getParent()->getContext(), 0);
-            auto AddrSpaceCast = Builder.CreateAddrSpaceCast(Arg0, GenType);
-            CI->setArgOperand(0, AddrSpaceCast);
-            DidTransform = true;
-          }
-        }
-      }
-    }
-  }
-  return DidTransform;
-}
-
 // GEP instructions may now have an address space that isn't reflected in its
 // users, recreate the GEP so that it has the correct address space and replace
 // uses.
@@ -254,6 +135,17 @@ bool removeCasts(llvm::Function &F) {
           }
           CEI->deleteValue(); // Don't leak instruction without parent
         }
+      } else if (auto *Store = llvm::dyn_cast<llvm::StoreInst>(&I)) {
+        auto *Op = Store->getValueOperand();
+        if (auto CE = llvm::dyn_cast<llvm::ConstantExpr>(Op)) {
+          auto CEI = CE->getAsInstruction();
+          if (auto *ASC = llvm::dyn_cast<llvm::AddrSpaceCastInst>(CEI)) {
+            llvm::Value *ASCop = ASC->getPointerOperand();
+            Op->replaceAllUsesWith(ASCop);
+            DidGEPTransform = true;
+          }
+          CEI->deleteValue(); // Don't leak instruction without parent
+        }
       }
     }
   }
@@ -262,7 +154,81 @@ bool removeCasts(llvm::Function &F) {
     I->eraseFromParent();
   }
 
-  return (ASCToRemove.empty() || !DidGEPTransform);
+  return (!ASCToRemove.empty() || DidGEPTransform);
+}
+
+// For alloca instructions which are created from SROA and hold a pointer, make
+// sure that the pointer type retains the pointer address space. This is inferred
+// from the store users which are used to create a new alloca with the correct type.
+bool fixupAllocas(llvm::Function &F) {
+  llvm::SmallVector<llvm::Instruction *> InstsToDel;
+  // Loop over Store instructions, and replace any allocas that don't match
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      if (auto Store = llvm::dyn_cast<llvm::StoreInst>(&I)) {
+        auto Alloca =
+            llvm::dyn_cast<llvm::AllocaInst>(Store->getPointerOperand());
+        if (!Alloca) {
+          continue;
+        }
+
+        auto StoreVal = Store->getValueOperand();
+        auto StoreType = llvm::dyn_cast<llvm::PointerType>(StoreVal->getType());
+        auto AllocPtrType =
+            llvm::dyn_cast<llvm::PointerType>(Alloca->getAllocatedType());
+        if (!StoreType || !AllocPtrType) {
+          continue;
+        }
+
+        if (StoreType->getAddressSpace() != AllocPtrType->getAddressSpace()) {
+          llvm::IRBuilder Builder(Alloca);
+          auto NewAlloca = Builder.CreateAlloca(StoreType);
+          Alloca->replaceAllUsesWith(NewAlloca);
+          InstsToDel.push_back(Alloca);
+        }
+      }
+    }
+  }
+
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      if (auto Load = llvm::dyn_cast<llvm::LoadInst>(&I)) {
+        if (auto Alloca =
+                llvm::dyn_cast<llvm::AllocaInst>(Load->getPointerOperand())) {
+          if (auto AllocType = llvm::dyn_cast<llvm::PointerType>(
+                  Alloca->getAllocatedType())) {
+            if (AllocType->getAddressSpace() !=
+                Load->getType()->getPointerAddressSpace()) {
+              llvm::IRBuilder Builder(Load);
+              // Don't retain any volatile attribute to enable later mem2reg
+              // optimizations
+              auto NewLoad = Builder.CreateAlignedLoad(AllocType, Alloca,
+                                                       Load->getAlign());
+              Load->replaceAllUsesWith(NewLoad);
+              InstsToDel.push_back(Load);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      if (auto *ASC = llvm::dyn_cast<llvm::AddrSpaceCastInst>(&I)) {
+        if (ASC->getDestAddressSpace() == ASC->getSrcAddressSpace()) {
+          ASC->replaceAllUsesWith(ASC->getPointerOperand());
+          InstsToDel.push_back(ASC);
+        }
+      }
+    }
+  }
+
+  for (auto *I : InstsToDel) {
+    I->eraseFromParent();
+  }
+
+  return !InstsToDel.empty();
 }
 
 llvm::PreservedAnalyses
@@ -277,7 +243,7 @@ AddrSpaceCastRemovalPass::run(llvm::Function &F,
   DidTransform |= fixupICMPNull(F);
   DidTransform |= fixupGEP(F);
   DidTransform |= fixupMemInstrinsic(F);
-  DidTransform |= fixupAtomicBuiltins(F);
+  DidTransform |= fixupAllocas(F);
   return DidTransform ? llvm::PreservedAnalyses::all()
                       : llvm::PreservedAnalyses::none();
 }

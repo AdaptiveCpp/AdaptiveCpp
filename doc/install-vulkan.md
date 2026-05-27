@@ -76,7 +76,7 @@ printed if the device doesn't support them:
 
 Due to the challenge of supporting a generic address space in SYCL/PCUDA on Vulkan
 SPIR-V `PhysicalStorageBuffer64` memory model, kernels cannot currently
-chase pointers in a linked list fashion  or store to global memory the addresses
+chase pointers in a linked list fashion or store to global memory the addresses
 of variables.
 
 All the runtime functionality and synchronization of SYCL is expected to work, although
@@ -84,14 +84,17 @@ some optional features are not supported. Most notably only device USM is availa
 and not host or shared USM. However, there is no support of backend interop at this time.
 
 The holes in support arise from deficiencies in the compilation of kernel code. Features
-which are not yet fully supported for use in kernels targeting Vulkan SPIR-V are:
+which are not supported for use in kernels targeting Vulkan SPIR-V are:
 
-| Feature                | Support                                                              |
-| ---------------------- | -------------------------------------------------------------------- |
-| Reductions             | Not supported, will generate incorrect results rather than error     |
-| Floating point atomics | Not supported, will generate incorrect results rather than error     |
-| `marray`               | Not supported, will fail to compile or generate incorrect results    |
-| `group_scan` variants  | Not supported, will fail to compile or generate incorrect results    |
+* Reductions - Not supported, will generate incorrect results rather than error.
+* Floating point atomics - Not supported, will generate incorrect results rather than error.
+* `marray` - Will fail to compile or in a LLVM 18 build generate incorrect results. SPIR-V does
+  not support non-standard integer types without the `SPV_INTEL_arbitrary_precision_integers`
+  extension which clspv does not support. However, using `marray` can generate such types in
+  LLVM IR, for example an `i48` for `marray<short, 3>`. See the
+  [chipStar HipPromoteInts](https://github.com/CHIP-SPV/chipStar/blob/main/llvm_passes/HipPromoteInts.cpp)
+  as a possible way to resolve this.
+* `group_scan` variants - Not supported, will fail to compile or generate incorrect results.
 
 ## Device Support
 
@@ -134,10 +137,10 @@ assessment of the status of the benchmarks is as follows on llvmpipe 25.0.7.
 
 Compilation fail investigations:
 
-* HecBench fdtd3d - LLVM-IR contains `llvm.memmmove` intrinsic which is not implemented in clspv.
+* HecBench fdtd3d - LLVM-IR contains `llvm.memmove` intrinsic which is not implemented in clspv.
 * Hecbench rsbench - Error processing GEP into alloca array of `type { double, double }` struct.
 * Cloverleaf - Malformed LLVM-IR PHI instruction being output that cannot be read when
-  bitcode is deserialized by clspv. This a symptom that has been seem when an kernel
+  bitcode is deserialized by clspv. This a symptom that has been seen when an kernel
   tries to pointer chase a linked list.
 
 #### Benchmark Results
@@ -359,6 +362,7 @@ convention `_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`.
 * Add CI to self-hosted runners.
 * Fix LIT tests
 * Fix Adaptivity Level 0 SYCL tests.
+* Backend Interop
 
 ## Test Status
 

@@ -137,6 +137,7 @@ BOOST_AUTO_TEST_CASE(placeholder_accessors) {
 
 // TODO: Extend this
 BOOST_AUTO_TEST_CASE(accessor_api) {
+  SKIP_IF_MOLTENVK(sycl::device{})
   namespace s = sycl;
 
   s::buffer<int, 1> buf_a(32);

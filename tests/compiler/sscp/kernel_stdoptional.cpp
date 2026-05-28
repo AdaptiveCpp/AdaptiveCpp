@@ -1,10 +1,9 @@
-// RUN: %acpp %s -o %t --acpp-targets=generic
-// RUN: %t | FileCheck %s
-// RUN: %acpp %s -o %t --acpp-targets=generic -O3
-// RUN: %t | FileCheck %s
-// RUN: %acpp %s -o %t --acpp-targets=generic -g
-// RUN: %t | FileCheck %s
-// UNSUPPORTED: cuda || hip || ocl || ze
+// RUN: %acpp -mllvm -acpp-sscp-emit-hcf %s -o %t --acpp-targets=generic
+// RUN: %hcfi %s.hcf | FileCheck %s 
+// RUN: %acpp -mllvm -acpp-sscp-emit-hcf %s -o %t --acpp-targets=generic -O3
+// RUN: %hcfi %s.hcf | FileCheck %s 
+// RUN: %acpp -mllvm -acpp-sscp-emit-hcf %s -o %t --acpp-targets=generic -g
+// RUN: %hcfi %s.hcf | FileCheck %s
 
 #include <iostream>
 #include <optional>
@@ -19,11 +18,12 @@ int main() {
       *data = opt.value();
     }
     catch(std::bad_optional_access& e){
-      *data = 42;
+      *data = 424242;
     }
   });
   q.wait();
-  //CHECK: ExceptionToAssertionPass: Exception in Device Code
+  std::cout << *data << std::endl;
+  //CHECK-NOT: CXATHROWHIT
   return 0;
 }
 

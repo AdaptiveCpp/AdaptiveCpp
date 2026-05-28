@@ -383,6 +383,11 @@ std::string getLibAmathDir();
 std::string getLibMvecDir();
 std::string getBitcodePath();
 std::string getRedistPackageBitcodePath(const std::string& backend);
+int executeAndWait(
+    llvm::StringRef program,
+    llvm::ArrayRef<llvm::StringRef> args,
+    std::optional<llvm::ArrayRef<llvm::StringRef>> env = std::nullopt,
+    llvm::ArrayRef<std::optional<llvm::StringRef>> redirects = {});
 
 // Some backends do not correctly lower LLVM intrinsics;
 // this function replaces them with acpp builtins.

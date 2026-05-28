@@ -38,9 +38,11 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Support/Program.h>
 
 namespace hipsycl {
 namespace compiler {
+
 
 template<class F>
 class AtScopeExit {
@@ -57,6 +59,58 @@ struct PassHandler {
   llvm::PassBuilder* PassBuilder;
   llvm::ModuleAnalysisManager* ModuleAnalysisManager;
 };
+
+#if LLVM_VERSION_MAJOR < 16
+template<class T>
+using optional_t = llvm::Optional<T>;
+#else
+template<class T>
+using optional_t = std::optional<T>;
+#endif
+
+inline
+bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::string> &Invocation,
+                      std::string &Out) {
+
+  bool Create = true;
+  auto consumeError = [&](std::error_code EC) {
+    if(EC) {
+      if(Create)
+        HIPSYCL_DEBUG_WARNING << "LLVMToAmdgpu: Could not create temp file: " << EC.message() << "\n";
+      else
+        HIPSYCL_DEBUG_WARNING << "LLVMToAmdgpu: Could not delete temp file: " << EC.message() << "\n";
+      return false;
+    }
+    return true;
+  };
+
+  llvm::SmallVector<char> OutputFile;
+  if(!consumeError(llvm::sys::fs::createTemporaryFile("acpp-sscp-query", "txt", OutputFile, llvm::sys::fs::OF_None))) return false;
+  std::string OutputFilename = OutputFile.data();
+  
+  Create = false;
+  AtScopeExit DestroyOutputFile([&]() { consumeError(llvm::sys::fs::remove(OutputFilename)); });
+
+  llvm::SmallVector<llvm::StringRef> InvocationRef;
+  for(const auto& S: Invocation)
+    InvocationRef.push_back(S);
+
+  llvm::SmallVector<optional_t<llvm::StringRef>> Redirections;
+  std::string RedirectedOutputFile = OutputFilename;
+  Redirections.push_back(optional_t<llvm::StringRef>{});
+  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
+  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
+
+  int R = llvm::sys::ExecuteAndWait(Program, InvocationRef, {}, Redirections); 
+  if(R != 0)
+    return false;
+
+  auto ReadResult =
+    llvm::MemoryBuffer::getFile(OutputFilename, true);
+  
+  Out = ReadResult.get()->getBuffer();
+  return true;
+}
 
 inline llvm::Error loadModuleFromString(const std::string &LLVMIR, llvm::LLVMContext &ctx,
                                         std::unique_ptr<llvm::Module> &out) {

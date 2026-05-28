@@ -16,6 +16,7 @@
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <algorithm>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Attributes.h>
@@ -33,6 +34,7 @@
 #include <memory>
 #include <cassert>
 #include <string>
+#include <sstream>
 #include <system_error>
 #include <vector>
 #include <array>
@@ -63,6 +65,70 @@ std::string getDeviceLibPath() {
   return Path;
 }
 
+bool getSupportedFeatures(const std::string &LLCPath, std::vector<int> &SmVersionsOut,
+                          std::vector<int> &PtxVersionsOut) {
+  static std::vector<int> PtxVersions;
+  static std::vector<int> SmVersions;
+
+  if(PtxVersions.empty() || SmVersions.empty()) {
+    llvm::SmallVector<std::string> Invocation;
+
+    
+    HIPSYCL_DEBUG_INFO << "LLVMToPtx: Invoking " << LLCPath
+                       << " to determine supported PTX features\n";
+
+    Invocation = {
+      LLCPath,
+      "--mtriple=nvptx64-nvidia-cuda",
+      "--march=nvptx64",
+      "--mattr=help"
+    };
+
+    
+    std::string Output;
+    if(!getCommandOutput(LLCPath, Invocation, Output))
+      return false;
+
+
+    auto ParseAndExtract = [&](const std::string &Prefix, const std::string &Line,
+                               std::vector<int> &Out) {
+      std::string Head = " " + Prefix;
+      auto StartPos = Line.find(Head);
+      std::string Result;
+
+      if(StartPos != std::string::npos) {
+        auto EndPos = Line.find(" ", StartPos+1);
+        if(EndPos != std::string::npos) {
+          std::string Part = Line.substr(StartPos, EndPos - StartPos);
+          Part.erase(0, Head.size());
+        }
+      }
+
+      bool IsNumber = Result.find_first_not_of("0123456789") == std::string::npos;
+      if(IsNumber) {
+        int Val = std::stoi(Result);
+        if(std::find(Out.begin(), Out.end(), Val) == Out.end())
+          Out.push_back(Val);
+      }
+    };
+
+    
+    std::istringstream SStr{Output};
+    std::string Line;
+    while (std::getline(SStr, Line)) {
+      ParseAndExtract("sm_", Line, SmVersions);
+      ParseAndExtract("ptx", Line, PtxVersions);
+    }
+    if(SmVersions.empty())
+      return false;
+    if(PtxVersions.empty())
+      return false;
+  }
+
+  return true;
+  SmVersionsOut = SmVersions;
+  PtxVersionsOut = PtxVersions;
+}
 
 void setNVVMReflectParameter(llvm::Module& M, llvm::StringRef Name, int Value) {
   llvm::SmallVector<llvm::Metadata*, 4> Metadata;
@@ -207,11 +273,18 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
     if(InputStream.error()) {HIPSYCL_DEBUG_ERROR << "Error while flushing" << InputStream.error().message() << '\n'; }
   }
 
-  std::string PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
+  std::string PtxTargetArg;
+  if(PtxTarget > 0)
+    PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
 
   const std::string OptPath = getOptPath();
+  llvm::SmallVector<llvm::StringRef, 16> OptInvocation{OptPath, "-O3", InputFileName, "-o",
+                                                       OptOutputFileName};
+  if(!PtxTargetArg.empty())
+    OptInvocation.push_back(PtxTargetArg);
+
   int OptR = llvm::sys::ExecuteAndWait(
-      OptPath, {OptPath, PtxTargetArg, "-O3", InputFileName, "-o", OptOutputFileName});
+      OptPath, OptInvocation);
 
   if(OptR != 0) {
     this->registerError("LLVMToPtx: opt invocation failed with exit code " +
@@ -228,11 +301,12 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     "--march=nvptx64",
                                                     "--frame-pointer=none",
                                                     PtxVersionArg,
-                                                    PtxTargetArg,
                                                     "-O3",
                                                     "-o",
                                                     OutputFileName,
                                                     OptOutputFileName};
+  if(!PtxTargetArg.empty())
+    Invocation.push_back(PtxTargetArg);
   if(IsFastMath) {
     Invocation.push_back("--enable-unsafe-fp-math");
     Invocation.push_back("--enable-no-infs-fp-math");
@@ -269,11 +343,33 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
 }
 
 bool LLVMToPtxTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
+  std::vector<int> SmVersions;
+  std::vector<int> PtxVersions;
+  if(!getSupportedFeatures(getLLCPath(), SmVersions, PtxVersions)) {
+    HIPSYCL_DEBUG_WARNING << "LLVMToPtx: Could not determined SM and PTX versions supported by LLVM\n";
+  }
+
   if(Option == "ptx-version") {
     this->PtxVersion = std::stoi(Value);
+    if(!PtxVersions.empty()) {
+      int MaxPtx = *std::max_element(PtxVersions.begin(), PtxVersions.end());
+      if(MaxPtx < this->PtxVersion) {
+        HIPSYCL_DEBUG_WARNING << "LLVMToPtx: Requested PTX version " << this->PtxVersion
+                              << " is higher than latest supported " << MaxPtx
+                              << " by this LLVM stack; using latest supported instead.\n";
+        this->PtxVersion = MaxPtx;
+      }
+    }
     return true;
   } else if(Option == "ptx-target-device") {
     this->PtxTarget = std::stoi(Value);
+    if(!SmVersions.empty()) {
+      if(std::find(SmVersions.begin(), SmVersions.end(), this->PtxTarget) == SmVersions.end()) {
+        HIPSYCL_DEBUG_WARNING << "LLVMToPtx: Requested SM target " << this->PtxTarget
+                              << " is unknown by this LLVM stack; ignoring.\n";
+        this->PtxTarget = -1;
+      }
+    }
     return true;
   }
 

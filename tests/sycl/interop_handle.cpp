@@ -20,13 +20,16 @@ BOOST_AUTO_TEST_CASE(interop_handle_api) {
   using namespace hipsycl;
 
   rt::device_id assigned_device{rt::backend_descriptor{rt::hardware_platform::cpu,
-                                rt::api_platform::omp}, 12345};
+                                rt::api_platform::omp}, 0};
+  s::queue q{s::device{assigned_device}};
 
-  rt::backend_executor *executor = nullptr;
-  s::interop_handle ih{assigned_device, executor};
-  s::backend b = ih.get_backend();
-
-  BOOST_CHECK(b == s::backend::omp);
+  q.submit([&](s::handler &cgh) {
+    cgh.AdaptiveCpp_enqueue_custom_operation([=](s::interop_handle &ih) {
+      s::backend b = ih.get_backend();
+      BOOST_CHECK(b == s::backend::omp);
+    });
+  });
+  q.wait_and_throw();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -26,9 +26,10 @@ void test() {
 
   T init = static_cast<T>(0.75);
 
-  T* data = sycl::malloc_shared<T>(num_functions, q);
+  T* data = sycl::malloc_device<T>(num_functions, q);
   for(int i = 0; i < num_functions; ++i)
-    data[i] = init;
+    q.memcpy(data + i, &init, sizeof(T));
+  q.wait();
 
   q.single_task([=](){
     data[0] = std::sin(data[0]);
@@ -45,26 +46,29 @@ void test() {
     data[9] = std::asin(data[9]);
   }).wait();
 
+  std::vector<T> host(num_functions, T(0));
+  q.memcpy(host.data(), data, sizeof(T) * num_functions).wait();
+
   // CHECK: 1
-  std::cout << check_with_tolerance(data[0], std::sin(init)) << std::endl;
+  std::cout << check_with_tolerance(host[0], std::sin(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[1], std::cos(init)) << std::endl;
+  std::cout << check_with_tolerance(host[1], std::cos(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[2], std::pow(init, init)) << std::endl;
+  std::cout << check_with_tolerance(host[2], std::pow(init, init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[3], std::pow(init, 3)) << std::endl;
+  std::cout << check_with_tolerance(host[3], std::pow(init, 3)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[4], std::exp(init)) << std::endl;
+  std::cout << check_with_tolerance(host[4], std::exp(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[5], std::sqrt(init)) << std::endl;
+  std::cout << check_with_tolerance(host[5], std::sqrt(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[6], std::tan(init)) << std::endl;
+  std::cout << check_with_tolerance(host[6], std::tan(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[7], std::exp2(init)) << std::endl;
+  std::cout << check_with_tolerance(host[7], std::exp2(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[8], std::log(init)) << std::endl;
+  std::cout << check_with_tolerance(host[8], std::log(init)) << std::endl;
   // CHECK: 1
-  std::cout << check_with_tolerance(data[9], std::asin(init)) << std::endl;
+  std::cout << check_with_tolerance(host[9], std::asin(init)) << std::endl;
 
   sycl::free(data, q);
 }

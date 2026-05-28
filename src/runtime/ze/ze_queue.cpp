@@ -480,6 +480,8 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       local_mem_size);
   _config.set_build_flag(
       kernel_build_flag::spirv_enable_intel_llvm_spirv_options);
+  _config.set_build_flag(
+      kernel_build_flag::spirv_enable_pointer_wrapping);
 
   auto binary_configuration_id = adaptivity_engine.finalize_binary_configuration(_config);
   auto code_object_configuration_id = binary_configuration_id;

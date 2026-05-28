@@ -201,7 +201,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_rint, rintf, rint)
 
 template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __acpp_rootn(T x, int y) noexcept {
-  return hiplike_builtins::__acpp_pow(x, T{1}/T{y});
+  return hiplike_builtins::__acpp_pow(x, T{1}/static_cast<T>(y));
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_round, roundf, round)
@@ -233,6 +233,12 @@ HIPSYCL_HIPLIKE_BUILTIN double __acpp_sincos(double x, double* cosval) noexcept 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_sinh, sinhf, sinh)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_sinpi, sinpif, sinpi)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_tan, tanf, tan)
+
+template<class T>
+HIPSYCL_HIPLIKE_BUILTIN T __acpp_tanpi(T x) noexcept {
+  return hiplike_builtins::__acpp_tan(x * T(M_PI));
+}
+
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_tanh, tanhf, tanh)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__acpp_trunc, truncf, trunc)
 

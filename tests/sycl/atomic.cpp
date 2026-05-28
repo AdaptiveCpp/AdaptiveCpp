@@ -380,8 +380,8 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
   // This is mainly a compile-test. Testing atomic memory semantics is hard...
 
   sycl::queue q;
-  int* data = sycl::malloc_shared<int>(1, q);
-  *data = 0;
+  int* data = sycl::malloc_device<int>(1, q);
+  q.memset(data, 0, sizeof(int)).wait();
   size_t range = 1024;
 
   q.parallel_for(range, [=](auto idx){
@@ -392,7 +392,10 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
     sycl::atomic_fence(sycl::memory_order::relaxed, sycl::memory_scope::device);
   }).wait();
 
-  BOOST_CHECK(*data == range);
+  int result;
+  q.memcpy(&result, data, sizeof(int)).wait();
+
+  BOOST_CHECK(result == range);
 
   sycl::free(data, q);
 }

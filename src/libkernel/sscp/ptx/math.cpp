@@ -204,4 +204,10 @@ HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sinh, __nv_sinhf, __nv_sinh)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sinpi, __nv_sinpif, __nv_sinpi)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(tan, __nv_tanf, __nv_tan)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(tanh, __nv_tanhf, __nv_tanh)
+HIPSYCL_SSCP_BUILTIN float __acpp_sscp_tanpi_f32(float x) {
+  return __nv_tanf(x * float(PI));
+}
+HIPSYCL_SSCP_BUILTIN double __acpp_sscp_tanpi_f64(double x) {
+  return __nv_tan(x * PI);
+}
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(trunc, __nv_truncf, __nv_trunc)

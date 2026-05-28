@@ -30,6 +30,34 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_num_groups_x();
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_num_groups_y();
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_num_groups_z();
 
+template<class T>
+T __acpp_sscp_typed_get_global_id_x() {
+  T lsize = (T)__acpp_sscp_get_local_size_x();
+  T lid = (T)__acpp_sscp_get_local_id_x();
+  T gid = (T)__acpp_sscp_get_group_id_x();
+
+  return gid * lsize + lid;
+}
+
+template<class T>
+T __acpp_sscp_typed_get_global_id_y() {
+  T lsize = (T)__acpp_sscp_get_local_size_y();
+  T lid = (T)__acpp_sscp_get_local_id_y();
+  T gid = (T)__acpp_sscp_get_group_id_y();
+
+  return gid * lsize + lid;
+}
+
+
+template<class T>
+T __acpp_sscp_typed_get_global_id_z() {
+  T lsize = (T)__acpp_sscp_get_local_size_z();
+  T lid = (T)__acpp_sscp_get_local_id_z();
+  T gid = (T)__acpp_sscp_get_group_id_z();
+
+  return gid * lsize + lid;
+}
+
 template<int Dim, class T>
 T __acpp_sscp_typed_get_global_linear_id() {
   if constexpr(Dim == 1) {

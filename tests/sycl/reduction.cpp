@@ -25,22 +25,28 @@ template <class T, class Generator, class Handler, class BinaryOp>
 void test_scalar_reduction(sycl::queue &q, const T& identity,
                            std::size_t num_elements,
                            BinaryOp op, Generator gen, Handler h) {
-  T* test_data = sycl::malloc_shared<T>(num_elements, q);
-  T* output_data = sycl::malloc_shared<T>(1, q);
+  T* test_data = sycl::malloc_device<T>(num_elements, q);
+  T* output_data = sycl::malloc_device<T>(1, q);
 
+  std::vector<T> host_data(num_elements);
   for(std::size_t i = 0; i < num_elements;++i)
-    test_data[i] = gen(i);
+    host_data[i] = gen(i);
+
+  q.memcpy(test_data, host_data.data(), sizeof(T) * num_elements).wait();
 
   h(test_data, output_data);
   q.wait();
 
   T expected_result =
-      std::accumulate(test_data, test_data + num_elements, identity, op);
+      std::accumulate(host_data.data(), host_data.data() + num_elements, identity, op);
+
+  T host_result;
+  q.memcpy(&host_result, output_data, sizeof(T)).wait();
 
   if constexpr(std::is_floating_point_v<T>) {
-    BOOST_TEST(expected_result == *output_data, tolerance);
+    BOOST_TEST(expected_result == host_result, tolerance);
   } else {
-    BOOST_TEST(expected_result == *output_data);
+    BOOST_TEST(expected_result == host_result);
   }
 
   sycl::free(test_data, q);
@@ -121,6 +127,11 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
 template<class T>
 void test_two_reductions(std::size_t input_size, std::size_t local_size){
   sycl::queue q;
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    BOOST_TEST_MESSAGE("Skipping test since device has no shared USM support");
+    return;
+  }
+
   if constexpr(std::is_same_v<T, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -334,25 +345,29 @@ BOOST_AUTO_TEST_CASE(buffer_reduction) {
 BOOST_AUTO_TEST_CASE(incremental_reduction) {
   const int size = 1024;
   sycl::queue q;
-  int* data = sycl::malloc_shared<int>(size, q);
+  int* data = sycl::malloc_device<int>(size, q);
+  std::vector<int> host_data(size);
 
-  int* result = sycl::malloc_shared<int>(1, q);
+  int* result = sycl::malloc_device<int>(1, q);
   for(std::size_t i = 0; i < size;++i)
-    data[i] = static_cast<int>(i);
-
-  *result = 0;
+    host_data[i] = static_cast<int>(i);
+  q.memcpy(data, host_data.data(), sizeof(int) * size).wait();
+  q.memset(result, 0, sizeof(int)).wait();
 
   // Also tests plus<> without explicit template argument
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
                  [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
 
-  int expected_result = std::accumulate(data, data + size, 0);
-  BOOST_CHECK(*result == expected_result);
+  int expected_result = std::accumulate(std::begin(host_data), std::end(host_data), 0);
+  int host_result;
+  q.memcpy(&host_result, result, sizeof(int)).wait();
+  BOOST_CHECK(host_result == expected_result);
 
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
                  [=](auto idx, auto &redu) { redu += data[idx]; }).wait();
 
-  BOOST_CHECK(*result == 2 * expected_result);
+  q.memcpy(&host_result, result, sizeof(int)).wait();
+  BOOST_CHECK(host_result == 2 * expected_result);
 
   sycl::free(data, q);
   sycl::free(result, q);
@@ -361,28 +376,33 @@ BOOST_AUTO_TEST_CASE(incremental_reduction) {
 BOOST_AUTO_TEST_CASE(chain_combine_reductions) {
 const int size = 1024;
   sycl::queue q;
-  int* data = sycl::malloc_shared<int>(size, q);
+  int* data = sycl::malloc_device<int>(size, q);
+  std::vector<int> host_data(size);
 
-  int* result = sycl::malloc_shared<int>(1, q);
+  int* result = sycl::malloc_device<int>(1, q);
   for(std::size_t i = 0; i < size;++i)
-    data[i] = static_cast<int>(i);
+    host_data[i] = static_cast<int>(i);
+  q.memcpy(data, host_data.data(), size * sizeof(int)).wait();
 
-  int expected_result = 2 * std::accumulate(data, data + size, 0);
+  int expected_result = 2 * std::accumulate(std::begin(host_data), std::end(host_data), 0);
 
-  *result = 0;
+  q.memset(result, 0, sizeof(int)).wait();
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
                  [=](auto idx, auto &redu) {
 		   (redu += data[idx]) += data[idx];
 		 }).wait();
-  BOOST_CHECK(*result == expected_result);
+  int host_res;
+  q.memcpy(&host_res, result, sizeof(int)).wait();
+  BOOST_CHECK(host_res == expected_result);
 
-  *result = 0;
+  q.memset(result, 0, sizeof(int)).wait();
   q.parallel_for(size, sycl::reduction(result, sycl::plus<>()),
                  [=](auto idx, auto &redu) {
 		   redu.combine(data[idx]).combine(data[idx]);
 		 }).wait();
 
-  BOOST_CHECK(*result == expected_result);
+  q.memcpy(&host_res, result, sizeof(int)).wait();
+  BOOST_CHECK(host_res == expected_result);
 
   sycl::free(data, q);
   sycl::free(result, q);

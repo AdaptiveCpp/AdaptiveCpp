@@ -217,6 +217,24 @@ void replaceInvalidMSABICharsInSymbolNames(llvm::Module &M) {
 }
 #endif
 
+void removeModuleFlag(llvm::Module& M, llvm::StringRef Name) {
+  llvm::SmallVector<llvm::Module::ModuleFlagEntry, 8> Flags;
+  M.getModuleFlagsMetadata(Flags);
+
+  if(Flags.empty())
+    return;
+
+  if(auto* NMD = M.getNamedMetadata("llvm.module.flags"))
+    M.eraseNamedMetadata(NMD);
+
+  for(const auto& Flag : Flags) {
+    if(Flag.Key->getString() == Name)
+      continue;
+
+    M.addModuleFlag(Flag.Behavior, Flag.Key->getString(), Flag.Val);
+  }
+}
+
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
                                                const std::vector<std::string>& DynamicFunctions,
                                                std::vector<KernelInfo> &KernelInfoOutput,
@@ -278,6 +296,9 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   StringAttrsToRemove.push_back("target-cpu");
   StringAttrsToRemove.push_back("target-features");
   StringAttrsToRemove.push_back("tune-cpu");
+  
+  // Remove host-specific module flags that should not leak into generic device IR
+  removeModuleFlag(*DeviceModule, "wchar_size");  
 
   llvm::SmallSet<llvm::Function *, 16> AcppNoInlineFunctions;
   utils::findFunctionsWithStringAnnotations(

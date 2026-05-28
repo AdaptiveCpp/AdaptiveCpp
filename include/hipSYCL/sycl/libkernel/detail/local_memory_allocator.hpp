@@ -163,14 +163,11 @@ private:
 
 ACPP_KERNEL_TARGET
 inline void* hiplike_dynamic_local_memory() {
-  __acpp_if_target_cuda(
+  __acpp_if_target_hiplike(
     extern __shared__ int local_mem [];
     return static_cast<void*>(local_mem);
   );
-  __acpp_if_target_hip(
-    return __amdgcn_get_dynamicgroupbaseptr();
-  );
-  
+
   return nullptr;
 }
 

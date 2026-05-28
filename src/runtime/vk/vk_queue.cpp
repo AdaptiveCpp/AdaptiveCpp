@@ -32,6 +32,8 @@ vk_queue::vk_queue(vk_hardware_manager *hw_manager, std::size_t device_index)
       static_cast<vk_hardware_context *>(hw_manager->get_device(device_index));
   auto &device = _dev_ctx->get_device();
 
+  _reflection_map = glue::jit::construct_default_reflection_map(_dev_ctx);
+
   vk::CommandPoolCreateInfo pool_info{
       vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
       _dev_ctx->get_queue_index()};

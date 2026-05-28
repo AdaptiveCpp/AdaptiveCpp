@@ -119,3 +119,7 @@ can be put into a Vulkan uniform buffer at a specific offset.
 Pass for fixing resulting SROA components from large structs so that we don't
 lose the address space of pointers between `PtrToInt` then `IntToPtr` on a
 Value.
+
+### ConstantAddrSpacePass
+
+Module pass for ensuring constant global variables use the constant address space.

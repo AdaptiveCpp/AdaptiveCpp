@@ -234,7 +234,6 @@ void removeModuleFlag(llvm::Module& M, llvm::StringRef Name) {
   }
 }
 
-#ifdef _WIN32
 void removeLinkerOptionsByPrefixes(
     llvm::Module& M,
     llvm::ArrayRef<llvm::StringRef> Prefixes) {
@@ -278,7 +277,6 @@ void removeLinkerOptionsByPrefixes(
       NewNMD->addOperand(OptionNode);
   }
 }
-#endif
 
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
                                                const std::vector<std::string>& DynamicFunctions,

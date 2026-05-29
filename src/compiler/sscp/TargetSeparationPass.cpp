@@ -244,7 +244,7 @@ void removeLinkerOptionsByPrefixes(
 
   auto StartsWithPrefix = [&](llvm::StringRef Option) {
     for(auto Prefix : Prefixes) {
-      if(Option.starts_with(Prefix))
+      if(llvmutils::starts_with(Option, Prefix))
         return true;
     }
 

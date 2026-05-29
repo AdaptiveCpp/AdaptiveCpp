@@ -257,7 +257,7 @@ int executeAndWait(
     llvm::ArrayRef<llvm::StringRef> Args,
     std::optional<llvm::ArrayRef<llvm::StringRef>> Env,
     llvm::ArrayRef<std::optional<llvm::StringRef>> Redirects) {
-#ifndef _WIN32
+#if !defined(_WIN32) || LLVM_VERSION_MAJOR < 19
   return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
 #else
   std::string ErrMsg;

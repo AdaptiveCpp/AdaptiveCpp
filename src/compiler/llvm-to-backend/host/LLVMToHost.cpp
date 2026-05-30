@@ -90,7 +90,7 @@ std::string get_macos_sdk_path() {
     *xcrun, "--show-sdk-path"
   };
 
-  int rc = executeAndWait(*xcrun, args, std::nullopt, redirects);
+  int rc = hipsycl::compiler::executeAndWait(*xcrun, args, std::nullopt, redirects);
   if(rc != 0) {
     llvm::sys::fs::remove(tmpName);
     return {};

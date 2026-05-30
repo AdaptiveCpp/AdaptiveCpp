@@ -32,6 +32,8 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Program.h>
+#include <llvm/Support/SourceMgr.h>
+#include <llvm/IRReader/IRReader.h>
 #include <algorithm>
 #include <memory>
 #include <cassert>
@@ -438,6 +440,35 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
     }
     OptOutput = (*Buff)->getBuffer().str();
   }
+
+  // opt (LLVM 22.1.2) may re-add attributes on intrinsic declarations that
+  // ROCm 7.2's embedded LLVM 22.0.0git does not understand, e.g. attribute
+  // kind 105 (NoCreateUndefOrPoison).  Parse the opt output back into a
+  // module, strip these forward-compatibility attrs, and re-serialize.
+#if LLVM_VERSION_MAJOR >= 22
+  {
+    using AK = llvm::Attribute::AttrKind;
+    static const AK StripAttrs[] = {
+      AK::SanitizeAllocToken, // llvm-project commit 224873d7acab430d29c978136418c40fa028a40d, present since therock 7.11, *not* in rocm 7.2.4
+      AK::NoCreateUndefOrPoison, // llvm commit f037f413506af9e32898e102f391175a3a2852ef, present since therock 7.11, *not* in rocm 7.2.4
+    };
+    llvm::LLVMContext Ctx;
+    llvm::SMDiagnostic Diag;
+    auto Buff2 = llvm::MemoryBuffer::getMemBufferCopy(
+        llvm::StringRef(OptOutput.data(), OptOutput.size()));
+    if (auto M = llvm::parseIR(*Buff2, Diag, Ctx)) {
+      for (auto &F : *M) {
+        for (AK Kind : StripAttrs) {
+          F.removeFnAttr(Kind);
+        }
+      }
+      OptOutput.clear();
+      llvm::raw_string_ostream OS(OptOutput);
+      llvm::WriteBitcodeToFile(*M, OS);
+      OS.flush();
+    }
+  }
+#endif
 
   // Currently hipRTC link does not take into account options anyway.
   // It just compiles for the currently active HIP device.

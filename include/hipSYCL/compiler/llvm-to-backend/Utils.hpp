@@ -39,6 +39,10 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Passes/PassBuilder.h>
 
+#if LLVM_VERSION_MAJOR < 16
+#include <llvm/ADT/Optional.h>
+#endif
+
 namespace hipsycl {
 namespace compiler {
 
@@ -383,11 +387,20 @@ std::string getLibAmathDir();
 std::string getLibMvecDir();
 std::string getBitcodePath();
 std::string getRedistPackageBitcodePath(const std::string& backend);
+
+#if LLVM_VERSION_MAJOR >= 16
 int executeAndWait(
-    llvm::StringRef program,
-    llvm::ArrayRef<llvm::StringRef> args,
-    std::optional<llvm::ArrayRef<llvm::StringRef>> env = std::nullopt,
-    llvm::ArrayRef<std::optional<llvm::StringRef>> redirects = {});
+    llvm::StringRef Program,
+    llvm::ArrayRef<llvm::StringRef> Args,
+    std::optional<llvm::ArrayRef<llvm::StringRef>> Env = std::nullopt,
+    llvm::ArrayRef<std::optional<llvm::StringRef>> Redirects = {});
+#else
+int executeAndWait(
+    llvm::StringRef Program,
+    llvm::ArrayRef<llvm::StringRef> Args,
+    llvm::Optional<llvm::ArrayRef<llvm::StringRef>> Env = llvm::None,
+    llvm::ArrayRef<llvm::Optional<llvm::StringRef>> Redirects = {});
+#endif
 
 // Some backends do not correctly lower LLVM intrinsics;
 // this function replaces them with acpp builtins.

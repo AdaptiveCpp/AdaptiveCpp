@@ -252,20 +252,22 @@ std::string getRedistPackageBitcodePath(const std::string& backend) {
                                        std::vector<std::string>{"bitcode", backend});
 }
 
+#if LLVM_VERSION_MAJOR < 16
+int executeAndWait(
+    llvm::StringRef Program,
+    llvm::ArrayRef<llvm::StringRef> Args,
+    llvm::Optional<llvm::ArrayRef<llvm::StringRef>> Env,
+    llvm::ArrayRef<llvm::Optional<llvm::StringRef>> Redirects) {
+  return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
+}
+#else
 int executeAndWait(
     llvm::StringRef Program,
     llvm::ArrayRef<llvm::StringRef> Args,
     std::optional<llvm::ArrayRef<llvm::StringRef>> Env,
     llvm::ArrayRef<std::optional<llvm::StringRef>> Redirects) {
 #if !defined(_WIN32) || LLVM_VERSION_MAJOR < 19
-#if LLVM_VERSION_MAJOR < 16
-  llvm::Optional<llvm::ArrayRef<llvm::StringRef>> EnvLegacy;
-  if(Env)
-    EnvLegacy = *Env;
-  return llvm::sys::ExecuteAndWait(Program, Args, EnvLegacy, Redirects);
-#else
   return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
-#endif
 #else
   std::string ErrMsg;
   bool ExecutionFailed = false;
@@ -324,6 +326,8 @@ int executeAndWait(
   return Result.ReturnCode;
 #endif
 }
+#endif
+
 
 } // namespace compiler
 } // namespace hipsycl

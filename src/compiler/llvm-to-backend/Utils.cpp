@@ -258,7 +258,14 @@ int executeAndWait(
     std::optional<llvm::ArrayRef<llvm::StringRef>> Env,
     llvm::ArrayRef<std::optional<llvm::StringRef>> Redirects) {
 #if !defined(_WIN32) || LLVM_VERSION_MAJOR < 19
+#if LLVM_VERSION_MAJOR < 16
+  llvm::Optional<llvm::ArrayRef<llvm::StringRef>> EnvLegacy;
+  if(Env)
+    EnvLegacy = *Env;
+  return llvm::sys::ExecuteAndWait(Program, Args, EnvLegacy, Redirects);
+#else
   return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
+#endif
 #else
   std::string ErrMsg;
   bool ExecutionFailed = false;

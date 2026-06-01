@@ -234,6 +234,50 @@ void removeModuleFlag(llvm::Module& M, llvm::StringRef Name) {
   }
 }
 
+void removeLinkerOptionsByPrefixes(
+    llvm::Module& M,
+    llvm::ArrayRef<llvm::StringRef> Prefixes) {
+
+  llvm::NamedMDNode* NMD = M.getNamedMetadata("llvm.linker.options");
+  if(!NMD)
+    return;
+
+  auto StartsWithPrefix = [&](llvm::StringRef Option) {
+    for(auto Prefix : Prefixes) {
+      if(llvmutils::starts_with(Option, Prefix))
+        return true;
+    }
+
+    return false;
+  };
+
+  llvm::SmallVector<llvm::MDNode*, 8> RemainingOptions;
+
+  for(unsigned i = 0; i < NMD->getNumOperands(); ++i) {
+    llvm::MDNode* OptionNode = NMD->getOperand(i);
+
+    bool Remove = false;
+    if(OptionNode && OptionNode->getNumOperands() > 0) {
+      if(auto* Option = llvm::dyn_cast<llvm::MDString>(OptionNode->getOperand(0))) {
+        Remove = StartsWithPrefix(Option->getString());
+      }
+    }
+
+    if(!Remove)
+      RemainingOptions.push_back(OptionNode);
+  }
+
+  M.eraseNamedMetadata(NMD);
+
+  if(!RemainingOptions.empty()) {
+    llvm::NamedMDNode* NewNMD =
+        M.getOrInsertNamedMetadata("llvm.linker.options");
+
+    for(llvm::MDNode* OptionNode : RemainingOptions)
+      NewNMD->addOperand(OptionNode);
+  }
+}
+
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
                                                const std::vector<std::string>& DynamicFunctions,
                                                std::vector<KernelInfo> &KernelInfoOutput,
@@ -295,6 +339,11 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   
   // Remove host-specific module flags that should not leak into generic device IR
   removeModuleFlag(*DeviceModule, "wchar_size");  
+
+#ifdef _WIN32
+  // Remove MSVC host linker directives from generic device IR
+  removeLinkerOptionsByPrefixes(*DeviceModule, {"/"});
+#endif
 
   llvm::SmallSet<llvm::Function *, 16> AcppNoInlineFunctions;
   utils::findFunctionsWithStringAnnotations(

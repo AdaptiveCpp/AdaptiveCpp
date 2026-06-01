@@ -60,7 +60,7 @@ OutType wg_generic_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
       }
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
     // First shmem_array_length number of threads exclusive scan in shared memory
     auto local_x = shrd_mem[relative_thread_id];
     for (__acpp_int32 j = 1; j < shmem_array_length; j *= 2) {
@@ -73,10 +73,10 @@ OutType wg_generic_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
         }
       }
       __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                     __acpp_sscp_memory_order::relaxed);
+                                     __acpp_sscp_memory_order::acq_rel);
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
 
     if (subgroup_id > 0) {
       auto current_segment_update = shrd_mem[(subgroup_id % shmem_array_length) - 1];
@@ -86,7 +86,7 @@ OutType wg_generic_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
       sg_scan_result = op(shrd_mem[shmem_array_length], sg_scan_result);
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
     shrd_mem[shmem_array_length] = sg_scan_result;
   }
   return sg_scan_result;

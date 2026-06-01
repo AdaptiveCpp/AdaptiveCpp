@@ -59,7 +59,7 @@ bool __acpp_sscp_work_group_any(bool predicate) {
   if (lane_id == 0) {
     scratch[group_id] = sg_any;
   }
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   if (group_id == 0) {
     bool v = false;
@@ -71,7 +71,7 @@ bool __acpp_sscp_work_group_any(bool predicate) {
       scratch[0] = wg_any;
     }
   }
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   bool tmp = scratch[0];
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
   return tmp;
@@ -100,7 +100,7 @@ bool __acpp_sscp_work_group_all(bool predicate) {
   if (lane_id == 0) {
     scratch[group_id] = sg_all;
   }
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   if (group_id == 0) {
     bool v = true;
@@ -112,7 +112,7 @@ bool __acpp_sscp_work_group_all(bool predicate) {
       scratch[0] = wg_all;
     }
   }
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   bool tmp = scratch[0];
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
   return tmp;

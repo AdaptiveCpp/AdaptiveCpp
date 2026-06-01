@@ -347,7 +347,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   }
   HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Invoking " << ArgString << "\n";
 
-  int R = llvm::sys::ExecuteAndWait(
+  int R = executeAndWait(
       LLVMSpirVTranslator, Invocation);
 
   if(R != 0) {

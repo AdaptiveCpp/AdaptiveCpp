@@ -12,6 +12,12 @@
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 
+#include <llvm/Support/Program.h>
+
+#ifdef _WIN32
+#include <llvm/Support/FileSystem.h>
+#endif
+
 namespace hipsycl {
 namespace compiler {
 
@@ -245,6 +251,83 @@ std::string getRedistPackageBitcodePath(const std::string& backend) {
   return common::filesystem::join_path(getRedistributablePackagePath(),
                                        std::vector<std::string>{"bitcode", backend});
 }
+
+#if LLVM_VERSION_MAJOR < 16
+int executeAndWait(
+    llvm::StringRef Program,
+    llvm::ArrayRef<llvm::StringRef> Args,
+    llvm::Optional<llvm::ArrayRef<llvm::StringRef>> Env,
+    llvm::ArrayRef<llvm::Optional<llvm::StringRef>> Redirects) {
+  return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
+}
+#else
+int executeAndWait(
+    llvm::StringRef Program,
+    llvm::ArrayRef<llvm::StringRef> Args,
+    std::optional<llvm::ArrayRef<llvm::StringRef>> Env,
+    llvm::ArrayRef<std::optional<llvm::StringRef>> Redirects) {
+#if !defined(_WIN32) || LLVM_VERSION_MAJOR < 19
+  return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
+#else
+  std::string ErrMsg;
+  bool ExecutionFailed = false;
+
+  llvm::SmallVector<std::optional<llvm::StringRef>, 3> ActualRedirects;
+  llvm::SmallString<128> StdoutFile;
+  llvm::SmallString<128> StderrFile;
+
+  bool CaptureOutput = Redirects.empty();
+
+  if(CaptureOutput) {
+    if(auto E = llvm::sys::fs::createTemporaryFile(
+           "acpp-tool-stdout", "txt", StdoutFile, llvm::sys::fs::OF_None))
+      return -1;
+
+    if(auto E = llvm::sys::fs::createTemporaryFile(
+           "acpp-tool-stderr", "txt", StderrFile, llvm::sys::fs::OF_None)) {
+      llvm::sys::fs::remove(StdoutFile);
+      return -1;
+    }
+
+    ActualRedirects.push_back(llvm::StringRef{}); // stdin -> NUL
+    ActualRedirects.push_back(StdoutFile.str());  // stdout -> temp file
+    ActualRedirects.push_back(StderrFile.str());  // stderr -> temp file
+
+    Redirects = ActualRedirects;
+  }
+
+  auto cleanup = [&]() {
+    if(CaptureOutput) {
+      auto Err0 = llvm::sys::fs::remove(StdoutFile);
+      auto Err1 = llvm::sys::fs::remove(StderrFile);
+    }
+  };
+
+  auto ProcessInfo =
+      llvm::sys::ExecuteNoWait(Program, Args, Env, Redirects,
+                               0, &ErrMsg, &ExecutionFailed, nullptr, true);
+
+  if(ExecutionFailed) {
+    cleanup();
+    return -1;
+  }
+
+  auto Result = llvm::sys::Wait(ProcessInfo, std::nullopt);
+
+  if(CaptureOutput) {
+    if(auto StdoutBuffer = llvm::MemoryBuffer::getFile(StdoutFile))
+      llvm::outs() << StdoutBuffer.get()->getBuffer();
+
+    if(auto StderrBuffer = llvm::MemoryBuffer::getFile(StderrFile))
+      llvm::errs() << StderrBuffer.get()->getBuffer();
+  }
+
+  cleanup();
+  return Result.ReturnCode;
+#endif
+}
+#endif
+
 
 } // namespace compiler
 } // namespace hipsycl

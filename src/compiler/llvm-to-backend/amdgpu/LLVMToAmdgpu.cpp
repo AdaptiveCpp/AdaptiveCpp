@@ -113,7 +113,7 @@ bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::s
   Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
   Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
 
-  int R = llvm::sys::ExecuteAndWait(Program, InvocationRef, {}, Redirections); 
+  int R = executeAndWait(Program, InvocationRef, {}, Redirections); 
   if(R != 0)
     return false;
 
@@ -422,7 +422,7 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 
 
   int OptR =
-      llvm::sys::ExecuteAndWait(OptPath, OptInvocation);
+      executeAndWait(OptPath, OptInvocation);
   if(OptR != 0) {
     this->registerError("LLVMToAmdgpu: opt invocation failed with exit code " +
                         std::to_string(OptR));
@@ -592,7 +592,7 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
   }
   HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking " << ArgString << "\n";
 
-  int R = llvm::sys::ExecuteAndWait(
+  int R = executeAndWait(
       InvocationRef[0], InvocationRef);
 
   if(R != 0) {

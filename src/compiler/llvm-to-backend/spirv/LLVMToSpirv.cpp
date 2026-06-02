@@ -323,13 +323,13 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
 
   // Prefer the app-local redistributable layout used by deployment manifests.
   // Fall back to the installation layout.
-  std::string local_llvm_spirv_translator = hipsycl::common::filesystem::join_path(
+  std::string LocalLLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
       hipsycl::common::filesystem::get_lib_directory(),
       std::vector<std::string>{"hipSYCL", "ext", "llvm-spirv", "bin", HIPSYCL_LLVMSPIRV_NAME});
-  std::string installed_llvm_spirv_translator = hipsycl::common::filesystem::join_path(
+  std::string InstalledLLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
       hipsycl::common::filesystem::get_install_directory(), HIPSYCL_RELATIVE_LLVMSPIRV_PATH);
-  std::string LLVMSpirVTranslator = hipsycl::common::filesystem::exists(local_llvm_spirv_translator)
-      ? local_llvm_spirv_translator : installed_llvm_spirv_translator;
+  std::string LLVMSpirVTranslator = hipsycl::common::filesystem::exists(LocalLLVMSpirVTranslator)
+      ? LocalLLVMSpirVTranslator : InstalledLLVMSpirVTranslator;
 
   llvm::SmallVector<std::string> Args{
       "-o=" + OutputFileName

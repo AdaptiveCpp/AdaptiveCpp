@@ -87,51 +87,6 @@ void setPrecSqrt(llvm::Module& M, int Mode) {
   setNVVMReflectParameter(M, "prec-sqrt", Mode);
 }
 
-
-using IntrinsicMapping = std::array<const char*, 2>;
-// These intrinsics seem to not be handled correctly by NVPTX backend,
-// so replace them with our own builtins.
-static constexpr std::array IntrinsicReplacementMap = {
-  IntrinsicMapping{"llvm.pow.f32", "__acpp_sscp_pow_f32"},
-  IntrinsicMapping{"llvm.pow.f64", "__acpp_sscp_pow_f64"},
-  IntrinsicMapping{"llvm.exp.f32", "__acpp_sscp_exp_f32"},
-  IntrinsicMapping{"llvm.exp.f64", "__acpp_sscp_exp_f64"},
-  IntrinsicMapping{"llvm.exp2.f32", "__acpp_sscp_exp2_f32"},
-  IntrinsicMapping{"llvm.exp2.f64", "__acpp_sscp_exp2_f64"},
-  IntrinsicMapping{"llvm.exp10.f32", "__acpp_sscp_exp10_f32"},
-  IntrinsicMapping{"llvm.exp10.f64", "__acpp_sscp_exp10_f64"},
-  IntrinsicMapping{"llvm.cos.f32", "__acpp_sscp_cos_f32"},
-  IntrinsicMapping{"llvm.cos.f64", "__acpp_sscp_cos_f64"},
-  IntrinsicMapping{"llvm.sin.f32", "__acpp_sscp_sin_f32"},
-  IntrinsicMapping{"llvm.sin.f64", "__acpp_sscp_sin_f64"},
-  // tan seems fine
-  IntrinsicMapping{"llvm.log.f32", "__acpp_sscp_log_f32"},
-  IntrinsicMapping{"llvm.log.f64", "__acpp_sscp_log_f64"},
-  IntrinsicMapping{"llvm.log2.f32", "__acpp_sscp_log2_f32"},
-  IntrinsicMapping{"llvm.log2.f64", "__acpp_sscp_log2_f64"},
-  IntrinsicMapping{"llvm.log10.f32", "__acpp_sscp_log10_f32"},
-  IntrinsicMapping{"llvm.log10.f64", "__acpp_sscp_log10_f64"},
-  // asin seems fine (presumably acos well?)
-  // atan at least with LLVM 20 needs remapping
-  IntrinsicMapping{"llvm.atan.f32", "__acpp_sscp_atan_f32"},
-  IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"}
-  // sqrt seems fine
-};
-
-void replaceBrokenLLVMIntrinsics(llvm::Module& M) {
-  for(auto& RM : IntrinsicReplacementMap) {
-    if(auto* F = M.getFunction(RM[0])) {
-      llvm::Function* Replacement = M.getFunction(RM[1]);
-
-      if(!Replacement) {
-        Replacement = llvm::Function::Create(F->getFunctionType(),
-                                             llvm::GlobalValue::ExternalLinkage, RM[1], M);
-        F->replaceAllUsesWith(Replacement);
-      }
-    }
-  }
-}
-
 }
 
 LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
@@ -140,9 +95,15 @@ LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
 
 bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   std::string Triple = "nvptx64-nvidia-cuda";
+
+#if LLVM_VERSION_MAJOR > 20
+  std::string DataLayout =
+      "e-p6:32:32-i64:64-i128:128-v16:16-v32:32-n16:32:64";
+#else
   std::string DataLayout =
       "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-i128:128:128-f32:32:32-"
       "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64";
+#endif
 
 #if LLVM_VERSION_MAJOR > 20
   M.setTargetTriple(llvm::Triple(Triple));
@@ -183,7 +144,7 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  replaceBrokenLLVMIntrinsics(M);
+  replaceLLVMIntrinsicsWithAcppBuiltins(M);
 
   std::string BuiltinBitcodeFile =
       common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-ptx-full.bc");
@@ -249,7 +210,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   std::string PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
 
   const std::string OptPath = getOptPath();
-  int OptR = llvm::sys::ExecuteAndWait(
+  int OptR = executeAndWait(
       OptPath, {OptPath, PtxTargetArg, "-O3", InputFileName, "-o", OptOutputFileName});
 
   if(OptR != 0) {
@@ -287,7 +248,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   }
   HIPSYCL_DEBUG_INFO << "LLVMToPtx: Invoking " << ArgString << "\n";
   
-  int R = llvm::sys::ExecuteAndWait(LLCPath, Invocation);
+  int R = executeAndWait(LLCPath, Invocation);
   
   if(R != 0) {
     this->registerError("LLVMToPtx: llc invocation failed with exit code " +

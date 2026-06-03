@@ -26,6 +26,7 @@
 
 #include "HLExtractionPass.hpp"
 
+#include <cassert>
 #include <deque>
 #include <iostream>
 
@@ -196,6 +197,65 @@ struct Extractor {
     }
   }
 
+  void collectEmittedBlocks(
+    const NodePtr& n,
+    std::unordered_set<const BasicBlock*>& emitted) const
+  {
+    if (!n) return;
+
+    if (n->kind == NodeKind::Block) {
+      auto bn = std::static_pointer_cast<BlockNode>(n);
+      if (bn->bb) {
+        emitted.emplace(bn->bb);
+      }
+      return;
+    }
+
+    if (n->kind == NodeKind::List) {
+      auto ln = std::static_pointer_cast<ListNode>(n);
+      for (const auto& item : ln->items) {
+        collectEmittedBlocks(item, emitted);
+      }
+      return;
+    }
+
+    if (n->kind == NodeKind::If) {
+      auto in = std::static_pointer_cast<IfNode>(n);
+      collectEmittedBlocks(in->then_branch, emitted);
+      collectEmittedBlocks(in->else_branch, emitted);
+      return;
+    }
+
+    if (n->kind == NodeKind::Loop) {
+      auto loop = std::static_pointer_cast<LoopNode>(n);
+      collectEmittedBlocks(loop->body, emitted);
+    }
+  }
+
+  bool nodeStartsWithBlock(const NodePtr& n, const BasicBlock* BB) const {
+    assert(n && "HLTree list items must not be null");
+    if (!BB) return false;
+
+    if (n->kind == NodeKind::Block) {
+      return std::static_pointer_cast<BlockNode>(n)->bb == BB;
+    }
+
+    if (n->kind == NodeKind::List) {
+      auto ln = std::static_pointer_cast<ListNode>(n);
+      if (ln->items.empty()) return false;
+      assert(ln->items.front() && "HLTree list items must not be null");
+      return nodeStartsWithBlock(ln->items.front(), BB);
+    }
+
+    if (n->kind == NodeKind::Loop) {
+      auto loop = std::static_pointer_cast<LoopNode>(n);
+      assert(loop->body && "HLTree loop nodes must have a body");
+      return nodeStartsWithBlock(loop->body, BB);
+    }
+
+    return false;
+  }
+
   // BFS from start, collecting all reachable blocks until stop (exclusive)
   std::unordered_set<const BasicBlock*> collectBranchBlocksUntil(
     const BasicBlock* start,
@@ -267,6 +327,15 @@ struct Extractor {
         NodePtr child = it->second;
         if (child) {
           extractConditions(child);
+          if (!nodeStartsWithBlock(child, BB)) {
+            localConsumed.emplace(BB);
+            globalConsumed.emplace(BB);
+
+            auto bn = std::make_shared<BlockNode>(BB);
+            bn->R = R;
+            bn->parentLoop = parentLoop;
+            seq->append(bn);
+          }
           seq->append(child);
           markRegionBlocksConsumed(child->R, globalConsumed);
           BB = child->R ? child->R->getExit() : nullptr;
@@ -490,8 +559,13 @@ struct Extractor {
       }
     }
 
+    std::unordered_set<const BasicBlock*> emittedBlocks;
+    for (const auto& item : ln.items) {
+      collectEmittedBlocks(item, emittedBlocks);
+    }
+
     for (auto* BB : regionBlocks) {
-      if (consumed.find(BB) == consumed.end()) {
+      if (emittedBlocks.find(BB) == emittedBlocks.end()) {
         std::cerr << "WARNING: Block not emitted in region: " << BB->getName().str() << "\n";
       }
     }

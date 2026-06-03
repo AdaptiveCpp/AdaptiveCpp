@@ -202,14 +202,17 @@ void* metal_allocator::raw_allocate(
 {
   auto storage_mode = MTL::ResourceStorageModePrivate;
   auto buffer = _device->newBuffer(size_bytes, storage_mode);
-  void* gpu_ptr = reinterpret_cast<void*>(buffer->gpuAddress());
+  // Metal shared/host USM uses host VA as the canonical pointer. Since
+  // gpuAddress = canonical + _delta is bijective, device USM can use the same
+  // canonical space by subtracting _delta from the native GPU address.
+  void* canonical_ptr = reinterpret_cast<void*>(buffer->gpuAddress() - _delta);
   auto block = usm_block{
     .buffer = buffer,
     .alloc_type = usm_alloc_type::device
   };
   std::lock_guard<std::mutex> lock{_mutex};
-  _ptr_to_block[gpu_ptr] = block;
-  return gpu_ptr;
+  _ptr_to_block[canonical_ptr] = block;
+  return canonical_ptr;
 }
 
 void *metal_allocator::raw_allocate_usm(

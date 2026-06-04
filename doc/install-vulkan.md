@@ -86,7 +86,6 @@ and not host or shared USM. However, there is no support of backend interop at t
 The holes in support arise from deficiencies in the compilation of kernel code. Features
 which are not supported for use in kernels targeting Vulkan SPIR-V are:
 
-* Reductions - Not supported, will generate incorrect results rather than error.
 * Floating point atomics - Not supported, will generate incorrect results rather than error.
 * `marray` - Will fail to compile or in a LLVM 18 build generate incorrect results. SPIR-V does
   not support non-standard integer types without the `SPV_INTEL_arbitrary_precision_integers`
@@ -384,8 +383,8 @@ convention `_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`.
 | `kernel_invocation_tests` | Pass   |
 | `math_tests`              | Pass   |
 | `marray_tests`            | [Issue 3](#issue-3)    |
-| `profiler_tests`          | Pass    |
-| `reduction_tests`         | [Issue 6](#issue-6)   |
+| `profiler_tests`          | Pass   |
+| `reduction_tests`         | Pass   |
 | `reference_semantics`     | Pass   |
 | `rel_tests`               | Pass   |
 | `sub_group_tests`         | Pass   |
@@ -410,10 +409,6 @@ built with LLVM 18, but not when built with LLVM 20.
 ### Issue 5
 
 Compiler issue with group broadcast implementation.
-
-### Issue 6
-
-Correctness issues that fail verification, needs further investigation.
 
 ### Issue 7
 

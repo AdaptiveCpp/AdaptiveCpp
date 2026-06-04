@@ -83,12 +83,6 @@ template<class T, class BinaryOp>
 void test_single_reduction(std::size_t input_size, std::size_t local_size,
                           const T& identity, BinaryOp op){
   sycl::queue q;
-  // See doc/vulkan.md issue #6
-  if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
-    return;
-  }
-
   if constexpr(std::is_same_v<T, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -133,7 +127,6 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
 template<class T>
 void test_two_reductions(std::size_t input_size, std::size_t local_size){
   sycl::queue q;
-
   if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
     BOOST_TEST_MESSAGE("Skipping test since device has no shared USM support");
     return;
@@ -277,12 +270,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
 
 BOOST_AUTO_TEST_CASE(accessor_reduction) {
   sycl::queue q;
-  // See doc/vulkan.md issue #6
-  if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
-    return;
-  }
-
   sycl::buffer<int> values_buff{1024};
   {
     sycl::host_accessor a{values_buff};
@@ -322,12 +309,6 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
 
 BOOST_AUTO_TEST_CASE(buffer_reduction) {
   sycl::queue q;
-  // See doc/vulkan.md issue #6
-  if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
-    return;
-  }
-
   sycl::buffer<int> values_buff{1024};
   {
     sycl::host_accessor a{values_buff};
@@ -367,12 +348,6 @@ BOOST_AUTO_TEST_CASE(incremental_reduction) {
   int* data = sycl::malloc_device<int>(size, q);
   std::vector<int> host_data(size);
 
-  // See doc/vulkan.md issue #6
-  if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
-    return;
-  }
-
   int* result = sycl::malloc_device<int>(1, q);
   for(std::size_t i = 0; i < size;++i)
     host_data[i] = static_cast<int>(i);
@@ -403,12 +378,6 @@ const int size = 1024;
   sycl::queue q;
   int* data = sycl::malloc_device<int>(size, q);
   std::vector<int> host_data(size);
-
-  // See doc/vulkan.md issue #6
-  if (q.get_device().get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
-    return;
-  }
 
   int* result = sycl::malloc_device<int>(1, q);
   for(std::size_t i = 0; i < size;++i)

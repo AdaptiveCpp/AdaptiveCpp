@@ -238,6 +238,10 @@ if(WITH_LEVEL_ZERO_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
+  if(${LLVM_VERSION_MAJOR} LESS 19)
+    message(WARNING "Vulkan backend is only supported with LLVM version 19 and later.")
+  endif()
+
   add_library(rt-backend-vk SHARED
      vk/vk_allocator.cpp
      vk/vk_backend.cpp

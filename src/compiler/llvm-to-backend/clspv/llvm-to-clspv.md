@@ -102,24 +102,6 @@ uses with the operand. Then fixing up instructions that are no longer
 correctly formed, e.g mem intrinsics expecting no address space but
 now have one.
 
-### SROAParallelForPass
-
-If a prior Scalar Reduction Of Aggregates (SROA) pass hasn't broken down the acpp
-`basic_parallel_for` struct then we manually do it so that clspv avoids choking on
-the alloca.
-
-### LLVM SROA
-
-A regular LLVM SROA pass, used to breakdown kernel arguments that are structs
-passed by value. By breaking them down into their component members, each member
-can be put into a Vulkan uniform buffer at a specific offset.
-
-### PtrToIntPass
-
-Pass for fixing resulting SROA components from large structs so that we don't
-lose the address space of pointers between `PtrToInt` then `IntToPtr` on a
-Value.
-
 ### ConstantAddrSpacePass
 
 Module pass for ensuring constant global variables use the constant address space.

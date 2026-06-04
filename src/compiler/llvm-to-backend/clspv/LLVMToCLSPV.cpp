@@ -18,9 +18,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/clspv/AddrSpaceCastRemovalPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/ConstantAddrSpacePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/MemsetLoweringPass.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/clspv/PtrToIntPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/RemoveUnusedIntrinsicsPass.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/clspv/SROAParallelForPass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
@@ -41,7 +39,6 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Program.h>
 #include <llvm/Support/raw_ostream.h>
-#include <llvm/Transforms/Scalar/SROA.h>
 #include <memory>
 #include <string>
 #include <system_error>
@@ -171,12 +168,12 @@ LLVMToCLSPVTranslator::LLVMToCLSPVTranslator(const std::vector<std::string> &KN)
 bool LLVMToCLSPVTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 
 #if LLVM_VERSION_MAJOR > 20
-  M.setTargetTriple(llvm::Triple("spir64-unknown-unknown"));
+  M.setTargetTriple(llvm::Triple("spirv64-unknown-vulkan"));
 #else
-  M.setTargetTriple("spir64-unknown-unknown");
+  M.setTargetTriple("spirv64-unknown-vulkan");
 #endif
   M.setDataLayout("e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:"
-                  "256-v512:512-v1024:1024-G1");
+                  "256-v512:512-v1024:1024-n8:16:32:64-G1");
 
   rewriteZeroSizeArrayGEPs(M);
 
@@ -411,10 +408,6 @@ bool LLVMToCLSPVTranslator::optimizeFlavoredIR(llvm::Module &M,
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(MemsetLoweringPass()));
   MPM.addPass(
       llvm::createModuleToFunctionPassAdaptor(AddrSpaceCastRemovalPass()));
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(SROAParallelForPass()));
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(
-      llvm::SROAPass(llvm::SROAOptions::PreserveCFG)));
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(PtrToIntPass()));
   MPM.addPass(ConstantAddrSpacePass());
   MPM.run(M, *PH.ModuleAnalysisManager);
 

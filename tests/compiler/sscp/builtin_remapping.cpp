@@ -8,8 +8,6 @@
 // RUN: %acpp %s -o %t --acpp-targets=generic -g
 // RUN: %t | FileCheck %s
 
-// UNSUPPORTED: vulkan || vk
-
 #include <iostream>
 #include <cmath>
 #include <sycl/sycl.hpp>

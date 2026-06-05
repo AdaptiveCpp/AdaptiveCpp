@@ -268,10 +268,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
   SKIP_IF_MOLTENVK(sycl::device{})
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
+  if constexpr (!std::is_scalar_v<T>) {
+    if (sycl::device{}.get_backend() == sycl::backend::vk) {
+      BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
+      return;
+    }
   }
 
   if(!sycl::queue{}.get_device().is_host()) {
@@ -606,10 +607,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
   SKIP_IF_MOLTENVK(sycl::device{})
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
+  if constexpr (!std::is_scalar_v<T>) {
+    if (sycl::device{}.get_backend() == sycl::backend::vk) {
+      BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
+      return;
+    }
   }
 
   if(!sycl::queue{}.get_device().is_host()) {

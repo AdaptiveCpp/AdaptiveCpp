@@ -2,8 +2,6 @@
 # checks whether __cxa_throw is present in device bitcode of specified HCF file (first arg)
 # additionally checks if __acpp_sscp_assert_fail is present in device bitcode
 # For the LLVM Integrated Tester (lit) respective patterns CXATHROWHIT and ACPPASSERTFAILHIT are printed to stdout
-export ACPP_COMPILER="/home/andre/Code/acpp/AdaptiveCpp/generic-19/bin/acpp"
-export LLVM_VERSION=19
 
 HCFFILE="$1"
 

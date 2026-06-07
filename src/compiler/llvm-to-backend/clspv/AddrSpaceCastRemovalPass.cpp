@@ -115,7 +115,19 @@ bool fixupICMPNull(llvm::Function &F) {
 // Remove address space cast instructions and replace uses with pointer operand
 bool removeCasts(llvm::Function &F) {
   llvm::SmallVector<llvm::Instruction *> ASCToRemove;
-  bool DidGEPTransform = false;
+  bool DidTransform = false;
+
+  auto processConstExpr = [&DidTransform](llvm::Value *Val,
+                                          llvm::ConstantExpr *CE) {
+    auto CEI = CE->getAsInstruction();
+    if (auto *ASC = llvm::dyn_cast<llvm::AddrSpaceCastInst>(CEI)) {
+      llvm::Value *ASCop = ASC->getPointerOperand();
+      Val->replaceAllUsesWith(ASCop);
+      DidTransform = true;
+    }
+    CEI->deleteValue(); // Don't leak instruction without parent
+  };
+
   for (auto &BB : F) {
     for (auto &I : BB) {
       if (auto *ASC = llvm::dyn_cast<llvm::AddrSpaceCastInst>(&I)) {
@@ -127,24 +139,16 @@ bool removeCasts(llvm::Function &F) {
       } else if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(&I)) {
         auto *Op = GEP->getPointerOperand();
         if (auto CE = llvm::dyn_cast<llvm::ConstantExpr>(Op)) {
-          auto CEI = CE->getAsInstruction();
-          if (auto *ASC = llvm::dyn_cast<llvm::AddrSpaceCastInst>(CEI)) {
-            llvm::Value *ASCop = ASC->getPointerOperand();
-            Op->replaceAllUsesWith(ASCop);
-            DidGEPTransform = true;
-          }
-          CEI->deleteValue(); // Don't leak instruction without parent
+          processConstExpr(Op, CE);
         }
       } else if (auto *Store = llvm::dyn_cast<llvm::StoreInst>(&I)) {
         auto *Op = Store->getValueOperand();
         if (auto CE = llvm::dyn_cast<llvm::ConstantExpr>(Op)) {
-          auto CEI = CE->getAsInstruction();
-          if (auto *ASC = llvm::dyn_cast<llvm::AddrSpaceCastInst>(CEI)) {
-            llvm::Value *ASCop = ASC->getPointerOperand();
-            Op->replaceAllUsesWith(ASCop);
-            DidGEPTransform = true;
-          }
-          CEI->deleteValue(); // Don't leak instruction without parent
+          processConstExpr(Op, CE);
+        }
+        auto *Ptr = Store->getPointerOperand();
+        if (auto CE = llvm::dyn_cast<llvm::ConstantExpr>(Ptr)) {
+          processConstExpr(Ptr, CE);
         }
       }
     }
@@ -154,7 +158,7 @@ bool removeCasts(llvm::Function &F) {
     I->eraseFromParent();
   }
 
-  return (!ASCToRemove.empty() || DidGEPTransform);
+  return (!ASCToRemove.empty() || DidTransform);
 }
 
 // For alloca instructions which are created from SROA and hold a pointer, make

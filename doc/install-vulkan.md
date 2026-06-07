@@ -367,7 +367,7 @@ convention `_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`.
 | Suite                     | Status |
 | ------------------------- | ------ |
 | `accessor_tests`          | Pass   |
-| `atomic_tests`            | [Issue 2](#issue-2), [Issue 8](#issue-8) |
+| `atomic_tests`            | [Issue 2](#issue-2) |
 | `buffer_tests`            | Pass   |
 | `explicit_copy_tests`     | Pass   |
 | `extension_tests`         | Pass   |
@@ -436,11 +436,6 @@ Investigations so far:
  * Doing `out[id] = &in[offset-1] - &in` gives the correct offset
  * Generating logical memory model spirv from than physical addressing SPIRV gives the correct
    result in clvk
-
-### Issue 8
-
-`atomic_tests/fetch_add_sub_local_memory` fails to compile kernel with non-float types that
-should be supportable. Needs investigated.
 
 ### Issue 9
 

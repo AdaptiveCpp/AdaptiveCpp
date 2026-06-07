@@ -366,11 +366,6 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 
 
 BOOST_AUTO_TEST_CASE(fetch_add_sub_local_memory) {
-  if (sycl::device{}.get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("Skipping test on Vulkan");
-    return;
-  }
-
   auto fetch_add = [](auto &atomic, auto x) {
     return atomic.fetch_add(x);
   };

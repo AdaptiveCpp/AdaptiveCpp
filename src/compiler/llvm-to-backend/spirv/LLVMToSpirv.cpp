@@ -134,7 +134,7 @@ void rewriteZeroSizeArrayGEPs(llvm::Module& M) {
       for(auto& I : BB) {
         if(auto* GEPInst = llvm::dyn_cast<llvm::GetElementPtrInst>(&I)){
           auto* SourceTy =  GEPInst->getSourceElementType();
-          
+
           if(GEPInst->getNumIndices() > 0 && SourceTy->isArrayTy()) {
             llvm::Value* FirstIndex = GEPInst->idx_begin()->get();
             int64_t FirstIndexVal = -1;
@@ -198,7 +198,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   // llvm-spirv translator does not like GEPs into 0-size arrays.
   rewriteZeroSizeArrayGEPs(M);
-  
+
   AddressSpaceMap ASMap = getAddressSpaceMap();
   KernelFunctionParameterRewriter ParamRewriter{
     // llvm-spirv wants ByVal attribute for all aggregates passed in by-value
@@ -225,7 +225,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  std::string BuiltinBitcodeFile = 
+  std::string BuiltinBitcodeFile =
     common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-spirv-full.bc");
 
 #if LLVM_VERSION_MAJOR > 20
@@ -292,9 +292,9 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   auto consumeError = [&](std::error_code EC) {
     if(EC) {
       if(Create)
-        this->registerError("LLVMToPtx: Could not create temp file: " + EC.message());
+        this->registerError("LLVMToSpirv: Could not create temp file: " + EC.message());
       else
-        this->registerError("LLVMToPtx: Could not remove temp file: " + EC.message());
+        this->registerError("LLVMToSpirv: Could not remove temp file: " + EC.message());
       return false;
     }
     return true;
@@ -361,15 +361,15 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
                         std::to_string(R));
     return false;
   }
-  
+
   auto ReadResult =
       llvm::MemoryBuffer::getFile(OutputFileName);
-  
+
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToSpirv: Could not read result file"+Err.message());
     return false;
   }
-  
+
   out = ReadResult->get()->getBuffer();
 
   return true;
@@ -446,7 +446,7 @@ bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH)
   }
   for(auto* I : InstsToRemove)
     I->eraseFromParent();
-  
+
   return Result;
 }
 

@@ -61,8 +61,8 @@ bool setDynamicLocalMemoryCapacity(llvm::Module &M, unsigned numBytes) {
     return numBytes == 0;
   }
 
+  const unsigned AddressSpace = GV->getAddressSpace();
   if (numBytes > 0) {
-    unsigned AddressSpace = GV->getAddressSpace();
     unsigned numInts = (numBytes + 4 - 1) / 4;
     llvm::Type *T =
         llvm::ArrayType::get(llvm::Type::getInt32Ty(M.getContext()), numInts);
@@ -77,14 +77,15 @@ bool setDynamicLocalMemoryCapacity(llvm::Module &M, unsigned numBytes) {
     llvm::Value *V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
     GV->replaceAllUsesWith(V);
     GV->eraseFromParent();
-  }
-  return true;
-}
-
-bool removeDynamicLocalMemorySupport(llvm::Module &M) {
-  llvm::GlobalVariable *GV = M.getGlobalVariable(DynamicLocalMemArrayName);
-  if (GV) {
-    GV->replaceAllUsesWith(llvm::ConstantPointerNull::get(GV->getType()));
+  } else {
+    // If no bytes of local memory used but Global memory exists, then set
+    // global variable to a nullptr.
+    llvm::Type *T = llvm::PointerType::get(M.getContext(), AddressSpace);
+    llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
+        M, T, false, llvm::GlobalValue::InternalLinkage,
+        llvm::Constant::getNullValue(T), GV->getName() + ".null", nullptr,
+        llvm::GlobalVariable::ThreadLocalMode::NotThreadLocal, AddressSpace);
+    GV->replaceAllUsesWith(NewVar);
     GV->eraseFromParent();
   }
   return true;
@@ -217,20 +218,13 @@ bool LLVMToCLSPVTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
 #endif
     return false;
 
-  // Set up local memory
-  if (DynamicLocalMemSize > 0) {
-    HIPSYCL_DEBUG_INFO << "LLVMToCLSPV: Configuring kernel for "
-                       << DynamicLocalMemSize << " bytes of local memory\n";
-    if (!setDynamicLocalMemoryCapacity(M, DynamicLocalMemSize)) {
-      HIPSYCL_DEBUG_WARNING << "Could not set dynamic local memory size; this "
-                               "could imply that local memory "
-                               "requested by the application is not actually "
-                               "used inside kernels\n";
-    }
-  } else {
-    HIPSYCL_DEBUG_INFO
-        << "LLVMToCLSPV: Removing dynamic local memory support from module\n";
-    removeDynamicLocalMemorySupport(M);
+  HIPSYCL_DEBUG_INFO << "LLVMToCLSPV: Configuring kernel for "
+                     << DynamicLocalMemSize << " bytes of local memory\n";
+  if (!setDynamicLocalMemoryCapacity(M, DynamicLocalMemSize)) {
+    HIPSYCL_DEBUG_WARNING << "Could not set dynamic local memory size; this "
+                             "could imply that local memory "
+                             "requested by the application is not actually "
+                             "used inside kernels\n";
   }
 
   // kernel debugging as future work

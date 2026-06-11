@@ -150,6 +150,11 @@ bool removeCasts(llvm::Function &F) {
         if (auto CE = llvm::dyn_cast<llvm::ConstantExpr>(Ptr)) {
           processConstExpr(Ptr, CE);
         }
+      } else if (auto *Load = llvm::dyn_cast<llvm::LoadInst>(&I)) {
+        auto *Ptr = Load->getPointerOperand();
+        if (auto CE = llvm::dyn_cast<llvm::ConstantExpr>(Ptr)) {
+          processConstExpr(Ptr, CE);
+        }
       }
     }
   }

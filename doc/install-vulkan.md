@@ -132,15 +132,12 @@ assessment of the status of the benchmarks is as follows on llvmpipe 25.0.7.
 | HeCbench rsbench    | Can't compile kernel for SYCL or PCUDA               |
 | HeCbench sph        | Completes successfully on SYCL and PCUDA             |
 | Bude                | SYCL verification fails, PCUDA device not compatible |
-| Cloverleaf          | Can't compile kernel for SYCL or PCUDA               |
+| Cloverleaf          | SYCL verification fails and PCUDA raises an error    |
 
 Compilation fail investigations:
 
 * HecBench fdtd3d - LLVM-IR contains `llvm.memmove` intrinsic which is not implemented in clspv.
 * Hecbench rsbench - Error processing GEP into alloca array of `type { double, double }` struct.
-* Cloverleaf - Malformed LLVM-IR PHI instruction being output that cannot be read when
-  bitcode is deserialized by clspv. This a symptom that has been seen when an kernel
-  tries to pointer chase a linked list.
 
 #### Benchmark Results
 

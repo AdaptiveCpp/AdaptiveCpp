@@ -50,6 +50,67 @@ bool fixupGEP(llvm::Function &F) {
   return !InstToDel.empty();
 }
 
+// If we have a PHI instruction of ptr type, check if any of the incoming values
+// are now a non-zero address space. If so, create a new PHI with the non-zero
+// address space type and update any incoming values which are GEP instructions
+// that need their address space updated as a result of using the GEP.
+bool fixupPHI(llvm::Function &F) {
+  std::vector<llvm::Instruction *> InstToDel;
+
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      if (auto PHI = llvm::dyn_cast<llvm::PHINode>(&I)) {
+        if (auto Type = llvm::dyn_cast<llvm::PointerType>(PHI->getType())) {
+          const unsigned PHIAddrSpace = Type->getAddressSpace();
+          const unsigned N = PHI->getNumIncomingValues();
+          llvm::PHINode *NewPHI = nullptr;
+          for (unsigned i = 0; i < N; i++) {
+            auto V = PHI->getIncomingValue(i);
+            auto ValType = llvm::cast<llvm::PointerType>(V->getType());
+            if ((ValType->getAddressSpace() != PHIAddrSpace) &&
+                (PHIAddrSpace == 0)) {
+              llvm::IRBuilder Builder(PHI);
+              NewPHI = Builder.CreatePHI(ValType, PHI->getNumIncomingValues());
+              PHI->replaceAllUsesWith(NewPHI);
+              InstToDel.push_back(PHI);
+              break;
+            }
+          }
+
+          if (NewPHI) {
+            for (unsigned i = 0; i < N; i++) {
+              auto V = PHI->getIncomingValue(i);
+              auto BB = PHI->getIncomingBlock(i);
+              if (auto GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V)) {
+                llvm::IRBuilder Builder(GEP);
+                std::vector<llvm::Value *> indices;
+                for (auto &i : GEP->indices()) {
+                  indices.push_back(llvm::cast<llvm::Value>(&i));
+                }
+
+                auto NewGEP =
+                    Builder.CreateGEP(GEP->getSourceElementType(),
+                                      GEP->getPointerOperand(), indices);
+                InstToDel.push_back(GEP);
+                GEP->replaceAllUsesWith(NewGEP);
+                NewPHI->addIncoming(NewGEP, BB);
+              } else {
+                NewPHI->addIncoming(V, BB);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (auto I : InstToDel) {
+    I->eraseFromParent();
+  }
+
+  return !InstToDel.empty();
+}
+
 // Need to recreate builtin declaration with address spaces where previously
 // there was no address space on operands.
 bool fixupMemInstrinsic(llvm::Function &F) {
@@ -251,6 +312,7 @@ AddrSpaceCastRemovalPass::run(llvm::Function &F,
   bool DidTransform = removeCasts(F);
   DidTransform |= fixupICMPNull(F);
   DidTransform |= fixupGEP(F);
+  DidTransform |= fixupPHI(F);
   DidTransform |= fixupMemInstrinsic(F);
   DidTransform |= fixupAllocas(F);
   return DidTransform ? llvm::PreservedAnalyses::all()

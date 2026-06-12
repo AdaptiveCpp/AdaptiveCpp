@@ -302,7 +302,7 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
 
   llvm::SmallVector<std::string> Args{"-x=ir",
                                       "--physical-storage-buffers",
-                                      "-spv-version=1.3",
+                                      "-spv-version=1.5",
                                       "--arch=spir64",
                                       "-long-vector",
                                       "-o=" + OutputFileName};

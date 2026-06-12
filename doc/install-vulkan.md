@@ -311,7 +311,7 @@ memcopy.
 #### clspv
 
 Kernels are compiled by using the LLVM-IR input to clspv to create Vulkan consumable SPIR-V
-version 1.3 (supported by Vulkan 1.1 drivers onward).
+version 1.5 (supported by Vulkan 1.2 drivers onward).
 This involves the SSCP compiler flavouring the LLVM-IR to resemble OpenCL-C generated IR,
 which is then lowered appropriately by clspv. Transformations are defined in the
 `llvm-to-clspv` tool to achieve this. For more information on the transformations

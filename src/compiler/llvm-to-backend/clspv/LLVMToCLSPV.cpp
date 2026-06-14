@@ -326,7 +326,7 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
   }
   HIPSYCL_DEBUG_INFO << "LLVMToCLSPV: Invoking " << ArgString << "\n";
 
-  int R = llvm::sys::ExecuteAndWait(CLSPV, Invocation);
+  int R = executeAndWait(CLSPV, Invocation);
 
   if (R != 0) {
     this->registerError("LLVMToCLSPV: clspv invocation failed with exit code " +

@@ -105,18 +105,6 @@ struct spv_kernel_argument {
                                   const spv_kernel_argument &arg);
 };
 
-// Define a hash function for 3D `rt::range` such that `rt::range<3>` can be
-// used as a key in a std::map/unordered_map object
-struct range_hash {
-  size_t operator()(const rt::range<3> &key) const {
-    uint64_t result = uint16_t(key[0]);
-    result = (result << 16) + key[1];
-    result = (result << 16) + key[2];
-    static_assert(sizeof(size_t) == sizeof(uint64_t));
-    return (size_t)result;
-  }
-};
-
 class vk_kernel_object {
 public:
   vk_kernel_object();
@@ -147,7 +135,7 @@ public:
 private:
   vk_executable_object *_exe_obj;
   std::string _name;
-  std::unordered_map<rt::range<3>, vk_kernel_pipeline_sp, range_hash>
+  std::unordered_map<rt::range<3>, vk_kernel_pipeline_sp, rt::range_hash>
       _pipelines;
   std::vector<size_t> _reqd_wg_size;
   std::vector<spv_kernel_argument> _args;

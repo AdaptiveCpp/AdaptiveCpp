@@ -113,7 +113,7 @@ Devices known to be well supported by the backend include:
 | MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled                        |
 | Swiftshader  | Google 5.0.0      | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                            |
 
-Other devices are untested and support status unknown.
+Other devices are untested and support status is unknown.
 
 ## Benchmarks
 

@@ -112,7 +112,7 @@ jobs:
       run: |
         git clone --recurse-submodules https://github.com/llvm/llvm-project --depth 1 --single-branch -b release/${{matrix.clang_version}}.x llvm
 
-    - name: build Adaptive Cpp
+    - name: build AdaptiveCpp
       run: |
         mkdir build && cd build
         cmake ../llvm/llvm -GNinja \

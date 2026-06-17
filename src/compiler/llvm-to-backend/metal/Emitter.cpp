@@ -223,6 +223,7 @@ uint3 __acpp_sscp_metal_local_size [[threads_per_threadgroup]];
 
 threadgroup void * constant __acpp_sscp_metal_dynamic_local_memory [[threadgroup(0)]];
 constant uint& constant __acpp_sscp_metal_dynamic_local_memory_size [[buffer(0)]];
+constant long& constant __acpp_sscp_metal_gpu_to_host_addr_diff [[buffer(1)]];
 
 )__";
 
@@ -514,7 +515,7 @@ bool MetalEmitter::emitSignature(Function& F) {
   os << returnType << " " << F.getName().str() << " (";
 
   bool first = true;
-  int bufIdx = 1; // index=0 is reserved for dynamic local memory size if needed, so start from 1
+  int bufIdx = 2; // index=0 is reserved for dynamic local memory size, index=1 for host-to-device address difference, so start from 2
   if (useArgStruct) {
     first = false;
     os << "device " << inputStructName << "& __args [[buffer(" << bufIdx++ << ")]]";
@@ -1170,6 +1171,13 @@ void MetalEmitter::emitGEPInstruction(const GetElementPtrInst* GEP, const std::s
   std::string base = emitExpr(GEP->getPointerOperand());
   Type* srcElemType = GEP->getSourceElementType();
   std::string typeName = mapType(srcElemType);
+  // Pointer-typed elements (e.g., ptr[]) cannot be expressed in MSL as "device void**"
+  if (srcElemType->isPointerTy()) {
+    auto pointerAS = srcElemType->getPointerAddressSpace();
+    auto elemAddrSpace = getAddressSpaceKeyword(pointerAS);
+    auto structName = "__struct_ptr_to_" + elemAddrSpace;
+    typeName = structName;
+  }
 
   unsigned physAS = getPhysicalPointerAddressSpace(GEP->getPointerOperand());
   std::string addrSpace = getAddressSpaceKeyword(physAS);

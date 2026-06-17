@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/sycl/libkernel/sscp/builtins/localmem.hpp"
 
+// Compiler will leverage __acpp_cbs_* naming for improved indirect access analysis
 extern "C" void* __acpp_cbs_sscp_dynamic_local_memory;
 extern "C" void* __acpp_cbs_sscp_internal_local_memory;
 

@@ -210,7 +210,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   std::string PtxTargetArg = "--mcpu=sm_" + std::to_string(PtxTarget);
 
   const std::string OptPath = getOptPath();
-  int OptR = llvm::sys::ExecuteAndWait(
+  int OptR = executeAndWait(
       OptPath, {OptPath, PtxTargetArg, "-O3", InputFileName, "-o", OptOutputFileName});
 
   if(OptR != 0) {
@@ -248,7 +248,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   }
   HIPSYCL_DEBUG_INFO << "LLVMToPtx: Invoking " << ArgString << "\n";
   
-  int R = llvm::sys::ExecuteAndWait(LLCPath, Invocation);
+  int R = executeAndWait(LLCPath, Invocation);
   
   if(R != 0) {
     this->registerError("LLVMToPtx: llc invocation failed with exit code " +

@@ -181,6 +181,20 @@ private:
   std::shared_ptr<omp_execution_finish_timestamp> _finish;
 };
 
+template<class F>
+void builtin_kernel(const rt::range<3>& range, F&& f){
+#ifdef _OPENMP
+  #pragma omp parallel for collapse(3)
+#endif
+  for (std::size_t i = 0; i < range.get(0); ++i) {
+    for (std::size_t j = 0; j < range.get(1); ++j) {
+      for (std::size_t k = 0; k < range.get(2); ++k) {
+        f(i, j, k);
+      }
+    }
+  }
+}
+
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
 
 std::size_t get_page_size() {
@@ -347,6 +361,20 @@ result omp_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
              allocation_shape[2] * allocation_shape[1] * id[0];
     };
 
+#ifdef _OPENMP
+    builtin_kernel(transferred_range, [=](std::size_t i, std::size_t j,
+                                          std::size_t k) {
+      // TODO Might be able to optimize this for 1D and 2D cases
+      rt::id<3> idx{i,j,k};
+      std::size_t src_index = linear_index(idx+src_offset, src_allocation_shape);
+      std::size_t dest_index = linear_index(idx+dest_offset, dest_allocation_shape);
+
+      memcpy(static_cast<char *>(base_dest) + dest_index * dest_element_size,
+             static_cast<const char *>(base_src) + src_index * src_element_size,
+             src_element_size);
+    });
+#else
+
     if (is_src_contiguous && is_dest_contiguous) {
       char *current_src = reinterpret_cast<char *>(base_src);
       char *current_dest = reinterpret_cast<char *>(base_dest);
@@ -395,6 +423,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
         ++current_src_offset[0];
       }
     }
+#endif
   });
 
   return make_success();
@@ -591,7 +620,14 @@ result omp_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) 
   _worker([=]() {
     auto instrumentation_guard = instrumentation_setup.instrument_task();
 
+#ifdef _OPENMP
+    builtin_kernel(rt::range<3>{1, 1, bytes},
+                   [=](auto, auto, std::size_t i) { 
+      static_cast<char*>(ptr)[i] = pattern; 
+    });
+#else
     memset(ptr, pattern, bytes);
+#endif
   });
 
   return make_success();

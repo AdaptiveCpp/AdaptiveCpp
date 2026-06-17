@@ -87,7 +87,7 @@ void * hip_allocator::raw_allocate_usm(size_t bytes,
   hip_device_manager::get().activate_device(_dev);
 
   void *ptr;
-  auto err = hipMallocManaged(&ptr, bytes);
+  auto err = hipHostMalloc(&ptr, bytes, hipHostMallocDefault);//hipMallocManaged(&ptr, bytes);
   if (err != hipSuccess) {
     register_error(__acpp_here(),
                    error_info{"hip_allocator: hipMallocManaged() failed",

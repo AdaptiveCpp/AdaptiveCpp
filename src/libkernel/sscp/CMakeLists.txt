@@ -1,3 +1,6 @@
+if(POLICY CMP0116)
+  cmake_policy(SET CMP0116 NEW)  # Normalize paths in depfile
+endif()
 
 function(libkernel_generate_bitcode_library)
   set(options)
@@ -35,11 +38,21 @@ function(libkernel_generate_bitcode_library)
     set(target_flag -target ${triple})
   endif()
 
+  set(depfile_args)
+  if(CMAKE_GENERATOR MATCHES "^Ninja"
+      OR (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20 AND CMAKE_GENERATOR MATCHES "Makefiles")
+      OR (CMAKE_VERSION VERSION_GREATER_EQUAL 3.21 AND CMAKE_GENERATOR MATCHES "Visual Studio|Xcode"))
+    set(depfile_args DEPFILE ${target_output_file}.d)
+  endif()
+
   add_custom_command(
       OUTPUT ${target_output_file}
       COMMAND ${CLANG_EXECUTABLE_PATH} ${target_flag} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
-                    -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific} -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                    -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific}
+                    -MMD -MT ${target_output_file} -MF ${target_output_file}.d
+                    -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${target_depends}
+      ${depfile_args}
       VERBATIM)
 
   install(FILES ${target_output_file} DESTINATION lib/hipSYCL/bitcode)

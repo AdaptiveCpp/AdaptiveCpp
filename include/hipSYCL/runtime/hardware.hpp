@@ -139,6 +139,15 @@ public:
 
   virtual std::size_t get_platform_index() const= 0;
 
+  virtual bool supports_free_device_memory_query() const {
+    return false;
+  }
+
+  virtual std::size_t get_free_device_memory() const {
+    assert(false && "free device memory query is not supported");
+    std::terminate();
+  }
+
   virtual ~hardware_context(){}
 };
 

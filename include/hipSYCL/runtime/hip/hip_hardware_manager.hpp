@@ -61,6 +61,10 @@ public:
   hip_event_pool* get_event_pool() const;
 
   std::size_t get_wavefront_size() const;
+
+  bool supports_free_device_memory_query() const override;
+  std::size_t get_free_device_memory() const override;
+
 private:
   std::unique_ptr<hipDeviceProp_t> _properties;
   std::unique_ptr<hip_allocator> _allocator;

@@ -486,5 +486,24 @@ unsigned cuda_hardware_context::get_compute_capability() const {
   return _properties->major * 10 + _properties->minor;
 }
 
+bool cuda_hardware_context::supports_free_device_memory_query() const {
+  return true;
+}
+
+std::size_t cuda_hardware_context::get_free_device_memory() const {
+  std::size_t free_bytes = 0;
+  std::size_t total_bytes = 0;
+
+  auto err = cudaMemGetInfo(&free_bytes, &total_bytes);
+  if(err != cudaSuccess) {
+    register_error(
+        __acpp_here(),
+        error_info{"cuda_hardware_manager: Querying free device memory failed",
+                   error_code{"CUDA", err}});
+  }
+
+  return free_bytes;
+}
+
 }
 }

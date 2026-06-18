@@ -506,6 +506,24 @@ std::size_t hip_hardware_context::get_wavefront_size() const {
   return _properties->warpSize;
 }
 
+bool hip_hardware_context::supports_free_device_memory_query() const {
+  return true;
+}
+
+std::size_t hip_hardware_context::get_free_device_memory() const {
+  std::size_t free_bytes = 0;
+  std::size_t total_bytes = 0;
+
+  auto err = hipMemGetInfo(&free_bytes, &total_bytes);
+  if(err != hipSuccess) {
+    register_error(
+        __acpp_here(),
+        error_info{"hip_hardware_manager: Querying free device memory failed",
+                   error_code{"HIP", err}});
+  }
+
+  return free_bytes;
+}
 
 }
 }

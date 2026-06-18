@@ -73,6 +73,7 @@ public:
 
   static std::unique_ptr<ocl_usm> from_intel_extension(ocl_hardware_manager* hw_mgr, int device_index);
   static std::unique_ptr<ocl_usm> from_fine_grained_system_svm(ocl_hardware_manager* hw_mgr, int device_index);
+  static std::unique_ptr<ocl_usm> from_usvm_khr(ocl_hardware_manager* hw_mgr, int device_index);
 };
 
 

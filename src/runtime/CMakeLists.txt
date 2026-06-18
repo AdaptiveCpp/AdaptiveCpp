@@ -241,7 +241,7 @@ if(WITH_OPENCL_BACKEND)
   include(FetchContent)
   FetchContent_Declare(ocl-headers
     GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-Headers
-    GIT_TAG 265df85aec478d14a5c5880d7bb92d7dd52714ef
+    GIT_TAG 6137cfbbc7938cd43069d45c622022572fb87113
   )
 
   FetchContent_MakeAvailable(ocl-headers)

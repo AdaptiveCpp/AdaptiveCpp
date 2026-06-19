@@ -1404,6 +1404,24 @@ BOOST_AUTO_TEST_CASE(target_numa_node_property) {
 
 }
 #endif
+#if defined(ACPP_EXT_DEVICE_FREE_MEMORY)
+BOOST_AUTO_TEST_CASE(device_free_memory)
+{
+  sycl::queue q;
+  sycl::device dev = q.get_device();
+
+  if(dev.has(sycl::aspect::AdaptiveCpp_free_memory)) {
+    auto free_memory =
+        dev.get_info<sycl::info::device::AdaptiveCpp_free_memory>();
+
+    (void)free_memory;
+  } else {
+    BOOST_CHECK_THROW(
+        dev.get_info<sycl::info::device::AdaptiveCpp_free_memory>(),
+        sycl::exception);
+  }
+}
+#endif
 #ifdef SYCL_KHR_DEFAULT_CONTEXT
 BOOST_AUTO_TEST_CASE(khr_default_context) {
   sycl::queue q1;

@@ -125,13 +125,10 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
         [=]() mutable {
           vk::Semaphore semaphore = *_semaphore;
 
-          {
-            std::stringstream ss;
-            ss << "vk_queue: temp allocation source copy async thread WAIT "
-               << "semaphore " << semaphore << " wait value " << wait_value
-               << std::endl;
-            HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-          }
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation source copy async thread WAIT "
+              << "semaphore " << semaphore << " wait value " << wait_value
+              << std::endl;
           vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
           vk::Result wait_ret_code;
           do {
@@ -153,13 +150,10 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
           vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
           _dev_ctx->get_device().signalSemaphore(signal_info);
 
-          {
-            std::stringstream ss;
-            ss << "vk_queue: temp allocation source copy async thread SIGNAL "
-               << "semaphore " << semaphore << " signal value " << signal_value
-               << std::endl;
-            HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-          }
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation source copy async thread SIGNAL "
+              << "semaphore " << semaphore << " signal value " << signal_value
+              << std::endl;
         });
 
     temp_allocs.first = src_alloc_info;
@@ -247,13 +241,10 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
     _host_worker(
         [=]() mutable {
           vk::Semaphore semaphore = *_semaphore;
-          {
-            std::stringstream ss;
-            ss << "vk_queue: temp allocation deallocate async thread WAIT "
-               << "semaphore " << semaphore << " wait value " << wait_value
-               << std::endl;
-            HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-          }
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation deallocate async thread WAIT "
+              << "semaphore " << semaphore << " wait value " << wait_value
+              << std::endl;
           vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
 
           vk::Result wait_ret_code;
@@ -288,13 +279,10 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
           vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
           _dev_ctx->get_device().signalSemaphore(signal_info);
 
-          {
-            std::stringstream ss;
-            ss << "vk_queue: temp allocation deallocate async thread SIGNAL "
-               << "semaphore " << semaphore << " signal value " << signal_value
-               << std::endl;
-            HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-          }
+          HIPSYCL_DEBUG_INFO
+              << "vk_queue: temp allocation deallocate async thread SIGNAL "
+              << "semaphore " << semaphore << " signal value " << signal_value
+              << std::endl;
         });
   }
 
@@ -327,20 +315,14 @@ vk::CommandBuffer vk_queue::get_command_buffer() {
    * in the other lists, so leave this as future work to implement.
    */
   if (!_available_cmd_bufs.empty()) {
-    {
-      std::stringstream ss{"vk_queue: Found free command-buffer\n"};
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_queue: Found free command-buffer" << std::endl;
     vk::CommandBuffer cmd_buf = _available_cmd_bufs.back();
     _available_cmd_bufs.pop_back();
     return cmd_buf;
   }
 
-  {
-    std::stringstream ss{
-        "vk_queue: No free command-buffers, refreshing list\n"};
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_queue: No free command-buffers, refreshing list"
+                     << std::endl;
 
   std::vector<uint64_t> finished;
   for (auto &pair : _executing_cmd_bufs) {
@@ -359,12 +341,9 @@ vk::CommandBuffer vk_queue::get_command_buffer() {
 
   // Check if any command-buffers now available
   if (!_available_cmd_bufs.empty()) {
-    {
-      std::stringstream ss;
-      ss << "vk_queue: " << _available_cmd_bufs.size()
-         << " free command-buffers found in refreshed list" << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_queue: " << _available_cmd_bufs.size()
+                       << " free command-buffers found in refreshed list"
+                       << std::endl;
     vk::CommandBuffer cmd_buf = _available_cmd_bufs.back();
     _available_cmd_bufs.pop_back();
     return cmd_buf;
@@ -376,12 +355,10 @@ vk::CommandBuffer vk_queue::get_command_buffer() {
   auto wait_val = cmd->first;
   auto cmd_buf = cmd->second;
 
-  {
-    std::stringstream ss;
-    ss << "vk_queue: Still no free command-buffers, waiting on " << wait_val
-       << " counter to be signaled by timeline semaphore" << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_queue: Still no free command-buffers, waiting on "
+                     << wait_val
+                     << " counter to be signaled by timeline semaphore"
+                     << std::endl;
 
   vk::Semaphore semaphore = *_semaphore;
   vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_val);
@@ -407,13 +384,10 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
   const uint64_t wait_value = _timeline_value;
   const uint64_t signal_value = ++_timeline_value;
 
-  {
-    std::stringstream ss;
-    ss << "vk_queue: submit command-buffer with "
-       << "semaphore " << *_semaphore << " wait value " << wait_value
-       << " & signal value " << signal_value << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_queue: submit command-buffer with "
+                     << "semaphore " << *_semaphore << " wait value "
+                     << wait_value << " & signal value " << signal_value
+                     << std::endl;
 
   std::vector<vk::Semaphore> semaphores{_semaphore};
   std::vector<uint64_t> wait_values{wait_value};
@@ -424,13 +398,10 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
     const uint64_t external_signal_val = vk_evt->get_signal_val();
     wait_values.push_back(external_signal_val);
 
-    {
-      std::stringstream ss;
-      ss << "vk_queue: command-buffer submit extra wait "
-         << "on semaphore " << external_semaphore << " with signal val "
-         << external_signal_val << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_queue: command-buffer submit extra wait "
+                       << "on semaphore " << external_semaphore
+                       << " with signal val " << external_signal_val
+                       << std::endl;
   }
 
   const uint32_t num_wait_semaphores =
@@ -490,13 +461,9 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
   _host_worker([=]() mutable {
     vk::Semaphore semaphore = *_semaphore;
 
-    {
-      std::stringstream ss;
-      ss << "vk_queue: memset async thread WAIT "
-         << "semaphore " << semaphore << " wait value " << wait_value
-         << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_queue: memset async thread WAIT "
+                       << "semaphore " << semaphore << " wait value "
+                       << wait_value << std::endl;
     vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
     vk::Result wait_ret_code;
     do {
@@ -518,13 +485,9 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
     vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
     _dev_ctx->get_device().signalSemaphore(signal_info);
 
-    {
-      std::stringstream ss;
-      ss << "vk_queue: memset async thread SIGNAL "
-         << "semaphore " << semaphore << " signal value " << signal_value
-         << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_queue: memset async thread SIGNAL "
+                       << "semaphore " << semaphore << " signal value "
+                       << signal_value << std::endl;
   });
 
   return make_success();
@@ -533,12 +496,8 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
 result vk_queue::wait() {
   vk::Semaphore semaphore = *_semaphore;
 
-  {
-    std::stringstream ss;
-    ss << "vk_queue: wait on semaphore " << semaphore << " wait value "
-       << _timeline_value << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_queue: wait on semaphore " << semaphore
+                     << " wait value " << _timeline_value << std::endl;
 
   vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &_timeline_value);
   vk::Result wait_ret_code;
@@ -566,23 +525,16 @@ result vk_queue::submit_external_wait_for(const dag_node_ptr &node) {
   const uint64_t wait_value = _timeline_value;
   const uint64_t signal_value = ++_timeline_value;
 
-  {
-    std::stringstream ss;
-    ss << "vk_queue: external wait with semaphore wait val " << wait_value
-       << " and signal val " << signal_value << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_queue: external wait with semaphore wait val "
+                     << wait_value << " and signal val " << signal_value
+                     << std::endl;
 
   _host_worker([=]() mutable {
     vk::Semaphore semaphore = *_semaphore;
 
-    {
-      std::stringstream ss;
-      ss << "vk_queue: external wait async thread WAIT "
-         << "semaphore " << semaphore << " wait value " << wait_value
-         << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_queue: external wait async thread WAIT "
+                       << "semaphore " << semaphore << " wait value "
+                       << wait_value << std::endl;
 
     // Wait on in-order queue deps
     vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &wait_value);
@@ -605,13 +557,9 @@ result vk_queue::submit_external_wait_for(const dag_node_ptr &node) {
     vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
     _dev_ctx->get_device().signalSemaphore(signal_info);
 
-    {
-      std::stringstream ss;
-      ss << "vk_queue: external wait async thread SIGNAL "
-         << "semaphore " << semaphore << " signal value " << signal_value
-         << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_queue: external wait async thread SIGNAL "
+                       << "semaphore " << semaphore << " signal value "
+                       << signal_value << std::endl;
   });
 
   return make_success();
@@ -629,10 +577,8 @@ device_id vk_queue::get_device() const {
 
 void *vk_queue::get_native_type() const {
   assert(false && "not implemented");
-  {
-    std::stringstream ss{"vk_queue::get_native_type() not implemented\n"};
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_WARNING << "vk_queue::get_native_type() not implemented"
+                        << std::endl;
   return nullptr;
 }
 
@@ -772,10 +718,8 @@ result vk_queue::submit_sscp_kernel_from_code_object(
   pipeline->set_args(cmd_buf, _arg_mapper);
   pipeline->bind(cmd_buf);
 
-  {
-    std::stringstream ss{"vk_queue: Attempting to submit SSCP kernel\n"};
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_queue: Attempting to submit SSCP kernel"
+                     << std::endl;
   cmd_buf.dispatch(num_groups[0], num_groups[1], num_groups[2]);
   cmd_buf.end();
 

@@ -211,12 +211,9 @@ void vk_kernel_pipeline::create_compute_pipeline() {
   size_t push_constant_bytes = _kern_obj->get_push_constants_size();
   vk::PushConstantRange push_constant_ranges(vk::ShaderStageFlagBits::eCompute,
                                              0, push_constant_bytes);
-  {
-    std::stringstream ss;
-    ss << "vk_kernel_pipeline: Created compute pipeline layout with "
-       << push_constant_bytes << " byte push constant range" << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO
+      << "vk_kernel_pipeline: Created compute pipeline layout with "
+      << push_constant_bytes << " byte push constant range" << std::endl;
 
   vk::PipelineLayoutCreateInfo pipeline_layout_info =
       push_constant_bytes ? vk::PipelineLayoutCreateInfo({}, desc_set_layout,
@@ -247,14 +244,10 @@ void vk_kernel_pipeline::create_compute_pipeline() {
                                   sizeof(uint32_t));
     spec_map_data.push_back(_group_size[2]);
 
-    {
-      std::stringstream ss;
-      ss << "vk_kernel_pipeline: Specialization constant set for "
-            "work group size ("
-         << _group_size[0] << "," << _group_size[1] << "," << _group_size[2]
-         << ")" << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_kernel_pipeline: Specialization constant set for "
+                          "work group size ("
+                       << _group_size[0] << "," << _group_size[1] << ","
+                       << _group_size[2] << ")" << std::endl;
   }
 
   if (_kern_obj->get_exe_obj()->has_spec_const_subgroup_max_size()) {
@@ -265,13 +258,9 @@ void vk_kernel_pipeline::create_compute_pipeline() {
         _kern_obj->get_exe_obj()->get_hw_ctx()->get_subgroup_size();
     spec_map_data.push_back(device_subgroup_size);
 
-    {
-      std::stringstream ss;
-      ss << "vk_kernel_pipeline: Specialization constant id " << spec_id
-         << " set for subgroup group size " << device_subgroup_size
-         << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_kernel_pipeline: Specialization constant id "
+                       << spec_id << " set for subgroup group size "
+                       << device_subgroup_size << std::endl;
   }
 
   vk::SpecializationInfo spec_info(
@@ -659,12 +648,8 @@ void vk_executable_object::add_kernel_arg(const std::string &kernel,
   auto &kernel_handle = it->second;
   kernel_handle.add_spv_arg(arg);
 
-  {
-    std::stringstream ss;
-    ss << "vk_executable_object: kernel " << kernel << " added arg - " << arg
-       << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_executable_object: kernel " << kernel
+                     << " added arg - " << arg << std::endl;
 }
 
 void vk_executable_object::set_kernel_reqd_wg_size(const std::string &kernel,
@@ -680,23 +665,16 @@ void vk_executable_object::set_kernel_reqd_wg_size(const std::string &kernel,
   auto &kernel_handle = it->second;
   kernel_handle.set_reqd_wg_size(x, y, z);
 
-  {
-    std::stringstream ss;
-    ss << "vk_executable_object: kernel " << kernel << " required wg size ("
-       << x << "," << y << "," << z << ")" << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_executable_object: kernel " << kernel
+                     << " required wg size (" << x << "," << y << "," << z
+                     << ")" << std::endl;
 }
 
 void vk_executable_object::set_spec_const_wg_size(uint32_t x, uint32_t y,
                                                   uint32_t z) {
   _spec_const_wg_size = {x, y, z};
-  {
-    std::stringstream ss;
-    ss << "vk_executable_object: spec constant wg size ids (" << x << "," << y
-       << "," << z << ")" << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_executable_object: spec constant wg size ids (" << x
+                     << "," << y << "," << z << ")" << std::endl;
 }
 
 void vk_executable_object::add_subgroup_max_size_spec_constant(

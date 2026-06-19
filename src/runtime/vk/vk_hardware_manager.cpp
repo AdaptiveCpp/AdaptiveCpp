@@ -151,13 +151,9 @@ vk_hardware_context::vk_hardware_context(
   _max_num_subgroups = sg_control_props.maxComputeWorkgroupSubgroups;
   _max_alloc_size = maint3_props.maxMemoryAllocationSize;
 
-  {
-    std::stringstream ss;
-    ss << "vk_hardware_context: logical device constructed "
-       << "for device id " << dev_id << " with queue family "
-       << "index " << _queue_index << std::endl;
-    HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-  }
+  HIPSYCL_DEBUG_INFO << "vk_hardware_context: logical device constructed "
+                     << "for device id " << dev_id << " with queue family "
+                     << "index " << _queue_index << std::endl;
 }
 
 void vk_hardware_context::init() {
@@ -475,12 +471,8 @@ vk_hardware_manager::vk_hardware_manager()
         return strcmp(ext_property.extensionName, optional_ext) == 0;
       });
   if (optional_ext_supported) {
-    {
-      std::stringstream ss;
-      ss << "vk_hardware_manager: enabling extension " << optional_ext
-         << std::endl;
-      HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-    }
+    HIPSYCL_DEBUG_INFO << "vk_hardware_manager: enabling extension "
+                       << optional_ext << std::endl;
     enabled_extensions.push_back(optional_ext);
   }
 
@@ -526,12 +518,10 @@ vk_hardware_manager::vk_hardware_manager()
     bool supports_vulkan1_2 =
         phys_dev.getProperties().apiVersion >= VK_API_VERSION_1_2;
     if (!supports_vulkan1_2) {
-      {
-        std::stringstream ss;
-        ss << "vk_hardware_manager: physical device " << device_index
-           << "doesn't support Vulkan 1.2, skipping." << std::endl;
-        HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-      }
+      HIPSYCL_DEBUG_INFO << "vk_hardware_manager: physical device "
+                         << device_index
+                         << " doesn't support Vulkan 1.2, skipping."
+                         << std::endl;
       device_index++;
       continue;
     }
@@ -543,12 +533,10 @@ vk_hardware_manager::vk_hardware_manager()
           return !!(qfp.queueFlags & vk::QueueFlagBits::eCompute);
         });
     if (!supports_compute) {
-      {
-        std::stringstream ss;
-        ss << "vk_hardware_manager: physical device " << device_index
-           << "doesn't support compute queue, skipping." << std::endl;
-        HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-      }
+      HIPSYCL_DEBUG_INFO << "vk_hardware_manager: physical device "
+                         << device_index
+                         << " doesn't support compute queue, skipping."
+                         << std::endl;
       device_index++;
       continue;
     }
@@ -561,33 +549,26 @@ vk_hardware_manager::vk_hardware_manager()
         supported_features.get<vk::PhysicalDeviceVulkan12Features>();
     // Essential for supporting USM, don't create a backend device without it
     if (!features_12.bufferDeviceAddress) {
-      {
-        std::stringstream ss;
-        ss << "vk_hardware_manager: physical device " << device_index
-           << "doesn't support bufferDeviceAddress, skipping." << std::endl;
-        HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-      }
+      HIPSYCL_DEBUG_INFO << "vk_hardware_manager: physical device "
+                         << device_index
+                         << " doesn't support bufferDeviceAddress, skipping."
+                         << std::endl;
       device_index++;
       continue;
     }
     // Essential for synchronization, don't create a backend device without it.
     if (!features_12.timelineSemaphore) {
-      {
-        std::stringstream ss;
-        ss << "vk_hardware_manager: physical device " << device_index
-           << "doesn't support timeline semaphore, skipping." << std::endl;
-        HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-      }
+      HIPSYCL_DEBUG_INFO << "vk_hardware_manager: physical device "
+                         << device_index
+                         << " doesn't support timeline semaphore, skipping."
+                         << std::endl;
       device_index++;
       continue;
     }
     if (!features_12.shaderSubgroupExtendedTypes) {
-      {
-        std::stringstream ss;
-        ss << "vk_hardware_manager: physical device " << device_index
-           << "doesn't support subgroup extended types, skipping." << std::endl;
-        HIPSYCL_DEBUG_INFO_ATOMIC(ss.rdbuf());
-      }
+      HIPSYCL_DEBUG_INFO
+          << "vk_hardware_manager: physical device " << device_index
+          << " doesn't support subgroup extended types, skipping." << std::endl;
       device_index++;
       continue;
     }

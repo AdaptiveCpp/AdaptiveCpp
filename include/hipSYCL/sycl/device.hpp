@@ -817,12 +817,18 @@ sycl::device::get_info<info::device::AdaptiveCpp_priority_range>() const {
 HIPSYCL_SPECIALIZE_GET_INFO(device, AdaptiveCpp_free_memory)
 {
   if(!has(aspect::AdaptiveCpp_free_memory)) {
-    throw sycl::exception{
-        sycl::make_error_code(sycl::errc::feature_not_supported),
-        "AdaptiveCpp_free_memory is not supported by this device"};
+    throw feature_not_supported;
   }
 
-  return get_rt_device()->get_free_device_memory();
+  auto free_memory = get_rt_device()->get_free_device_memory();
+
+  if(!free_memory) {
+    throw sycl::exception{
+        sycl::make_error_code(sycl::errc::runtime),
+        "AdaptiveCpp_free_memory query failed"};
+  }
+
+  return *free_memory;
 }
 
 namespace detail {

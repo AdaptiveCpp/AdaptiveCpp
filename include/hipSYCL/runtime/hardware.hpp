@@ -12,6 +12,7 @@
 #define HIPSYCL_HARDWARE_HPP
 
 #include <string>
+#include <optional>
 
 #include "device_id.hpp"
 
@@ -143,9 +144,8 @@ public:
     return false;
   }
 
-  virtual std::size_t get_free_device_memory() const {
-    assert(false && "free device memory query is not supported");
-    std::terminate();
+  virtual std::optional<std::size_t> get_free_device_memory() const {
+    return std::nullopt;
   }
 
   virtual ~hardware_context(){}

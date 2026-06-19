@@ -510,7 +510,7 @@ bool hip_hardware_context::supports_free_device_memory_query() const {
   return true;
 }
 
-std::size_t hip_hardware_context::get_free_device_memory() const {
+std::optional<std::size_t> hip_hardware_context::get_free_device_memory() const {
   std::size_t free_bytes = 0;
   std::size_t total_bytes = 0;
 
@@ -520,6 +520,7 @@ std::size_t hip_hardware_context::get_free_device_memory() const {
         __acpp_here(),
         error_info{"hip_hardware_manager: Querying free device memory failed",
                    error_code{"HIP", err}});
+    return std::nullopt;
   }
 
   return free_bytes;

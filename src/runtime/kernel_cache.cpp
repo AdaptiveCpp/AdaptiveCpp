@@ -46,12 +46,12 @@ void for_each_exported_symbol_list(const common::hcf_container& hcf, F&& handler
 
 }
 
-extern "C" void __acpp_register_hcf(const char* hcf, std::size_t size) {
+extern "C" void __acpp_register_hcf(const char* hcf, unsigned long long size) {
   std::string hcf_data{hcf, size};
   hcf_cache::get().register_hcf_object(common::hcf_container{hcf_data});
 }
 
-extern "C" void __acpp_unregister_hcf(std::size_t hcf_object_id) {
+extern "C" void __acpp_unregister_hcf(unsigned long long hcf_object_id) {
   hcf_cache::get().unregister_hcf_object(hcf_object_id);
 }
 

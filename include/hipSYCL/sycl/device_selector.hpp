@@ -85,8 +85,15 @@ inline int select_accelerator(const device& dev) {
 }
 
 inline int select_cpu(const device& dev) {
-  if(dev.is_cpu())
-    return 1;
+  if(dev.is_cpu()) {
+    // Prefer non-OpenMP CPU device since the OpenMP backend cannot be disabled,
+    // so there would be no way to select e.g. an OpenCL CPU device
+    // using ACPP_VISIBILITY_MASK otherwise.
+    if(dev.get_backend() != sycl::backend::omp)
+      return 1;
+    else
+      return 0;
+  }
   return -1;
 }
 

@@ -69,7 +69,8 @@ enum class kernel_build_flag : int {
   ptx_approx_div,
   ptx_approx_sqrt,
 
-  spirv_enable_intel_llvm_spirv_options
+  spirv_enable_intel_llvm_spirv_options,
+  spirv_enable_pointer_wrapping
 };
 
 enum class kernel_param_flag : int {

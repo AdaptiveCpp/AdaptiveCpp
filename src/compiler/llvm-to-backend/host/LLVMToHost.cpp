@@ -91,7 +91,7 @@ std::string get_macos_sdk_path() {
     *xcrun, "--show-sdk-path"
   };
 
-  int rc = llvm::sys::ExecuteAndWait(*xcrun, args, std::nullopt, redirects);
+  int rc = hipsycl::compiler::executeAndWait(*xcrun, args, std::nullopt, redirects);
   if(rc != 0) {
     llvm::sys::fs::remove(tmpName);
     return {};
@@ -494,7 +494,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   }
 
   HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(OptInvocation) << "\n";
-  int R = llvm::sys::ExecuteAndWait(OptPath, OptInvocation, NULLOPT, Redirects);
+  int R = executeAndWait(OptPath, OptInvocation, NULLOPT, Redirects);
 
   if (R != 0) {
     this->registerError("LLVMToHost: opt invocation failed with exit code " + std::to_string(R));
@@ -502,7 +502,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   }
 
   HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LlcInvocation) << "\n";
-  R = llvm::sys::ExecuteAndWait(LLCPath, LlcInvocation, NULLOPT, Redirects);
+  R = executeAndWait(LLCPath, LlcInvocation, NULLOPT, Redirects);
 
   if (R != 0) {
     this->registerError("LLVMToHost: llc invocation failed with exit code " + std::to_string(R));
@@ -510,7 +510,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   }
 
   HIPSYCL_DEBUG_INFO << "LLVMToHost: Invoking " << getInvocationAsString(LldInvocation) << "\n";
-  R = llvm::sys::ExecuteAndWait(LLDPath, LldInvocation, NULLOPT, Redirects);
+  R = executeAndWait(LLDPath, LldInvocation, NULLOPT, Redirects);
 
   if (R != 0) {
     this->registerError("LLVMToHost: lld invocation failed with exit code " + std::to_string(R));

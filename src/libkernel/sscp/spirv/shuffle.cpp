@@ -23,7 +23,11 @@ template <typename dataT>
 dataT __spirv_SubgroupShuffleXorINTEL(dataT Data, __acpp_uint32 Value) noexcept;
 
 template <typename ValueT, typename IdT>
-ValueT __spirv_GroupNonUniformShuffle(__acpp_uint32, ValueT, IdT) noexcept;
+ValueT __spirv_GroupNonUniformShuffle(__acpp_uint32 Scope, ValueT Value, IdT Delta) noexcept;
+template <typename ValueT, typename IdT>
+ValueT __spirv_GroupNonUniformShuffleUp(__acpp_uint32 Scope, ValueT Value, IdT Delta) noexcept;
+template <typename ValueT, typename IdT>
+ValueT __spirv_GroupNonUniformShuffleDown(__acpp_uint32 Scope, ValueT Value, IdT Delta) noexcept;
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 __acpp_int8 __acpp_sscp_sub_group_shl_i8(__acpp_int8 value, __acpp_uint32 delta) {
@@ -37,11 +41,7 @@ __acpp_int16 __acpp_sscp_sub_group_shl_i16(__acpp_int16 value, __acpp_uint32 del
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 __acpp_int32 __acpp_sscp_sub_group_shl_i32(__acpp_int32 value, __acpp_uint32 delta) {
-  __acpp_int32 local_id = __acpp_sscp_get_subgroup_local_id();
-  __acpp_int32 target_id = local_id + delta;
-  if (target_id >= __acpp_sscp_get_subgroup_size())
-    target_id = local_id;
-  return __spirv_GroupNonUniformShuffle(3, value, target_id);
+  return __spirv_GroupNonUniformShuffleDown(3, value, delta);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
@@ -66,12 +66,7 @@ __acpp_int16 __acpp_sscp_sub_group_shr_i16(__acpp_int16 value, __acpp_uint32 del
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 __acpp_int32 __acpp_sscp_sub_group_shr_i32(__acpp_int32 value, __acpp_uint32 delta) {
-  __acpp_int32 local_id = __acpp_sscp_get_subgroup_local_id();
-  __acpp_int32 target_id = local_id;
-  if (local_id >= delta)
-    target_id -= delta;
-  return __spirv_GroupNonUniformShuffle(3, value, target_id);
-  // return __spirv_SubgroupShuffleDownINTEL(value, value, delta);
+  return __spirv_GroupNonUniformShuffleUp(3, value, delta);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN

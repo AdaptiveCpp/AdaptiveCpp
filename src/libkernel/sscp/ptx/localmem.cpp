@@ -10,8 +10,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/sycl/libkernel/sscp/builtins/localmem.hpp"
 
-extern __attribute__((address_space(3))) int local_mem [];
+// Compiler will leverage __acpp_sscp_* naming for improved indirect access analysis
+extern "C" __attribute__((address_space(3))) int __acpp_sscp_ptx_dynamic_local_mem [];
 
 __attribute__((address_space(3))) void* __acpp_sscp_get_dynamic_local_memory() {
-  return local_mem;
+  return __acpp_sscp_ptx_dynamic_local_mem;
 }

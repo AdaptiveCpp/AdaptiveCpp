@@ -9,6 +9,8 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/compiler/llvm-to-backend/metal/LLVMToMetal.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/metal/PointerTranslationAnnotationPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/metal/PointerTranslationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
@@ -480,10 +482,15 @@ bool LLVMToMetalTranslator::prepareBackendFlavor(llvm::Module& M) {
 }
 
 bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
+
   AddressSpaceMap ASMap = getAddressSpaceMap();
 
-  AddressSpaceInferencePass ASIPass{ASMap};
-  ASIPass.run(M, *PH.ModuleAnalysisManager);
+  KernelFunctionParameterRewriter ParamRewriter{
+      KernelFunctionParameterRewriter::ByValueArgAttribute::ByVal,
+      ASMap[AddressSpace::Generic],
+      ASMap[AddressSpace::Global]};
+
+  ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 
   // First linking: provides __acpp_sscp_* definitions so that the base class inliner
   // (which runs after toBackendFlavor) can inline them. The inlined bodies then go through
@@ -495,12 +502,17 @@ bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
 
+  AddressSpaceInferencePass ASIPass{ASMap};
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
+
   llvm::StripDebugInfo(M);
 
   return true;
 }
 
 bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) {
+  AddressSpaceMap ASMap = getAddressSpaceMap();
+
   auto ok = withPassBuilder([&](auto& PB, auto& LAM, auto& FAM, auto& CGAM, auto& MAM) {
     // Second ReplaceIntrinsics + link pass: the base class O3 pipeline (InstCombine etc.) may
     // have re-introduced LLVM intrinsics (llvm.minnum, llvm.maxnum, llvm.fmuladd) from the
@@ -530,8 +542,12 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     FPM.addPass(llvm::ADCEPass());
     FPM.addPass(llvm::StructurizeCFGPass());
     FPM.addPass(llvm::SimplifyCFGPass());
+    AddressSpaceInferencePass ASIPass{ASMap};
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+    MPM.addPass(std::move(ASIPass));
+    MPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
+    MPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
     MPM.run(FlavoredModule, MAM);
     return true;
   });
@@ -543,9 +559,9 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
 
   std::unordered_set<std::string> kernelNames(KernelNames.begin(), KernelNames.end());
 
-#ifdef ACPP_PRINT_IR_BEFORE_EMIT
-  FlavoredModule.print(llvm::errs(), nullptr);
-#endif
+  if (getenv("__ACPP_PRINT_IR_BEFORE_EMIT")) {
+    FlavoredModule.print(llvm::errs(), nullptr);
+  }
 
   MetalEmitterOptions emitterOpts;
   if (MaxArgsForFlatMode.has_value()) {
@@ -559,9 +575,9 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     return false;
   }
 
-#ifdef ACPP_PRINT_METAL_CODE
-  std::cerr << "Generated Metal code:\n" << out << std::endl;
-#endif
+  if (getenv("__ACPP_PRINT_METAL_CODE")) {
+    llvm::errs() << "Generated Metal code:\n" << out << "\n";
+  }
   return true;
 }
 

@@ -134,7 +134,7 @@ void rewriteZeroSizeArrayGEPs(llvm::Module& M) {
       for(auto& I : BB) {
         if(auto* GEPInst = llvm::dyn_cast<llvm::GetElementPtrInst>(&I)){
           auto* SourceTy =  GEPInst->getSourceElementType();
-          
+
           if(GEPInst->getNumIndices() > 0 && SourceTy->isArrayTy()) {
             llvm::Value* FirstIndex = GEPInst->idx_begin()->get();
             int64_t FirstIndexVal = -1;
@@ -198,7 +198,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   // llvm-spirv translator does not like GEPs into 0-size arrays.
   rewriteZeroSizeArrayGEPs(M);
-  
+
   AddressSpaceMap ASMap = getAddressSpaceMap();
   KernelFunctionParameterRewriter ParamRewriter{
     // llvm-spirv wants ByVal attribute for all aggregates passed in by-value
@@ -207,8 +207,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     ASMap[AddressSpace::Private],
     // Actual pointers should be in global memory
     ASMap[AddressSpace::Global],
-    // We need to wrap pointer types
-    true};
+    WrapPointerArguments};
 
   ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 
@@ -226,7 +225,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  std::string BuiltinBitcodeFile = 
+  std::string BuiltinBitcodeFile =
     common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-spirv-full.bc");
 
 #if LLVM_VERSION_MAJOR > 20
@@ -293,9 +292,9 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   auto consumeError = [&](std::error_code EC) {
     if(EC) {
       if(Create)
-        this->registerError("LLVMToPtx: Could not create temp file: " + EC.message());
+        this->registerError("LLVMToSpirv: Could not create temp file: " + EC.message());
       else
-        this->registerError("LLVMToPtx: Could not remove temp file: " + EC.message());
+        this->registerError("LLVMToSpirv: Could not remove temp file: " + EC.message());
       return false;
     }
     return true;
@@ -322,9 +321,15 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
     InputStream.flush();
   }
 
-  std::string LLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
+  // Prefer the app-local redistributable layout used by deployment manifests.
+  // Fall back to the installation layout.
+  std::string LocalLLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
+      hipsycl::common::filesystem::get_lib_directory(),
+      std::vector<std::string>{"hipSYCL", "ext", "llvm-spirv", "bin", HIPSYCL_LLVMSPIRV_NAME});
+  std::string InstalledLLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
       hipsycl::common::filesystem::get_install_directory(), HIPSYCL_RELATIVE_LLVMSPIRV_PATH);
-
+  std::string LLVMSpirVTranslator = hipsycl::common::filesystem::exists(LocalLLVMSpirVTranslator)
+      ? LocalLLVMSpirVTranslator : InstalledLLVMSpirVTranslator;
 
   llvm::SmallVector<std::string> Args{
       "-o=" + OutputFileName
@@ -348,7 +353,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   }
   HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Invoking " << ArgString << "\n";
 
-  int R = llvm::sys::ExecuteAndWait(
+  int R = executeAndWait(
       LLVMSpirVTranslator, Invocation);
 
   if(R != 0) {
@@ -356,15 +361,15 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
                         std::to_string(R));
     return false;
   }
-  
+
   auto ReadResult =
       llvm::MemoryBuffer::getFile(OutputFileName);
-  
+
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToSpirv: Could not read result file"+Err.message());
     return false;
   }
-  
+
   out = ReadResult->get()->getBuffer();
 
   return true;
@@ -382,6 +387,10 @@ bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const st
 bool LLVMToSpirvTranslator::applyBuildFlag(const std::string& Flag) {
   if(Flag == "spirv-enable-intel-llvm-spirv-options") {
     UseIntelLLVMSpirvArgs = true;
+    return true;
+  }
+  if(Flag == "spirv-enable-pointer-wrapping") {
+    WrapPointerArguments = true;
     return true;
   }
   return false;
@@ -437,7 +446,7 @@ bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH)
   }
   for(auto* I : InstsToRemove)
     I->eraseFromParent();
-  
+
   return Result;
 }
 

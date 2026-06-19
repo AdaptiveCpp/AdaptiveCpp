@@ -53,17 +53,6 @@ The Metal backend is experimental and has the following important limitations:
 
 * **Only SYCL is supported.** The Metal backend supports SYCL kernels only. The portable CUDA dialect (PCUDA) is not supported on Metal.
 
-* **No full USM pointer semantics.** Metal does not currently support arbitrary GPU-side pointer dereferencing across separate allocations. All buffers that a kernel needs must be passed explicitly as kernel arguments. Passing a struct that contains a pointer to another GPU buffer — for example:
-
-    ```cpp
-    struct Entity { double* data; };
-    // ... array of Entity passed to kernel ...
-    ```
-
-    and then dereferencing `entity.data` inside the kernel will cause the program to crash, because the nested pointer is not valid from the GPU's perspective. Only flat buffers passed directly as kernel arguments are safe to access.
-
-    Full USM semantics are planned for a future release, making use of features introduced in Metal 4.
-
 * **`double` is not supported.** Apple Silicon GPUs do not have hardware support for double-precision floating point. Support for `double` is planned for a future release as a software emulation (soft-double) for compatibility, but it will not deliver hardware-native performance.
 
 * **64-bit atomics (`atomic64`) are not supported.** Metal does not provide 64-bit atomic operations on Apple Silicon GPUs.

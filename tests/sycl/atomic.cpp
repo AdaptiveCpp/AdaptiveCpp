@@ -49,6 +49,8 @@ using exchange_test_types =
 BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
                               exchange_test_types) {
   sycl::queue q;
+  SKIP_IF_MOLTENVK(q.get_device())
+
   if constexpr(std::is_same_v<Type, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -101,6 +103,16 @@ void atomic_device_reduction_test(AtomicOp op, Verifier v,
       return;
     }
   }
+
+  // See doc/vulkan.md issue #2
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
+      BOOST_TEST_MESSAGE(
+          "Skipping test since Vulkan has not floating point atomic support");
+      return;
+    }
+  }
+
   if constexpr(sizeof(T) == 8) {
     if (!q.get_device().has(sycl::aspect::atomic64)) {
       BOOST_TEST_MESSAGE("Skipping test for 64-bit atomics since device has no atomic64 support");
@@ -153,6 +165,14 @@ void atomic_local_reduction_test(AtomicOp op, Verifier v,
                                 std::string_view op_name,
                                 T init_val, T per_item_val) {
   sycl::queue q;
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
+      BOOST_TEST_MESSAGE(
+          "Skipping test since Vulkan has not floating point atomic support");
+      return;
+    }
+  }
+
   if constexpr (std::is_same_v<T, double>) {
     if (!q.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -238,6 +258,7 @@ BOOST_AUTO_TEST_CASE(fetch_add_unsigned_int) {
 }
 
 BOOST_AUTO_TEST_CASE(fetch_op) {
+  SKIP_IF_MOLTENVK(sycl::device{})
 
   auto fetch_add = [](auto& atomic, auto x) {
     return atomic.fetch_add(x);
@@ -380,6 +401,8 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
   // This is mainly a compile-test. Testing atomic memory semantics is hard...
 
   sycl::queue q;
+  SKIP_IF_MOLTENVK(q.get_device())
+
   int* data = sycl::malloc_device<int>(1, q);
   q.memset(data, 0, sizeof(int)).wait();
   size_t range = 1024;

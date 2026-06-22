@@ -45,4 +45,14 @@ auto make_test_value(const T<1>& a, const T<2>& b, const T<3>& c) {
 template<typename T, int dimensions, typename extra=T>
 struct kernel_name {};
 
+// If we make this an inline function then CUDA multipass compiler builds
+// start reporting errors from group function tests
+#define SKIP_IF_MOLTENVK(dev)                                                  \
+  if ((dev.get_backend() == sycl::backend::vk) &&                              \
+      (std::string::npos !=                                                    \
+       dev.get_info<sycl::info::device::name>().find("Apple Paravirtual"))) {  \
+    BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");       \
+    return;                                                                    \
+  }
+
 #endif

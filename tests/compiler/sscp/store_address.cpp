@@ -3,6 +3,8 @@
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
 // RUN: %t | FileCheck %s
 
+// UNSUPPORTED: vulkan || vk
+
 #include "common.hpp"
 
 void private_address_store_to_global(sycl::queue q) {

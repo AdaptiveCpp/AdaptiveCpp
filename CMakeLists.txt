@@ -237,8 +237,13 @@ endif()
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build AdaptiveCpp support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build AdaptiveCpp support for AMD GPUs with ROCm")
 set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build AdaptiveCpp support for OpenCL SPIR-V devices supporting USM")
+set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") # Default to OFF while experimental
 
 set(WITH_CPU_BACKEND true)
+
+if(WITH_VULKAN_BACKEND)
+  find_package(Vulkan QUIET COMPONENTS SPIRV-Tools REQUIRED)
+endif()
 
 if(WITH_CUDA_BACKEND)
   find_program(NVCXX_COMPILER NAMES nvc++)

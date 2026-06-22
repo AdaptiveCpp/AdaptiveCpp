@@ -19,6 +19,8 @@
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(group_x_of_local) {
+  SKIP_IF_MOLTENVK(sycl::device{})
+
   using T = char;
 
   const size_t elements_per_thread = 1;
@@ -153,6 +155,8 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
 }
 
 BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
+  SKIP_IF_MOLTENVK(sycl::device{})
+
   using T = char;
 
   const size_t elements_per_thread = 3;
@@ -245,6 +249,8 @@ BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
 }
 
 BOOST_AUTO_TEST_CASE(group_x_of_function) {
+  SKIP_IF_MOLTENVK(sycl::device{})
+
   using T = char;
 
   const size_t elements_per_thread = 1;

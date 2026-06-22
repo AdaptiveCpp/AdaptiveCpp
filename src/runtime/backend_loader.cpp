@@ -140,6 +140,8 @@ bool is_plugin_active(const std::string& name)
     id = hipsycl::rt::backend_id::ocl;
   } else if(name == "metal") {
     id = hipsycl::rt::backend_id::metal;
+  } else if(name == "vk") {
+    id = hipsycl::rt::backend_id::vk;
   }
   return backends_active.find(id) != backends_active.cend();
 }

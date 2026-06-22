@@ -205,6 +205,18 @@ template <int Dim> range<Dim> extract_from_range3(range<3> r) {
   return range<Dim>{};
 }
 
+// Define a hash function for 3D `rt::range` such that `rt::range<3>` can be
+// used as a key in a std::map/unordered_map object
+struct range_hash {
+  size_t operator()(const range<3> &key) const {
+    uint64_t result = uint16_t(key[0]);
+    result = (result << 16) + key[1];
+    result = (result << 16) + key[2];
+    static_assert(sizeof(size_t) == sizeof(uint64_t));
+    return (size_t)result;
+  }
+};
+
 /* borrowed from LLVM
  * Returns the next power of two (in 64-bits) that is strictly greater than \param a.
  * Returns zero on overflow.

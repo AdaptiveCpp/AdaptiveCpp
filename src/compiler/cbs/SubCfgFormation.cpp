@@ -487,6 +487,12 @@ public:
       llvm::DominatorTree &DT,
       const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
       llvm::Value *ReqdArrayElements, VectorizationInfo &VecInfo);
+  void fixValueByDominanceFrontierPHIs(
+      llvm::Instruction &I, llvm::Instruction *OPI,
+      const llvm::SmallPtrSetImpl<llvm::BasicBlock *> &DefiningBlocks,
+      llvm::ArrayRef<llvm::Instruction *> SeedDefs,
+      llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 2>> &InstLoadMap,
+      llvm::IRBuilder<> &Builder, llvm::DominatorTree &DT);
 
   void print() const;
   void removeDeadPhiBlocks(llvm::SmallVector<llvm::BasicBlock *, 8> &BlocksToRemap) const;
@@ -996,6 +1002,82 @@ llvm::Instruction *findLeastDominatingLoad(llvm::Instruction &I, llvm::Instructi
 }
 } // namespace
 
+// Makes the value \a OPI available at the use in \a I by inserting PHI nodes at the
+// iterated dominance frontier of \a DefiningBlocks, then rewrites the use in \a I to the
+// least-dominating definition.
+//
+// \a SeedDefs are the instructions already known to carry the correct value (e.g. the
+// original instruction and a load of it). Their parent blocks seed the block->value map
+// used to wire up the new PHIs' incoming values; when several seeds share a block, the
+// first one listed wins. \a DefiningBlocks is the set fed to the IDF calculator -- usually
+// the seeds' parent blocks, but kept separate so callers can use slightly different
+// conditions (e.g. a canonical load block instead of the actual load's block).
+//
+// New PHIs are appended to \a InstLoadMap[OPI] so subsequent fixups can reuse them.
+void SubCFG::fixValueByDominanceFrontierPHIs(
+    llvm::Instruction &I, llvm::Instruction *OPI,
+    const llvm::SmallPtrSetImpl<llvm::BasicBlock *> &DefiningBlocks,
+    llvm::ArrayRef<llvm::Instruction *> SeedDefs,
+    llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 2>> &InstLoadMap,
+    llvm::IRBuilder<> &Builder, llvm::DominatorTree &DT) {
+  llvm::ForwardIDFCalculator IDF(DT);
+  IDF.setDefiningBlocks(DefiningBlocks);
+
+  llvm::SmallPtrSet<llvm::BasicBlock *, 16> LiveInBlocks;
+  utils::PtrSetWrapper<decltype(LiveInBlocks)> Wrapper{LiveInBlocks};
+  // The predicate below could probably be way more precise, but this is safe for now.
+  // Todo: if we only use actual live-in blocks, we could reduce the number of PHIs
+  // inserted (unnecessarily).
+  std::copy_if(NewBlocks_.begin(), NewBlocks_.end(), std::inserter(Wrapper, Wrapper.end()),
+               [&](auto *BB) { return true; });
+  IDF.setLiveInBlocks(LiveInBlocks);
+
+  llvm::SmallVector<llvm::BasicBlock *, 16> NewPhisToInsert;
+  IDF.calculate(NewPhisToInsert);
+
+  llvm::SmallDenseMap<llvm::BasicBlock *, llvm::Instruction *> BBToInst;
+  for (auto *Seed : SeedDefs)
+    BBToInst.insert({Seed->getParent(), Seed});
+
+  for (auto *DFB : NewPhisToInsert) {
+    assert(std::find(NewBlocks_.begin(), NewBlocks_.end(), DFB) != NewBlocks_.end() &&
+           "Should be in the subcfg");
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Need PHI in block " << DFB->getName() << " for value " << *OPI
+                       << " used in " << I << "\n";
+    Builder.SetInsertPoint(DFB, DFB->getFirstInsertionPt());
+    auto *NewPhi =
+        Builder.CreatePHI(OPI->getType(), llvm::pred_size(DFB), OPI->getName() + ".fixdom.phi");
+
+    llvm::SmallVector<llvm::Instruction *, 4> LoadsOrPhis;
+    llvm::transform(BBToInst, std::back_inserter(LoadsOrPhis),
+                    [](auto &Pair) { return Pair.second; });
+
+    for (auto *Pred : llvm::predecessors(DFB)) {
+      HIPSYCL_DEBUG_INFO << "  Pred: " << Pred->getName() << "\n";
+      if (BBToInst.find(Pred) != BBToInst.end()) {
+        HIPSYCL_DEBUG_INFO << "   Adding incoming " << *BBToInst[Pred] << " from " << Pred->getName()
+                           << "\n";
+        NewPhi->addIncoming(BBToInst[Pred], Pred);
+      } else if (auto leastDom =
+                     findLeastDominatingLoad(Pred, OPI, LoadsOrPhis, PreHeader_, DT)) {
+        HIPSYCL_DEBUG_INFO << "   Adding incoming2 " << *leastDom << " from " << Pred->getName()
+                           << "\n";
+        NewPhi->addIncoming(leastDom, Pred);
+      } else {
+        assert(false && "Should have found a dominating value");
+      }
+    }
+
+    InstLoadMap[OPI].push_back(NewPhi);
+    BBToInst.insert({DFB, NewPhi});
+  }
+  if (auto ReplaceWith = findLeastDominatingLoad(I, OPI, InstLoadMap[OPI], PreHeader_, DT)) {
+    HIPSYCL_DEBUG_INFO << "   Using " << *ReplaceWith << " for use in " << I << "\n";
+
+    I.replaceUsesOfWith(OPI, ReplaceWith);
+  }
+}
+
 // if the kernel contained a loop, it is possible, that values inside a single
 // subcfg don't dominate their uses inside the same subcfg. This function
 // identifies and fixes those values.
@@ -1086,6 +1168,9 @@ void SubCFG::fixSingleSubCfgValues(
 #else
           // if a loop is conditionally split, the first block in a subcfg might have another
           // incoming edge, need to insert a PHI node then
+          // This is a cheap special case for the first block in the subcfg.
+          // For all other cases, we have to use the more general, but also more expensive,
+          // dominance frontier based PHI insertion below.
           const auto NumPreds = std::distance(llvm::pred_begin(BB), llvm::pred_end(BB));
           if (!llvm::isa<llvm::PHINode>(I) && NumPreds > 1 &&
               std::find(llvm::pred_begin(BB), llvm::pred_end(BB), LoadBB_) != llvm::pred_end(BB)) {
@@ -1110,71 +1195,18 @@ void SubCFG::fixSingleSubCfgValues(
             // Therefore, we should create a PHI node after the backedge of the outer loop
             // to select between the value loaded in the uniload block and the value from
             // the backedge of the outer loop.
+            // This also works well, for other cases of split loops, where the I actually dominates it's OPI..
+            // Let's just use it for all cases where the I is in a block with multiple predecessors.
 
             // First calculate a dominance frontier for the load (in either load/uniload BB) and OPI
             // Then use this information to insert PHI nodes at the frontiers
             // Generally use findLeastDominatingLoad to find the right value to use
             // in the PHI nodes and for replacing the use in I.
-            if (!DT.dominates(&I, OPI)) {
-              llvm::ForwardIDFCalculator IDF(DT);
-
+            if (!DT.dominates(&I, OPI) || !llvm::isa<llvm::PHINode>(I) && NumPreds > 1) {
               llvm::SmallPtrSet<llvm::BasicBlock *, 16> DefiningBlocks{OPI->getParent(), LoadBB_};
-              IDF.setDefiningBlocks(DefiningBlocks);
-
-              llvm::SmallPtrSet<llvm::BasicBlock *, 16> LiveInBlocks;
-              utils::PtrSetWrapper<decltype(LiveInBlocks)> Wrapper{LiveInBlocks};
-              // The predicate below could probably be way more precise, but this is safe for now.
-              // Todo: if we only use actual live-in blocks, we could reduce the number of PHIs
-              // inserted (unnecessarily).
-              std::copy_if(NewBlocks_.begin(), NewBlocks_.end(),
-                           std::inserter(Wrapper, Wrapper.end()), [&](auto *BB) { return true; });
-              IDF.setLiveInBlocks(LiveInBlocks);
-
-              llvm::SmallVector<llvm::BasicBlock *, 16> NewPhisToInsert;
-              IDF.calculate(NewPhisToInsert);
-
-              llvm::SmallDenseMap<llvm::BasicBlock *, llvm::Instruction *> BBToInst;
-              BBToInst.insert({OPI->getParent(), OPI});
-              BBToInst.insert({Load->getParent(), Load});
-
-              for (auto *DFB : NewPhisToInsert) {
-                assert(std::find(NewBlocks_.begin(), NewBlocks_.end(), DFB) != NewBlocks_.end() &&
-                       "Should be in the subcfg");
-                HIPSYCL_DEBUG_INFO << "[SubCFG] Need PHI in block " << DFB->getName()
-                                   << " for value " << *OPI << " used in " << I << "\n";
-                Builder.SetInsertPoint(DFB, DFB->getFirstInsertionPt());
-                auto *NewPhi = Builder.CreatePHI(OPI->getType(), llvm::pred_size(DFB),
-                                                 OPI->getName() + ".fixdom.phi");
-
-                llvm::SmallVector<llvm::Instruction *, 4> LoadsOrPhis;
-                llvm::transform(BBToInst, std::back_inserter(LoadsOrPhis),
-                                [](auto &Pair) { return Pair.second; });
-
-                for (auto *Pred : llvm::predecessors(DFB)) {
-                  HIPSYCL_DEBUG_INFO << "  Pred: " << Pred->getName() << "\n";
-                  if (BBToInst.find(Pred) != BBToInst.end()) {
-                    HIPSYCL_DEBUG_INFO << "   Adding incoming " << *BBToInst[Pred] << " from "
-                                       << Pred->getName() << "\n";
-                    NewPhi->addIncoming(BBToInst[Pred], Pred);
-                  } else if (auto leastDom =
-                                 findLeastDominatingLoad(Pred, OPI, LoadsOrPhis, PreHeader_, DT)) {
-                    HIPSYCL_DEBUG_INFO << "   Adding incoming2 " << *leastDom << " from "
-                                       << Pred->getName() << "\n";
-                    NewPhi->addIncoming(leastDom, Pred);
-                  } else {
-                    assert(false && "Should have found a dominating value");
-                  }
-                }
-
-                InstLoadMap[OPI].push_back(NewPhi);
-                BBToInst.insert({DFB, NewPhi});
-              }
-              if (auto ReplaceWith =
-                      findLeastDominatingLoad(I, OPI, InstLoadMap[OPI], PreHeader_, DT)) {
-                HIPSYCL_DEBUG_INFO << "   Using " << *ReplaceWith << " for use in " << I << "\n";
-
-                I.replaceUsesOfWith(OPI, ReplaceWith);
-              }
+              llvm::Instruction *SeedDefs[] = {OPI, Load};
+              fixValueByDominanceFrontierPHIs(I, OPI, DefiningBlocks, SeedDefs, InstLoadMap, Builder,
+                                              DT);
             } else {
               I.replaceUsesOfWith(OPI, Load);
             }

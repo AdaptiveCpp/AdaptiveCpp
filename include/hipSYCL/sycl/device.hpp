@@ -128,7 +128,7 @@ public:
           rt::device_support_aspect::usm_system_allocations);
     } else if(asp == aspect::AdaptiveCpp_free_memory) {
       return get_rt_device()->has(
-          rt::device_support_aspect::AdaptiveCpp_free_memory);
+          rt::device_support_aspect::free_memory);
     }
 
     return false;
@@ -824,7 +824,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, AdaptiveCpp_free_memory)
   }
 
   return get_rt_device()->get_property(
-      rt::device_uint_property::AdaptiveCpp_free_memory);
+      rt::device_uint_property::free_memory);
 }
 
 namespace detail {

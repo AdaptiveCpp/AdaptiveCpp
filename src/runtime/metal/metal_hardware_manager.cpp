@@ -349,7 +349,7 @@ bool metal_hardware_context::has(device_support_aspect aspect) const {
     return false;
   case device_support_aspect::atomic64:
     return false;
-  case device_support_aspect::AdaptiveCpp_free_memory:
+  case device_support_aspect::free_memory:
     return false;
   default:
     return false;
@@ -485,7 +485,7 @@ std::size_t metal_hardware_context::get_property(device_uint_property prop) cons
   case P::queue_priority_range_high:
     return 0;
 
-  case device_uint_property::AdaptiveCpp_free_memory:
+  case device_uint_property::free_memory:
     return 0;
 
   default:

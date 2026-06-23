@@ -250,7 +250,7 @@ bool vk_hardware_context::has(device_support_aspect aspect) const {
     // Not supported by clspv
     // https://github.com/google/clspv/blob/main/docs/OpenCLCOnVulkan.md#opencl-20-atomic-functions
     return false;
-  case device_support_aspect::AdaptiveCpp_free_memory:
+  case device_support_aspect::free_memory:
     return false;
   }
   assert(false && "Unknown device aspect");
@@ -354,7 +354,7 @@ std::size_t vk_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::queue_priority_range_low:
   case device_uint_property::queue_priority_range_high:
     return 0;
-  case device_uint_property::AdaptiveCpp_free_memory:
+  case device_uint_property::free_memory:
     return 0;
   }
   assert(false && "Invalid device property");

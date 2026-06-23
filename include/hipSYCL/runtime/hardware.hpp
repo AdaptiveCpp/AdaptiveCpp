@@ -12,7 +12,6 @@
 #define HIPSYCL_HARDWARE_HPP
 
 #include <string>
-#include <optional>
 
 #include "device_id.hpp"
 
@@ -40,7 +39,7 @@ enum class device_support_aspect {
   work_item_independent_forward_progress,
   fp64,
   atomic64,
-  AdaptiveCpp_free_memory,
+  free_memory,
 };
 
 enum class device_uint_property {
@@ -107,7 +106,7 @@ enum class device_uint_property {
 
   queue_priority_range_low,
   queue_priority_range_high,
-  AdaptiveCpp_free_memory,
+  free_memory,
 };
 
 enum class device_uint_list_property {

@@ -57,6 +57,21 @@ namespace rt {
 
 namespace {
 
+std::size_t pick_default_group_size(std::size_t problem_size_in_largest_dim) {
+  std::size_t selected_group_size = 1;
+#ifdef _OPENMP
+  const int max_threads = omp_get_max_threads();
+#else
+  const int max_threads = 1;
+#endif
+  constexpr auto divisor = 1;
+  auto z =
+      std::min(std::max<std::size_t>(
+                   problem_size_in_largest_dim / (max_threads * divisor), 16),
+               std::min<std::size_t>(problem_size_in_largest_dim, 1024));
+  return z;
+}
+
 bool is_contigous(id<3> offset, range<3> r, range<3> allocation_shape) {
   if (r.size() == 0)
     return true;
@@ -183,13 +198,31 @@ private:
 
 template<class F>
 void builtin_kernel(const rt::range<3>& range, F&& f){
+  if(range.get(0) == 1 && range.get(1) == 1) {
 #ifdef _OPENMP
-  #pragma omp parallel for collapse(3)
+    #pragma omp parallel for
 #endif
-  for (std::size_t i = 0; i < range.get(0); ++i) {
+    for (std::size_t k = 0; k < range.get(2); ++k) {
+      f(0, 0, k);
+    }
+  } else if (range.get(0) == 1) {
+#ifdef _OPENMP
+    #pragma omp parallel for collapse(2)
+#endif
     for (std::size_t j = 0; j < range.get(1); ++j) {
       for (std::size_t k = 0; k < range.get(2); ++k) {
-        f(i, j, k);
+        f(0, j, k);
+      }
+    }
+  } else {
+#ifdef _OPENMP
+    #pragma omp parallel for collapse(3)
+#endif
+    for (std::size_t i = 0; i < range.get(0); ++i) {
+      for (std::size_t j = 0; j < range.get(1); ++j) {
+        for (std::size_t k = 0; k < range.get(2); ++k) {
+          f(i, j, k);
+        }
       }
     }
   }
@@ -362,17 +395,45 @@ result omp_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
     };
 
 #ifdef _OPENMP
-    builtin_kernel(transferred_range, [=](std::size_t i, std::size_t j,
-                                          std::size_t k) {
-      // TODO Might be able to optimize this for 1D and 2D cases
-      rt::id<3> idx{i,j,k};
-      std::size_t src_index = linear_index(idx+src_offset, src_allocation_shape);
-      std::size_t dest_index = linear_index(idx+dest_offset, dest_allocation_shape);
+    if(is_src_contiguous && is_dest_contiguous) {
+      std::size_t block_size = pick_default_group_size(transferred_range.get(2));
+      std::size_t num_blocks = (transferred_range[2] + block_size - 1) / block_size;
+      rt::range<3> effective_range = {
+          transferred_range[0], transferred_range[1],
+          num_blocks};
 
-      memcpy(static_cast<char *>(base_dest) + dest_index * dest_element_size,
-             static_cast<const char *>(base_src) + src_index * src_element_size,
-             src_element_size);
-    });
+      builtin_kernel(effective_range, [=](std::size_t i, std::size_t j,
+                                          std::size_t k) {
+        std::size_t block_start = k * block_size;
+        rt::id<3> idx{i, j, block_start};
+        std::size_t src_index =
+            linear_index(idx + src_offset, src_allocation_shape);
+        std::size_t dest_index =
+            linear_index(idx + dest_offset, dest_allocation_shape);
+
+        std::size_t num_elements =
+            std::min(block_size, transferred_range[2] - block_start);
+        memcpy(static_cast<char *>(base_dest) + dest_index * dest_element_size,
+               static_cast<const char *>(base_src) +
+                   src_index * src_element_size,
+               num_elements * src_element_size);
+      });
+
+    } else {
+      builtin_kernel(transferred_range, [=](std::size_t i, std::size_t j,
+                                            std::size_t k) {
+        rt::id<3> idx{i, j, k};
+        std::size_t src_index =
+            linear_index(idx + src_offset, src_allocation_shape);
+        std::size_t dest_index =
+            linear_index(idx + dest_offset, dest_allocation_shape);
+
+        memcpy(static_cast<char *>(base_dest) + dest_index * dest_element_size,
+               static_cast<const char *>(base_src) +
+                   src_index * src_element_size,
+               src_element_size);
+      });
+    }
 #else
 
     if (is_src_contiguous && is_dest_contiguous) {
@@ -621,9 +682,12 @@ result omp_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) 
     auto instrumentation_guard = instrumentation_setup.instrument_task();
 
 #ifdef _OPENMP
-    builtin_kernel(rt::range<3>{1, 1, bytes},
-                   [=](auto, auto, std::size_t i) { 
-      static_cast<char*>(ptr)[i] = pattern; 
+    std::size_t block_size = pick_default_group_size(bytes);
+    std::size_t num_blocks = (bytes + block_size - 1) / block_size;
+    builtin_kernel(rt::range<3>{1, 1, num_blocks},
+                   [=](auto, auto, std::size_t i) {
+      std::size_t size = std::min(block_size, bytes - i * block_size);
+      memset(static_cast<char*>(ptr) + i * block_size, pattern, size);
     });
 #else
     memset(ptr, pattern, bytes);
@@ -712,7 +776,7 @@ rt::range<3> omp_sscp_code_object_invoker::select_group_size(
       std::max<std::size_t>(global_range.get(0) / (max_threads * divisor), 16),
       std::min<std::size_t>(global_range.get(0), 1024));
   selected_group_size = rt::range<3>{z, 1, 1};
-  return selected_group_size;
+  return rt::range<3>{pick_default_group_size(global_range.get(0)), 1, 1};
 }
 
 } // namespace rt

@@ -61,9 +61,6 @@ public:
 
   unsigned get_compute_capability() const;
 
-  bool supports_free_device_memory_query() const override;
-  std::optional<std::size_t> get_free_device_memory() const override;
-
 private:
   std::unique_ptr<cudaDeviceProp> _properties;
   std::unique_ptr<cuda_allocator> _allocator;

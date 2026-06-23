@@ -255,6 +255,9 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::atomic64:
     return true;
     break;
+  case device_support_aspect::AdaptiveCpp_free_memory:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -445,6 +448,21 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::queue_priority_range_high:
     return get_stream_priority_bound().second;
     break;
+  case device_uint_property::AdaptiveCpp_free_memory:
+    {
+      std::size_t free_bytes = 0;
+      std::size_t total_bytes = 0;
+      auto err = cudaMemGetInfo(&free_bytes, &total_bytes);
+      if(err != cudaSuccess) {
+        register_error(
+            __acpp_here(),
+            error_info{"cuda_hardware_manager: Querying free device memory failed",
+                       error_code{"CUDA", err}});
+        return 0;
+      }
+      return free_bytes;
+    }
+    break;
   }
   assert(false && "Invalid device property");
   std::terminate();
@@ -484,26 +502,6 @@ cuda_hardware_context::~cuda_hardware_context(){}
 
 unsigned cuda_hardware_context::get_compute_capability() const {
   return _properties->major * 10 + _properties->minor;
-}
-
-bool cuda_hardware_context::supports_free_device_memory_query() const {
-  return true;
-}
-
-std::optional<std::size_t> cuda_hardware_context::get_free_device_memory() const {
-  std::size_t free_bytes = 0;
-  std::size_t total_bytes = 0;
-
-  auto err = cudaMemGetInfo(&free_bytes, &total_bytes);
-  if(err != cudaSuccess) {
-    register_error(
-        __acpp_here(),
-        error_info{"cuda_hardware_manager: Querying free device memory failed",
-                   error_code{"CUDA", err}});
-    return std::nullopt;
-  }
-
-  return free_bytes;
 }
 
 }

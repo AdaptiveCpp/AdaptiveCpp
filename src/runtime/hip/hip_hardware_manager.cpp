@@ -289,6 +289,9 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::atomic64:
     return true;
     break;
+  case device_support_aspect::AdaptiveCpp_free_memory:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -467,6 +470,21 @@ hip_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::queue_priority_range_high:
     return get_stream_priority_bound().second;
     break;
+  case device_uint_property::AdaptiveCpp_free_memory:
+    {
+      std::size_t free_bytes = 0;
+      std::size_t total_bytes = 0;
+      auto err = hipMemGetInfo(&free_bytes, &total_bytes);
+      if(err != hipSuccess) {
+        register_error(
+            __acpp_here(),
+            error_info{"hip_hardware_manager: Querying free device memory failed",
+                       error_code{"HIP", err}});
+        return 0;
+      }
+      return free_bytes;
+    }
+    break;
   }
   assert(false && "Invalid device property");
   std::terminate();
@@ -504,26 +522,6 @@ std::string hip_hardware_context::get_profile() const {
 
 std::size_t hip_hardware_context::get_wavefront_size() const {
   return _properties->warpSize;
-}
-
-bool hip_hardware_context::supports_free_device_memory_query() const {
-  return true;
-}
-
-std::optional<std::size_t> hip_hardware_context::get_free_device_memory() const {
-  std::size_t free_bytes = 0;
-  std::size_t total_bytes = 0;
-
-  auto err = hipMemGetInfo(&free_bytes, &total_bytes);
-  if(err != hipSuccess) {
-    register_error(
-        __acpp_here(),
-        error_info{"hip_hardware_manager: Querying free device memory failed",
-                   error_code{"HIP", err}});
-    return std::nullopt;
-  }
-
-  return free_bytes;
 }
 
 }

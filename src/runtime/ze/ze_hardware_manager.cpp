@@ -297,6 +297,9 @@ bool ze_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::atomic64:
     return true;
     break;
+  case device_support_aspect::AdaptiveCpp_free_memory:
+    return false;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -476,6 +479,9 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::queue_priority_range_low:
   case device_uint_property::queue_priority_range_high:
+    return 0;
+    break;
+  case device_uint_property::AdaptiveCpp_free_memory:
     return 0;
     break;
   }

@@ -127,7 +127,8 @@ public:
       return get_rt_device()->has(
           rt::device_support_aspect::usm_system_allocations);
     } else if(asp == aspect::AdaptiveCpp_free_memory) {
-      return get_rt_device()->supports_free_device_memory_query();
+      return get_rt_device()->has(
+          rt::device_support_aspect::AdaptiveCpp_free_memory);
     }
 
     return false;
@@ -822,15 +823,8 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, AdaptiveCpp_free_memory)
         "AdaptiveCpp_free_memory is not supported by this device"};
   }
 
-  auto free_memory = get_rt_device()->get_free_device_memory();
-
-  if(!free_memory) {
-    throw sycl::exception{
-        sycl::make_error_code(sycl::errc::runtime),
-        "AdaptiveCpp_free_memory query failed"};
-  }
-
-  return *free_memory;
+  return get_rt_device()->get_property(
+      rt::device_uint_property::AdaptiveCpp_free_memory);
 }
 
 namespace detail {

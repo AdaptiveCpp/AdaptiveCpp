@@ -40,6 +40,7 @@ enum class device_support_aspect {
   work_item_independent_forward_progress,
   fp64,
   atomic64,
+  AdaptiveCpp_free_memory,
 };
 
 enum class device_uint_property {
@@ -105,7 +106,8 @@ enum class device_uint_property {
   backend_id,
 
   queue_priority_range_low,
-  queue_priority_range_high
+  queue_priority_range_high,
+  AdaptiveCpp_free_memory,
 };
 
 enum class device_uint_list_property {
@@ -139,14 +141,6 @@ public:
   virtual std::string get_profile() const = 0;
 
   virtual std::size_t get_platform_index() const= 0;
-
-  virtual bool supports_free_device_memory_query() const {
-    return false;
-  }
-
-  virtual std::optional<std::size_t> get_free_device_memory() const {
-    return std::nullopt;
-  }
 
   virtual ~hardware_context(){}
 };

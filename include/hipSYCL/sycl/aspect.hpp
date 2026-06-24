@@ -35,7 +35,8 @@ enum class aspect {
   usm_atomic_host_allocations,
   usm_shared_allocations,
   usm_atomic_shared_allocations,
-  usm_system_allocations
+  usm_system_allocations,
+  AdaptiveCpp_free_memory
 };
 
 template <aspect Aspect> struct any_device_has : public std::true_type {};

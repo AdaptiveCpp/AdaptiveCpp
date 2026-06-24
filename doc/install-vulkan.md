@@ -106,7 +106,7 @@ Loaded backend 1: Vulkan
 
 The SYCL device selectors will tend to prefer GPU devices where available, but to narrow
 down the selection of visible devices the `ACPP_VISIBILITY_MASK=vk` environment variable
-can be used. Optionally setting a individual device, for example in the output abouve
+can be used. Optionally setting a individual device, for example in the output above
 `ACPP_VISIBILITY_MASK=vk:0` would select the "AMD Radeon Graphics" Vulkan device
 `ACPP_VISIBILITY_MASK=vk:1` would select the `llvmpipe` Vulkan device.
 
@@ -145,7 +145,7 @@ Devices known to be well supported by the backend include:
 | llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                                                        |
 | RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                                                        |
 | RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                                                        |
-| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](#issue-9)                                                               |
+| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                 |
 | Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Issues with sub-groups                                                                |
 | RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Tests pass in isolation, but device stops being detected when running full sycl suite |
 | MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled                        |
@@ -348,147 +348,3 @@ in terms of the
 which are not recognized by other tools like `clspv`. clspv however can
 represent spirv builtins in IR by using a function call to a mangled name prefixed with
 convention `_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`.
-
-## Future Work
-
-* Test with real application.
-* Improve performance of backend, see [benchmark results](#benchmark-results).
-* Use SPIR-V builtins to implement  `libkernel` rather than OpenCL-C builtins
-* Get SYCL running on Android device.
-* Add CI for KosmicKrisp mesa Vulkan on Metal implementation.
-* Add CI to self-hosted runners.
-* Fix Adaptivity Level 0 SYCL tests.
-* Backend Interop
-
-## Test Status
-
-| Suite                     | Status |
-| ------------------------- | ------ |
-| `accessor_tests`          | Pass   |
-| `atomic_tests`            | [Issue 2](#issue-2) |
-| `buffer_tests`            | Pass   |
-| `explicit_copy_tests`     | Pass   |
-| `extension_tests`         | Pass   |
-| `fill_tests`              | Pass   |
-| `group_functions_tests`   | [Issue 5](#issue-5) & [Issue 10](#issue-10) |
-| `group_known_identity`    | Pass   |
-| `half_tests`              | Pass   |
-| `id_range_tests`          | Pass   |
-| `info_queries`            | Pass   |
-| `interop_handle_tests`    | Pass   |
-| `item_tests`              | Pass   |
-| `kernel_invocation_tests` | Pass   |
-| `math_tests`              | Pass   |
-| `marray_tests`            | [Issue 3](#issue-3)    |
-| `profiler_tests`          | Pass   |
-| `reduction_tests`         | Pass   |
-| `reference_semantics`     | Pass   |
-| `rel_tests`               | Pass   |
-| `sub_group_tests`         | Pass   |
-| `usm_tests`               | Pass   |
-| `vec_tests`               | Pass   |
-| `queue_tests`             | Pass   |
-| `multi_ptr_test_suite`    | Pass   |
-| `smoke_task_queue`        | [Issue 7](#issue-7) |
-
-### Issue 2
-
-clspv [doesn't support floating point atomics](https://github.com/google/clspv/issues/392#issuecomment-503236450).
-This currently generates incorrect code rather than throwing the user a nice error when
-floating point atomics are used in kernel code.
-
-### Issue 3
-
-clspv can't deal with `i48` LLVM IR types generated from `marray<short, 3>` testing.
-
-### Issue 5
-
-Compiler issues with `sycl::vec2<int>` implementation. This arose when the LLVM
-datalayout changes to include the substring `n8:16:32:64` which enabled a SROA optimization
-on the vector alloca which lead to incorrect results.
-
-Additionally, there are compiler issue with group broadcast implementation.
-
-Possible solution to try add support for work group collective functions to clspv and
-use those builtins rather than common libkernel implementation.
-
-### Issue 7
-
-`queue_offset_subtract` fails with either incorrect results or where
-device is lost during kernel execution.
-
-Same issue can also be same using `clvk` with the following OpenCL kernel,
-and using physical addressing with `spir64` in the clspv invocation.
-
-```c
-kernel void test_simple(global int* out, global int* in, int offset)
-{
-    size_t gid = get_global_id(0);
-    out[gid] = in[offset-1];
-}
-```
-
-Investigations so far:
- * Removing `-1` fixes the issue
- * Using `volatile*` to keep the load but remove the store fixes the issue.
- * Doing `out[id] = &in[offset-1] - &in` gives the correct offset
- * Generating logical memory model spirv from than physical addressing SPIRV gives the correct
-   result in clvk
-
-### Issue 9
-
-Assorted AMD MI200 test fails that needs further investigation:
-* `accessor_tests/nested_subscript`
-* `accessor_tests/offset_2d`
-* `accessor_tests/offset_nested_subscript`
-* `sub_group_tests/sub_group`
-* `smoke_task_queue_tests/queue_local`
-* `relational_tests/rel_genfloat_unary`
-* `fill_tests/*`
-* `item_api_tests/*`
-* `extension_tests/buffer_page_size`
-* `explicit_copy/explicit_buffer_copy_host_ptr`
-* `group_functions_tests/group_x_of_local`
-
-### Issue 10
-
-> Issue appears in RADV Phoenix and RADV NAVI24
-
-Workgroup size of larger than 128 leads to errors in `group_functions_tests/group_barrier`
-where the result indexes above thread id 128 is no longer synchronized with
-the previous threads.
-
-I could also reproduce this error with clvk on the same system using the
-following kernel reduced from the `group_barrier` test.
-
-```c
-kernel void test_simple(global int* acc)
-{
-    int tmp          = -10000;
-    int local_id     = get_local_id(0);
-    int local_size   = get_local_size(0);
-    for (int i = 0; i < local_size; ++i) {
-        if (local_id == i) {
-          for (int j = 0; j < 10000; ++j)
-            tmp++;
-        }
-        barrier(CLK_GLOBAL_MEM_FENCE);
-        if (local_id == i)
-          acc[i] = tmp;
-        barrier(CLK_GLOBAL_MEM_FENCE);
-        tmp = acc[i];
-    }
-}
-```
-
-### Issues 11
-
-Test fails on MoltenVK backend which have been disabled and need further
-investigating to work out if they are fundamental issues running ontop of Metal
-or something we can fix.
-
-* atomics
-* group functions
-* math functions
-* relational
-* vec api

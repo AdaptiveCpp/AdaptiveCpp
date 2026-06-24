@@ -73,6 +73,44 @@ printed if the device doesn't support them:
 * `VK_SUBGROUP_FEATURE_SHUFFLE_BIT` - Allows SPIR-V `CapabilityGroupNonUniformShuffle`
   instructions to be used in the implementation of SYCL sub-group builtins.
 
+## Building
+
+The LunarG Vulkan SDK is a dependency for building the Vulkan backend, as it
+provides the Vulkan layers & loader along with SPIR-V Tools, and should be
+available in your system path after using the `setup-env.sh` script it ships.
+A `clspv` binary that is detectable by `find_program` is also a dependency.
+
+Combined with the `-DWITH_VULKAN_BACKEND=ON` option for enabling the Vulkan
+backend in the build, the relevant parts of CMake invocation are:
+
+```sh
+$ cmake -DWITH_VULKAN_BACKEND=ON -DCMAKE_PROGRAM_PATH=<path/to/clspv/build/bin/dir>
+```
+
+The Vulkan validation layer is enabled in debug builds.
+
+## Running
+
+`acpp-info` can be used to list all of the Vulkan devices available on your system,
+alongside the devices for other backends. For example,
+
+```sh
+$ acpp-info -l
+=================Backend information===================
+Loaded backend 0: OpenMP
+  Found device: AdaptiveCpp OpenMP host device
+Loaded backend 1: Vulkan
+  Found device: AMD Radeon Graphics (RADV PHOENIX)
+  Found device: llvmpipe (LLVM 20.1.2, 256 bits)
+```
+
+The SYCL device selectors will tend to prefer GPU devices where available, but to narrow
+down the selection of visible devices the `ACPP_VISIBILITY_MASK=vk` environment variable
+can be used. Optionally setting a individual device, for example in the output abouve
+`ACPP_VISIBILITY_MASK=vk:0` would select the "AMD Radeon Graphics" Vulkan device
+`ACPP_VISIBILITY_MASK=vk:1` would select the `llvmpipe` Vulkan device.
+
+
 ## Limitations
 
 Due to the challenge of supporting a generic address space in SYCL/PCUDA on Vulkan
@@ -178,43 +216,6 @@ support `pcudaMalloc`, which is equivalent to device USM, and not
 `pcudaHostManaged` or `pcudaMallocHost` which are equivalent to
 shared/host USM. However in CUDA this functionality is not optional and
 many tests & applications make use of the managed/host allocation APIs.
-
-## Building
-
-The LunarG Vulkan SDK is a dependency for building the Vulkan backend, as it
-provides the Vulkan layers & loader along with SPIR-V Tools, and should be
-available in your system path after using the `setup-env.sh` script it ships.
-A `clspv` binary that is detectable by `find_program` is also a dependency.
-
-Combined with the `-DWITH_VULKAN_BACKEND=ON` option for enabling the Vulkan
-backend in the build, the relevant parts of CMake invocation are:
-
-```sh
-$ cmake -DWITH_VULKAN_BACKEND=ON -DCMAKE_PROGRAM_PATH=<path/to/clspv/build/bin/dir>
-```
-
-The Vulkan validation layer is enabled in debug builds.
-
-## Running
-
-`acpp-info` can be used to list all of the Vulkan devices available on your system,
-alongside the devices for other backends. For example,
-
-```sh
-$ acpp-info -l
-=================Backend information===================
-Loaded backend 0: OpenMP
-  Found device: AdaptiveCpp OpenMP host device
-Loaded backend 1: Vulkan
-  Found device: AMD Radeon Graphics (RADV PHOENIX)
-  Found device: llvmpipe (LLVM 20.1.2, 256 bits)
-```
-
-The SYCL device selectors will tend to prefer GPU devices where available, but to narrow
-down the selection of visible devices the `ACPP_VISIBILITY_MASK=vk` environment variable
-can be used. Optionally setting a individual device, for example in the output abouve
-`ACPP_VISIBILITY_MASK=vk:0` would select the "AMD Radeon Graphics" Vulkan device
-`ACPP_VISIBILITY_MASK=vk:1` would select the `llvmpipe` Vulkan device.
 
 ## Design
 

@@ -94,6 +94,10 @@ Follow [these](install-ocl.md) instructions.
 
 Follow [these](install-metal.md) instructions. Note that this is an experimental backend.
 
+#### Vulkan (skip if you don't need Vulkan support)
+
+Follow [these](install-vulkan.md) instructions. Note that this is an experimental backend.
+
 #### Building and installing 
 
 Once the software requirements mentioned above are met, clone the repository:

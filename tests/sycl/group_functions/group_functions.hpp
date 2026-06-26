@@ -276,8 +276,7 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
              std::string::npos !=
                  queue.get_device().get_info<sycl::info::device::name>().find(
                      "RADV")) {
-    // Radv Pheonix and NAVI24 can't correctly synchronize local size greater
-    // than 128 See issue #10 in doc/vulkan.md
+    // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2127
     local_sizes = std::vector<size_t>{128};
     global_sizes = std::vector<size_t>{512};
   }
@@ -341,8 +340,7 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
              std::string::npos !=
                  queue.get_device().get_info<sycl::info::device::name>().find(
                      "RADV")) {
-    // Radv Pheonix and NAVI24 can't correctly synchronize local size greater
-    // than 128 See issue #10 in doc/vulkan.md
+    // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2127
     local_sizes = std::vector<size_t>{16};
     global_sizes = std::vector<size_t>{32};
   }

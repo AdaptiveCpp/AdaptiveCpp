@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(marray_ops, T, marray_test_types) {
 
   test<T, 1>(q);
 
-  // See doc/vulkan.md issue #3
+  // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2122
   if (q.get_device().get_backend() == sycl::backend::vk) {
     BOOST_TEST_MESSAGE("Skipping on Vulkan");
   } else {

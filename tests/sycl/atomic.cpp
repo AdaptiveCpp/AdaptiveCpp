@@ -104,7 +104,7 @@ void atomic_device_reduction_test(AtomicOp op, Verifier v,
     }
   }
 
-  // See doc/vulkan.md issue #2
+  // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2125
   if (q.get_device().get_backend() == sycl::backend::vk) {
     if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
       BOOST_TEST_MESSAGE(
@@ -165,6 +165,8 @@ void atomic_local_reduction_test(AtomicOp op, Verifier v,
                                 std::string_view op_name,
                                 T init_val, T per_item_val) {
   sycl::queue q;
+
+  // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2125
   if (q.get_device().get_backend() == sycl::backend::vk) {
     if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
       BOOST_TEST_MESSAGE(

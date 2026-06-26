@@ -97,7 +97,7 @@ inline T __acpp_sscp_work_group_inclusive_scan(T value) {
   if(lane_id == last_lane) {
     scratch[group_id] = prefix;
   }
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   if(ngroups <= subgroup_size) {
     if(lid < ngroups) {
@@ -105,20 +105,20 @@ inline T __acpp_sscp_work_group_inclusive_scan(T value) {
       T p = prefix_op(v);
       scratch[lid] = p;
     }
-    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   } else if(ngroups <= 2u * subgroup_size) {
     if(lid < ngroups) {
       T v = scratch[lid];
       T p = prefix_op(v);
       scratch[lid] = p;
     }
-    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
     if(lid < ngroups) {
       T add = (lid >= subgroup_size) ? scratch[subgroup_size - 1u] : initial_value();
       scratch[lid] = binary_op(scratch[lid], add);
     }
-    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   } else {
     for(uint offset = 1; offset < ngroups; offset <<= 1) {
       T addend = initial_value();
@@ -126,15 +126,15 @@ inline T __acpp_sscp_work_group_inclusive_scan(T value) {
         addend = scratch[lid - offset];
       }
 
-      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
       if(lid < ngroups && lid >= offset) {
         scratch[lid] = binary_op(scratch[lid], addend);
       }
 
-      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
     }
-    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+    __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   }
 
   const T group_offset = (group_id > 0) ? scratch[group_id - 1] : initial_value();

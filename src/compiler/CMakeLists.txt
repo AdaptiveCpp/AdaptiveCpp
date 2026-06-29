@@ -125,7 +125,7 @@ else()
 
   #SLEEF
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
-    find_library(LIBSLEEF NAMES sleef)
+    find_library(LIBSLEEF NAMES sleefgnuabi)
 
     if(LIBSLEEF)
       get_filename_component(LIB_SLEEF_DIR "${LIBSLEEF}" DIRECTORY)

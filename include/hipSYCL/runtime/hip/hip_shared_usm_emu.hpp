@@ -15,32 +15,32 @@
 #include <optional>
 #include <vector>
 
-#include "allocator.hpp"
-#include "inorder_queue.hpp"
+
+#include "hip_queue.hpp"
 
 namespace hipsycl {
 namespace rt {
 
 class hcf_kernel_info;
 class code_object;
+class hip_allocator;
 
-class shared_usm_emulation {
+class hip_shared_usm_emulation {
 public:
-  shared_usm_emulation(backend_allocator* alloc);
+  hip_shared_usm_emulation(hip_allocator* alloc);
 
   // All queues running operations on the managed memory
   // must register themselves by calling this function.
-  void register_queue_client(inorder_queue* q);
+  void register_queue_client(hip_queue* q);
   // At queue destruction, queues must call this.
-  void unregister_queue_client(inorder_queue* q);
+  void unregister_queue_client(hip_queue* q);
 
   void* malloc(std::size_t bytes);
   void free(const void* ptr);
 
   void handle_kernel_arguments(
-      inorder_queue* q,
-      void **mapped_kernel_args, const hcf_kernel_info *info,
-      const code_object *obj,
+      hip_queue *q, void **mapped_kernel_args, std::size_t num_args,
+      const hcf_kernel_info *info, const code_object *obj,
       const std::optional<std::vector<int>> &dae_retained_arguments_mask);
 
   void handle_kernel_submitted();
@@ -54,12 +54,16 @@ private:
     std::size_t size;
   };
 
-  backend_allocator* _alloc;
-  std::vector<inorder_queue*> _queues_using_device_alloc;
-  std::vector<inorder_queue*> _all_queues;
+  allocation* find_allocation(const void* ptr) const;
+
+  hip_allocator* _alloc;
+  std::vector<hip_queue*> _queues_using_device_alloc;
+  std::vector<hip_queue*> _all_queues;
   // TODO might want to use allocation_map here?
   std::vector<allocation> _allocs;
   int _uffd;
+
+  bool _is_in_fallback_mode = false;
 };
 
 }

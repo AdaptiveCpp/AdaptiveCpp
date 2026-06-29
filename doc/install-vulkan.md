@@ -20,7 +20,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable from commit `8286ad49be1fa8708f07aa6852e1b84ed4dd0861`.
+* A `clspv` executable from commit `88d8ff71000bf995493c8daaed865ec1ac216309`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -159,22 +159,21 @@ The `pcuda` branch of [illuhad/benchmark-scipts](https://github.com/illuhad/benc
 contains benchmarks that work with SYCL and PCUDA. No thorough benchmarking has been done but an initial
 assessment of the status of the benchmarks is as follows on llvmpipe 25.0.7.
 
-| Benchmark           | Status                                               |
-| ------------------- | ---------------------------------------------------- |
-| HeCbench dslash     | Completes successfully on SYCL and PCUDA             |
-| HeCbench fdtd3d     | Can't compile kernel for SYCL or PCUDA               |
-| HeCbench FFT        | SYCL & PCUDA compiles kernel, but fails verification |
-| HeCbench ising      | Completes successfully on SYCL and PCUDA             |
-| HeCbench mandlebrot | Completes successfully on SYCL and PCUDA             |
-| HeCbench nbody      | Completes successfully on SYCL and PCUDA             |
-| HeCbench rsbench    | Can't compile kernel for SYCL or PCUDA               |
-| HeCbench sph        | Completes successfully on SYCL and PCUDA             |
-| Bude                | SYCL verification fails, PCUDA device not compatible |
-| Cloverleaf          | SYCL verification fails and PCUDA raises an error    |
+| Benchmark           | Status                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| HeCbench dslash     | Completes successfully on SYCL and PCUDA                                                    |
+| HeCbench fdtd3d     | SYCL passes on NVIDIA Ada, verification issue on Intel MTL, and crashes on Radv & llvmpipe. |
+| HeCbench FFT        | SYCL & PCUDA compiles kernel, but fails verification                                        |
+| HeCbench ising      | Completes successfully on SYCL and PCUDA                                                    |
+| HeCbench mandlebrot | Completes successfully on SYCL and PCUDA                                                    |
+| HeCbench nbody      | Completes successfully on SYCL and PCUDA                                                    |
+| HeCbench rsbench    | Can't compile kernel for SYCL or PCUDA                                                      |
+| HeCbench sph        | Completes successfully on SYCL and PCUDA                                                    |
+| Bude                | SYCL verification fails, PCUDA device not compatible                                        |
+| Cloverleaf          | SYCL verification fails and PCUDA raises an error                                           |
 
 Compilation fail investigations:
 
-* HecBench fdtd3d - LLVM-IR contains `llvm.memmove` intrinsic which is not implemented in clspv.
 * Hecbench rsbench - Error processing GEP into alloca array of `type { double, double }` struct.
 
 #### Benchmark Results

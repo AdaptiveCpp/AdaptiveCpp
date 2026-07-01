@@ -213,7 +213,7 @@ make_module(const typename backend_traits<Backend>::template native_type<event>
 }
 
 template <backend Backend>
-backend_traits<Backend>::native_allocation_type get_native_allocation(
+typename backend_traits<Backend>::native_allocation_type get_native_allocation(
         const void *ptr, const context &ctx) {
   return glue::backend_interop<Backend>::get_native_allocation(ptr, ctx);
 }

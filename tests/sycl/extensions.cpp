@@ -1450,7 +1450,7 @@ BOOST_AUTO_TEST_CASE(khr_queue_empty) {
   BOOST_CHECK(in_order_q.khr_empty());
 }
 #endif
-#ifdef ACPP_EXT_GET_NATIVE_ALLOCATION
+#if defined(ACPP_EXT_GET_NATIVE_ALLOCATION) && defined(SYCL_EXT_ACPP_BACKEND_METAL)
 BOOST_AUTO_TEST_CASE(get_native_allocation) {
   namespace s = sycl;
 

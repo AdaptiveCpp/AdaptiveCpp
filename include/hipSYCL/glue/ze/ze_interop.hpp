@@ -30,6 +30,7 @@ template <> struct backend_interop<sycl::backend::level_zero> {
   using native_mem_type = void *;
   using native_device_type = _ze_device_handle_t*;
   using native_queue_type = _ze_command_list_handle_t*;
+  struct native_allocation_type {};
 
   template <class Accessor_type>
   static native_mem_type get_native_mem(const Accessor_type &a) {
@@ -61,6 +62,7 @@ template <> struct backend_interop<sycl::backend::level_zero> {
   static constexpr bool can_extract_native_module = false;
   static constexpr bool can_extract_native_device_event = false;
   static constexpr bool can_extract_native_mem = true;
+  static constexpr bool can_extract_native_allocation = false;
 };
 
 }

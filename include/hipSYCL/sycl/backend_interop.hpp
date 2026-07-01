@@ -8,6 +8,9 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
+#ifndef HIPSYCL_SYCL_BACKEND_INTEROP_HPP
+#define HIPSYCL_SYCL_BACKEND_INTEROP_HPP
+
 #include "hipSYCL/glue/backend_interop.hpp"
 
 #include "backend.hpp"
@@ -20,9 +23,6 @@
 #include "event.hpp"
 #include "libkernel/accessor.hpp"
 #include "libkernel/stream.hpp"
-
-#ifndef HIPSYCL_SYCL_BACKEND_INTEROP_HPP
-#define HIPSYCL_SYCL_BACKEND_INTEROP_HPP
 
 namespace hipsycl {
 namespace sycl {
@@ -69,6 +69,9 @@ public:
       typename detail::interop_traits<T>::template native_type<Backend>;
 
   using errc = typename glue::backend_interop<Backend>::error_type;
+
+  using native_allocation_type =
+    typename glue::backend_interop<Backend>::native_allocation_type;
 };
 
 template <backend Backend>
@@ -209,7 +212,13 @@ make_module(const typename backend_traits<Backend>::template native_type<event>
   return glue::backend_interop<Backend>::make_sycl_module(backend_object, ctx);
 }
 
+template <backend Backend>
+backend_traits<Backend>::native_allocation_type get_native_allocation(
+        const void *ptr, const context &ctx) {
+  return glue::backend_interop<Backend>::get_native_allocation(ptr, ctx);
 }
-}
+
+} // namespace sycl
+} // namespace hipsycl
 
 #endif

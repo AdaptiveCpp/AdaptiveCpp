@@ -152,6 +152,8 @@ result ze_allocator::query_pointer(const void* ptr, pointer_info& out) const {
   out.is_usm = props.type == ZE_MEMORY_TYPE_SHARED;
 
   out.is_from_host_backend = false;
+  out.native_handle = nullptr;
+  out.native_offset = 0;
 
   // Lastly, fill out.dev with ze_device_handle_t converted
   // to hipSYCL device_id. This might fail if the

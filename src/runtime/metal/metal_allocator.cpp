@@ -288,6 +288,8 @@ result metal_allocator::query_pointer(
     return make_error(__acpp_here(),
       error_info{"metal_allocator: Pointer is unknown"});
   }
+  out.native_handle = static_cast<void *>(buffer);
+  out.native_offset = offset;
   if (alloc_type == usm_alloc_type::host) {
     out.is_optimized_host = true;
     return make_success();

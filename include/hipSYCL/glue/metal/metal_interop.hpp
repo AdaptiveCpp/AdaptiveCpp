@@ -11,31 +11,15 @@
 #ifndef HIPSYCL_GLUE_METAL_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_METAL_BACKEND_INTEROP_HPP
 
-#include "hipSYCL/sycl/backend.hpp"
-
-#include <cstddef>
-
-namespace hipsycl {
-namespace sycl {
-
-class context;
-
-template <backend Backend>
-struct AdaptiveCpp_native_allocation {};
-template <backend Backend>
-inline constexpr bool AdaptiveCpp_can_get_native_allocation = false;
-template <backend Backend>
-AdaptiveCpp_native_allocation<Backend> AdaptiveCpp_get_native_allocation(const void *, const context &) = delete;
-
-} // namespace sycl
-} // namespace hipsycl
-
-#if defined(SYCL_EXT_ACPP_BACKEND_METAL) && defined(__APPLE__)
+#ifdef SYCL_EXT_ACPP_BACKEND_METAL
 #include "hipSYCL/sycl/context.hpp"
 #include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/runtime/allocator.hpp"
+#include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/metal/metal_allocator.hpp"
+#if defined(__APPLE__)
 #include "hipSYCL/runtime/metal/metal_hardware_manager.hpp"
+#endif
 
 namespace MTL {
 class Buffer;
@@ -58,7 +42,13 @@ template <> struct backend_interop<sycl::backend::metal> {
     return a.get_pointer();
   }
 
+  struct native_allocation_type {
+    MTL::Buffer *buffer; // Metal buffer underlying the allocation
+    std::size_t offset; // Offset from the start of the buffer, in bytes
+  };
+
   static native_device_type get_native_device(const sycl::device &d) {
+#if defined(__APPLE__)
     rt::device_id dev_id = sycl::detail::extract_rt_device(d);
 
     if (dev_id.get_backend() != rt::backend_id::metal) {
@@ -81,10 +71,16 @@ template <> struct backend_interop<sycl::backend::metal> {
     }
 
     auto *hw = static_cast<rt::metal_hardware_manager *>(b->get_hardware_manager());
-    auto *ctx = static_cast<rt::metal_hardware_context *>(
-        hw->get_device(dev_id.get_id()));
+    auto *ctx = static_cast<rt::metal_hardware_context *>(hw->get_device(dev_id.get_id()));
 
     return ctx->get_mtl_device();
+#else
+    rt::register_error(
+        __acpp_here(),
+        rt::error_info{"get_native_device: Metal backend not supported on this OS",
+                       rt::error_type::runtime_error});
+    return nullptr;
+#endif
   }
 
   static native_queue_type get_native_queue(void *launcher_params) {
@@ -98,6 +94,30 @@ template <> struct backend_interop<sycl::backend::metal> {
 
     return static_cast<native_queue_type>(
         static_cast<rt::inorder_queue *>(launcher_params)->get_native_type());
+  }
+
+  static native_allocation_type get_native_allocation(const void *ptr, const sycl::context &ctx) {
+    rt::backend *b =
+        ctx.AdaptiveCpp_runtime()->backends().get(rt::backend_id::metal);
+    if (!b)
+      return {nullptr, 0};
+
+    for (const sycl::device &dev : ctx.get_devices()) {
+      rt::device_id dev_id = sycl::detail::extract_rt_device(dev);
+      if (dev_id.get_backend() != rt::backend_id::metal)
+        continue;
+
+      rt::backend_allocator *base_alloc = b->get_allocator(dev_id);
+      if (base_alloc) {
+        rt::pointer_info info;
+        if (base_alloc->query_pointer(ptr, info).is_success() &&
+            info.native_handle != nullptr) {
+          return {static_cast<MTL::Buffer *>(info.native_handle),
+                  info.native_offset};
+        }
+      }
+    }
+    return {nullptr, 0};
   }
 
   static constexpr bool can_make_platform = false;
@@ -126,53 +146,11 @@ template <> struct backend_interop<sycl::backend::metal> {
   static constexpr bool can_extract_native_module = false;
   static constexpr bool can_extract_native_device_event = false;
   static constexpr bool can_extract_native_mem = true;
+  static constexpr bool can_extract_native_allocation = true;
 };
 
 } // namespace glue
-
-namespace sycl {
-
-#ifdef ACPP_EXT_GET_NATIVE_ALLOCATION
-
-template <> struct AdaptiveCpp_native_allocation<backend::metal> {
-  MTL::Buffer *buffer;
-  std::size_t offset;
-};
-
-template <>
-inline constexpr bool AdaptiveCpp_can_get_native_allocation<backend::metal> = true;
-
-// Returns the underlying Metal buffer and byte offset for a given SYCL USM pointer.
-// If the pointer is not a recognized Metal USM pointer, returns {nullptr, 0}.
-template <>
-inline AdaptiveCpp_native_allocation<backend::metal>
-AdaptiveCpp_get_native_allocation<backend::metal>(const void *ptr, const context &ctx) {
-  rt::backend *b =
-      ctx.AdaptiveCpp_runtime()->backends().get(rt::backend_id::metal);
-  if (!b)
-    return {nullptr, 0};
-
-  for (const device &dev : ctx.get_devices()) {
-    rt::device_id dev_id = detail::extract_rt_device(dev);
-    if (dev_id.get_backend() != rt::backend_id::metal)
-      continue;
-
-    rt::backend_allocator *base_alloc = b->get_allocator(dev_id);
-    if (base_alloc) {
-      auto *alloc = static_cast<rt::metal_allocator *>(base_alloc);
-      auto [buf, offset, type] = alloc->get_usm_block(ptr);
-      if (buf != nullptr) {
-        return {buf, offset};
-      }
-    }
-  }
-  return {nullptr, 0};
-}
-
-#endif // ACPP_EXT_GET_NATIVE_ALLOCATION
-
-} // namespace sycl
 } // namespace hipsycl
 
-#endif // defined(SYCL_EXT_ACPP_BACKEND_METAL) && defined(__APPLE__)
+#endif // SYCL_EXT_ACPP_BACKEND_METAL
 #endif // HIPSYCL_GLUE_METAL_BACKEND_INTEROP_HPP

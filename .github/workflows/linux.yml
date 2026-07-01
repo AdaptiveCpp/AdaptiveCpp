@@ -142,8 +142,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        nvhpc: [23.9]
-        cuda: [12.2]
+        nvhpc: [26.3]
+        cuda: [13.1]
     steps:
     - uses: actions/checkout@v4
       with:

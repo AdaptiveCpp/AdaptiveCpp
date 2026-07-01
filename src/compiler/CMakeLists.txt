@@ -86,7 +86,7 @@ else()
     include(CheckFunctionExists)
     set(CMAKE_REQUIRED_LIBRARIES "${LIBMVEC}")
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
-      CHECK_FUNCTION_EXISTS("_ZGVnN2v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
+      CHECK_FUNCTION_EXISTS("_ZGVnN2v_atanhf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
     else()
       CHECK_FUNCTION_EXISTS("_ZGVdN8v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
     endif()
@@ -125,7 +125,7 @@ else()
 
   #SLEEF
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
-    find_library(LIBSLEEF NAMES sleef)
+    find_library(LIBSLEEF NAMES sleefgnuabi)
 
     if(LIBSLEEF)
       get_filename_component(LIB_SLEEF_DIR "${LIBSLEEF}" DIRECTORY)

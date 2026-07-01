@@ -29,10 +29,10 @@ template <typename T, typename V> T wg_broadcast(__acpp_int32 sender, T x, V shr
     shrd_memory[0] = x;
   };
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                 __acpp_sscp_memory_order::relaxed);
+                                 __acpp_sscp_memory_order::acq_rel);
   x = shrd_memory[0];
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                 __acpp_sscp_memory_order::relaxed);
+                                 __acpp_sscp_memory_order::acq_rel);
   return x;
 }
 

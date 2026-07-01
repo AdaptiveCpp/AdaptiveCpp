@@ -40,12 +40,12 @@ OutType wg_host_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutType
       shrd_mem[0] = init;
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
     local_x = shrd_mem[wg_lid];
   } else {
     shrd_mem[wg_lid] = x;
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
     local_x = x;
   }
 
@@ -59,14 +59,14 @@ OutType wg_host_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutType
       other_x = shrd_mem[next_id];
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
 
     if (is_nextid_valid) {
       local_x = op(local_x, other_x);
       shrd_mem[wg_lid] = local_x;
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
   }
   return local_x;
 }

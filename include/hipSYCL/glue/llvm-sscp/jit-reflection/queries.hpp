@@ -22,6 +22,7 @@ enum class compiler_backend : int {
   amdgpu = 2,
   host = 3,
   metal = 4,
+  clspv = 5
 };
 
 namespace vendor_id {

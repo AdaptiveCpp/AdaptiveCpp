@@ -272,6 +272,13 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
   if(queue.get_device().get_backend() == sycl::backend::hip) {
     local_sizes = std::vector<size_t>{256};
     global_sizes = std::vector<size_t>{1024};
+  } else if (queue.get_device().get_backend() == sycl::backend::vk &&
+             std::string::npos !=
+                 queue.get_device().get_info<sycl::info::device::name>().find(
+                     "RADV")) {
+    // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2127
+    local_sizes = std::vector<size_t>{128};
+    global_sizes = std::vector<size_t>{512};
   }
 
   for (int i = 0; i < local_sizes.size(); ++i) {
@@ -327,6 +334,13 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
 
   if(queue.get_device().get_backend() == sycl::backend::hip) {
     // currently only groupsizes between 128 and 256 are supported for HIP
+    local_sizes = std::vector<size_t>{16};
+    global_sizes = std::vector<size_t>{32};
+  } else if (queue.get_device().get_backend() == sycl::backend::vk &&
+             std::string::npos !=
+                 queue.get_device().get_info<sycl::info::device::name>().find(
+                     "RADV")) {
+    // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2127
     local_sizes = std::vector<size_t>{16};
     global_sizes = std::vector<size_t>{32};
   }

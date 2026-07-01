@@ -3,9 +3,9 @@
 // RUN: %acpp %s -o %t --acpp-targets=omp --acpp-use-accelerated-cpu -O
 // RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic
-// RUN: ACPP_VISIBILITY_MASK=omp; %t | FileCheck %s
+// RUN: ACPP_VISIBILITY_MASK=omp %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -O
-// RUN: ACPP_VISIBILITY_MASK=omp; %t | FileCheck %s
+// RUN: ACPP_VISIBILITY_MASK=omp %t | FileCheck %s
 
 // this tests mostly -O0 for omp where there's a lot more alloca pain
 // specifically this might trigger, if we don't arrayify allocas whose address

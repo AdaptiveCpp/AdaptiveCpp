@@ -1268,7 +1268,7 @@ class acpp_config:
 
   @property
   def source_file_arguments(self):
-    source_file_endings = set([".cpp", ".cxx", ".c++", ".cc", ".c", ".hip", ".cu", ".sycl", ".cppm", ".cxxm", ".ccm", ".c++m"])
+    source_file_endings = set([".cpp", ".cxx", ".c++", ".cc", ".c", ".hip", ".cu", ".sycl", ".cppm", ".cxxm", ".ccm", ".c++m", ".ixx"])
     source_files = []
     for arg in self.forwarded_compiler_arguments:
       if not arg.startswith("-"):
@@ -1947,6 +1947,8 @@ class llvm_sscp_invocation:
 
   def get_cxx_flags(self):
     flags = ["-D__ACPP_ENABLE_LLVM_SSCP_TARGET__",
+            "-include", os.path.join(self._config.acpp_include_path, 
+                "hipSYCL", "glue", "llvm-sscp", "hcf_registration.hpp"),
             "-Xclang", "-disable-O0-optnone", "-mllvm", "-acpp-sscp"]
     
     if self._config.is_export_all:
@@ -2333,11 +2335,17 @@ class compiler:
       file_replacement_map[s] = outfile
 
     result_args = []
+    consume_next = False
     for arg in args:
       if arg in file_replacement_map:
         result_args.append(file_replacement_map[arg])
       else:
-        result_args.append(arg)
+        if arg == "-include":
+          consume_next = True
+        elif consume_next:
+          consume_next = False
+        else:
+          result_args.append(arg)
     
     return result_args
 

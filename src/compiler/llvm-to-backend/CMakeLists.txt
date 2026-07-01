@@ -186,7 +186,12 @@ if(WITH_SSCP_COMPILER)
     set(LLVMSPIRV_RELATIVE_INSTALLDIR lib/hipSYCL/ext/llvm-spirv)
     set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/${LLVMSPIRV_RELATIVE_INSTALLDIR})
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
-    set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/llvm-spirv)
+    if(WIN32)
+      set(LLVMSPIRV_EXECUTABLE_NAME "llvm-spirv.exe")
+    else()
+      set(LLVMSPIRV_EXECUTABLE_NAME "llvm-spirv")
+    endif()
+    set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/${LLVMSPIRV_EXECUTABLE_NAME})
 
     ExternalProject_Add(LLVMSpirvTranslator
       GIT_REPOSITORY https://github.com/AdaptiveCpp/SPIRV-LLVM-Translator
@@ -220,9 +225,8 @@ if(WITH_SSCP_COMPILER)
 
     add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
     target_compile_definitions(llvm-to-spirv PRIVATE
+      -DHIPSYCL_LLVMSPIRV_NAME="${LLVMSPIRV_EXECUTABLE_NAME}"
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
-
-
   endif()
 
   if(WITH_LLVM_TO_PTX)
@@ -312,6 +316,23 @@ if(WITH_SSCP_COMPILER)
         metal/HLTree.cpp
         metal/Emitter.cpp
       TOOL metal/LLVMToMetalTool.cpp)
+  endif()
+
+  if(WITH_LLVM_TO_VULKAN)
+    add_hipsycl_llvm_backend(
+      BACKEND clspv
+      LIBRARY clspv/LLVMToCLSPV.cpp
+      clspv/AddrSpaceCastRemovalPass.cpp
+      clspv/RemoveUnusedIntrinsicsPass.cpp
+      clspv/MemsetLoweringPass.cpp
+      clspv/ConstantAddrSpacePass.cpp
+      TOOL clspv/LLVMToCLSPVTool.cpp)
+
+    find_program(CLSPV_COMPILER NAMES clspv REQUIRED)
+
+    message(STATUS "Using clspv at: ${CLSPV_COMPILER}")
+    target_compile_definitions(llvm-to-clspv PRIVATE
+      -DHIPSYCL_CLSPV_PATH="${CLSPV_COMPILER}")
   endif()
 
 endif()

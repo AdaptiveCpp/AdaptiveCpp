@@ -171,6 +171,8 @@ std::istream &operator>>(std::istream &istr, visibility_mask_t &out) {
       backend = rt::backend_id::ocl;
     } else if (name == "metal") {
       backend = rt::backend_id::metal;
+    } else if (name == "vk" || name == "vulkan") {
+      backend = rt::backend_id::vk;
     } else {
       istr.setstate(std::ios_base::failbit);
       // Don't use HIPSYCL_DEBUG_WARNING, it will cause recursive init error.

@@ -69,6 +69,10 @@ BOOST_AUTO_TEST_CASE(group_barrier) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, test_types) {
+  if (sycl::device{}.get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -279,6 +283,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
 
 #if defined(ACPP_TEST_WORK_GROUP_SHUFFLE_EXT) and !defined(REDUCED_LOCAL_MEM_USAGE)
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
+  SKIP_IF_MOLTENVK(sycl::device{})
+
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -428,7 +434,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
 }
 #endif
 BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
-  if(!sycl::queue{}.get_device().is_host()) {
+  sycl::device dev;
+  SKIP_IF_MOLTENVK(dev)
+
+  if (!dev.is_host()) {
     const size_t elements_per_thread = 1;
     const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                   size_t global_size) {

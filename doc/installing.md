@@ -94,6 +94,10 @@ Follow [these](install-ocl.md) instructions.
 
 Follow [these](install-metal.md) instructions. Note that this is an experimental backend.
 
+#### Vulkan (skip if you don't need Vulkan support)
+
+Follow [these](install-vulkan.md) instructions. Note that this is an experimental backend.
+
 #### Building and installing 
 
 Once the software requirements mentioned above are met, clone the repository:
@@ -145,7 +149,7 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 * See the ROCm [installation instructions](install-rocm.md) instructions.
 
 
-#### Building an LLVM toolchain with AdaptiveCpp linked in (experimental, but also for Windows)
+#### Building an LLVM toolchain with AdaptiveCpp linked in (necessary for Windows)
 
 Another advanced installation procedure is to build AdaptiveCpp as part of LLVM.
 This makes it easy to ship a full AdaptiveCpp installation with all dependencies.
@@ -231,12 +235,13 @@ Any changes to the AdaptiveCpp CMake configuration flags should be of the form `
 
 ## Installation from source (Mac)
 
-On Mac, only the CPU backends are supported. The required steps are analogous to Linux, however you may require `LLVM_DIR` to be set to the location of the `cmake` files LLVM ships with. For instance, with a `Homebrew` installation of LLVM 20.1.2, `LLVM_DIR=/opt/homebrew/Cellar/llvm/20.1.2/lib/cmake/llvm`.
+On Mac, the OpenMP backend for CPUs and the Metal backend for Apple GPUs are supported.
+
+The required steps to build AdaptiveCpp are analogous to Linux, however you may require `LLVM_DIR` to be set to the location of the `cmake` files LLVM ships with. For instance, with a `Homebrew` installation of LLVM 20.1.2, `LLVM_DIR=/opt/homebrew/Cellar/llvm/20.1.2/lib/cmake/llvm`.
 
 To enable support for the generic JIT compiler, you may want to refer to the [2-stage build](#using-a-2-stage-build-mac) detailed above.
 
 ## Installation from source (Windows)
 
-For experimental building on Windows (CPU and CUDA backends) see the corresponding [wiki](https://github.com/AdaptiveCpp/AdaptiveCpp/wiki/Using-AdaptiveCpp-on-Windows).
-The `omp.accelerated` and `generic` compilation flows are only supported when [building AdaptiveCpp as part of LLVM](#building-an-llvm-toolchain-with-adaptivecpp-linked-in-experimental-but-also-for-windows) (see above).
+Windows, via `omp.accelerated` and `generic` compilation flows, is only supported when [building AdaptiveCpp as part of LLVM](#building-an-llvm-toolchain-with-adaptivecpp-linked-in-experimental-but-also-for-windows) (see above). Supported backends and devices on Windows include OpenMP (host CPU), CUDA (NVIDIA GPUs), HIP (AMD GPUs) and OpenCL (Intel GPUs).
 

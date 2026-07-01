@@ -10,38 +10,37 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
  #include "hipSYCL/sycl/libkernel/sscp/builtins/collpredicate.hpp"
- #include "hipSYCL/sycl/libkernel/sscp/builtins/reduction.hpp"
- #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
+ #include "hipSYCL/sycl/libkernel/sscp/builtins/spirv/spirv_common.hpp"
 
+bool __spirv_GroupAny(__spv::ScopeFlag scope, bool pred) noexcept;
+bool __spirv_GroupAll(__spv::ScopeFlag scope, bool pred) noexcept;
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_work_group_any(bool pred){
-    return __acpp_sscp_work_group_reduce_i8(__acpp_sscp_algorithm_op::logical_or, pred);
+    return __spirv_GroupAny(__spv::ScopeFlag::Workgroup, pred);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_work_group_all(bool pred){
-    return __acpp_sscp_work_group_reduce_i8(__acpp_sscp_algorithm_op::logical_and, pred);
+    return __spirv_GroupAll(__spv::ScopeFlag::Workgroup, pred);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_work_group_none(bool pred){
-    bool result_or = __acpp_sscp_work_group_reduce_i8(__acpp_sscp_algorithm_op::logical_or, pred);
-    return !result_or;
-}
-
-HIPSYCL_SSCP_CONVERGENT_BUILTIN
-bool __acpp_sscp_sub_group_all(bool pred){
-    return __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_and, pred);
+    return !__spirv_GroupAny(__spv::ScopeFlag::Workgroup, pred);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_sub_group_any(bool pred){
-    return __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_or, pred);
+    return __spirv_GroupAny(__spv::ScopeFlag::Subgroup, pred);
+}
+
+HIPSYCL_SSCP_CONVERGENT_BUILTIN
+bool __acpp_sscp_sub_group_all(bool pred){
+    return __spirv_GroupAll(__spv::ScopeFlag::Subgroup, pred);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_sub_group_none(bool pred){
-    bool result_or = __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_or, pred);
-    return !result_or;
+    return !__spirv_GroupAny(__spv::ScopeFlag::Subgroup, pred);
 }

@@ -34,31 +34,8 @@ __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
       break;
   }
 
-  auto fence = [&]() {
-    switch (fence_scope) {
-      case __acpp_sscp_memory_scope::work_item:
-        __acpp_sscp_metal_symbol_barrier("atomic_thread_fence(mem_flags::mem_none, memory_order_seq_cst, thread_scope_thread)");
-        break;
-      case __acpp_sscp_memory_scope::sub_group:
-      case __acpp_sscp_memory_scope::work_group:
-        __acpp_sscp_metal_symbol_barrier("atomic_thread_fence(mem_flags::mem_threadgroup, memory_order_seq_cst, thread_scope_threadgroup)");
-        break;
-      case __acpp_sscp_memory_scope::device:
-      case __acpp_sscp_memory_scope::system:
-        __acpp_sscp_metal_symbol_barrier("atomic_thread_fence(mem_flags::mem_device, memory_order_seq_cst, thread_scope_device)");
-      default:
-        __acpp_sscp_metal_symbol_barrier("__builtin_trap()");
-        break;
-    }
-  };
-
-  if (order == __acpp_sscp_memory_order::release
-    || order == __acpp_sscp_memory_order::acq_rel
-    || order == __acpp_sscp_memory_order::seq_cst
-  ) {
-    fence();
-  }
-
+  // A Metal barrier already fences its address space (MSL spec 6.9), so no
+  // separate atomic_thread_fence is needed around it.
   switch (fence_scope) {
     case __acpp_sscp_memory_scope::work_item:
       __acpp_sscp_metal_symbol_barrier("threadgroup_barrier(mem_flags::mem_none)");
@@ -76,13 +53,6 @@ __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope fence_scope,
     default:
       __acpp_sscp_metal_symbol_barrier("__builtin_trap()");
       break;
-  }
-
-  if (order == __acpp_sscp_memory_order::acquire
-    || order == __acpp_sscp_memory_order::acq_rel
-    || order == __acpp_sscp_memory_order::seq_cst
-  ) {
-    fence();
   }
 }
 
@@ -103,31 +73,8 @@ __acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
       break;
   }
 
-  auto fence = [&]() {
-    switch (fence_scope) {
-      case __acpp_sscp_memory_scope::work_item:
-        __acpp_sscp_metal_symbol_barrier("atomic_thread_fence(mem_flags::mem_none, memory_order_seq_cst, thread_scope_thread)");
-        break;
-      case __acpp_sscp_memory_scope::sub_group:
-      case __acpp_sscp_memory_scope::work_group:
-        __acpp_sscp_metal_symbol_barrier("atomic_thread_fence(mem_flags::mem_threadgroup, memory_order_seq_cst, thread_scope_threadgroup)");
-        break;
-      case __acpp_sscp_memory_scope::device:
-      case __acpp_sscp_memory_scope::system:
-        __acpp_sscp_metal_symbol_barrier("atomic_thread_fence(mem_flags::mem_device, memory_order_seq_cst, thread_scope_device)");
-      default:
-        __acpp_sscp_metal_symbol_barrier("__builtin_trap()");
-        break;
-    }
-  };
-
-  if (order == __acpp_sscp_memory_order::release
-    || order == __acpp_sscp_memory_order::acq_rel
-    || order == __acpp_sscp_memory_order::seq_cst
-  ) {
-    fence();
-  }
-
+  // A Metal barrier already fences its address space (MSL spec 6.9), so no
+  // separate atomic_thread_fence is needed around it.
   switch (fence_scope) {
     case __acpp_sscp_memory_scope::work_item:
       __acpp_sscp_metal_symbol_barrier("simdgroup_barrier(mem_flags::mem_none)");
@@ -145,13 +92,6 @@ __acpp_sscp_sub_group_barrier(__acpp_sscp_memory_scope fence_scope,
     default:
       __acpp_sscp_metal_symbol_barrier("__builtin_trap()");
       break;
-  }
-
-  if (order == __acpp_sscp_memory_order::acquire
-    || order == __acpp_sscp_memory_order::acq_rel
-    || order == __acpp_sscp_memory_order::seq_cst
-  ) {
-    fence();
   }
 }
 

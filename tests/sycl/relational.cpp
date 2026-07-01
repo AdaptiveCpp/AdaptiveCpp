@@ -112,6 +112,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   // build inputs and allocate outputs
 
   s::queue queue;
+  SKIP_IF_MOLTENVK(queue.get_device())
+
   if constexpr(std::is_same_v<DT, double>) {
     if (!queue.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");
@@ -188,6 +190,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
   // build inputs and allocate outputs
 
   s::queue queue;
+  SKIP_IF_MOLTENVK(queue.get_device())
+
   if constexpr(std::is_same_v<DT, double>) {
     if (!queue.get_device().has(sycl::aspect::fp64)) {
       BOOST_TEST_MESSAGE("Skipping test for double since device has no fp64 support");

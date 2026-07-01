@@ -126,6 +126,9 @@ public:
     } else if(asp == aspect::usm_system_allocations) {
       return get_rt_device()->has(
           rt::device_support_aspect::usm_system_allocations);
+    } else if(asp == aspect::AdaptiveCpp_free_memory) {
+      return get_rt_device()->has(
+          rt::device_support_aspect::free_memory);
     }
 
     return false;
@@ -739,7 +742,8 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, aspects)
                         aspect::usm_atomic_host_allocations,
                         aspect::usm_shared_allocations,
                         aspect::usm_atomic_shared_allocations,
-                        aspect::usm_system_allocations};
+                        aspect::usm_system_allocations,
+                        aspect::AdaptiveCpp_free_memory};
 
   std::vector<aspect> result;
 
@@ -807,8 +811,20 @@ sycl::device::get_info<info::device::AdaptiveCpp_priority_range>() const {
     get_rt_device()->get_property(
       rt::device_uint_property::queue_priority_range_low),
     get_rt_device()->get_property(
-          rt::device_uint_property::queue_priority_range_high)
+      rt::device_uint_property::queue_priority_range_high)
   };
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, AdaptiveCpp_free_memory)
+{
+  if(!has(aspect::AdaptiveCpp_free_memory)) {
+    throw sycl::exception{
+        sycl::make_error_code(sycl::errc::feature_not_supported),
+        "AdaptiveCpp_free_memory is not supported by this device"};
+  }
+
+  return get_rt_device()->get_property(
+      rt::device_uint_property::free_memory);
 }
 
 namespace detail {

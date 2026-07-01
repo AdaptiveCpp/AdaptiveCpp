@@ -153,11 +153,11 @@ bool should_include_device(const std::string& dev_name, const cl::Device& dev) {
       info_query<CL_DEVICE_SVM_CAPABILITIES, cl_device_svm_capabilities>(dev);
 
   bool has_usm_extension = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev).find("cl_intel_unified_shared_memory") != std::string::npos;
-  bool has_system_svm = cap & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM;
+  bool has_svm = cap & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER;
 
-  if(!has_usm_extension && !has_system_svm) {
+  if(!has_usm_extension && !has_svm) {
     HIPSYCL_DEBUG_WARNING << "ocl_hardware_manager: OpenCL device '" << dev_name
-                          << "' does not support USM extensions or system SVM. "
+                          << "' does not support USM extensions or SVM. "
                              "Allocations are not possible; hiding device. Set "
                              "ACPP_RT_OCL_SHOW_ALL_DEVICES=1 "
                              "to override."
@@ -292,6 +292,9 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::atomic64:
     return true;
+    break;
+  case device_support_aspect::free_memory:
+    return false;
     break;
   }
   assert(false && "Unknown device aspect");
@@ -512,6 +515,9 @@ std::size_t ocl_hardware_context::get_property(device_uint_property prop) const 
   case device_uint_property::queue_priority_range_high:
     return _has_cl_khr_priority_hints_extension ? -1 : 0;
     break;
+  case device_uint_property::free_memory:
+    return 0;
+    break;
   }
   assert(false && "Invalid device property");
   std::terminate();
@@ -596,6 +602,17 @@ void ocl_hardware_context::init_allocator(ocl_hardware_manager *mgr) {
                                "falling back to fine-grained system SVM. USM "
                                "pointer info queries have limited support."
                             << std::endl;
+    } else {
+      _usm_provider = ocl_usm::from_coarse_grained_svm(mgr, _dev_id);
+      if(_usm_provider->is_available()) {
+        HIPSYCL_DEBUG_WARNING
+            << "OpenCL device " << get_device_name()
+            << " does not support Intel USM extensions nor fine-grained system "
+               "SVM, "
+               "falling back to coarse-grained SVM. Host and shared USM is not "
+               "available. Limitations in multi-device scenarios may apply."
+            << std::endl;
+      }
     }
   }
   if(!_usm_provider->is_available()) {

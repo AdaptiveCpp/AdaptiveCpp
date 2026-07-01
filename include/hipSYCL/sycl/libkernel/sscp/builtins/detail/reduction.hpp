@@ -65,7 +65,7 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
     shrd_mem[subgroup_id] = local_reduce_result;
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                 __acpp_sscp_memory_order::relaxed);
+                                 __acpp_sscp_memory_order::acq_rel);
 
   for (int i = shmem_array_length; i < num_subgroups; i += shmem_array_length) {
     if (subgroup_id >= i && subgroup_id < i + shmem_array_length) {
@@ -73,7 +73,7 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
           op(local_reduce_result, shrd_mem[subgroup_id % shmem_array_length]);
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
   }
 
   // Now we are filled up shared memory with the results of all the subgroups
@@ -85,7 +85,7 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
       shrd_mem[wg_lid] = op(shrd_mem[wg_lid + i], shrd_mem[wg_lid]);
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                   __acpp_sscp_memory_order::relaxed);
+                                   __acpp_sscp_memory_order::acq_rel);
   }
 
   // Now we load the data into registers

@@ -86,7 +86,7 @@ function(create_llvm_to_backend_library)
   set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
 
   if(WIN32)
-  set(MODE STATIC)
+    set(MODE STATIC)
   endif()
   create_llvm_based_library(TARGET ${target} ${MODE} SOURCES ${sources})
   target_link_libraries(${target} PUBLIC llvm-to-backend)
@@ -323,6 +323,7 @@ if(WITH_SSCP_COMPILER)
       BACKEND clspv
       LIBRARY clspv/LLVMToCLSPV.cpp
       clspv/AddrSpaceCastRemovalPass.cpp
+      clspv/FoldChainedGEPsPass.cpp
       clspv/RemoveUnusedIntrinsicsPass.cpp
       clspv/MemsetLoweringPass.cpp
       clspv/ConstantAddrSpacePass.cpp

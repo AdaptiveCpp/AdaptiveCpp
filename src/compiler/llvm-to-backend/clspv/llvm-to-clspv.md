@@ -93,6 +93,33 @@ This pass handles this case by replacing memset intrinsics taking a dynamic leng
 parameter with a naive implementation of memset which uses a loop to copy chunks to
 the destination pointer based on the size of the data type being pointed to.
 
+### FoldChainedGEPsPass
+
+LLVM O3's `instcombine` canonicalises pointer arithmetic of the form
+`ptr[n - k]` (where `k` is a positive constant) into a two-level byte-GEP
+chain:
+
+```llvm
+%inner = getelementptr T,  ptr %base, i64 %n    ; past-end pointer
+%outer = getelementptr i8, ptr %inner, i64 -k*sizeof(T)
+```
+
+`clspv --physical-storage-buffers` miscompiles this pattern
+([clspv issue #1292](https://github.com/google/clspv/issues/1292)): seeing
+an `i8` source-element type it infers `char` as the pointee type and emits
+four separate byte-wide `OpLoad`s instead of a single word-wide `OpLoad`,
+producing wrong results or a device crash on Vulkan
+([AdaptiveCpp issue #2126](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2126)).
+
+This pass re-folds such chains back into a single typed GEP:
+
+```llvm
+%combined = getelementptr T, ptr %base, i64 (%n - k)
+```
+
+The fold is applied only when the byte offset is an exact multiple of
+`sizeof(T)`, which is always the case for the specific instcombine transform.
+
 ### AddrSpaceCastRemovalPass
 
 Remove casting away the address space from arguments, as otherwise

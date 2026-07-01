@@ -3,9 +3,6 @@
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
 // RUN: %t | FileCheck %s
 
-// https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2126
-// UNSUPPORTED: vulkan || vk
-
 #include "common.hpp"
 #include <iostream>
 

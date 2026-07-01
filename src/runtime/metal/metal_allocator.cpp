@@ -312,6 +312,9 @@ device_id metal_allocator::get_device() const {
 }
 
 MTL::Buffer* metal_allocator::alloc_buffer(size_t size_bytes) {
+  // The delta-convergence loop below only converges if the mmap region layout
+  // is stable across iterations, so it must not run concurrently.
+  std::lock_guard<std::mutex> lock{_mutex};
   const size_t aligned = align_up(size_bytes, _page_size);
   const size_t stride  = metal_gpu_stride(aligned, _page_size);
   void* region_ptr = nullptr;

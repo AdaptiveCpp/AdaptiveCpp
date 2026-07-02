@@ -7,7 +7,7 @@ on:
 jobs:
   build_2stage_from_appleclang:
     name: AdaptiveCpp LLVM ${{ matrix.clang_version }}
-    runs-on: macos-latest
+    runs-on: macos-15
     strategy:
       matrix:
         clang_version: ['18']

@@ -162,19 +162,20 @@ assessment of the status of the benchmarks is as follows on llvmpipe 25.0.7.
 | Benchmark           | Status                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------- |
 | HeCbench dslash     | Completes successfully on SYCL and PCUDA                                                    |
-| HeCbench fdtd3d     | SYCL passes on NVIDIA Ada, verification issue on Intel MTL, and crashes on Radv & llvmpipe. |
+| HeCbench fdtd3d     | Completes successfully on SYCL and PCUDA                                                    |
 | HeCbench FFT        | SYCL & PCUDA compiles kernel, but fails verification                                        |
 | HeCbench ising      | Completes successfully on SYCL and PCUDA                                                    |
 | HeCbench mandlebrot | Completes successfully on SYCL and PCUDA                                                    |
 | HeCbench nbody      | Completes successfully on SYCL and PCUDA                                                    |
 | HeCbench rsbench    | Can't compile kernel for SYCL or PCUDA                                                      |
 | HeCbench sph        | Completes successfully on SYCL and PCUDA                                                    |
-| Bude                | SYCL verification fails, PCUDA device not compatible                                        |
-| Cloverleaf          | SYCL verification fails and PCUDA raises an error                                           |
+| Bude                | Completes on SYCL, compilation fail on PCUDA                                                |
+| Cloverleaf          | Verification issues on SYCL, kernel segfault on PCUDA                                       |
 
 Compilation fail investigations:
 
 * Hecbench rsbench - Error processing GEP into alloca array of `type { double, double }` struct.
+* Bude PCUDA - Error processing struct `type { float, float, float, float }`.
 
 #### Benchmark Results
 
@@ -191,6 +192,8 @@ mandlebrot | 22.3 / 21 | 4.6 / 3.3  | 36 /  27  | 2.5 / 0.7  | 42.1 / 2.5    | 2
 ising      | 3.2       | 2.1        | 3.7       | 0.3        | 0.8           | 0.1          | 3.4           |
 dslash     | 2.3       | 2          | 3.9       | 2.2        | 2.3           | 1.4          | 160           |
 sph        | 28.2      | 53         | 36        | 22.7       | 38            | 35.7         | 64.8          |
+fdtd3d     | Error     | 0.04       | 0.4       | 0.004193   | 0.018         | 0.005        | 0.043         |
+bude       | 541       | Error      | 438       | Error      | 45            | 36           | 49            |
 
 SYCL Backends:
 1. OpenMP host device
@@ -207,6 +210,8 @@ Configs:
 * ising - `./sycl-generic -x 5120 -y 5120 -w 10 -n 100`, time is elapsed time in seconds.
 * dslash -  `./sycl-generic 256`, time is total execution time in seconds.
 * sph - `./sycl-generic sph`, time is average execution time of sph kernels in ms.
+* fdtd23 - `./sycl-generic --dimx=376 --dimy=368 --timesteps=40`, time is average kernel execution time in seconds.
+* bude - `./sycl-bude -w 128 -p 1,2,4`, time is average ms.
 
 ### PCUDA
 

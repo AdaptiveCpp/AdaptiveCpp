@@ -29,7 +29,7 @@
 #include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "ir_constants.hpp"
-#include "hcf_registration.hpp"
+
 #include "../kernel_launcher_data.hpp"
 
 #include <array>

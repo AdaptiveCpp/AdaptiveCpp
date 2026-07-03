@@ -163,7 +163,7 @@ inline T __acpp_sscp_work_group_reduce(T value) {
   const T sg_reduced = reduce_op(v);
 
   if(lane_id == 0) scratch[group_id] = sg_reduced;
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   if(group_id == 0) {
     T result = identity();
@@ -192,7 +192,7 @@ inline T __acpp_sscp_work_group_reduce(T value) {
 
       if(lane_id == 0) scratch[0] = r0;
       if(lane_id == 1) scratch[1] = r1;
-      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
       T y = identity();
       if(lid < 2) y = scratch[lid];
@@ -209,14 +209,14 @@ inline T __acpp_sscp_work_group_reduce(T value) {
           if(j < active_ngroups)
             scratch[lid] = binary_op(scratch[lid], scratch[j]);
         }
-        __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+        __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
         active_ngroups = offset;
       }
       if(lane_id == 0) scratch[0] = scratch[0];
     }
   }
 
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   T tmp = scratch[0];
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
   return tmp;

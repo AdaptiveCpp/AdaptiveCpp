@@ -39,6 +39,7 @@ enum class device_support_aspect {
   work_item_independent_forward_progress,
   fp64,
   atomic64,
+  free_memory,
 };
 
 enum class device_uint_property {
@@ -104,7 +105,8 @@ enum class device_uint_property {
   backend_id,
 
   queue_priority_range_low,
-  queue_priority_range_high
+  queue_priority_range_high,
+  free_memory,
 };
 
 enum class device_uint_list_property {

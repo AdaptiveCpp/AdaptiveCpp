@@ -47,12 +47,12 @@ OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
     }
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                 __acpp_sscp_memory_order::relaxed);
+                                 __acpp_sscp_memory_order::acq_rel);
   if (subgroup_id == 0) {
     shrd_mem[wg_lid] = sg_inclusive_scan(shrd_mem[wg_lid], op);
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
-                                 __acpp_sscp_memory_order::relaxed);
+                                 __acpp_sscp_memory_order::acq_rel);
   return subgroup_id > 0 ? op(shrd_mem[subgroup_id - 1], sg_scan_result) : sg_scan_result;
 }
 

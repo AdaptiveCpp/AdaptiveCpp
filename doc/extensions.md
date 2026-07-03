@@ -815,3 +815,28 @@ Example:
   sycl::free(p, q);
 
 ```
+
+### `ACPP_EXT_DEVICE_FREE_MEMORY`
+
+Adds a device aspect and device information descriptor for querying the backend-reported amount of free device memory.
+
+This extension does not need to be enabled explicitly and is always available. However, support depends on the device backend. Applications should check `sycl::aspect::AdaptiveCpp_free_memory` before querying the value.
+
+The returned value is an estimate reported by the backend/runtime and does not guarantee that an allocation of this size will succeed.
+
+Example:
+
+```cpp
+sycl::device dev = q.get_device();
+
+if(dev.has(sycl::aspect::AdaptiveCpp_free_memory)) {
+  std::size_t free_memory =
+      dev.get_info<sycl::info::device::AdaptiveCpp_free_memory>();
+
+  // Use free_memory for device selection or diagnostics.
+}
+```
+
+Calling `get_info<sycl::info::device::AdaptiveCpp_free_memory>()` on a device that does not have `sycl::aspect::AdaptiveCpp_free_memory` throws a `sycl::exception` with `sycl::errc::feature_not_supported`.
+
+Currently implemented for CUDA and HIP.

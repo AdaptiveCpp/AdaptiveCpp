@@ -12,6 +12,7 @@
 
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/IntrinsicInst.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Transforms/Utils/Cloning.h>
@@ -25,14 +26,21 @@ void removeUnusedFunctionParameters(llvm::Function *F, llvm::Module &M,
                                     llvm::SmallVector<int> *RetainedParameterIndices,
                                     std::function<void(llvm::Function *, llvm::Function *)>
                                         *ReplacementFunctionAttributeTransfer) {
-
   std::string FunctionName = F->getName().str();
   F->setName(FunctionName+".old");
   llvm::SmallVector<int> OriginalParameterIndex;
-  
+
   for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
-    if(F->getArg(i)->getNumUses() > 0) {
+    unsigned NumUses = F->getArg(i)->getNumUses();
+    if(NumUses > 1) {
       OriginalParameterIndex.push_back(i);
+    } else if (NumUses == 1) {
+      // If there's only one use check it isn't just as an assume intrinsic
+      for (auto U : F->getArg(i)->users()) {
+        if (!llvm::isa<llvm::AssumeInst>(U)) {
+          OriginalParameterIndex.push_back(i);
+        }
+      }
     }
   }
 

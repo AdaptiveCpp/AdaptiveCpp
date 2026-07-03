@@ -137,7 +137,7 @@ inline T __acpp_sscp_work_group_shl(T value, u32 delta) {
   const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
 
   scratch[lid] = value;
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   T result = (lid + delta < local_size) ? scratch[lid + delta] : T{};
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
@@ -160,7 +160,7 @@ inline T __acpp_sscp_work_group_shr(T value, u32 delta) {
   const uint lid = __acpp_sscp_typed_get_local_linear_id<3, uint>();
 
   scratch[lid] = value;
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   T result = (lid >= delta) ? scratch[lid - delta] : T{};
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
@@ -184,7 +184,7 @@ inline T __acpp_sscp_work_group_permute(T value, i32 mask) {
   const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
 
   scratch[lid] = value;
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   const uint target = lid ^ (uint)mask;
   T result = (target < local_size) ? scratch[target] : T{};
@@ -209,7 +209,7 @@ inline T __acpp_sscp_work_group_select(T value, i32 id) {
   const uint local_size = __acpp_sscp_typed_get_local_size<3, uint>();
 
   scratch[lid] = value;
-  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
   T result = ((uint)id < local_size) ? scratch[id] : T{};
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed);

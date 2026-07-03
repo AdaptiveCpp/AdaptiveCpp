@@ -9,26 +9,31 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
+
+// This file may be included early; avoid including std headers.
+// THIS FILE SHOULD NOT BE EXPLICITLY INCLUDED; THE COMPILER WILL DO
+// IT AUTOMATICALLY
+
+
 #include "s1_ir_constants.hpp"
-#include <cstdlib>
 
 
 #ifndef ACPP_SSCP_HCF_REGISTRATION_HPP
 #define ACPP_SSCP_HCF_REGISTRATION_HPP
 
 // These functions are defined in the AdaptiveCpp runtime (kernel_cache.cpp)
-extern "C" void __acpp_register_hcf(const char* hcf, std::size_t size);
-extern "C" void __acpp_unregister_hcf(std::size_t hcf_object_id);
+extern "C" void __acpp_register_hcf(const char* hcf, unsigned long long size);
+extern "C" void __acpp_unregister_hcf(unsigned long long hcf_object_id);
 
 namespace hipsycl::glue::sscp {
 
 static const char* get_local_hcf_object() {
   return __acpp_local_sscp_hcf_content;
 }
-static std::size_t get_local_hcf_size() {
+static unsigned long long get_local_hcf_size() {
   return __acpp_local_sscp_hcf_object_size;
 }
-static std::size_t get_local_hcf_id() {
+static unsigned long long get_local_hcf_id() {
   return __acpp_local_sscp_hcf_object_id;
 }
 

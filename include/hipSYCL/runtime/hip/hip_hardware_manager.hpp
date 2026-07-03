@@ -61,6 +61,7 @@ public:
   hip_event_pool* get_event_pool() const;
 
   std::size_t get_wavefront_size() const;
+
 private:
   std::unique_ptr<hipDeviceProp_t> _properties;
   std::unique_ptr<hip_allocator> _allocator;

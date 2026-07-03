@@ -69,6 +69,11 @@ BOOST_AUTO_TEST_CASE(device_allocation_functions) {
 BOOST_AUTO_TEST_CASE(invalid_pointer_argument) {
   sycl::queue q;
 
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
+    return;
+  }
+
   void** data_in = sycl::malloc_device<void*>(1, q);
   void** data_out = sycl::malloc_device<void*>(1, q);
 
@@ -622,6 +627,11 @@ enqueue_kernel(int max_iterations, Node* start, sycl::queue q) {
 BOOST_AUTO_TEST_CASE(linked_list_single_alloc) {
   sycl::queue q{sycl::property::queue::in_order{}};
 
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
+    return;
+  }
+
   const int num_nodes = 3;
   linked_list::Node *nodes = sycl::malloc_device<linked_list::Node>(num_nodes, q);
   linked_list::Node nodeC{2, nullptr};
@@ -644,6 +654,11 @@ BOOST_AUTO_TEST_CASE(linked_list_single_alloc) {
 
 BOOST_AUTO_TEST_CASE(linked_list_separate_alloc) {
   sycl::queue q{sycl::property::queue::in_order{}};
+
+  if (q.get_device().get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("Vulkan doesn't support pointer to pointer args");
+    return;
+  }
 
   constexpr int num_nodes = 3;
   linked_list::Node* nodes[num_nodes];

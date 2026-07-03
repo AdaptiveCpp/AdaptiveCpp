@@ -14,7 +14,6 @@
 #define ACPP_PCUDA_HPP
 
 #include "hipSYCL/glue/llvm-sscp/s1_ir_constants.hpp"
-#include "hipSYCL/glue/llvm-sscp/hcf_registration.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"
@@ -162,12 +161,12 @@ inline int __pcuda_warp_size() {
 
 inline void __syncthreads() {
   PCUDA_BUILTIN_CALL(__acpp_sscp_work_group_barrier(
-      __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed));
+      __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel));
 }
 
 inline void __syncwarp() {
   PCUDA_BUILTIN_CALL(__acpp_sscp_sub_group_barrier(
-      __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::relaxed));
+      __acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel));
 }
 
 inline void __threadfence() {

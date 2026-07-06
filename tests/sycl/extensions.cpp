@@ -1450,5 +1450,35 @@ BOOST_AUTO_TEST_CASE(khr_queue_empty) {
   BOOST_CHECK(in_order_q.khr_empty());
 }
 #endif
+#if defined(ACPP_EXT_GET_NATIVE_ALLOCATION) && defined(SYCL_EXT_ACPP_BACKEND_METAL)
+BOOST_AUTO_TEST_CASE(get_native_allocation) {
+  namespace s = sycl;
+
+  s::queue q;
+  if (q.get_device().get_backend() != s::backend::metal) {
+    BOOST_TEST_MESSAGE("Skipping get_native_allocation: not a Metal device");
+    return;
+  }
+
+  constexpr std::size_t n = 64;
+  int *ptr = s::malloc_device<int>(n, q);
+  BOOST_REQUIRE(ptr != nullptr);
+
+  auto native_allocation =
+      s::get_native_allocation<s::backend::metal>(
+          ptr, q.get_context());
+  BOOST_CHECK(native_allocation.buffer != nullptr);
+  BOOST_CHECK_EQUAL(native_allocation.offset, 0u);
+
+  auto native_allocation_shifted =
+      s::get_native_allocation<s::backend::metal>(
+          ptr + 1, q.get_context());
+  BOOST_CHECK(native_allocation_shifted.buffer == native_allocation.buffer);
+  BOOST_CHECK_EQUAL(native_allocation_shifted.offset, sizeof(int));
+
+  s::free(ptr, q);
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()
+

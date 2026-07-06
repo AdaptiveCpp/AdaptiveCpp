@@ -29,6 +29,9 @@ struct pointer_info {
   // semantics can be slightly different (e.g. everything is
   // automatically "usm")
   bool is_from_host_backend;
+
+  void *native_handle;
+  size_t native_offset;
 };
 
 class backend_allocator

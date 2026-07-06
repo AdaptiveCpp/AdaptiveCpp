@@ -140,6 +140,8 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   out.is_from_host_backend = false;
   out.is_optimized_host = attribs.type == cudaMemoryTypeHost;
   out.is_usm = attribs.type == cudaMemoryTypeManaged;
+  out.native_handle = nullptr;
+  out.native_offset = 0;
   
   return make_success();
 }

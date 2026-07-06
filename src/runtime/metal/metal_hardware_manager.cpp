@@ -290,6 +290,10 @@ std::size_t metal_hardware_context::get_max_memcpy_concurrency() const {
   return 1; // TODO
 }
 
+MTL::Device* metal_hardware_context::get_mtl_device() const {
+  return _device;
+}
+
 std::string metal_hardware_context::get_device_name() const {
   return _device->name()->utf8String();
 }

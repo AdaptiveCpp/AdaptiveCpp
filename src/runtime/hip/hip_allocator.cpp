@@ -155,6 +155,8 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
   // hipMallocManaged().
   out.is_usm = (memoryType == hipMemoryTypeUnified);
 #endif
+  out.native_handle = nullptr;
+  out.native_offset = 0;
   
   return make_success();
 }

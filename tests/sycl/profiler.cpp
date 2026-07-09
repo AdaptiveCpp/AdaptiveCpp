@@ -162,8 +162,8 @@ BOOST_AUTO_TEST_CASE(queue_profiling)
     BOOST_CHECK(t41 <= t43 && t42 <= t43);
 
     // usm
-    auto *src = sycl::malloc_shared<int>(n, queue);
-    auto *dest = sycl::malloc_shared<int>(n, queue);
+    auto *src = sycl::malloc_device<int>(n, queue);
+    auto *dest = sycl::malloc_device<int>(n, queue);
     auto evt6 = queue.submit(
         [&](sycl::handler &cgh) { cgh.memset(src, 0, sizeof src); });
 

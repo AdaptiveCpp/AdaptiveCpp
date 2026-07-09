@@ -9,6 +9,7 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 #include "hipSYCL/runtime/vk/vk_code_object.hpp"
+#include "hipSYCL/runtime/vk/vk_allocator.hpp"
 #include "hipSYCL/runtime/vk/vk_hardware_manager.hpp"
 #include "hipSYCL/runtime/vk/vk_queue.hpp"
 

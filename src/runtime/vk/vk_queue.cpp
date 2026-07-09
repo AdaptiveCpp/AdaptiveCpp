@@ -11,6 +11,7 @@
 #include "hipSYCL/runtime/vk/vk_queue.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
+#include "hipSYCL/runtime/vk/vk_allocator.hpp"
 #include "hipSYCL/runtime/vk/vk_event.hpp"
 #include "hipSYCL/runtime/vk/vk_hardware_manager.hpp"
 
@@ -31,6 +32,9 @@ vk_queue::vk_queue(vk_hardware_manager *hw_manager, std::size_t device_index)
   _dev_ctx =
       static_cast<vk_hardware_context *>(hw_manager->get_device(device_index));
   auto &device = _dev_ctx->get_device();
+
+  _dev_has_khr_calibrated_timestamps = _dev_ctx->are_extensions_enabled(
+      vk_device_extensions::khr_calibrated_timestamps);
 
   _reflection_map = glue::jit::construct_default_reflection_map(_dev_ctx);
 
@@ -83,7 +87,50 @@ vk_queue::find_or_create_allocation(vk::DeviceAddress ptr, unsigned size) {
   return std::make_pair(alloc_info, true);
 }
 
-result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
+void vk_queue::profile_if_enabled(operation &op, const dag_node_ptr &node) {
+  if (!node) {
+    return;
+  }
+
+  auto &hints = node->get_execution_hints();
+  if (hints.has_hint<
+          rt::hints::request_instrumentation_submission_timestamp>()) {
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::submission_timestamp>(
+            std::make_shared<vk_sync_timestamp>(
+                _dev_ctx->get_device(), _dev_has_khr_calibrated_timestamps));
+  }
+
+  vk_async_profiling async_prof;
+  if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+    async_prof.start_time = std::make_shared<vk_execution_start_timestamp>(
+        _dev_ctx->get_device(), *_semaphore,
+        _dev_has_khr_calibrated_timestamps);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::execution_start_timestamp>(
+            async_prof.start_time);
+  }
+
+  if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+    async_prof.finish_time = std::make_shared<vk_execution_finish_timestamp>(
+        _dev_ctx->get_device(), *_semaphore,
+        _dev_has_khr_calibrated_timestamps);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::execution_finish_timestamp>(
+            async_prof.finish_time);
+  }
+
+  // Reset this for every new command submission, the underlying
+  // instrumentation object from previous command submissions is kept alive
+  // through the shared pointer attached to `op`.
+  if (async_prof.start_time || async_prof.finish_time) {
+    _profiling = std::move(async_prof);
+  } else {
+    _profiling.reset();
+  }
+}
+
+result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &node) {
   id<3> src_offset = op.source().get_access_offset();
   id<3> dest_offset = op.dest().get_access_offset();
   const range<3> transfer_range = op.get_num_transferred_elements();
@@ -112,6 +159,8 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
 
   assert(dimension >= 1 && dimension <= 3);
 
+  profile_if_enabled(op, node);
+
   auto dst_alloc = find_or_create_allocation(dst_ptr, size);
   auto src_alloc = find_or_create_allocation(src_ptr, size);
   std::pair<vk_alloc_info *, vk_alloc_info *> temp_allocs{nullptr, nullptr};
@@ -120,6 +169,7 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
   if (src_alloc.second) {
     const uint64_t wait_value = _timeline_value;
     const uint64_t signal_value = ++_timeline_value;
+
     vk_alloc_info *src_alloc_info = src_alloc.first;
     _host_worker(
         [=]() mutable {
@@ -141,6 +191,12 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
                 "Semaphore wait failed with unexpected return code ");
             err_msg += std::to_string(static_cast<VkResult>(wait_ret_code));
             print_error(__acpp_here(), error_info{err_msg});
+          }
+
+          if (_profiling) {
+            // Since we're dong work before command buffer starts executing,
+            // use an earlier host timestamp
+            _profiling->start_time->take_host_timestamp();
           }
 
           void *vptr = src_alloc_info->_dev_mem.mapMemory(0, size);
@@ -170,9 +226,8 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
   }
 
   // Append a copy-buffer command for every strided copy.
-  vk::CommandBuffer cmd_buf = get_command_buffer();
-  cmd_buf.begin(vk::CommandBufferBeginInfo(
-      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+  vk::CommandBuffer cmd_buf =
+      begin_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
   std::vector<vk::BufferCopy> copy_regions;
   if (dimension == 1) {
     size_t x_src_offset = src_offset[0];
@@ -228,7 +283,7 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
 
   cmd_buf.copyBuffer(src_alloc.first->_buffer, dst_alloc.first->_buffer,
                      copy_regions);
-  cmd_buf.end();
+  end_command_buffer(cmd_buf);
   submit_command_buffer(cmd_buf);
 
   // Cleanup to be wrapped in async call, this is effectively an extra command
@@ -238,6 +293,13 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
   if (temp_allocs.first || temp_allocs.second) {
     const uint64_t wait_value = _timeline_value;
     const uint64_t signal_value = ++_timeline_value;
+
+    if (_profiling) {
+      // Since we need to do work after the command-buffer finishes executing
+      // override semaphore value to wait on
+      _profiling->finish_time->set_semaphore_wait_val(signal_value);
+    }
+
     _host_worker(
         [=]() mutable {
           vk::Semaphore semaphore = *_semaphore;
@@ -276,6 +338,12 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
           }
           _temp_allocs.erase(wait_value);
 
+          if (_profiling) {
+            // Since we're dong work after command buffer starts executing,
+            // use a later host timestamp
+            _profiling->finish_time->take_host_timestamp();
+          }
+
           vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
           _dev_ctx->get_device().signalSemaphore(signal_info);
 
@@ -287,6 +355,38 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &) {
   }
 
   return make_success();
+}
+
+vk::CommandBuffer
+vk_queue::begin_command_buffer(vk::CommandBufferUsageFlagBits flags) {
+  auto cmd_buf = get_command_buffer();
+  cmd_buf.begin(vk::CommandBufferBeginInfo(
+      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+  if (_profiling) {
+    // When profiling, start the command buffer with commands to reset and
+    // write a query pool timestamp. This gives the device side timestamp
+    // for when the command begins execution.
+    auto query_pool = _profiling->start_time->get_query_pool();
+
+    cmd_buf.resetQueryPool(query_pool, 0, 1);
+    cmd_buf.writeTimestamp(vk::PipelineStageFlagBits::eComputeShader,
+                           query_pool, 0);
+  }
+  return cmd_buf;
+}
+
+void vk_queue::end_command_buffer(vk::CommandBuffer &cmd_buf) {
+  if (_profiling) {
+    // When profiling, end the command buffer with commands to reset and
+    // write a query pool timestamp. This gives the device side timestamp
+    // for when the command finishes execution.
+    auto query_pool = _profiling->finish_time->get_query_pool();
+    cmd_buf.resetQueryPool(query_pool, 0, 1);
+    cmd_buf.writeTimestamp(vk::PipelineStageFlagBits::eComputeShader,
+                           query_pool, 0);
+  }
+  cmd_buf.end();
 }
 
 vk::CommandBuffer vk_queue::get_command_buffer() {
@@ -384,6 +484,12 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
   const uint64_t wait_value = _timeline_value;
   const uint64_t signal_value = ++_timeline_value;
 
+  if (_profiling) {
+    // Only let a user read the timestamps after the signal semaphore has fired
+    _profiling->start_time->set_semaphore_wait_val(signal_value);
+    _profiling->finish_time->set_semaphore_wait_val(signal_value);
+  }
+
   HIPSYCL_DEBUG_INFO << "vk_queue: submit command-buffer with "
                      << "semaphore " << *_semaphore << " wait value "
                      << wait_value << " & signal value " << signal_value
@@ -428,22 +534,24 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
 result vk_queue::submit_kernel(kernel_operation &op, const dag_node_ptr &node) {
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_invoker);
+  profile_if_enabled(op, node);
   return op.get_launcher().invoke(backend_id::vk, this, cap, node.get());
 }
 
-result vk_queue::submit_prefetch(prefetch_operation &, const dag_node_ptr &) {
-  vk::CommandBuffer cmd_buf = get_command_buffer();
-  cmd_buf.begin(vk::CommandBufferBeginInfo(
-      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+result vk_queue::submit_prefetch(prefetch_operation &op,
+                                 const dag_node_ptr &node) {
+  profile_if_enabled(op, node);
+  vk::CommandBuffer cmd_buf =
+      begin_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
   // Empty command buffer, ignore perf hint as no-op
-  cmd_buf.end();
+  end_command_buffer(cmd_buf);
 
   submit_command_buffer(cmd_buf);
 
   return make_success();
 }
 
-result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
+result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &node) {
   // In order to deal with sizes not divisible by 4 we implement memset on host
   // rather than using a command-buffer command.
   int pattern = op.get_pattern();
@@ -453,10 +561,18 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
   // assert we're only dealing with user created allocations
   assert(!ptr_alloc.second);
 
+  profile_if_enabled(op, node);
+
   // Need to snapshot these values now, as _timeline_value may changed
   // by the time the async function is invoked.
   const uint64_t wait_value = _timeline_value;
   const uint64_t signal_value = ++_timeline_value;
+
+  if (_profiling) {
+    // Only let a user read the timestamps after the signal semaphore has fired
+    _profiling->start_time->set_semaphore_wait_val(signal_value);
+    _profiling->finish_time->set_semaphore_wait_val(signal_value);
+  }
 
   _host_worker([=]() mutable {
     vk::Semaphore semaphore = *_semaphore;
@@ -477,10 +593,18 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &) {
       print_error(__acpp_here(), error_info{err_msg});
     }
 
+    if (_profiling) {
+      _profiling->start_time->take_host_timestamp();
+    }
+
     char *vptr = (char *)ptr_alloc.first->_dev_mem.mapMemory(0, size);
     auto offset = ptr - ptr_alloc.first->_base_ptr;
     std::memset(vptr + offset, pattern, size);
     ptr_alloc.first->_dev_mem.unmapMemory();
+
+    if (_profiling) {
+      _profiling->finish_time->take_host_timestamp();
+    }
 
     vk::SemaphoreSignalInfo signal_info(semaphore, signal_value);
     _dev_ctx->get_device().signalSemaphore(signal_info);
@@ -710,9 +834,8 @@ result vk_queue::submit_sscp_kernel_from_code_object(
 
   auto pipeline = kernel->create_pipeline(group_size);
 
-  vk::CommandBuffer cmd_buf = get_command_buffer();
-  cmd_buf.begin(vk::CommandBufferBeginInfo(
-      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+  vk::CommandBuffer cmd_buf =
+      begin_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
   // command-buffer must be in the recording state before we set push constants
   pipeline->set_args(cmd_buf, _arg_mapper);
@@ -721,7 +844,7 @@ result vk_queue::submit_sscp_kernel_from_code_object(
   HIPSYCL_DEBUG_INFO << "vk_queue: Attempting to submit SSCP kernel"
                      << std::endl;
   cmd_buf.dispatch(num_groups[0], num_groups[1], num_groups[2]);
-  cmd_buf.end();
+  end_command_buffer(cmd_buf);
 
   submit_command_buffer(cmd_buf);
   on_kernel_launch_complete(kernel_name, obj);

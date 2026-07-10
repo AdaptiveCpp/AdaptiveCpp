@@ -288,6 +288,8 @@ result metal_allocator::query_pointer(
     return make_error(__acpp_here(),
       error_info{"metal_allocator: Pointer is unknown"});
   }
+  out.native_handle = static_cast<void *>(buffer);
+  out.native_offset = offset;
   if (alloc_type == usm_alloc_type::host) {
     out.is_optimized_host = true;
     return make_success();
@@ -312,6 +314,9 @@ device_id metal_allocator::get_device() const {
 }
 
 MTL::Buffer* metal_allocator::alloc_buffer(size_t size_bytes) {
+  // The delta-convergence loop below only converges if the mmap region layout
+  // is stable across iterations, so it must not run concurrently.
+  std::lock_guard<std::mutex> lock{_mutex};
   const size_t aligned = align_up(size_bytes, _page_size);
   const size_t stride  = metal_gpu_stride(aligned, _page_size);
   void* region_ptr = nullptr;

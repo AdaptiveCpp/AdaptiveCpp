@@ -7,10 +7,10 @@ on:
 jobs:
   build_2stage_from_appleclang:
     name: AdaptiveCpp LLVM ${{ matrix.clang_version }}
-    runs-on: macos-latest
+    runs-on: macos-15
     strategy:
       matrix:
-        clang_version: ['18']
+        clang_version: ['19']
     steps:
     - uses: actions/checkout@v4
       with:
@@ -29,8 +29,7 @@ jobs:
       run: |
         set +e
         brew update
-        # force CMake 3.31.6 (CMake 4.0 seems to break compiler-rt build)
-        brew install https://github.com/Homebrew/homebrew-core/raw/b4e46db74e74a8c1650b38b1da222284ce1ec5ce/Formula/cmake.rb
+        brew install cmake
         brew install boost
         brew install ninja
         set -e

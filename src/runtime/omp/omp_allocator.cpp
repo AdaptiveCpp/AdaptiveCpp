@@ -198,6 +198,8 @@ result omp_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   out.is_usm = true;
   out.is_from_host_backend = true;
   out.dev = _my_device;
+  out.native_handle = nullptr;
+  out.native_offset = 0;
 
   return make_success();
 }

@@ -170,6 +170,8 @@ public:
     out.is_from_host_backend = false;
     out.is_optimized_host = false;
     out.is_usm = false;
+    out.native_handle = nullptr;
+    out.native_offset = 0;
 
     if(err != CL_SUCCESS)
       return err;
@@ -435,6 +437,8 @@ public:
     out.is_from_host_backend = false;
     out.is_usm = true;
     out.is_optimized_host = false;
+    out.native_handle = nullptr;
+    out.native_offset = 0;
     out.dev = _hw_mgr->get_device_id(_device_index);
 
     return CL_SUCCESS;
@@ -625,6 +629,8 @@ public:
       out.is_from_host_backend = false;
       out.is_usm = false;
       out.is_optimized_host = false;
+      out.native_handle = nullptr;
+      out.native_offset = 0;
       out.dev = _hw_mgr->get_device_id(info.dev_index);
     })) {
       return CL_SUCCESS;

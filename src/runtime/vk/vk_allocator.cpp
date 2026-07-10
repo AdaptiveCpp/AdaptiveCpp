@@ -156,6 +156,8 @@ result vk_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   out.is_optimized_host = false;
   out.is_from_host_backend = false;
   out.is_usm = false;
+  out.native_handle = nullptr;
+  out.native_offset = 0;
 
   auto dev_ptr = reinterpret_cast<vk::DeviceAddress>(ptr);
   if (_allocs.count(dev_ptr)) {

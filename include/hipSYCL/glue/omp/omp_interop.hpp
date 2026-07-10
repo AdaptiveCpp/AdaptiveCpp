@@ -22,6 +22,7 @@ template <> struct backend_interop<sycl::backend::omp> {
   using error_type = int;
 
   using native_mem_type = void *;
+  struct native_allocation_type {};
 
   template <class Accessor_type>
   static native_mem_type get_native_mem(const Accessor_type &a) {
@@ -53,6 +54,7 @@ template <> struct backend_interop<sycl::backend::omp> {
   static constexpr bool can_extract_native_module = false;
   static constexpr bool can_extract_native_device_event = false;
   static constexpr bool can_extract_native_mem = true;
+  static constexpr bool can_extract_native_allocation = false;
 };
 #endif
 

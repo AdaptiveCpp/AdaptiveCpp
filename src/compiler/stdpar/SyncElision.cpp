@@ -221,6 +221,14 @@ void forEachReachableInstructionRequiringSync(
   while(Current) {
     if(auto* CB = llvm::dyn_cast<llvm::CallBase>(Current)) {
       llvm::Function* CalledF = CB->getCalledFunction();
+      // CalledF may be nullptr, e.g. if a function ptr is invoked.
+      // In that case, we have no idea about the CFG and need to insert
+      // a barrier.
+      if(!CalledF) {
+        H(Current);
+        return;
+      }
+
       if(CalledF->getName() == BarrierBuiltinName) {
         // basic block already contains barrier; nothing to do
         return;

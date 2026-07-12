@@ -39,7 +39,13 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
+
+#if LLVM_VERSION_MAJOR < 22
 #include "llvm/Passes/PassPlugin.h"
+#else
+#include "llvm/Plugins/PassPlugin.h"
+#endif
+
 #include "llvm/Support/CommandLine.h"
 
 #if LLVM_VERSION_MAJOR < 16

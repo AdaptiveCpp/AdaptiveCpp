@@ -22,9 +22,7 @@ void dynamic_size_backward(sycl::queue q) {
 
   q.submit([&](sycl::handler &cgh) {
      cgh.single_task([=]() {
-       for (size_t i = 0; i < size - 1; i++) {
-         device_ptr[i] = device_ptr[i + 1];
-       }
+       __builtin_memmove(device_ptr, &device_ptr[1], (size - 1) * sizeof(int));
      });
    }).wait();
 
@@ -52,9 +50,7 @@ void dynamic_size_forward(sycl::queue q) {
   // Test global address space memmove
   q.submit([&](sycl::handler &cgh) {
      cgh.single_task([=]() {
-       for (size_t i = size - 1; i > 0; i--) {
-         device_ptr[i] = device_ptr[i - 1];
-       }
+       __builtin_memmove(&device_ptr[1], device_ptr, (size - 1) * sizeof(int));
      });
    }).wait();
 
@@ -89,9 +85,7 @@ void static_size_backward(sycl::queue q) {
          arr[i] = input[i];
        }
 
-       for (size_t i = 0; i < size - 1; i++) {
-         arr[i] = arr[i + 1];
-       }
+       __builtin_memmove(arr, &arr[1], (size - 1) * sizeof(int));
 
        for (size_t i = 0; i < size; i++) {
          output[i] = arr[i];
@@ -131,9 +125,7 @@ void static_size_forward(sycl::queue q) {
          arr[i] = input[i];
        }
 
-       for (size_t i = size - 1; i > 0; i--) {
-         arr[i] = arr[i - 1];
-       }
+       __builtin_memmove(&arr[1], arr, (size - 1) * sizeof(int));
 
        for (size_t i = 0; i < size; i++) {
          output[i] = arr[i];

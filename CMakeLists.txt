@@ -300,7 +300,18 @@ if(BUILD_CLANG_PLUGIN)
       message(WARNING "Could not find LLVM in the requested location LLVM_DIR=${LLVM_DIR_OLD}; using ${LLVM_DIR}.")
     endif()
     message(STATUS "Building AdaptiveCpp against LLVM configured from ${LLVM_DIR}")
-    #find_package(Clang REQUIRED)
+    
+    find_path(CLANG_AST_HEADER_DIR
+      NAMES clang/AST/ASTContext.h
+      PATHS ${LLVM_INCLUDE_DIRS}
+      DOC "Path to the Clang AST headers (usually provided by libclang-dev)"
+    )
+    if(NOT CLANG_AST_HEADER_DIR)
+      message(WARNING 
+        "AdaptiveCpp requires Clang AST development headers, but they were not found.\n"
+        "You might need to install the clang development package.\n"
+      )
+    endif()
 
     find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
     if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")

@@ -25,15 +25,23 @@ A clear and concise description of what you expected to happen.
    * host compiler
    * CUDA version (if applicable)
    * ROCm version and how ROCm was installed (if applicable)
+   * targeted OpenCL implementation (if applicable)
 * How you have compiled your application and which arguments you have passed to `acpp`. In particular, which backends and hardware you have compiled for.
 
 
 **Optional additional diagnostic information**
 The following information can potentially help us:
-* For compilation/toolchain or setup-related issues: Setting the environment variable `ACPP_DRYRUN=1` during compilation will cause `syclcc` to print the commands it would execute instead of actually executing. This can help verify the sanity of your setup.
-* `syclcc --hipsycl-version` prints information about the AdaptiveCpp configuration that may be interesting for setup-related issues.
+* For compilation/toolchain or setup-related issues: Setting the environment variable `ACPP_DRYRUN=1` during compilation will cause `acpp` to print the commands it would execute instead of actually executing. This can help verify the sanity of your setup.
+* `acpp --acpp-version` prints information about the AdaptiveCpp configuration that may be interesting for setup-related issues.
 * For issues related to the runtime, setting the environment variable `ACPP_DEBUG_LEVEL=3` will cause it to print *a lot* of diagnostic information that might be helpful. Attach the output of your program with `ACPP_DEBUG_LEVEL=3` if you think it might be helpful for your issue.
 * Recent AdaptiveCpp versions include a tool called `acpp-info`, which will print information about available backends and devices. This may be interesting for issues related to e.g. device visibility.
 
 **Additional context**
 Add any other context about the problem here.
+
+**Important: Acceptable AI usage in bug reports**
+Please take note of the information below. You may then remove this section from your bug report.
+* It is acceptable to use AI to aid e.g. in formatting your issue, or to improve language and style.
+* Please do **NOT** use AI to speculate on root causes of bugs. We have repeatedly made the experience that AI tools are challenged when it comes to diagnosing AdaptiveCpp issues. Instead they often confidently point in the wrong direction, wasting maintainer time. We reserve the right to close bug reports that use AI in this manner. When we're at our wits' end, we can ask AI on our own, thank you very much :-)
+* Please do **NOT** use AI in a way that conflates actual observed evidence and AI-generated speculation. This makes it hard to disentangle what is actually evidence, and what may be an AI confidently being wrong. We reserve the right to close bug reports that use AI in this manner.
+* We reserve the right to close AI-generated bug reports that do not conform to this issue template.

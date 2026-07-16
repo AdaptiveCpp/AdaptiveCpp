@@ -63,7 +63,7 @@ void appendToCompilerUsed(llvm::Module &M, llvm::GlobalVariable *GV) {
 void makeFunctionPtrDiscoverablePerSection(llvm::Module &M, llvm::Function *DeviceInitFunc) {
   llvm::LLVMContext &Ctx = M.getContext();
 
-  static const char *SectionName = ".__acpp_sscp_hcf_registration_func_ptrs";
+  static const char *SectionName = "__acpp_sscp_hcf_registration_func_ptrs";
 
   llvm::Type *FuncPtrType = llvm::PointerType::get(Ctx, 0);
 
@@ -74,7 +74,7 @@ void makeFunctionPtrDiscoverablePerSection(llvm::Module &M, llvm::Function *Devi
       llvm::ConstantExpr::getPointerCast(DeviceInitFunc, FuncPtrType),
       "__acpp_sscp_invoke_register_hcf_addr"
   );
-
+  RegVar->setAlignment(llvm::Align(8));
   RegVar->setSection(SectionName);
   
   // Prevent DCE: We must tell LLVM that this global is "used" even if no function calls it.
@@ -247,7 +247,6 @@ llvm::PreservedAnalyses HcfRegistrationPass::run(llvm::Module &M, llvm::ModuleAn
     }
   }
 
-  M.print(llvm::outs(), nullptr);
   return llvm::PreservedAnalyses::none();
 }
 

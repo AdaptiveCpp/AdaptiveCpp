@@ -193,7 +193,6 @@ llvm::PreservedAnalyses HcfRegistrationPass::run(llvm::Module &M, llvm::ModuleAn
     }
   }
 
-  M.print(llvm::outs(), nullptr);
   return llvm::PreservedAnalyses::none();
 }
 

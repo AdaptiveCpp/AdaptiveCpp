@@ -29,6 +29,58 @@
 namespace hipsycl::compiler {
 namespace {
 
+
+// Helper function to add to llvm.compiler.used
+void appendToCompilerUsed(llvm::Module &M, llvm::GlobalVariable *GV) {
+  llvm::LLVMContext &Ctx = M.getContext();
+  llvm::Type *I8PtrTy = llvm::PointerType::get(Ctx, 0);
+
+  // Get the existing llvm.compiler.used array, or create one
+  llvm::GlobalVariable *UsedArray = M.getGlobalVariable("llvm.compiler.used");
+  llvm::SmallVector<llvm::Constant *, 8> UsedElements;
+
+  if (UsedArray) {
+    // Extract existing elements
+    llvm::ConstantArray *InitArray = llvm::cast<llvm::ConstantArray>(UsedArray->getInitializer());
+    for (llvm::Value *V : InitArray->operands()) {
+      UsedElements.push_back(llvm::cast<llvm::Constant>(V));
+    }
+    UsedArray->eraseFromParent();
+  }
+
+  // Add our new global (cast to i8* as required by llvm.used)
+  UsedElements.push_back(llvm::ConstantExpr::getPointerCast(GV, I8PtrTy));
+
+  // Create the new array and global variable
+  llvm::ArrayType *ATy = llvm::ArrayType::get(I8PtrTy, UsedElements.size());
+  llvm::Constant *NewInit = llvm::ConstantArray::get(ATy, UsedElements);
+
+  llvm::GlobalVariable *NewUsedArray = new llvm::GlobalVariable(
+      M, ATy, false, llvm::GlobalValue::AppendingLinkage, NewInit, "llvm.compiler.used");
+  NewUsedArray->setSection("llvm.metadata");
+}
+
+void makeFunctionPtrDiscoverablePerSection(llvm::Module &M, llvm::Function *DeviceInitFunc) {
+  llvm::LLVMContext &Ctx = M.getContext();
+
+  static const char *SectionName = ".__acpp_sscp_hcf_registration_func_ptrs";
+
+  llvm::Type *FuncPtrType = llvm::PointerType::get(Ctx, 0);
+
+  llvm::GlobalVariable *RegVar = new llvm::GlobalVariable(
+      M, FuncPtrType,
+      true,
+      llvm::GlobalValue::InternalLinkage,
+      llvm::ConstantExpr::getPointerCast(DeviceInitFunc, FuncPtrType),
+      "__acpp_sscp_invoke_register_hcf_addr"
+  );
+
+  RegVar->setSection(SectionName);
+  
+  // Prevent DCE: We must tell LLVM that this global is "used" even if no function calls it.
+  appendToCompilerUsed(M, RegVar);
+}
+
 // Helper function to modify @llvm.global_ctors or @llvm.global_dtors
 static void modifyGlobalList(llvm::Module &M, const std::string &ListName, llvm::Function *F, int Priority,
                              bool Prepend) {
@@ -188,6 +240,8 @@ llvm::PreservedAnalyses HcfRegistrationPass::run(llvm::Module &M, llvm::ModuleAn
     auto* InvokeUnregister = M.getFunction(InvokeUnregisterHcfName);
 
     if(InvokeRegister && InvokeUnregister) {
+      makeFunctionPtrDiscoverablePerSection(M, InvokeRegister);
+
       modifyGlobalList(M, "llvm.global_ctors", InvokeRegister, 0, true);
       modifyGlobalList(M, "llvm.global_dtors", InvokeUnregister, 65535, false);
     }

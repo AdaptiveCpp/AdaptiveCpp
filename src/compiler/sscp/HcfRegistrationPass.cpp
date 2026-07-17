@@ -243,7 +243,8 @@ llvm::PreservedAnalyses HcfRegistrationPass::run(llvm::Module &M, llvm::ModuleAn
       makeFunctionPtrDiscoverablePerSection(M, InvokeRegister);
 
       modifyGlobalList(M, "llvm.global_ctors", InvokeRegister, 0, true);
-      modifyGlobalList(M, "llvm.global_dtors", InvokeUnregister, 65535, false);
+      // Needs to also have high priority so that unregistration always runs before runtime shutdown!
+      modifyGlobalList(M, "llvm.global_dtors", InvokeUnregister, 0, true);
     }
   }
 

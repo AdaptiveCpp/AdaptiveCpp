@@ -240,8 +240,9 @@ llvm::PreservedAnalyses HcfRegistrationPass::run(llvm::Module &M, llvm::ModuleAn
     auto* InvokeUnregister = M.getFunction(InvokeUnregisterHcfName);
 
     if(InvokeRegister && InvokeUnregister) {
+#ifndef __APPLE__
       makeFunctionPtrDiscoverablePerSection(M, InvokeRegister);
-
+#endif
       modifyGlobalList(M, "llvm.global_ctors", InvokeRegister, 0, true);
       // Needs to also have high priority so that unregistration always runs before runtime shutdown!
       modifyGlobalList(M, "llvm.global_dtors", InvokeUnregister, 0, true);

@@ -219,6 +219,7 @@ public:
   const hcf_image_info *get_image_info(hcf_object_id obj,
                                        const std::string &image_name) const;
 
+  ~hcf_cache();
 private:
   hcf_cache() = default;
 

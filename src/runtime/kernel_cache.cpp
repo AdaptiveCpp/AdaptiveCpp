@@ -14,6 +14,7 @@
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/backend.hpp"
+#include <atomic>
 #include <algorithm>
 #include <cstddef>
 #include <fstream>
@@ -150,6 +151,8 @@ void for_each_exported_symbol_list(const common::hcf_container& hcf, F&& handler
   });
 }
 
+static std::atomic<bool> hcf_cache_shut_down = false;
+
 }
 
 extern "C" void __acpp_register_hcf(const char* hcf, unsigned long long size) {
@@ -158,7 +161,8 @@ extern "C" void __acpp_register_hcf(const char* hcf, unsigned long long size) {
 }
 
 extern "C" void __acpp_unregister_hcf(unsigned long long hcf_object_id) {
-  hcf_cache::get().unregister_hcf_object(hcf_object_id);
+  if(!hcf_cache_shut_down)
+    hcf_cache::get().unregister_hcf_object(hcf_object_id);
 }
 
 hcf_kernel_info::hcf_kernel_info(
@@ -369,6 +373,10 @@ bool hcf_image_info::is_valid() const {
 hcf_cache& hcf_cache::get() {
   static hcf_cache c;
   return c;
+}
+
+hcf_cache::~hcf_cache() {
+  hcf_cache_shut_down = true;
 }
 
 hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {

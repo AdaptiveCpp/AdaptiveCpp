@@ -134,6 +134,15 @@ bool fixupMemInstrinsic(llvm::Function &F) {
         newCI->setTailCall(MemSet->isTailCall());
         MemSet->replaceAllUsesWith(newCI);
         InstToDel.push_back(MemSet);
+      } else if (auto MemMove = llvm::dyn_cast<llvm::MemMoveInst>(&I)) {
+        llvm::IRBuilder Builder(MemMove);
+        auto newCI = Builder.CreateMemMove(
+            MemMove->getRawDest(), MemMove->getDestAlign(),
+            MemMove->getRawSource(), MemMove->getSourceAlign(),
+            MemMove->getLength(), MemMove->isVolatile());
+        newCI->setTailCall(MemMove->isTailCall());
+        MemMove->replaceAllUsesWith(newCI);
+        InstToDel.push_back(MemMove);
       }
     }
   }

@@ -51,6 +51,7 @@ jobs:
       matrix:
         docker: ${{fromJson(needs.prep-container.outputs.docker_matrix)}}
         clang_version: ['19', '21']
+        clspv_commit: ['88d8ff71000bf995493c8daaed865ec1ac216309']
       fail-fast: false
     steps:
     - uses: actions/checkout@v4
@@ -88,7 +89,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{github.workspace}}/clspv/build/install
-        key: 8286ad49be1fa8708f07aa6852e1b84ed4dd0861
+        key: ${{matrix.clspv_commit}}
 
     - name: checkout clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'
@@ -96,7 +97,7 @@ jobs:
       with:
         repository: google/clspv
         path: clspv
-        ref: 8286ad49be1fa8708f07aa6852e1b84ed4dd0861
+        ref: ${{matrix.clspv_commit}}
 
     - name: build clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'

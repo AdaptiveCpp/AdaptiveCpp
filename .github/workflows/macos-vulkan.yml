@@ -1,7 +1,8 @@
 name: macOS Vulkan backend
 
 on: [push, pull_request]
-
+env:
+  clspv_commit: '88d8ff71000bf995493c8daaed865ec1ac216309'
 jobs:
   build_vulkan:
     name: Vulkan backend macOS
@@ -42,7 +43,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{github.workspace}}/clspv/build/install
-        key: 8286ad49be1fa8708f07aa6852e1b84ed4dd0861
+        key: ${{env.clspv_commit}}
 
     - name: checkout clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'
@@ -50,7 +51,7 @@ jobs:
       with:
         repository: google/clspv
         path: clspv
-        ref: 8286ad49be1fa8708f07aa6852e1b84ed4dd0861
+        ref: ${{env.clspv_commit}}
 
     - name: build clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'

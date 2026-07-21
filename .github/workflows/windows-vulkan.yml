@@ -11,6 +11,7 @@ jobs:
         clang_version: ['19', '20']
         base_compiler: ['19']
         os: [windows-2022]
+        clspv_commit: ['88d8ff71000bf995493c8daaed865ec1ac216309']
     steps:
     - uses: actions/checkout@v4
       with:
@@ -58,7 +59,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{github.workspace}}/clspv/build/install
-        key: 8286ad49be1fa8708f07aa6852e1b84ed4dd0861
+        key: ${{matrix.clspv_commit}}
 
     - name: checkout clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'
@@ -66,7 +67,7 @@ jobs:
       with:
         repository: google/clspv
         path: clspv
-        ref: 8286ad49be1fa8708f07aa6852e1b84ed4dd0861
+        ref: ${{matrix.clspv_commit}}
 
     - name: build clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'

@@ -1,8 +1,4 @@
-# Sycl callback tooling 
-
-To enable tracing, benchmarking, and simple debugging of sycl applications, this fork of AdaptiveCpp experimentally supports a callback mechanism.  
-
-
+# SYCL callback tooling 
 ## Usage: 
 
 ### Registering Callbacks (User side)

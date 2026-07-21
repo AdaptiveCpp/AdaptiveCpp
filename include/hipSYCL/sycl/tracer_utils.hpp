@@ -18,8 +18,6 @@ extern "C" {
 
 using hashtype = decltype(std::hash<void *>{}(0));
 
-enum tracer_start_end { START = 0, END = 1 };
-
 typedef void (*tracer_function_t)(void *state);
 typedef void (*malloc_function_t)(void *state, void *ptr);
 typedef void (*tracer_function_submit_t)(void *state, std::size_t event_hash,

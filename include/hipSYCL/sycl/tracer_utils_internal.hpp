@@ -31,8 +31,6 @@ ACPP_COMMON_EXPORT void set_tracer_equal_num(tracer_funcs &);
 
 ACPP_COMMON_EXPORT void finalize_tracing();
 
-ACPP_COMMON_EXPORT void tracer_function(char *function_name, tracer_start_end state);
-
 MYLIB_API extern tracer_funcs tracer_state;
 
 }; // namespace Tracer_utils

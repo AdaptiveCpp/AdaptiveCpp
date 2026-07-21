@@ -8,7 +8,7 @@
 #ifndef TRACER_UTILS_INTERNAL_H
 #define TRACER_UTILS_INTERNAL_H
 
-namespace Tracer_utils {
+namespace tracer_utils {
 
 using time_point = std::chrono::high_resolution_clock::time_point;
 
@@ -33,6 +33,6 @@ ACPP_COMMON_EXPORT void finalize_tracing();
 
 MYLIB_API extern tracer_funcs tracer_state;
 
-}; // namespace Tracer_utils
+}; // namespace tracer_utils
 
 #endif // TRACER_UTILS_H

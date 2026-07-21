@@ -31,7 +31,7 @@
 #define EQUALIZER(type, x) EQUALIZE_HELPER(type)
 #endif
 
-namespace Tracer_utils {
+namespace tracer_utils {
 using time_point = std::chrono::high_resolution_clock::time_point;
 
 bool is_init = false;
@@ -99,4 +99,4 @@ void tracer_funcs::clear_all() {
 }
 
 ACPP_COMMON_EXPORT tracer_funcs tracer_state;
-} // namespace Tracer_utils
+} // namespace tracer_utils

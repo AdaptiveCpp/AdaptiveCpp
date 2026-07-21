@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #define INIT_FUNCTION_DEFINITION(type, arg_type)                                                   \
-  void init_##type(arg_type arg) { Tracer_utils::tracer_state.type.push_back(arg); }
+  void init_##type(arg_type arg) { tracer_utils::tracer_state.type.push_back(arg); }
 
 ALL_TYPES(INIT_FUNCTION_DEFINITION);
 

@@ -46,15 +46,15 @@
 #define MEMBER_VECTOR(name, type) std::vector<type> name;
 
 #define TRACER_FUNCTION_VA_ARGS(type, ...)                                                         \
-  for (int i = 0; i < Tracer_utils::tracer_state.size; i++) {                                      \
-    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
-      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], ##__VA_ARGS__);     \
+  for (int i = 0; i < tracer_utils::tracer_state.size; i++) {                                      \
+    if (tracer_utils::tracer_state.type[i] != nullptr)                                             \
+      tracer_utils::tracer_state.type[i](tracer_utils::tracer_state.states[i], ##__VA_ARGS__);     \
   }
 
 #define TRACER_FUNCTION_VA_ARGS_END(type, ...)                                                     \
-  for (int i = Tracer_utils::tracer_state.size - 1; i >= 0; i--) {                                 \
-    if (Tracer_utils::tracer_state.type[i] != nullptr)                                             \
-      Tracer_utils::tracer_state.type[i](Tracer_utils::tracer_state.states[i], ##__VA_ARGS__);     \
+  for (int i = tracer_utils::tracer_state.size - 1; i >= 0; i--) {                                 \
+    if (tracer_utils::tracer_state.type[i] != nullptr)                                             \
+      tracer_utils::tracer_state.type[i](tracer_utils::tracer_state.states[i], ##__VA_ARGS__);     \
   }
 
 #define TRACER_FUNCTION1ARG(type) TRACER_FUNCTION_VA_ARGS(type)

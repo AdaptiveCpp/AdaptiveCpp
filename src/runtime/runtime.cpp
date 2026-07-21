@@ -21,7 +21,7 @@ runtime::runtime()
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
                       << std::endl;
 
-  Tracer_utils::tracer_state.initialize_tracer();
+  tracer_utils::tracer_state.initialize_tracer();
 }
 
 runtime::~runtime()
@@ -29,7 +29,7 @@ runtime::~runtime()
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********"
                       << std::endl;
 
-  Tracer_utils::tracer_state.run_finalizers();
+  tracer_utils::tracer_state.run_finalizers();
 }
 
 

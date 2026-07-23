@@ -309,7 +309,7 @@ if(BUILD_CLANG_PLUGIN)
     if(NOT CLANG_AST_HEADER_DIR)
       message(WARNING 
         "AdaptiveCpp requires clang development headers, but they were not found.\n"
-        "You might need to install the clang development package.\n"
+        "You might need to install the clang development package (e.g. libclang-dev or similar).\n"
       )
     endif()
 

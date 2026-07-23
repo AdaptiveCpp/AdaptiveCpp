@@ -14,16 +14,123 @@
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 #include "hipSYCL/runtime/backend.hpp"
+#include <atomic>
 #include <algorithm>
 #include <cstddef>
 #include <fstream>
 #include <memory>
 #include <mutex>
 
+#ifdef __linux__
+#include <link.h>
+#include <dlfcn.h>
+#include <cstdio>
+#endif
+
 namespace hipsycl {
 namespace rt {
 
 namespace {
+
+#ifdef __linux__
+
+using hcf_registration_func = void(*)();
+
+// This function is supposed to scan an ELF object for the content of the
+// __acpp_sscp_hcf_registration_func_ptrs section, where the compiler
+// has put function ptrs to void() functions, which, when invoked, will
+// hand over the HCF content to the runtime.
+//
+// Behold its unholiness!
+static int scan_elf(struct dl_phdr_info *info, size_t size, void *data) {
+  const char *target_section = "__acpp_sscp_hcf_registration_func_ptrs";
+
+  // Base address in RAM where this object is loaded
+  uintptr_t base = reinterpret_cast<uintptr_t>(info->dlpi_addr);
+
+  // This is where the unholiness begins. The actually important parts
+  // of the section table are not loaded into memory by the dynamic linker
+  // because it's not needed at runtime.
+  // Yes, we're going to read ELF headers from disk.
+  //
+  // First, get the path of the ELF object.
+  // For the main executable, dlpi_name is "". We must use /proc/self/exe.
+  const char *path = (info->dlpi_name && info->dlpi_name[0] != '\0')
+                         ? info->dlpi_name
+                         : "/proc/self/exe";
+
+  HIPSYCL_DEBUG_INFO << "kernel_cache: ELF scan: Scanning " << path
+                     << std::endl;
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return 0;
+
+  // Read ELF Header from disk
+  Elf64_Ehdr ehdr;
+  if (fread(&ehdr, sizeof(ehdr), 1, f) != 1 ||
+      memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0) {
+    fclose(f);
+    return 0;
+  }
+
+  // Read Section Headers from disk
+  std::vector<Elf64_Shdr> shdrs(ehdr.e_shnum);
+  fseek(f, ehdr.e_shoff, SEEK_SET);
+  if (fread(shdrs.data(), sizeof(Elf64_Shdr), ehdr.e_shnum, f) !=
+      ehdr.e_shnum) {
+    fclose(f);
+    return 0;
+  }
+
+  // Read Section Header String Table from disk
+  std::vector<char> shstrtab(shdrs[ehdr.e_shstrndx].sh_size);
+  fseek(f, shdrs[ehdr.e_shstrndx].sh_offset, SEEK_SET);
+  fread(shstrtab.data(), 1, shstrtab.size(), f);
+  fclose(f); // Finally done with the file on disk
+
+  // Find the target section
+  for (int i = 0; i < ehdr.e_shnum; ++i) {
+    if (strcmp(shstrtab.data() + shdrs[i].sh_name, target_section) == 0) {
+      HIPSYCL_DEBUG_INFO << "kernel_cache: ELF scan: Found " << target_section << " section!"
+                     << std::endl;
+      // If sh_addr is 0, the section wasn't loaded into memory. Shouldn't happen.
+      if (shdrs[i].sh_addr == 0)
+        break;
+
+      // UNHOLINESS PEAK:
+      // sh_addr is the virtual address where the section *should* be.
+      // By adding the base load address, we get the exact location in RAM.
+      // Because this is RAM, the function pointers inside are ALREADY RELOCATED
+      // by ld.so!
+      const hcf_registration_func *start =
+          reinterpret_cast<const hcf_registration_func *>(base +
+                                                          shdrs[i].sh_addr);
+
+      size_t count = shdrs[i].sh_size / sizeof(hcf_registration_func);
+      HIPSYCL_DEBUG_INFO << "kernel_cache: ELF scan: About to invoke " << count
+                         << " HCF registration function(s)!" << std::endl;
+
+      for (size_t j = 0; j < count; ++j) {
+        auto f_ptr = start[j];
+        f_ptr(); // At last! Call the registration function
+      }
+      break;
+    }
+  }
+  return 0;
+}
+
+void scan_binary_for_hcf() {
+  HIPSYCL_DEBUG_INFO << "kernel_cache: Scanning binary for HCF sections"
+                     << std::endl;
+  dl_iterate_phdr(scan_elf, nullptr);
+}
+
+#else
+void scan_binary_for_hcf() {
+  // Currently only supported on Linux
+}
+#endif
 
 template<class F>
 void for_each_device_image(const common::hcf_container& hcf, F&& handler) {
@@ -44,6 +151,8 @@ void for_each_exported_symbol_list(const common::hcf_container& hcf, F&& handler
   });
 }
 
+static std::atomic<bool> hcf_cache_shut_down = false;
+
 }
 
 extern "C" void __acpp_register_hcf(const char* hcf, unsigned long long size) {
@@ -52,7 +161,8 @@ extern "C" void __acpp_register_hcf(const char* hcf, unsigned long long size) {
 }
 
 extern "C" void __acpp_unregister_hcf(unsigned long long hcf_object_id) {
-  hcf_cache::get().unregister_hcf_object(hcf_object_id);
+  if(!hcf_cache_shut_down)
+    hcf_cache::get().unregister_hcf_object(hcf_object_id);
 }
 
 hcf_kernel_info::hcf_kernel_info(
@@ -265,6 +375,10 @@ hcf_cache& hcf_cache::get() {
   return c;
 }
 
+hcf_cache::~hcf_cache() {
+  hcf_cache_shut_down = true;
+}
+
 hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
 
   std::lock_guard<std::mutex> lock{_mutex};
@@ -280,10 +394,11 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
   HIPSYCL_DEBUG_INFO << "hcf_cache: Registering HCF object " << id << "..." << std::endl;
 
   if (_hcf_objects.count(id) > 0) {
-    HIPSYCL_DEBUG_ERROR
-        << "hcf_cache: Detected hcf object id collision " << id
-        << ", this should not happen. Some kernels might be unavailable."
-        << std::endl;
+    HIPSYCL_DEBUG_INFO << "hcf_cache: Attempted to register an HCF object with an "
+                          "id that is already available; this might either be harmless "
+                          "(e.g. when full ELF scanning is triggered) or could "
+                          "indicate an HCF id collision, which would be very bad."
+                       << std::endl;
   } else {
     common::hcf_container* stored_obj = new common::hcf_container{obj};
     _hcf_objects[id] = std::unique_ptr<common::hcf_container>{stored_obj};
@@ -417,11 +532,24 @@ const common::hcf_container* hcf_cache::get_hcf(hcf_object_id obj) const {
 const hcf_kernel_info *
 hcf_cache::get_kernel_info(hcf_object_id obj,
                            std::string_view kernel_name) const {
-  std::lock_guard<std::mutex> lock{_mutex};
-  auto it = _hcf_kernel_info.find(generate_info_id(obj, kernel_name));
-  if(it == _hcf_kernel_info.end())
+
+  auto query_cache = [&, this]() -> const hcf_kernel_info* {
+    std::lock_guard<std::mutex> lock{_mutex};
+    auto it = _hcf_kernel_info.find(generate_info_id(obj, kernel_name));
+    if(it != _hcf_kernel_info.end())
+      return it->second.get();
     return nullptr;
-  return it->second.get();
+  };
+
+  if(auto* result = query_cache()) {
+    return result;
+  } else {
+    // Could be that we are in a static initialization order scenario;
+    // try to discover all HCFs by actively scanning the binary
+    scan_binary_for_hcf();
+    // Try again
+    return query_cache();
+  }
 }
 
 const hcf_kernel_info *
@@ -433,11 +561,23 @@ hcf_cache::get_kernel_info(hcf_object_id obj,
 const hcf_image_info *
 hcf_cache::get_image_info(hcf_object_id obj,
                           const std::string &image_name) const {
-  std::lock_guard<std::mutex> lock{_mutex};
-  auto it = _hcf_image_info.find(generate_info_id(obj, image_name));
-  if(it == _hcf_image_info.end())
-    return nullptr;
-  return it->second.get();
+  auto query_cache = [&, this]() -> const hcf_image_info * {
+    std::lock_guard<std::mutex> lock{_mutex};
+    auto it = _hcf_image_info.find(generate_info_id(obj, image_name));
+    if (it == _hcf_image_info.end())
+      return nullptr;
+    return it->second.get();
+  };
+
+  if(auto* result = query_cache()) {
+    return result;
+  } else {
+    // Could be that we are in a static initialization order scenario;
+    // try to discover all HCFs by actively scanning the binary
+    scan_binary_for_hcf();
+    // Try again
+    return query_cache();
+  }
 }
 
 

@@ -75,37 +75,6 @@ void printModuleToFile(llvm::Module& M, const std::string& File,
   Out << ";----------------- End AdaptiveCpp IR dump ---------------\n";
 }
 
-void enableModuleStateDumping(llvm::Module &M, const std::string &PipelineStage,
-                              const std::string &Kernels) {
-  std::string Filter =
-      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_FILTER", "");
-
-  std::string FallbackFileName = M.getSourceFileName()+".ll";
-  std::string FileName =
-      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_" + PipelineStage, "");
-
-  if(FileName == "1")
-    FileName = FallbackFileName;
-  
-  std::string Header =
-      "; AdaptiveCpp SSCP S2 IR dump; Compiling kernels: " + Kernels + ", stage: " + PipelineStage + "\n";
-
-  if(FileName.length() != 0) {
-    if(Kernels == Filter || Filter.empty())
-      printModuleToFile(M, FileName, Header);
-  }
-
-  std::string AllFileName =
-      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_ALL", "");
-  if(AllFileName == "1")
-    AllFileName = FallbackFileName;
-
-  if(AllFileName.length() != 0 && AllFileName != FileName) {
-    if(Kernels == Filter || Filter.empty())
-      printModuleToFile(M, AllFileName, Header);
-  }
-}
-
 bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
                    const std::string &ForcedTriple = "",
                    const std::string &ForcedDataLayout = "",
@@ -863,6 +832,42 @@ std::string LLVMToBackendTranslator::getCompilationIdentifier() const {
   return Result;
 }
 
+void LLVMToBackendTranslator::enableModuleStateDumping(llvm::Module &M,
+                                                       const std::string &PipelineStage,
+                                                       const std::string &Kernels) {
+  std::string Filter =
+      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_FILTER", "");
+
+  std::string FallbackFileName = M.getSourceFileName()+".ll";
+  std::string FileName =
+      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_" + PipelineStage, "");
+
+  if(FileName == "1")
+    FileName = FallbackFileName;
+  
+  std::string Header =
+      "; AdaptiveCpp SSCP S2 IR dump; Compiling kernels: " + Kernels + ", stage: " + PipelineStage + "\n";
+
+  if(FileName.length() != 0) {
+    if(Kernels == Filter || Filter.empty())
+      printModuleToFile(M, FileName, Header);
+  }
+
+  std::string AllFileName =
+      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_ALL", "");
+  if(AllFileName == "1")
+    AllFileName = FallbackFileName;
+
+  if(AllFileName.length() != 0 && AllFileName != FileName) {
+    if(Kernels == Filter || Filter.empty())
+      printModuleToFile(M, AllFileName, Header);
+  }
+}
+
+void LLVMToBackendTranslator::enableModuleStateDumping(llvm::Module &M,
+                                                       const std::string &PipelineStage) {
+  enableModuleStateDumping(M, PipelineStage, getCompilationIdentifier());
+}
 }
 }
 

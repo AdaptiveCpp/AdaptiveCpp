@@ -30,6 +30,7 @@
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DebugInfo.h>
+#include <llvm/IR/DiagnosticPrinter.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Metadata.h>
@@ -199,6 +200,39 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
   return true;
 }
 
+bool LLVMToHostTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) {
+  assert(PH.PassBuilder);
+  assert(PH.ModuleAnalysisManager);
+
+  // silence optimization remarks,..
+  M.getContext().setDiagnosticHandlerCallBack(
+#if LLVM_VERSION_MAJOR >= 19
+      [](const llvm::DiagnosticInfo *DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI->getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI->print(DP);
+          llvm::errs() << "\n";
+        }
+      });
+#else
+      [](const llvm::DiagnosticInfo &DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI.getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI.print(DP);
+          llvm::errs() << "\n";
+        }
+      });
+#endif
+
+  llvm::ModulePassManager MPM =
+      PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O1);
+  MPM.run(M, *PH.ModuleAnalysisManager);
+
+  return true;
+}
+
 bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     std::string &out) {
 
@@ -219,6 +253,8 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 
     MPM.run(FlavoredModule, MAM);
   });
+
+  enableModuleStateDumping(FlavoredModule, "CBS");
 
   llvm::SmallVector<char> InputFile;
   int InputFD;

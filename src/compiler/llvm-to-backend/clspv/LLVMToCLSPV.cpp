@@ -11,7 +11,6 @@
 #include "hipSYCL/compiler/llvm-to-backend/clspv/LLVMToCLSPV.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/filesystem.hpp"
-#include "hipSYCL/common/settings.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
@@ -160,19 +159,6 @@ void rewriteZeroSizeArrayGEPs(llvm::Module &M) {
   }
 }
 
-std::string getClspvPath() {
-  static std::string path;
-  if (!path.empty())
-    return path;
-
-  if (common::settings::try_retrieve_settings_variable("CLSPV_PATH", path)) {
-    return path;
-  }
-
-  path = ACPP_CLSPV_PATH; // Macro set during CMake configuration
-  return path;
-}
-
 } // namespace
 
 LLVMToCLSPVTranslator::LLVMToCLSPVTranslator(const std::vector<std::string> &KN)
@@ -313,7 +299,7 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
     InputStream.flush();
   }
 
-  std::string CLSPV = getClspvPath();
+  std::string CLSPV = ACPP_CLSPV_PATH;
 
   llvm::SmallVector<std::string> Args{"-x=ir",
                                       "--physical-storage-buffers",

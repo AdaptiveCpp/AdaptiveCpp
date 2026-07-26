@@ -1,0 +1,235 @@
+name: Android Cross Compilation
+
+on: [push, pull_request]
+
+env:
+  NDK_VERSION: r27d
+  ANDROID_ABI: arm64-v8a
+  ANDROID_PLATFORM: android-34
+  ANDROID_TRIPLE: aarch64-unknown-linux-android34
+
+jobs:
+  build-android:
+    name: Cross compile AdaptiveCpp (Android, LLVM ${{ matrix.llvm }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        llvm: ['20']
+
+    steps:
+    - name: Checkout AdaptiveCpp
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+        path: AdaptiveCpp
+
+    # ------------------------------------------------------------------
+    # Android NDK (cached)
+    # ------------------------------------------------------------------
+    - name: Cache Android NDK
+      id: cache-ndk
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/android-ndk-${{ env.NDK_VERSION }}
+        key: android-ndk-${{ env.NDK_VERSION }}
+
+    - name: Download Android NDK
+      if: steps.cache-ndk.outputs.cache-hit != 'true'
+      run: |
+        wget -q https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
+        unzip -q android-ndk-${NDK_VERSION}-linux.zip
+
+    - name: Export NDK path
+      run: echo "NDK=${GITHUB_WORKSPACE}/android-ndk-${NDK_VERSION}" >> $GITHUB_ENV
+
+
+    # ------------------------------------------------------------------
+    # Build tooling
+    # ------------------------------------------------------------------
+    - name: Install build tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build cmake wget unzip
+
+    # Native clang/llvm/lld/libomp matching the cross LLVM major version. These
+    # are used on the host both to generate the libkernel builtin bitcode
+    # (-DCLANG_EXECUTABLE_PATH / -DACPP_LLVMLINK_PATH) and to build the native
+    # AdaptiveCpp compiler used to compile the SYCL application.
+    - name: Install native LLVM ${{ matrix.llvm }}
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh ${{ matrix.llvm }}
+        sudo apt-get install -y libclang-${{ matrix.llvm }}-dev \
+                                clang-tools-${{ matrix.llvm }} \
+                                libomp-${{ matrix.llvm }}-dev \
+                                llvm-${{ matrix.llvm }}-dev \
+                                clang-${{ matrix.llvm }} \
+                                lld-${{ matrix.llvm }}
+
+    # ------------------------------------------------------------------
+    # ccache shared across LLVM + AdaptiveCpp builds
+    # ------------------------------------------------------------------
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: android-${{ matrix.llvm }}
+        restore-keys: |
+          android-
+
+    # ------------------------------------------------------------------
+    # Cross compiled LLVM for AArch64 / Android
+    # ------------------------------------------------------------------
+    - name: Cache cross compiled LLVM
+      id: cache-llvm
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/llvm-project/build-ndk/install
+        # Bump the trailing version to invalidate when build flags change.
+        key: android-llvm-${{ matrix.llvm }}-ndk-${{ env.NDK_VERSION }}-v1
+
+    - name: Clone LLVM
+      if: steps.cache-llvm.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/llvm/llvm-project --depth 1 \
+          --single-branch -b release/${{ matrix.llvm }}.x llvm-project
+
+    - name: Cross compile LLVM
+      if: steps.cache-llvm.outputs.cache-hit != 'true'
+      run: |
+        cd llvm-project
+        mkdir build-ndk && cd build-ndk
+        cmake ../llvm -GNinja \
+          -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=${ANDROID_ABI} \
+          -DANDROID_PLATFORM=${ANDROID_PLATFORM} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=$PWD/install \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+          -DLLVM_ENABLE_PROJECTS="clang;lld;openmp" \
+          -DLLVM_ENABLE_RUNTIMES=compiler-rt \
+          -DOPENMP_ENABLE_LIBOMPTARGET=OFF \
+          -DLLVM_ENABLE_ASSERTIONS=OFF \
+          -DLLVM_TARGETS_TO_BUILD="AArch64" \
+          -DLLVM_INCLUDE_BENCHMARKS=0 \
+          -DLLVM_INCLUDE_EXAMPLES=0 \
+          -DLLVM_INCLUDE_TESTS=0 \
+          -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+          -DCMAKE_INSTALL_RPATH=$PWD/install/lib \
+          -DLLVM_ENABLE_OCAMLDOC=OFF \
+          -DLLVM_ENABLE_BINDINGS=OFF \
+          -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=OFF \
+          -DLLVM_BUILD_LLVM_DYLIB=ON \
+          -DLLVM_LINK_LLVM_DYLIB=ON
+        ninja -j2 install
+
+    - name: Export cross LLVM install path
+      run: echo "LLVM_NDK_INSTALL=${GITHUB_WORKSPACE}/llvm-project/build-ndk/install" >> $GITHUB_ENV
+
+    # ------------------------------------------------------------------
+    # Cross compile AdaptiveCpp (OpenMP host backend only)
+    # ------------------------------------------------------------------
+    - name: Cross compile AdaptiveCpp
+      run: |
+        cd AdaptiveCpp
+        mkdir build-ndk && cd build-ndk
+        cmake .. -GNinja \
+          -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=${ANDROID_ABI} \
+          -DANDROID_PLATFORM=${ANDROID_PLATFORM} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=$PWD/install \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+          -DLLVM_DIR=$LLVM_NDK_INSTALL/lib/cmake/llvm \
+          -DCLANG_EXECUTABLE_PATH=/usr/bin/clang-${{ matrix.llvm }} \
+          -DACPP_LLVMLINK_PATH=/usr/bin/llvm-link-${{ matrix.llvm }} \
+          -DTARGET_TRIPLE=${ANDROID_TRIPLE} \
+          -DWITH_VULKAN_BACKEND=OFF \
+          -DWITH_CUDA_BACKEND=OFF \
+          -DWITH_ROCM_BACKEND=OFF \
+          -DWITH_OPENCL_BACKEND=OFF
+        ninja -j2 install
+        echo "ACPP_NDK_INSTALL=$PWD/install" >> $GITHUB_ENV
+
+    # ------------------------------------------------------------------
+    # Native AdaptiveCpp build
+    # ------------------------------------------------------------------
+    - name: Native compile AdaptiveCpp
+      run: |
+        cd AdaptiveCpp
+        mkdir build-native && cd build-native
+        cmake .. -GNinja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=$PWD/install \
+          -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{ matrix.llvm }} \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+          -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{ matrix.llvm }} \
+          -DLLVM_DIR=/usr/lib/llvm-${{ matrix.llvm }}/lib/cmake/llvm \
+          -DWITH_VULKAN_BACKEND=OFF \
+          -DWITH_CUDA_BACKEND=OFF \
+          -DWITH_ROCM_BACKEND=OFF \
+          -DWITH_OPENCL_BACKEND=OFF
+        ninja -j2 install
+        echo "ACPP_NATIVE_INSTALL=$PWD/install" >> $GITHUB_ENV
+
+    # ------------------------------------------------------------------
+    # Compile the simple example from doc/install-android.md using the native
+    # acpp compiler, there is no way to run the application without installing
+    # the android-sdk emulator (future work)
+    # ------------------------------------------------------------------
+    - name: Cross compile application
+      run: |
+        set -euo pipefail
+
+        SYSROOT=$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot
+        RESOURCE_DIR=$(echo $NDK/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/*/)
+
+        # Write the example from doc/install-android.md
+        cat > android_sycl_test.cpp <<'EOF'
+        #include <iostream>
+        #include <sycl/sycl.hpp>
+        #include <vector>
+
+        int main() {
+          sycl::device d{sycl::default_selector{}};
+          sycl::queue q(d, sycl::property::queue::in_order());
+
+          std::string device = d.get_info<sycl::info::device::name>();
+          std::cout << "Default-selected queue runs on device: " << device << std::endl;
+
+          constexpr size_t N = 1024;
+          int *devicePtr = sycl::malloc_device<int>(N, q);
+
+          q.parallel_for(N, [=](sycl::id<1> idx) {
+            devicePtr[idx] = idx;
+          });
+
+          std::vector<int> dataHost(N);
+          q.copy(devicePtr, dataHost.data(), N).wait();
+
+          bool success = true;
+          for (int i = 0; i < N; i++) {
+            success = success && (dataHost[i] == i);
+          }
+
+          std::cout << (success ? "SYCL application SUCCESS" : "SYCL application FAILED")
+                    << std::endl;
+
+          sycl::free(devicePtr, q);
+          return 0;
+        }
+        EOF
+
+        # cross compile the app using the NATIVE acpp compiler,
+        # but target the Android AArch64 sysroot
+        ${ACPP_NATIVE_INSTALL}/bin/acpp android_sycl_test.cpp -o android_sycl_test \
+            --target=aarch64-linux-android34 \
+            --sysroot=${SYSROOT} \
+            -static-libstdc++ \
+            --rtlib=compiler-rt \
+            -resource-dir=${RESOURCE_DIR} \
+            -L ${ACPP_NDK_INSTALL}/lib
+
+        file android_sycl_test | grep "ARM aarch64"

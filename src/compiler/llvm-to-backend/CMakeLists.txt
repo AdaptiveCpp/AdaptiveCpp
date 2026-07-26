@@ -339,10 +339,10 @@ if(WITH_SSCP_COMPILER)
       clspv/ConstantAddrSpacePass.cpp
       TOOL clspv/LLVMToCLSPVTool.cpp)
 
-    find_program(CLSPV_COMPILER NAMES clspv REQUIRED)
+    find_program(ACPP_CLSPV_PATH NAMES clspv REQUIRED CACHE STRING)
 
-    message(STATUS "Using clspv at: ${CLSPV_COMPILER}")
-    target_compile_definitions(llvm-to-clspv PRIVATE -DACPP_CLSPV_PATH="${CLSPV_COMPILER}")
+    message(STATUS "Using clspv at: ${ACPP_CLSPV_PATH}")
+    target_compile_definitions(llvm-to-clspv PRIVATE -DACPP_CLSPV_PATH="${ACPP_CLSPV_PATH}")
   endif()
 
 endif()

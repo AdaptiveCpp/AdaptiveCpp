@@ -38,11 +38,6 @@
   * `svml`: Use Intel SVML.
   * `sleef`: Use SLEEF.
   * `armpl`: Use amath from Arm Performance Libraries.
-* `ACPP_OPT_PATH` - Path to an LLVM opt binary to use during SSCP compilation. Overrides the tool found during CMake configuration, and is useful in cross compilation scenarios.
-* `ACPP_LLD_PATH` - Path to an LLVM lld binary to use during SSCP compilation. Overrides the tool found during CMake configuration, and is useful in cross compilation scenarios.
-* `ACPP_LLC_PATH` - Path to an LLVM llc binary to use during SSCP compilation. Overrides the tool found during CMake configuration, and is useful in cross compilation scenarios.
-* `ACPP_CLANG_PATH` - Path to an LLVM clang binary to use during SSCP compilation. Overrides the tool found during CMake configuration, and is useful in cross compilation scenarios.
-* `ACPP_CLSPV_PATH` - Path to an clspv binary to use during SSCP compilation for the Vulkan backend only. Overrides the tool found during CMake configuration, and is useful in cross compilation scenarios.
 
 ## Environment variables to control dumping IR during JIT compilation
 

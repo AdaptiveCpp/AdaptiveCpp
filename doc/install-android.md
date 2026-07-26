@@ -1,19 +1,29 @@
 # AdaptiveCpp Build and Install Instructions for Android
 
 Building and installing the project for Android is a complicated process, as it involves cross compilation through the Android Native Development Kit (NDK), and
-installation through the Android Debug Bridge (ADB). The SYCL programs must also be cross compiled when built using a separate native AdaptiveCpp compiled
+installation through the Android Debug Bridge (ADB). The SYCL programs must also be cross compiled when built using a separate native AdaptiveCpp compiler,
 and then executed through ADB. The `generic` compilation flow is supported and enables the OpenMP (host CPU) and Vulkan backends. This does however require
-push a large amount of binary dependencies to the device to enable runtime compilation, which may be limiting in a real world mobile use case.
+a large amount of binary dependencies to be pushed to the device to enable runtime compilation, which may be prohibitive to a real world mobile use case.
 
-This cross compilation process has only been tested from an Ubuntu host OS and assumes that you can access your device using ABD to
+This cross compilation process has only been tested from an Ubuntu host OS and assumes that you can access your device using ADB to
 get the following information about CPU and Android version. These are used to set the `ANDROID_ABI` and `ANDROID_PLATFORM` defines
-in Cmake configuration and can be replaced with the values from your own device.
+in CMake configuration and can be replaced with the values from your own device.
 
 ```sh
 $ adb shell getprop ro.product.cpu.abi
 arm64-v8a
 $ adb shell getprop ro.build.version.sdk
 34
+```
+
+The command `adb shell` by itself runs an interactive shell, and before getting started we will also create a directory on the device to work in called
+`sycl` under `/data/local/tmp`. The `/data/local/tmp/sycl` path will be used in later steps of this guide as part of CMake configuration commands, but
+if can be substituted for you preferred device working directory.
+
+```sh
+$ adb shell
+(adb) $ cd /data/local/tmp/
+(adb) $ mkdir sycl
 ```
 
 Instruction Steps:
@@ -29,12 +39,12 @@ Instruction Steps:
 1. [Push binaries to device and run](#push-binaries-and-run)
 
 Each step exports the paths to artifacts that will be needed in later steps as an environment variable. If only
-a OpenMP backend is desired then then Vulkan only steps may be skipped.
+a OpenMP backend is desired then the Vulkan only steps may be skipped.
 
 ## Acquire Android NDK
 
 The [Android NDK toolchain](https://developer.android.com/ndk/downloads) is the supported way to cross compile
-C/C++ programs for Android. These instructions in this doc are written using the r27d LTS release.
+C/C++ programs for Android. The instructions in this doc are written using the r27d LTS release.
 
 ```sh
 $ wget https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
@@ -44,14 +54,13 @@ $ export NDK=$PWD/android-ndk-r27d
 
 ## Cross Compile clspv
 
-> This step is need for the Vulkan backend only.
+> This step is needed for the Vulkan backend only.
 
 The Vulkan backend requires a clspv executable to compile LLVM IR to Vulkan SPIR-V at runtime. As a result a clspv binary
 cross compiled for Android is required. This itself is a two stage process as it first requires `libclc` to be natively
-compiled and then used in the cross compiled build. See the [libclc doc](https://github.com/llvm/llvm-project/tree/main/libclc#configure-for-vulkan-clspv-targets)
+compiled, and then used in the cross compiled build. See the [libclc doc](https://github.com/llvm/llvm-project/tree/main/libclc#configure-for-vulkan-clspv-targets)
 for details on the Vulkan specific arguments. At the time of writing clspv is using upstream clang with a version number 23 but this
-is not required to match the LLVM versions used to build AdaptiveCpp, as clspv is statically compiled as an standalone binary.
-
+is not required to match the LLVM version used to build AdaptiveCpp, as clspv is statically compiled as an standalone binary.
 
 ```sh
 $ git clone https://github.com/google/clspv.git
@@ -74,16 +83,15 @@ $ cmake .. -GNinja \
     -DANDROID_PLATFORM=android-34 \
     -DCLSPV_EXTERNAL_LIBCLC_DIR=$PWD/../build-libclc/lib/clang/23/lib
 $ ninja
-$ export CLSPV_NDK_PATH=$PWD/bin/clspv
 ```
 
 ## Cross Compile SPIRV Tools
 
-> This step is need for the Vulkan backend only.
+> This step is needed for the Vulkan backend only.
 
 The Android NDK does not provide the SPIRV Tools headers and libraries that are distributed by the
-Vulkan SDK. When cross compiling the project therefore need to be manually cross compiled with the NDK
-toolchain.
+Vulkan SDK. When cross compiling, the SPIR-VTools project therefore need to be manually cross compiled
+with the NDK toolchain.
 
 ```sh
 $ git clone https://github.com/KhronosGroup/SPIRV-Tools.git
@@ -104,11 +112,11 @@ $ export SPIRV_TOOLS_SOURCE_PATH=$PWD/..
 
 ## Clone VulkanHpp
 
-> This step is need for the Vulkan backend only.
+> This step is needed for the Vulkan backend only.
 
 The Android NDK only provides the Vulkan C headers, not the layered C++ bindings provided by Khronos
 which are part of the Vulkan SDK and used in the AdaptiveCpp source code. These source of these
-headers needs to be clone but not built.
+headers needs to be cloned but not built.
 
 ```sh
 $ git clone --recurse-submodules https://github.com/KhronosGroup/Vulkan-Hpp.git
@@ -118,7 +126,7 @@ $ export VULKAN_HPP_PATH=$PWD/Vulkan-Hpp
 ## Cross Compile LLVM
 
 In order to perform SSCP compilation at runtime AdaptiveCpp needs an cross compiled LLVM and tools to link against. We [build LLVM](install-llvm.md)
-from source separately as a step prior to cross compiling AdaptiveCpp. Here we only use "Aarch64" for the LLVM targets to build as
+from source separately as a step prior to cross compiling AdaptiveCpp. Here we only use "Aarch64" for the LLVM targets to build, as
 we know that's the CPU architecture of the Android device we're cross compiling for.
 
 These instructions build LLVM version 20, and this should then match the LLVM version used to build a host AdaptiveCpp in
@@ -160,8 +168,14 @@ $ export LLVM_NDK_INSTALL=$PWD/install
 ## Cross Compile AdaptiveCpp
 
 Now that we have all the cross compilation dependencies prepared we can can cross compile AdaptiveCpp itself. We need to
-pass some extra arguments to native LLVM tools that match the LLVM version being linked in the cross compile. This
-allows the `libkernel` builtins to be created.
+pass some extra arguments at CMake configuration time for this to work correctly. The two key considerations are passing the
+right arguments to native LLVM tools that match the LLVM version being linked in the cross compile, allowing the `libkernel`
+builtins bitcode to be created. The other consideration is passing the right device path to where cross compiled LLVM tooling will be at
+runtime so that the SSCP JIT can function.
+
+In the command below `-DCLANG_EXECUTABLE_PATH` and `-DACPP_LLVM_LINK_PATH` must be native executables to satisfy the first
+consideration, while `-DACPP_LLC_PATH`, `-DACPP_LLD_PATH`, `-DACPP_OPT_PATH`, and `-DACPP_CLSPV_PATH` (Vulkan only) must
+be paths to where the cross compiled tools will be pushed on device to satisfy the second consideration.
 
 ```sh
 $ cd <acpp root>
@@ -175,7 +189,10 @@ $ cmake .. -GNinja \
   -DLLVM_DIR=$LLVM_NDK_INSTALL/lib/cmake/llvm \
   -DCLANG_EXECUTABLE_PATH=/usr/bin/clang-20 \
   -DACPP_LLVMLINK_PATH=/usr/bin/llvm-link-20 \
-  -DTARGET_TRIPLE=aarch64-unknown-linux-android34
+  -DTARGET_TRIPLE=aarch64-unknown-linux-android34 \
+  -DACPP_LLC_PATH=/data/local/tmp/sycl/llc \
+  -DACPP_LLD_PATH=/data/local/tmp/sycl/ld.lld \
+  -DACPP_OPT_PATH=/data/local/tmp/sycl/opt
 
 $ ninja install
 $ export ACPP_NDK_INSTALL=$PWD/install
@@ -184,19 +201,19 @@ $ export ACPP_NDK_INSTALL=$PWD/install
 When compiling with the Vulkan backend enabled add the additional following arguments:
 
 * `-DWITH_VULKAN_BACKEND=ON`
-* `-DCMAKE_PROGRAM_PATH=$CLSPV_NDK_PATH`
 * `-DSPIRV-Tools_DIR=$SPIRV_TOOLS_NDK_PATH/lib/cmake/SPIRV-Tools`
 * `-DACPP_VULKAN_HPP_PATH=$VULKAN_HPP_PATH`
 * `-DACPP_SPIRV_HEADER_PATH=$SPIRV_TOOLS_SOURCE_PATH/external/spirv-headers`
+* `-DACPP_CLSPV_PATH=/data/local/tmp/sycl/clspv`
 
 ## Native Compile AdaptiveCpp
 
 Now we have cross compiled AdaptiveCpp libraries to use on our device, we also need to be able
-to cross compile SYCL application. To do that on the host a native AdaptiveCpp compiler is required, which can
-be built using the [standard build and install instructions](installing.md). To build a native AdaptiveCpp from the same source,
-using an LLVM from the same version, and with the same backends enabled.
+to cross compile a SYCL application. To do that on the host a native AdaptiveCpp compiler is required, which can
+be built using the [standard build and install instructions](installing.md). Follow these to build a native AdaptiveCpp
+from the same source, using an LLVM from the same version, and with the same backends enabled.
 
-The commands to to this are omitted from these instructions, but so we can refer to the native build in later instructions,
+The commands to do this are omitted from these instructions, but so we can refer to the native build in later instructions,
 lets export the path to the install directory
 
 ```sh
@@ -248,7 +265,7 @@ int main() {
 }
 ```
 
-To do the compilation itself we use the AdaptiveCpp compiler for the SYCL frontend,
+To do the compilation itself we use the AdaptiveCpp compiler frontend for the SYCL,
 but point to the sysroot resources for the NDK.
 
 ```sh
@@ -266,23 +283,15 @@ $ $ACPP_NATIVE_INSTALL/bin/acpp android_sycl_test.cpp -o android_sycl_test  \
 ### Push Binaries
 
 We now have our cross compiled application and its dependencies, but we still need a way to get them onto
-the Android device and run them. To do this we use ADB with the `shell` and `push` commands, `shell`
-runs an interactive shell and the first thing we do is create a directory to work in called `sycl` under
-`/data/local/tmp`.
-
-```sh
-$ adb shell
-(adb) $ cd /data/local/tmp/
-(adb) $ mkdir sycl
-```
-
-We can then push our binaries there using the following command
+the Android device and run them. To do this we use the ADB `push` command to push the binaries to our
+`/data/local/tmp/sycl` working directory with the following command:
 
 ```sh
 $ adb push <file> /data/local/tmp/sycl
 ```
 
-For the cross compiled AdaptiveCpp build we compress the whole `install` to push, and then extract on device.
+For the cross compiled AdaptiveCpp build we compress the whole `install`, push the compressed file,
+and then extract it on device.
 
 ```sh
 $ tar -cvf acpp_ndk_install.tar $ACPP_NDK_INSTALL
@@ -308,18 +317,13 @@ There are lots of binaries to push (around 5GB in total!):
 ### Run Application
 
 We're almost there, now we have all the binaries on device and we just need to run them. However, this is also
-not straightforward as many of the default paths AdaptiveCpp tries to use at runtime are taken from CMake configuration
-on the host machine and need to be overwritten with environment variables at runtime:
+not straightforward as some environment variables need set.
 
 ```sh
 $ adb shell
 (adb) $ cd /data/local/tmp/sycl
 (adb) $ export ACPP_APPDB_DIR=$PWD/.acpp_cache
 (adb) $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD:$PWD/acpp_install/lib:$PWD/acpp_install/lib/hipSYCL:$PWD/acpp_install/lib/hipSYCL/llvm-to-backend
-(adb) $ export ACPP_LLC_PATH=$PWD/llc
-(adb) $ export ACPP_LLD_PATH=$PWD/ld.lld
-(adb) $ export ACPP_OPT_PATH=$PWD/opt
-(adb) $ export ACPP_CLSPV_PATH=$PWD/clspv
 ```
 
 Now everything is in place to execute the application. The previous step didn't recommend pushing the cross compiled `acpp-info` binary, but if you
@@ -342,11 +346,6 @@ Arm v8 CPU OpenMP device and Vulkan GPU device to verify that they both well.
 Default-selected queue runs on device: AdaptiveCpp OpenMP host device
 SYCL application SUCCESS
 ```
-
-On first compilation you may get a warning about mismatching target triples because the `libkernel` bitcode
-was compiled on host using the host target triple, while the kernel source was compiled on device using the
-target triple of the device CPU.
-
 
 ```sh
 (adb) $ ACPP_VISIBILITY_MASK=vk ./android_sycl_test

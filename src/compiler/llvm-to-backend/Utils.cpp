@@ -11,7 +11,6 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/common/filesystem.hpp"
-#include "hipSYCL/common/settings.hpp"
 
 #include <llvm/Support/Program.h>
 
@@ -51,12 +50,9 @@ std::string getClangPath() {
   static std::string path;
   if(!path.empty())
     return path;
-
-  if (common::settings::try_retrieve_settings_variable("CLANG_PATH", path)) {
-    return path;
-  }
-
-  path = replacePathPlaceholders(ACPP_CLANG_PATH);
+  else
+    path = replacePathPlaceholders(ACPP_CLANG_PATH);
+  
   return path;
 }
 
@@ -64,11 +60,7 @@ std::string getLLCPath() {
   static std::string path;
   if(!path.empty())
     return path;
-
-  if (common::settings::try_retrieve_settings_variable("LLC_PATH", path)) {
-    return path;
-  }
-
+  
   std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
   std::string llc_redistributable_path = common::filesystem::join_path(
       llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_LLC_NAME});
@@ -86,11 +78,7 @@ std::string getLLDPath() {
   static std::string path;
   if(!path.empty())
     return path;
-
-  if (common::settings::try_retrieve_settings_variable("LLD_PATH", path)) {
-    return path;
-  }
-
+  
   std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
   std::string lld_redistributable_path = common::filesystem::join_path(
       llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_LLD_NAME});
@@ -108,11 +96,7 @@ std::string getOptPath() {
   static std::string path;
   if(!path.empty())
     return path;
-
-  if (common::settings::try_retrieve_settings_variable("OPT_PATH", path)) {
-    return path;
-  }
-
+  
   std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
   std::string opt_redistributable_path = common::filesystem::join_path(
       llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_OPT_NAME});

@@ -75,6 +75,7 @@ extern "C" void __acpp_function_annotation_needs_function_ptr_argument_reflectio
 
 
 struct __acpp_reflection_tu_init_trigger {
+  __attribute__((internal_linkage))
   __acpp_reflection_tu_init_trigger() {
     __acpp_reflection_init_registered_function_pointers();
   }

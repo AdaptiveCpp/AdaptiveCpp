@@ -270,6 +270,16 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rsqrt_f64(double x) {
 
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(sqrt)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(sin)
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(float x, float* sinval,
+                                                 float* cosval) {
+  *sinval = __acpp_sscp_sin_f32(x);
+  *cosval = __acpp_sscp_cos_f32(x);
+}
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f64(double x, double* sinval,
+                                                 double* cosval) {
+  *sinval = __acpp_sscp_sin_f64(x);
+  *cosval = __acpp_sscp_cos_f64(x);
+}
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(sinh)
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_sinpi_f32(float x) {

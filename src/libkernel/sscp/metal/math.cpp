@@ -49,6 +49,11 @@ ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(tanpi)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(cos)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(cospi)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(sin)
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(f32 x, f32* sinval,
+                                                 f32* cosval) {
+  *sinval = __acpp_sscp_sin_f32(x);
+  *cosval = __acpp_sscp_cos_f32(x);
+}
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(sinpi)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(exp)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(exp2)

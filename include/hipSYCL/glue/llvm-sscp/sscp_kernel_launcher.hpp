@@ -139,17 +139,21 @@ class basic_parallel_for {
 public:
   basic_parallel_for(const UserKernel &k,
                      sycl::range<Dimensions> execution_range)
-      : _k{k}, _range{execution_range} {}
+      : _acpp_exact_range{0}, _k{k}, _range{execution_range} {}
 
   [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     auto this_item = sycl::detail::make_item<Dimensions>(
       sycl::detail::get_global_id<Dimensions>(), _range
     );
-    if(item_is_in_range(this_item, _range))
+    // Specialized to 1 for non-padded launches so this range check folds away
+    // and the body vectorizes; 0 (check kept) when the launch is padded.
+    if(_acpp_exact_range || item_is_in_range(this_item, _range))
       _k(this_item);
   }
 private:
+  // Kernel argument 0 (must stay the first member); set in invoke().
+  int _acpp_exact_range;
   UserKernel _k;
   sycl::range<Dimensions> _range;
 };
@@ -159,17 +163,18 @@ class basic_parallel_for_offset {
 public:
   basic_parallel_for_offset(const UserKernel &k, sycl::id<Dimensions> offset,
                             sycl::range<Dimensions> execution_range)
-      : _k{k}, _range{execution_range}, _offset{offset} {}
+      : _acpp_exact_range{0}, _k{k}, _range{execution_range}, _offset{offset} {}
 
   [[clang::annotate("hipsycl_kernel_dimension", Dimensions)]]
   void operator()() const {
     auto this_item = sycl::detail::make_item<Dimensions>(
         sycl::detail::get_global_id<Dimensions>() + _offset, _range, _offset);
-    
-    if(item_is_in_range(this_item, _range, _offset))
+
+    if(_acpp_exact_range || item_is_in_range(this_item, _range, _offset))
       _k(this_item);
   }
 private:
+  int _acpp_exact_range;
   UserKernel _k;
   sycl::range<Dimensions> _range;
   sycl::id<Dimensions> _offset;
@@ -331,12 +336,24 @@ public:
       std::array<const void*, 1> args{launch_config.kernel_args.data()};
       std::size_t arg_size = launch_config.kernel_args.size();
 
+      // For non-padded basic_parallel_for launches the range check is
+      // unnecessary and blocks vectorization; specialize arg 0 so the JIT folds
+      // it away. Padded launches keep the check (arg stays 0).
+      rt::kernel_configuration effective_config = kernel_config;
+      if(launch_config.type == rt::kernel_type::basic_parallel_for) {
+        bool exact_range = true;
+        for(int i = 0; i < 3; ++i)
+          if(num_groups[i] * selected_group_size[i] != launch_config.global_size[i])
+            exact_range = false;
+        effective_config.set_specialized_kernel_argument(0, exact_range ? 1u : 0u);
+      }
+
       return invoker->submit_kernel(
           *kernel_op, launch_config.sscp_hcf_object_id, num_groups,
           selected_group_size, launch_config.local_mem_size,
           const_cast<void **>(args.data()), &arg_size, args.size(),
           launch_config.sscp_kernel_id, launch_config.kernel_info,
-          kernel_config);
+          effective_config);
     }
   }
 

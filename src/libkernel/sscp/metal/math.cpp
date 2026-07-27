@@ -21,6 +21,7 @@ using namespace hipsycl::sycl::detail::metal_builtins;
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_metal_math_f32_f32(const char* name, f32 x);
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_metal_math_f32_f32_f32(const char* name, f32 x, f32 y);
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_metal_math_f32_f32_f32_f32(const char* name, f32 x, f32 y, f32 z);
+HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_metal_math_f32_f32_f32ptr(const char* name, f32 x, f32* p);
 
 #define ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(name) \
   HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_##name##_f32(f32 x) { \
@@ -51,8 +52,8 @@ ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(cospi)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(sin)
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(f32 x, f32* sinval,
                                                  f32* cosval) {
-  *sinval = __acpp_sscp_sin_f32(x);
-  *cosval = __acpp_sscp_cos_f32(x);
+  *sinval = __acpp_sscp_metal_math_f32_f32_f32ptr(
+      "sincos(%s, *__pointer_cast<float>(%s))", x, cosval);
 }
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(sinpi)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN(exp)
@@ -198,7 +199,6 @@ HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_fract_f32(f32 x, f32* iptr) {
 }
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_metal_math_f32_f32_i32ptr(const char* name, f32 x, i32* p);
-HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_metal_math_f32_f32_f32ptr(const char* name, f32 x, f32* p);
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_frexp_f32(f32 x, i32* exp) {
   return __acpp_sscp_metal_math_f32_f32_i32ptr("frexp(%s, *__pointer_cast<int>(%s))", x, exp);

@@ -393,13 +393,13 @@ double sin(double);
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_sin_f32(float x) { return sin(x); }
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_sin_f64(double x) { return sin(x); }
 
+float sincos(float, float*);
+double sincos(double, double*);
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(float x, float* sinval, float* cosval) {
-  *sinval = __acpp_sscp_sin_f32(x);
-  *cosval = __acpp_sscp_cos_f32(x);
+  *sinval = sincos(x, cosval);
 }
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f64(double x, double* sinval, double* cosval) {
-  *sinval = __acpp_sscp_sin_f64(x);
-  *cosval = __acpp_sscp_cos_f64(x);
+  *sinval = sincos(x, cosval);
 }
 
 float sinh(float);

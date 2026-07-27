@@ -21,6 +21,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
+#include "hipSYCL/compiler/sscp/TargetSpecificIRmapper.hpp"
 #include "hipSYCL/compiler/utils/IndirectAccess.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 #include "hipSYCL/compiler/utils/LLVMUtils.hpp"
@@ -397,6 +398,11 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     }
 
     enableModuleStateDumping(M, "backend_flavoring", getCompilationIdentifier());
+
+    TargetSpecificIRMapper TSIRM;
+    TSIRM.run(M, MAM);
+    enableModuleStateDumping(M, "target_specific_mapping", getCompilationIdentifier());
+
     // Run again to resolve reflection inside builtins
     S2RP.run(M, MAM);
     enableModuleStateDumping(M, "builtin_reflection", getCompilationIdentifier());

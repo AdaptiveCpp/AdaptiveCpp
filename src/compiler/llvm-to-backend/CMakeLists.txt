@@ -164,6 +164,7 @@ if(WITH_SSCP_COMPILER)
       DeadArgumentEliminationPass.cpp
       ProcessS2ReflectionPass.cpp
       ../sscp/KernelOutliningPass.cpp
+      ../sscp/TargetSpecificIRmapper.cpp
       Utils.cpp
       )
 

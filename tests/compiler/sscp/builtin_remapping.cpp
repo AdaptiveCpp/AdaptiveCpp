@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <type_traits>
 #include <sycl/sycl.hpp>
 #include "common.hpp"
 
@@ -19,10 +20,10 @@ bool check_with_tolerance(double a, double b) {
 
 
 template<class T>
-void test() {
+bool test() {
   sycl::queue q = get_queue();
 
-  int num_functions = 10;
+  int num_functions = 12;
 
   T init = static_cast<T>(0.75);
 
@@ -44,6 +45,14 @@ void test() {
     data[7] = std::exp2(data[7]);
     data[8] = std::log(data[8]);
     data[9] = std::asin(data[9]);
+    T sin_value;
+    T cos_value;
+    if constexpr(std::is_same_v<T, float>)
+      __builtin_sincosf(data[10], &sin_value, &cos_value);
+    else
+      __builtin_sincos(data[10], &sin_value, &cos_value);
+    data[10] = sin_value;
+    data[11] = cos_value;
   }).wait();
 
   std::vector<T> host(num_functions, T(0));
@@ -69,12 +78,22 @@ void test() {
   std::cout << check_with_tolerance(host[8], std::log(init)) << std::endl;
   // CHECK: 1
   std::cout << check_with_tolerance(host[9], std::asin(init)) << std::endl;
+  // CHECK: 1
+  const bool sin_correct = check_with_tolerance(host[10], std::sin(init));
+  std::cout << sin_correct << std::endl;
+  // CHECK: 1
+  const bool cos_correct = check_with_tolerance(host[11], std::cos(init));
+  std::cout << cos_correct << std::endl;
 
   sycl::free(data, q);
+  return sin_correct && cos_correct;
 }
 
 int main() {
-  test<float>();
+  bool sincos_correct = test<float>();
   if(get_queue().get_device().has(sycl::aspect::fp64))
-    test<double>();
+    sincos_correct &= test<double>();
+  // CHECK: sincos checks: 1
+  std::cout << "sincos checks: " << sincos_correct << std::endl;
+  return sincos_correct ? 0 : 1;
 }

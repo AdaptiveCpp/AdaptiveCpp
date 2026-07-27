@@ -11,7 +11,9 @@
 #include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
 #include <unordered_set>
@@ -97,6 +99,98 @@ static constexpr std::array explicitly_mapped_builtins = {
   ACPP_DECLARE_FINITE_BUILTIN_MAPPING(tan)
 };
 
+static bool hasExpectedSincosFloatType(llvm::Type *FloatType, const std::string &Suffix) {
+  return (Suffix == "f32" && FloatType->isFloatTy()) ||
+         (Suffix == "f64" && FloatType->isDoubleTy());
+}
+
+static llvm::Function *getOrCreateSincosAdapter(llvm::Module &M,
+                                                llvm::Function &Original,
+                                                const std::string &ReplacementName) {
+  llvm::FunctionType *FunctionType = Original.getFunctionType();
+  llvm::Function *Adapter = M.getFunction(ReplacementName);
+  if (!Adapter) {
+    Adapter = llvm::Function::Create(FunctionType, llvm::GlobalValue::InternalLinkage,
+                                     ReplacementName, M);
+  } else if (Adapter->getFunctionType() != FunctionType ||
+             !Adapter->hasInternalLinkage() ||
+             Adapter->getCallingConv() != Original.getCallingConv() ||
+             (!Adapter->empty() &&
+              !Adapter->hasFnAttribute(llvm::Attribute::AlwaysInline))) {
+    return nullptr;
+  }
+
+  Adapter->setCallingConv(Original.getCallingConv());
+  Adapter->addFnAttr(llvm::Attribute::AlwaysInline);
+  return Adapter;
+}
+
+static llvm::Function *createLibcSincosAdapter(llvm::Module &M, llvm::Function &Original,
+                                               const std::string &ReplacementName,
+                                               const std::string &Suffix) {
+  llvm::FunctionType *FunctionType = Original.getFunctionType();
+  if (!FunctionType->getReturnType()->isVoidTy() || FunctionType->isVarArg() ||
+      FunctionType->getNumParams() != 3 || !FunctionType->getParamType(1)->isPointerTy() ||
+      !FunctionType->getParamType(2)->isPointerTy())
+    return nullptr;
+
+  llvm::Type *FloatType = FunctionType->getParamType(0);
+  if (!hasExpectedSincosFloatType(FloatType, Suffix))
+    return nullptr;
+
+  llvm::Function *Adapter = getOrCreateSincosAdapter(M, Original, ReplacementName);
+  if (!Adapter || !Adapter->empty())
+    return Adapter;
+
+  llvm::BasicBlock *Entry = llvm::BasicBlock::Create(M.getContext(), "entry", Adapter);
+  llvm::IRBuilder<> Builder{Entry};
+  auto Arg = Adapter->arg_begin();
+  llvm::Value *X = &*Arg++;
+  llvm::Value *SinOut = &*Arg++;
+  llvm::Value *CosOut = &*Arg;
+
+  llvm::FunctionType *UnaryType = llvm::FunctionType::get(FloatType, {FloatType}, false);
+  llvm::FunctionCallee Sin = M.getOrInsertFunction("__acpp_sscp_sin_" + Suffix, UnaryType);
+  llvm::FunctionCallee Cos = M.getOrInsertFunction("__acpp_sscp_cos_" + Suffix, UnaryType);
+
+  Builder.CreateStore(Builder.CreateCall(Sin, {X}), SinOut);
+  Builder.CreateStore(Builder.CreateCall(Cos, {X}), CosOut);
+  Builder.CreateRetVoid();
+  return Adapter;
+}
+
+static llvm::Function *createLlvmSincosAdapter(llvm::Module &M, llvm::Function &Original,
+                                               const std::string &ReplacementName,
+                                               const std::string &Suffix) {
+  llvm::FunctionType *FunctionType = Original.getFunctionType();
+  if (FunctionType->isVarArg() || FunctionType->getNumParams() != 1)
+    return nullptr;
+
+  llvm::Type *FloatType = FunctionType->getParamType(0);
+  auto *ResultType = llvm::dyn_cast<llvm::StructType>(FunctionType->getReturnType());
+  if (!hasExpectedSincosFloatType(FloatType, Suffix) || !ResultType ||
+      ResultType->getNumElements() != 2 || ResultType->getElementType(0) != FloatType ||
+      ResultType->getElementType(1) != FloatType)
+    return nullptr;
+
+  llvm::Function *Adapter = getOrCreateSincosAdapter(M, Original, ReplacementName);
+  if (!Adapter || !Adapter->empty())
+    return Adapter;
+
+  llvm::BasicBlock *Entry = llvm::BasicBlock::Create(M.getContext(), "entry", Adapter);
+  llvm::IRBuilder<> Builder{Entry};
+  llvm::Value *X = &*Adapter->arg_begin();
+  llvm::FunctionType *UnaryType = llvm::FunctionType::get(FloatType, {FloatType}, false);
+  llvm::FunctionCallee Sin = M.getOrInsertFunction("__acpp_sscp_sin_" + Suffix, UnaryType);
+  llvm::FunctionCallee Cos = M.getOrInsertFunction("__acpp_sscp_cos_" + Suffix, UnaryType);
+
+  llvm::Value *Result = llvm::UndefValue::get(ResultType);
+  Result = Builder.CreateInsertValue(Result, Builder.CreateCall(Sin, {X}), 0);
+  Result = Builder.CreateInsertValue(Result, Builder.CreateCall(Cos, {X}), 1);
+  Builder.CreateRet(Result);
+  return Adapter;
+}
+
 llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
                                                     llvm::ModuleAnalysisManager &MAM) {
 
@@ -139,17 +233,34 @@ llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
     Replacements["llvm." + builtin_name + ".f64"] = "__acpp_sscp_" + builtin_name + "_f64";
   }
 
+  // libc sincos uses output pointers, while the LLVM intrinsic returns an
+  // aggregate. AdaptiveCpp has no SSCP sincos ABI, so adapt both forms to the
+  // supported scalar sine and cosine builtins.
+  Replacements["sincosf"] = "__acpp_libc_sincos_adapter_f32";
+  Replacements["sincos"] = "__acpp_libc_sincos_adapter_f64";
+  Replacements["llvm.sincos.f32"] = "__acpp_llvm_sincos_adapter_f32";
+  Replacements["llvm.sincos.f64"] = "__acpp_llvm_sincos_adapter_f64";
+
   for(const auto& B: Replacements) {
     // Find function to replace
     if(llvm::Function* F = M.getFunction(B.first)) {
-      // See if we have replacement declaration
-      llvm::Function* Replacement = M.getFunction(B.second);
-      // If not, create declaration
-      if(!Replacement) {
-        Replacement = llvm::Function::Create(F->getFunctionType(), F->getLinkage(), B.second, M);
-        Replacement->setLinkage(llvm::GlobalValue::ExternalLinkage);
+      llvm::Function* Replacement = nullptr;
+      if(B.first == "sincos" || B.first == "sincosf") {
+        const std::string Suffix = B.first == "sincosf" ? "f32" : "f64";
+        Replacement = createLibcSincosAdapter(M, *F, B.second, Suffix);
+      } else if(B.first == "llvm.sincos.f32" || B.first == "llvm.sincos.f64") {
+        const std::string Suffix = B.first == "llvm.sincos.f32" ? "f32" : "f64";
+        Replacement = createLlvmSincosAdapter(M, *F, B.second, Suffix);
+      } else {
+        // See if we have replacement declaration
+        Replacement = M.getFunction(B.second);
+        // If not, create declaration
+        if(!Replacement) {
+          Replacement = llvm::Function::Create(F->getFunctionType(), F->getLinkage(), B.second, M);
+          Replacement->setLinkage(llvm::GlobalValue::ExternalLinkage);
+        }
       }
-      if(F->getFunctionType() == Replacement->getFunctionType()) {
+      if(Replacement && F->getFunctionType() == Replacement->getFunctionType()) {
         HIPSYCL_DEBUG_INFO << "StdBuiltinRemapper: Remapping calls from " << B.first << " to "
                            << B.second << "\n";
         F->replaceAllUsesWith(Replacement);
@@ -161,4 +272,3 @@ llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
 }
 }
 }
-

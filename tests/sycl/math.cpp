@@ -1266,6 +1266,36 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_sincos, T, math_test_genfloats) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(math_sincos_fp64_precision) {
+  namespace s = sycl;
+  s::queue queue;
+  SKIP_IF_NO_FP64(queue, double);
+  s::buffer<double> float_in{{1}};
+  s::buffer<double> out{{2}};
+  {
+    auto inp = float_in.get_host_access();
+    // A float conversion changes the expected results by at least 2e-6.
+    inp[0] = 123456.789012345;
+  }
+  queue.submit([&](s::handler& cgh) {
+    auto in = float_in.template get_access<s::access::mode::read>(cgh);
+    auto o = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class math_sincos_fp64_precision, 0, double>>(
+        [=]() {
+          double cosine;
+          o[0] = s::sincos(in[0], &cosine);
+          o[1] = cosine;
+        });
+  });
+  {
+    auto inp = float_in.get_host_access();
+    auto o = out.get_host_access();
+    auto tolerance = boost::test_tools::tolerance(1.e-10);
+    BOOST_TEST(o[0] == std::sin(inp[0]), tolerance);
+    BOOST_TEST(o[1] == std::cos(inp[0]), tolerance);
+  }
+}
+
 BOOST_TEST_DECORATOR(*boost::unit_test::tolerance(0.0001))
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_fract, T, math_test_genfloats) {
   constexpr int D = vector_length_v<T>;

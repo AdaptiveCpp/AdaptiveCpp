@@ -153,10 +153,11 @@ jobs:
               -DLLVM_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/llvm
         ninja -j2
 
+    # See https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2163 for disabled test
     - name: run SYCL tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="vk" ./sycl_tests
+        ACPP_VISIBILITY_MASK="vk" ./sycl_tests -t \!buffer_tests/buffer_shared_ptr
 
     - name: run lit SSCP tests
       run: |

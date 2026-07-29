@@ -88,8 +88,14 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
   F.setName(FName + "_original");
 
   auto WrapperT = llvm::FunctionType::get(Bld.getVoidTy(), ArgTypes, false);
+
+  // Obtain only function attributes, not param attributes, since
+  // params of the new function are different.
+  llvm::AttributeList FnAttrs = llvm::AttributeList::get(
+      F.getContext(), llvm::AttributeList::FunctionIndex, F.getAttributes().getFnAttrs());
+
   auto Wrapper = llvm::cast<llvm::Function>(
-      M->getOrInsertFunction(FName, WrapperT, F.getAttributes()).getCallee());
+      M->getOrInsertFunction(FName, WrapperT, FnAttrs).getCallee());
   Wrapper->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
 #ifdef _WIN32
   Wrapper->setDLLStorageClass(llvm::GlobalValue::DLLStorageClassTypes::DLLExportStorageClass);

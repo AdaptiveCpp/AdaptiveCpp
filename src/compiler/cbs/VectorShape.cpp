@@ -28,8 +28,8 @@ align_t getAlignment(const Constant *c) {
   if (isa<BasicBlock>(c) || isa<Function>(c))
     return 1;
 
-  // An undef value is never aligned.
-  if (isa<UndefValue>(c))
+  // A poison or undef value is never aligned.
+  if (isa<UndefValue>(c) || isa<PoisonValue>(c))
     return 1;
 
   if (const ConstantInt *cint = dyn_cast<ConstantInt>(c)) {
@@ -57,6 +57,11 @@ align_t getAlignment(const Constant *c) {
   const ConstantVector *cv = cast<ConstantVector>(c);
 
   if (!cv->getType()->getElementType()->isIntegerTy())
+    return 1;
+
+  // The first element may be poison or undef, in which case alignment is undefined.
+  const auto *firstOperand = cv->getOperand(0);
+  if (isa<PoisonValue>(firstOperand) || isa<UndefValue>(firstOperand))
     return 1;
 
   assert(isa<ConstantInt>(cv->getOperand(0)));

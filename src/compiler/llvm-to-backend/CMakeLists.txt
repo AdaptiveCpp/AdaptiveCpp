@@ -287,9 +287,9 @@ if(WITH_SSCP_COMPILER)
         set(HOST_OPT_CPU_FLAG --mcpu=native)
       else()
        if(CMAKE_SYSTEM_NAME STREQUAL "Android")
-        # Can't run the cross compiled executables to check this works so assume it
-        set(HOST_LLC_CPU_FLAG "-mcpu=${CMAKE_ANDROID_ARCH_ABI}")
-        set(HOST_OPT_CPU_FLAG "--mcpu=${CMAKE_ANDROID_ARCH_ABI}")
+        # We don't know the exact CPU arch, so generic ensure correct ASM is generated
+        set(HOST_LLC_CPU_FLAG "-mcpu=generic")
+        set(HOST_OPT_CPU_FLAG "--mcpu=generic")
        else()
         set(HOST_LLC_CPU_FLAG "")
         set(HOST_OPT_CPU_FLAG "")

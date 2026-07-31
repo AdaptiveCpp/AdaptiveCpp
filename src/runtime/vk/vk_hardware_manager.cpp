@@ -468,22 +468,23 @@ vk_hardware_manager::vk_hardware_manager()
   }
   enabled_extensions.push_back(required_ext);
 
-  auto optional_ext = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
-  bool optional_ext_supported = std::any_of(
-      std::begin(ext_properties), std::end(ext_properties),
-      [optional_ext](auto const &ext_property) {
-        return strcmp(ext_property.extensionName, optional_ext) == 0;
-      });
-  if (optional_ext_supported) {
-    HIPSYCL_DEBUG_INFO << "vk_hardware_manager: enabling extension "
-                       << optional_ext << std::endl;
-    enabled_extensions.push_back(optional_ext);
-  }
-
   // To layer ontop of moltenVK we need to opt-in to the Vulkan loader showing
   // non-conformant Vulkan implementations
-  const vk::InstanceCreateFlags flags =
-      vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+  auto portability_ext = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+  bool portability_ext_supported = std::any_of(
+      std::begin(ext_properties), std::end(ext_properties),
+      [portability_ext](auto const &ext_property) {
+        return strcmp(ext_property.extensionName, portability_ext) == 0;
+      });
+
+  vk::InstanceCreateFlags flags{};
+  if (portability_ext_supported) {
+    HIPSYCL_DEBUG_INFO << "vk_hardware_manager: enabling extension "
+                       << portability_ext << std::endl;
+    enabled_extensions.push_back(portability_ext);
+    flags |= vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+  }
+
   vk::InstanceCreateInfo create_info{
       flags,
       &app_info,                                        // pApplicationInfo

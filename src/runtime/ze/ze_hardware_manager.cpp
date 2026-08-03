@@ -162,6 +162,8 @@ ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
                                          ze_context_handle_t ctx)
     : _driver{driver}, _device{device}, _ctx{ctx} {
 
+  _props.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+  _props.pNext = nullptr;
   ze_result_t err = zeDeviceGetProperties(_device, &_props);
 
   if(err != ZE_RESULT_SUCCESS) {
@@ -170,6 +172,8 @@ ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
                              error_code{"ze", static_cast<int>(err)}});
   }
 
+  _compute_props.stype = ZE_STRUCTURE_TYPE_DEVICE_COMPUTE_PROPERTIES;
+  _compute_props.pNext = nullptr;
   err = zeDeviceGetComputeProperties(_device, &_compute_props);
 
   if(err != ZE_RESULT_SUCCESS) {
@@ -188,6 +192,10 @@ ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
   }
   if(num_memory_properties > 0) {
     _memory_props.resize(num_memory_properties);
+    for(auto &mp : _memory_props) {
+      mp.stype = ZE_STRUCTURE_TYPE_DEVICE_MEMORY_PROPERTIES;
+      mp.pNext = nullptr;
+    }
 
     err = zeDeviceGetMemoryProperties(_device, &num_memory_properties, _memory_props.data());
 
@@ -508,6 +516,8 @@ ze_hardware_context::get_property(device_uint_list_property prop) const {
 
 std::string ze_hardware_context::get_driver_version() const {
   ze_driver_properties_t props;
+  props.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
+  props.pNext = nullptr;
   ze_result_t err = zeDriverGetProperties(_driver, &props);
 
   if(err != ZE_RESULT_SUCCESS) {

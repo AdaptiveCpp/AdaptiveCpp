@@ -157,7 +157,7 @@ jobs:
     - name: run SYCL tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="vk" ./sycl_tests -t \!buffer_tests/buffer_shared_ptr
+        ACPP_VISIBILITY_MASK="vk" ./sycl_tests -t \!buffer_tests/*
 
     - name: run lit SSCP tests
       run: |

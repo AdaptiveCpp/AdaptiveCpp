@@ -185,6 +185,16 @@ HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(round)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(rsqrt)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sqrt)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sin)
+float __spirv_ocl_sincos(float, float*);
+double __spirv_ocl_sincos(double, double*);
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(float x, float* sinval,
+                                                 float* cosval) {
+  *sinval = __spirv_ocl_sincos(x, cosval);
+}
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f64(double x, double* sinval,
+                                                 double* cosval) {
+  *sinval = __spirv_ocl_sincos(x, cosval);
+}
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sinh)
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_sinpi_f32(float x) { return __acpp_sscp_sin_f32(x * PI); }

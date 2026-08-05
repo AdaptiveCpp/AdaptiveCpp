@@ -221,6 +221,18 @@ HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(round, __ocml_round)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(rsqrt, __ocml_rsqrt)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sqrt, __ocml_sqrt)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sin, __ocml_sin)
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(float x, float* sinval,
+                                                 float* cosval) {
+  float cosval_private;
+  *sinval = __ocml_sincos_f32(x, to_private(&cosval_private));
+  *cosval = cosval_private;
+}
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f64(double x, double* sinval,
+                                                 double* cosval) {
+  double cosval_private;
+  *sinval = __ocml_sincos_f64(x, to_private(&cosval_private));
+  *cosval = cosval_private;
+}
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sinh, __ocml_sinh)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sinpi, __ocml_sinpi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(tan, __ocml_tan)

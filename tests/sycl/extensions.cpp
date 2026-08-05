@@ -1440,6 +1440,36 @@ BOOST_AUTO_TEST_CASE(get_native_metal_event) {
   BOOST_CHECK(native_event.value != 0);
   event.wait();
 }
+
+BOOST_AUTO_TEST_CASE(make_metal_event) {
+  namespace s = sycl;
+
+  const s::property_list props{s::property::queue::in_order{}};
+  s::queue producer{props};
+  if (producer.get_device().get_backend() != s::backend::metal) {
+    BOOST_TEST_MESSAGE("Skipping make_metal_event: not a Metal device");
+    return;
+  }
+
+  s::queue consumer{producer.get_context(), producer.get_device(), props};
+  int *value = s::malloc_shared<int>(1, producer);
+  BOOST_REQUIRE(value != nullptr);
+  *value = 0;
+
+  s::event produced = producer.single_task([=]() { *value = 41; });
+  auto native_event = s::get_native<s::backend::metal>(produced);
+  s::event imported = s::make_event<s::backend::metal>(
+      native_event, producer.get_context());
+
+  s::event consumed = consumer.submit([&](s::handler &cgh) {
+    cgh.depends_on(imported);
+    cgh.single_task([=]() { *value += 1; });
+  });
+  consumed.wait();
+
+  BOOST_CHECK_EQUAL(*value, 42);
+  s::free(value, producer);
+}
 #endif
 #ifdef SYCL_KHR_DEFAULT_CONTEXT
 BOOST_AUTO_TEST_CASE(khr_default_context) {

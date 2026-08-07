@@ -142,17 +142,15 @@ ze_context_handle_t ze_event_pool_manager::get_ze_context() const {
 
 std::shared_ptr<ze_event_pool_handle_t>
 ze_event_pool_manager::allocate_event(uint32_t& event_ordinal) {
-  if(_num_used_events+1 >= _pool_size) {
+  if(_num_used_events >= _pool_size) {
     // If pool is full, spawn a new pool
     spawn_pool();
-    event_ordinal = 0;
-
-  } else {
-    uint32_t ordinal = _num_used_events;
-    ++_num_used_events;
-
-    event_ordinal = ordinal;
   }
+  const uint32_t ordinal = _num_used_events;
+  ++_num_used_events;
+
+  event_ordinal = ordinal;
+
   return _pool;
 }
 

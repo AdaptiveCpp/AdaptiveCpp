@@ -21,7 +21,7 @@ void test_c_array(sycl::queue& q) {
   }).wait();
 
   std::vector<int> result(1024);
-  q.memcpy(result.data(), data, result.size()).wait();
+  q.memcpy(result.data(), data, result.size() * sizeof(int)).wait();
   for(int i = 0; i < 8; ++i) {
     // CHECK: 10
     // CHECK: 21

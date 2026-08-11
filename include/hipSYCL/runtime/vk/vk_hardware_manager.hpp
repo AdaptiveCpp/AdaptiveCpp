@@ -35,6 +35,8 @@ enum feature_bits {
   groupNonUniformShuffle = 1 << 9,
   groupNonUniformVote = 1 << 10,
   shaderFloat64 = 1 << 11,
+  uniformAndStorageBuffer16BitAccess = 1 << 12,
+  uniformAndStorageBuffer8BitAccess = 1 << 13
 };
 }; // namespace vk_device_features
 
@@ -91,6 +93,9 @@ public:
   }
   uint32_t get_max_uniform_buffer_range() const {
     return _limits.maxUniformBufferRange;
+  }
+  uint32_t get_min_uniform_buffer_offset_alignment() const {
+    return _limits.minUniformBufferOffsetAlignment;
   }
   uint32_t get_subgroup_size() const { return _subgroup_size; }
   uint16_t get_phys_dev_features() const { return _physical_dev_features; }

@@ -47,6 +47,7 @@ private:
   unsigned DynamicLocalMemSize = 0;
   std::string MaxPushConstantSize;
   std::string MaxUniformBufferRange;
+  std::string DeviceName;
 };
 
 } // namespace compiler

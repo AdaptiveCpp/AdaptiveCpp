@@ -20,7 +20,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable from commit `88d8ff71000bf995493c8daaed865ec1ac216309`.
+* A `clspv` executable from commit `3d017c6d751cdabed1a5051b20c6bf5f71e8fd32`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -82,6 +82,10 @@ the features used in the kernel:
   instructions to be used in the implementation of SYCL sub-group builtins.
 * `VK_SUBGROUP_FEATURE_SHUFFLE_BIT` - Allows SPIR-V `CapabilityGroupNonUniformShuffle`
   instructions to be used in the implementation of SYCL sub-group builtins.
+* `uniformAndStorageBuffer8BitAccess` - Allows 8-bit arguments to be passed to
+  SPIR-V kernels via uniform buffers.
+* `uniformAndStorageBuffer16BitAccess` - Allows 16-bit arguments to be passed to
+  SPIR-V kernels via uniform buffers.
 
 ## Building
 
@@ -310,11 +314,22 @@ each work-group size variant of a kernel. At adaptivity level 0, a specializatio
 constant is used to set the work-group size on the same `vk_executable_object` object for each
 work-group size variant.
 
-For small numbers of kernel arguments, no buffer descriptors may be required and all
-arguments can be set pushing push constants before the invocation of the Vulkan
-command-buffer containing the kernel. For larger numbers of kernel arguments or struct
-arguments that are decomposed, a single uniform buffer is used with binding 0,
-and each argument is an offset into that uniform buffer.
+#### Kernel Arguments
+
+There are two different mechanisms used for passing arguments to the SPIR-V kernel.
+The preferred was is push constants, which are copied into the command buffer executing
+the kernel and suitable for small numbers of kernel arguments.
+
+For larger numbers of kernel arguments or struct arguments that are decomposed, uniform buffers
+are used. This may be multiple uniform buffers but most likely a single uniform buffer where
+each argument is an offset into that uniform buffer.
+
+In order to use uniform buffers, it's not just the buffers & memory that need to be created
+to hold the arguments for a kernel invocation, it's also the descriptor set which
+defines the binding of buffers to the compute pipeline. In order for multiple invocations
+of the same kernel with different arguments to behave correctly a `vk_kernel_uniform_descriptors`
+class is defined by the backend for containing all information, and a pool of objects
+is created which can be reused as the invocations associated with them complete execution.
 
 #### Queue
 

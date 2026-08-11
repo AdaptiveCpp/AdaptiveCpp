@@ -65,6 +65,11 @@ vk_hardware_context::vk_hardware_context(
       (_physical_dev_features & vk_device_features::storagePushConstant8)
           ? VK_TRUE
           : VK_FALSE;
+  phys_dev_12_features.uniformAndStorageBuffer8BitAccess =
+      (_physical_dev_features &
+       vk_device_features::uniformAndStorageBuffer8BitAccess)
+          ? VK_TRUE
+          : VK_FALSE;
 
   vk::PhysicalDeviceVulkan11Features phys_dev_11_features{};
   phys_dev_11_features.variablePointers =
@@ -78,6 +83,11 @@ vk_hardware_context::vk_hardware_context(
           : VK_FALSE;
   phys_dev_11_features.storagePushConstant16 =
       (_physical_dev_features & vk_device_features::storagePushConstant16)
+          ? VK_TRUE
+          : VK_FALSE;
+  phys_dev_11_features.uniformAndStorageBuffer16BitAccess =
+      (_physical_dev_features &
+       vk_device_features::uniformAndStorageBuffer16BitAccess)
           ? VK_TRUE
           : VK_FALSE;
 
@@ -659,6 +669,9 @@ vk_hardware_manager::vk_hardware_manager()
     if (features_12.shaderInt8) {
       backend_features |= vk_device_features::shaderInt8;
     }
+    if (features_12.uniformAndStorageBuffer8BitAccess) {
+      backend_features |= vk_device_features::uniformAndStorageBuffer8BitAccess;
+    }
 
     vk::PhysicalDeviceFeatures const &features =
         supported_features.get<vk::PhysicalDeviceFeatures2>().features;
@@ -684,6 +697,11 @@ vk_hardware_manager::vk_hardware_manager()
 
     if (features_11.storagePushConstant16) {
       backend_features |= vk_device_features::storagePushConstant16;
+    }
+
+    if (features_11.uniformAndStorageBuffer16BitAccess) {
+      backend_features |=
+          vk_device_features::uniformAndStorageBuffer16BitAccess;
     }
 
     auto device_name = phys_dev.getProperties().deviceName;

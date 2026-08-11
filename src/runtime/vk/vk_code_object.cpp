@@ -36,13 +36,13 @@ result vk_sscp_code_object_invoker::submit_kernel(
 }
 
 vk_kernel_object::vk_kernel_object()
-    : _exe_obj(nullptr), _name(), _uniform_arg_size(0),
-      _desc_set_layout(nullptr), _desc_pool(nullptr) {}
+    : _exe_obj(nullptr), _name(), _desc_set_layout(nullptr),
+      _desc_pool(nullptr) {}
 
 vk_kernel_object::vk_kernel_object(std::string name,
                                    vk_executable_object *exe_obj)
-    : _exe_obj(exe_obj), _name(name), _uniform_arg_size(0),
-      _desc_set_layout(nullptr), _desc_pool(nullptr) {}
+    : _exe_obj(exe_obj), _name(name), _desc_set_layout(nullptr),
+      _desc_pool(nullptr) {}
 
 void vk_kernel_object::add_spv_arg(spv_kernel_argument arg) {
   _args.push_back(arg);
@@ -66,8 +66,30 @@ const std::vector<spv_kernel_argument> &vk_kernel_object::get_spv_args() const {
 }
 
 void vk_kernel_object::create_descriptor_pool() {
-  // All uniform args are condensed into a single buffer
-  constexpr unsigned num_uniform_args = 1;
+  // Find all the uniform buffer arguments which need descriptors
+  for (const auto &spv_arg : _args) {
+    if (spv_arg.is_uniform()) {
+      auto binding = spv_arg._binding;
+      bool found = false;
+      for (auto &arg : _uniform_args) {
+        if (arg.binding == binding) {
+          arg.size += spv_arg._size;
+          found = true;
+        }
+      }
+
+      if (!found) {
+        _uniform_args.push_back({binding, spv_arg._size});
+      }
+    }
+  }
+
+  // If there are no uniform buffer arguments then all arguments can be passed
+  // in push constants and we don't need descriptor pool or sets.
+  const unsigned num_uniform_args = _uniform_args.size();
+  if (num_uniform_args == 0) {
+    return;
+  }
   std::vector<vk::DescriptorPoolSize> pool_sizes = {vk::DescriptorPoolSize(
       vk::DescriptorType::eUniformBuffer, num_uniform_args * MAX_INSTANCES)};
 
@@ -81,32 +103,19 @@ void vk_kernel_object::create_descriptor_pool() {
   _desc_pool = vk::raii::DescriptorPool(device, pool_info);
 }
 
-void vk_kernel_object::create_descriptor_sets() {
-  for (const auto &spv_arg : _args) {
-    if (spv_arg.is_uniform()) {
-      auto binding = spv_arg._binding;
-      assert(binding == 0 && "only one binding currently supported");
-      if (binding == 0) {
-        _uniform_arg_size += spv_arg._size;
-      } else {
-        print_error(
-            __acpp_here(),
-            error_info{"Non zero uniform buffer binding is not supported"});
-      }
-    }
-  }
+void vk_kernel_object::create_descriptor_layout() {
+  std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;
+  for (const auto &arg : _uniform_args) {
+    vk::DescriptorSetLayoutBinding binding(
+        arg.binding, vk::DescriptorType::eUniformBuffer, 1,
+        vk::ShaderStageFlagBits::eCompute, nullptr);
 
-  std::vector<vk::DescriptorSetLayoutBinding> layout_bindings{
-      vk::DescriptorSetLayoutBinding(
-          0 /* binding */, vk::DescriptorType::eUniformBuffer, 1,
-          vk::ShaderStageFlagBits::eCompute, nullptr)};
+    layout_bindings.push_back(binding);
+  }
 
   auto &device = _exe_obj->get_device();
   vk::DescriptorSetLayoutCreateInfo layout_info({}, layout_bindings);
   _desc_set_layout = vk::raii::DescriptorSetLayout(device, layout_info);
-
-  vk::DescriptorSetAllocateInfo alloc_info(_desc_pool, *_desc_set_layout);
-  _desc_sets = device.allocateDescriptorSets(alloc_info);
 }
 
 bool spv_kernel_argument::is_push_constant() const {
@@ -164,6 +173,86 @@ size_t vk_kernel_object::get_push_constants_size() const {
   return max_size;
 }
 
+vk_kernel_uniform_descriptors &vk_kernel_object::create_kernel_descriptors() {
+  for (auto &desc : _uniform_descriptors) {
+    if (desc.is_available(false)) {
+      desc.init(this);
+      return desc;
+    }
+  }
+
+  // If no descriptors are currently free resort to a blocking wait until the
+  // first kernel using them completes
+  _uniform_descriptors[0].is_available(true);
+  return _uniform_descriptors[0];
+}
+
+void vk_kernel_uniform_descriptors::init(vk_kernel_object *kern_obj) {
+  if (_kern_obj != nullptr) {
+    return; // Already initialized
+  }
+  _kern_obj = kern_obj;
+  create_descriptor_set();
+  create_uniform_backing_buffers();
+}
+
+void vk_kernel_uniform_descriptors::create_descriptor_set() {
+  auto pool = _kern_obj->get_descriptor_pool();
+  if (pool == nullptr) {
+    // The kernel may not use buffer descriptors
+    return;
+  }
+
+  std::array<vk::DescriptorSetLayout, 1> layouts{
+      _kern_obj->get_descriptor_set_layout()};
+  vk::DescriptorSetAllocateInfo alloc_info(pool, layouts);
+  _desc_set = std::move(_kern_obj->get_exe_obj()
+                            ->get_hw_ctx()
+                            ->get_device()
+                            .allocateDescriptorSets(alloc_info)
+                            .front());
+}
+
+void vk_kernel_uniform_descriptors::create_uniform_backing_buffers() {
+  std::vector<vk::DeviceSize> sizes;
+  for (const auto &arg : _kern_obj->get_uniform_args()) {
+    sizes.push_back(arg.size);
+  }
+
+  if (sizes.empty()) {
+    // The kernel may not use buffer descriptors
+    return;
+  }
+
+  vk_allocator *allocator =
+      _kern_obj->get_exe_obj()->get_hw_ctx()->get_allocator();
+  auto [uniform_buffers, offsets, dev_mem] =
+      allocator->create_uniform_buffers(sizes);
+  _uniform_buffers = std::move(uniform_buffers);
+  _offsets = std::move(offsets);
+  _dev_mem = std::move(dev_mem);
+}
+
+bool vk_kernel_uniform_descriptors::is_available(bool stall) {
+  if (_completion_val == 0 || _semaphore == nullptr) {
+    return true; // No prior in-flight kernel using this descriptor set
+  }
+
+  // Kernel may not have any uniform buffer descriptors, in which case this
+  // object is always available to be reused
+  if (_dev_mem == nullptr) {
+    return true;
+  }
+
+  // Query semaphore to see if previous execution has completed. Do a blocking
+  // wait here if requested
+  vk::SemaphoreWaitInfo wait_info({}, 1, &_semaphore, &_completion_val);
+  vk::Result wait_ret_code =
+      _kern_obj->get_exe_obj()->get_hw_ctx()->get_device().waitSemaphores(
+          wait_info, stall ? UINT64_MAX : 0);
+  return wait_ret_code == vk::Result::eSuccess;
+}
+
 vk_kernel_pipeline_sp
 vk_kernel_object::create_pipeline(const rt::range<3> &group_size) {
   auto it = _pipelines.find(group_size);
@@ -190,22 +279,6 @@ vk_kernel_pipeline::vk_kernel_pipeline(vk_kernel_object *kern_obj,
                 error_info{"reqd wg size doesn't match enqueued kernel size"});
   }
 
-  create_uniform_backing_buffers();
-  create_compute_pipeline();
-}
-
-void vk_kernel_pipeline::create_uniform_backing_buffers() {
-  if (unsigned bytes = _kern_obj->get_uniform_arg_size(); bytes > 0) {
-    vk_allocator *allocator =
-        _kern_obj->get_exe_obj()->get_hw_ctx()->get_allocator();
-    auto [uniform_buffer_raii, uniform_mem_raii] = allocator->create_buffer(
-        bytes, vk::BufferUsageFlagBits::eUniformBuffer);
-    _uniform_buffer_raii = std::move(uniform_buffer_raii);
-    _uniform_mem_raii = std::move(uniform_mem_raii);
-  }
-}
-
-void vk_kernel_pipeline::create_compute_pipeline() {
   auto &device = _kern_obj->get_exe_obj()->get_device();
   auto desc_set_layout = _kern_obj->get_descriptor_set_layout();
 
@@ -276,6 +349,7 @@ void vk_kernel_pipeline::create_compute_pipeline() {
 }
 
 void vk_kernel_pipeline::set_args(vk::CommandBuffer &cmd_buf,
+                                  vk_kernel_uniform_descriptors &kernel_desc,
                                   glue::jit::cxx_argument_mapper &arg_mapper) {
   void **kernel_args = arg_mapper.get_mapped_args();
 
@@ -288,25 +362,25 @@ void vk_kernel_pipeline::set_args(vk::CommandBuffer &cmd_buf,
       void *dest = push_constants.data() + spv_arg._offset;
       std::memcpy(dest, kernel_arg, spv_arg._size);
     } else if (spv_arg.is_uniform()) {
-      void *vptr = _uniform_mem_raii.mapMemory(spv_arg._offset, spv_arg._size);
+      void *vptr = kernel_desc.map_memory(spv_arg._binding, spv_arg._offset,
+                                          spv_arg._size);
       std::memcpy(vptr, kernel_arg, spv_arg._size);
-      _uniform_mem_raii.unmapMemory();
+      kernel_desc.unmap_memory();
     } else {
       assert(false && "handle unknown arg");
     }
   }
 
-  if (_kern_obj->get_uniform_arg_size() > 0) {
+  for (size_t i = 0; i < _kern_obj->get_uniform_args().size(); i++) {
     std::vector<vk::WriteDescriptorSet> descriptor_writes;
-    vk::DescriptorBufferInfo buffer_info(_uniform_buffer_raii, 0,
+    const auto arg = _kern_obj->get_uniform_args()[i];
+    vk::DescriptorBufferInfo buffer_info(kernel_desc.get_uniform_buffer(i), 0,
                                          VK_WHOLE_SIZE);
 
-    constexpr unsigned binding = 0;
     vk::WriteDescriptorSet write_desc_set(
-        _kern_obj->get_descriptor_set(), binding, 0,
+        kernel_desc.get_descriptor_set(), arg.binding, 0,
         vk::DescriptorType::eUniformBuffer, {}, buffer_info);
     descriptor_writes.push_back(write_desc_set);
-
     auto &device = _kern_obj->get_exe_obj()->get_device();
     device.updateDescriptorSets(descriptor_writes, {});
   }
@@ -318,11 +392,15 @@ void vk_kernel_pipeline::set_args(vk::CommandBuffer &cmd_buf,
   }
 }
 
-void vk_kernel_pipeline::bind(vk::CommandBuffer &cmd_buf) {
+void vk_kernel_pipeline::bind(vk::CommandBuffer &cmd_buf,
+                              vk_kernel_uniform_descriptors &kernel_desc) {
   cmd_buf.bindPipeline(vk::PipelineBindPoint::eCompute, _compute_pipeline);
-  cmd_buf.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
-                             _compute_pipeline_layout, 0,
-                             {_kern_obj->get_descriptor_set()}, {});
+
+  if (auto descriptor_set = kernel_desc.get_descriptor_set()) {
+    cmd_buf.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                               _compute_pipeline_layout, 0, {descriptor_set},
+                               {});
+  }
 }
 
 static spv_arg_kind get_spv_arg_kind(uint32_t inst) {
@@ -516,6 +594,16 @@ static void verify_spv_capabilities(const uint16_t phys_dev_features,
       check_support(vk_device_features::storagePushConstant16,
                     "SPIR-V Capability PushConstant16 not supported by device");
       break;
+    case spv::CapabilityUniformAndStorageBuffer8BitAccess:
+      check_support(vk_device_features::storagePushConstant8,
+                    "SPIR-V Capability UniformAndStorageBuffer8 not supported "
+                    "by device");
+      break;
+    case spv::CapabilityUniformAndStorageBuffer16BitAccess:
+      check_support(vk_device_features::storagePushConstant16,
+                    "SPIR-V Capability UniformAndStorageBuffer16 not supported "
+                    "by device");
+      break;
     case spv::CapabilityVariablePointers:
       check_support(
           vk_device_features::variablePointers,
@@ -603,7 +691,7 @@ vk_executable_object::vk_executable_object(vk_hardware_context *hw_ctx,
 
   for (auto &kern : _kernel_handles) {
     kern.second.create_descriptor_pool();
-    kern.second.create_descriptor_sets();
+    kern.second.create_descriptor_layout();
   }
 
   _build_status = make_success();

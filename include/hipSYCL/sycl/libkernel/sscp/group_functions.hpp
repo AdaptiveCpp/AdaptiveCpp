@@ -53,6 +53,19 @@ Tout maybe_bit_cast(Tin x) {
   }
 }
 
+template <class T, int NumWords>
+HIPSYCL_FORCE_INLINE
+T assemble_from_words(const __acpp_int64 (&words)[NumWords]) {
+  static_assert(NumWords * sizeof(__acpp_int64) >= sizeof(T),
+                "Insufficient number of words");
+  struct alignas(T) storage_type {
+    unsigned char bytes[sizeof(T)];
+  };
+  storage_type storage;
+  __builtin_memcpy(&storage, words, sizeof(T));
+  return __builtin_bit_cast(T, storage);
+}
+
 // barrier
 template <int Dim>
 HIPSYCL_BUILTIN void
@@ -115,15 +128,13 @@ template <class Group, typename T,
 HIPSYCL_BUILTIN
 T __acpp_shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
   constexpr int words_no = (sizeof(T) + sizeof(__acpp_int64) - 1) / sizeof(__acpp_int64);
-  __acpp_int64 words[words_no];
+  __acpp_int64 words[words_no] = {};
   __builtin_memcpy(words, &x, sizeof(T));
   for(int i = 0; i < words_no; ++i) {
     words[i] = __acpp_shift_group_left(g, words[i], delta);
     __acpp_group_barrier(g);
   }
-  T result;
-  __builtin_memcpy(&result, words, sizeof(T));
-  return result;
+  return assemble_from_words<T>(words);
 }
 
 template <class Group, typename T, int N,
@@ -202,9 +213,7 @@ T __acpp_shift_group_right(Group g, T x, typename Group::linear_id_type delta = 
     words[i] = __acpp_shift_group_right(g, words[i], delta);
     __acpp_group_barrier(g);
   }
-  T result;
-  __builtin_memcpy(&result, words, sizeof(T));
-  return result;
+  return assemble_from_words<T>(words);
 }
 
 template <class Group, typename T, int N,
@@ -303,9 +312,7 @@ T __acpp_group_broadcast(Group g, T x,
   for(int i = 0; i < words_no; ++i) {
     words[i] = __acpp_group_broadcast(g, words[i], local_linear_id);
   }
-  T result;
-  __builtin_memcpy(&result, words, sizeof(T));
-  return result;
+  return assemble_from_words<T>(words);
 }
 
 template<typename T, int N, class Group,

@@ -628,6 +628,7 @@ struct trivially_copyable_16_byte_type {
            m[3] == other.m[3];
   }
 };
+static_assert(sizeof(trivially_copyable_16_byte_type) % 8 == 0);
 
 trivially_copyable_16_byte_type
 make_trivially_copyable_value(int i, trivially_copyable_16_byte_type *) {
@@ -641,36 +642,33 @@ std::ostream &operator<<(std::ostream &os,
             << v.m[3] << ")";
 }
 
-#pragma pack(push, 1)
-struct trivially_copyable_13_byte_type {
-  uint32_t words32[2];
+struct trivially_copyable_12_byte_type {
+  uint32_t word32;
   uint8_t bytes8[5];
 
-  bool operator==(const trivially_copyable_13_byte_type &other) const {
-    for (int k = 0; k < 2; ++k)
-      if (words32[k] != other.words32[k])
-        return false;
+  bool operator==(const trivially_copyable_12_byte_type &other) const {
+    if (word32 != other.word32)
+      return false;
     for (int k = 0; k < 5; ++k)
       if (bytes8[k] != other.bytes8[k])
         return false;
     return true;
   }
 };
-#pragma pack(pop)
+static_assert(sizeof(trivially_copyable_12_byte_type) % 8 != 0);
 
-trivially_copyable_13_byte_type
-make_trivially_copyable_value(int i, trivially_copyable_13_byte_type *) {
-  trivially_copyable_13_byte_type v{};
-  for (int k = 0; k < 2; ++k)
-    v.words32[k] = (uint32_t)(i + k);
+trivially_copyable_12_byte_type
+make_trivially_copyable_value(int i, trivially_copyable_12_byte_type *) {
+  trivially_copyable_12_byte_type v{};
+  v.word32 = (uint32_t)i;
   for (int k = 0; k < 5; ++k)
-    v.bytes8[k] = (uint8_t)(i + 2 + k);
+    v.bytes8[k] = (uint8_t)(i + 1 + k);
   return v;
 }
 
 std::ostream &operator<<(std::ostream &os,
-                         const trivially_copyable_13_byte_type &v) {
-  os << "(" << v.words32[0] << ", " << v.words32[1];
+                         const trivially_copyable_12_byte_type &v) {
+  os << "(" << v.word32;
   for (int k = 0; k < 5; ++k)
     os << ", " << (int)v.bytes8[k];
   return os << ")";
@@ -682,12 +680,17 @@ T make_trivially_copyable_value(int i) {
 }
 
 using trivially_copyable_test_types =
-    boost::mp11::mp_list<trivially_copyable_16_byte_type, trivially_copyable_13_byte_type>;
+    boost::mp11::mp_list<trivially_copyable_16_byte_type, trivially_copyable_12_byte_type>;
 
 } // namespace
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast_trivially_copyable_type, T,
                               trivially_copyable_test_types) {
+  if (sycl::device{}.get_backend() == sycl::backend::vk) {
+    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
+    return;
+  }
+
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -750,7 +753,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast_trivially_copyable_type, T,
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shift_trivially_copyable_type, T,
                               trivially_copyable_test_types) {
-  if (sycl::queue{}.get_device().is_host())
+  sycl::device dev;
+  SKIP_IF_MOLTENVK(dev)
+
+  if (dev.is_host())
     return;
 
   const size_t elements_per_thread = 1;

@@ -2,6 +2,15 @@ if(POLICY CMP0116)
   cmake_policy(SET CMP0116 NEW)  # Normalize paths in depfile
 endif()
 
+# SSCP libkernel bitcode is generated while building AdaptiveCpp. Keep these
+# tools independently configurable so cross builds can use executables from the
+# build host while CLANG_EXECUTABLE_PATH and LLVM_TOOLS_BINARY_DIR continue to
+# describe the target LLVM installation used by the installed runtime.
+set(ACPP_BITCODE_CLANG "${CLANG_EXECUTABLE_PATH}" CACHE FILEPATH
+    "Build-host clang++ used to generate SSCP libkernel bitcode")
+set(ACPP_BITCODE_LLVM_LINK "${LLVM_TOOLS_BINARY_DIR}/llvm-link" CACHE FILEPATH
+    "Build-host llvm-link used to link SSCP libkernel bitcode")
+
 function(libkernel_generate_bitcode_library)
   set(options)
   set(one_value_keywords OUTPUT TRIPLE SOURCE)
@@ -47,7 +56,7 @@ function(libkernel_generate_bitcode_library)
 
   add_custom_command(
       OUTPUT ${target_output_file}
-      COMMAND ${CLANG_EXECUTABLE_PATH} ${target_flag} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
+      COMMAND ${ACPP_BITCODE_CLANG} ${target_flag} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
                     -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific}
                     -MMD -MT ${target_output_file} -MF ${target_output_file}.d
                     -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
@@ -95,7 +104,7 @@ function(libkernel_generate_bitcode_target)
   set(linked_output ${CMAKE_CURRENT_BINARY_DIR}/libkernel-sscp-${target}-full.bc)
   add_custom_command(
     OUTPUT ${linked_output}
-    COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-link -o=${linked_output} ${output_files}
+    COMMAND ${ACPP_BITCODE_LLVM_LINK} -o=${linked_output} ${output_files}
     DEPENDS ${output_files} ${target_depends}
   )
 

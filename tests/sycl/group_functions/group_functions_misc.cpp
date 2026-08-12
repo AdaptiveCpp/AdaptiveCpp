@@ -617,6 +617,176 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
   }
 }
 
+namespace {
+
+struct trivially_copyable_16_byte_type {
+  float m[4];
+
+  bool operator==(const trivially_copyable_16_byte_type &other) const {
+    return m[0] == other.m[0] && m[1] == other.m[1] && m[2] == other.m[2] &&
+           m[3] == other.m[3];
+  }
+};
+static_assert(std::is_trivially_copyable_v<trivially_copyable_16_byte_type>);
+static_assert(!std::is_fundamental_v<trivially_copyable_16_byte_type>);
+static_assert(sizeof(trivially_copyable_16_byte_type) > 8);
+
+trivially_copyable_16_byte_type make_trivially_copyable_16_byte_value(int i) {
+  return trivially_copyable_16_byte_type{
+      {(float)i, (float)i + 1, (float)i + 2, (float)i + 3}};
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const trivially_copyable_16_byte_type &v) {
+  return os << "(" << v.m[0] << ", " << v.m[1] << ", " << v.m[2] << ", "
+            << v.m[3] << ")";
+}
+} // namespace
+
+BOOST_AUTO_TEST_CASE(group_broadcast_trivially_copyable_type) {
+  using T = trivially_copyable_16_byte_type;
+
+  const size_t elements_per_thread = 1;
+  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
+                                 size_t global_size) {
+    for (size_t i = 0; i < v.size(); ++i)
+      v[i] = make_trivially_copyable_16_byte_value((int)i);
+  };
+
+  const auto tested_function = [](auto acc, size_t global_linear_id,
+                                  sycl::sub_group sg, auto g, T local_value) {
+    acc[global_linear_id] = sycl::group_broadcast(g, local_value);
+  };
+  const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                      size_t subgroup_size, size_t local_size,
+                                      size_t global_size) {
+    for (size_t i = 0; i < vIn.size(); ++i) {
+      T expected = make_trivially_copyable_16_byte_value((int)((i / local_size) * local_size));
+      BOOST_TEST(vIn[i] == expected,
+                 vIn[i] << " at position " << i << " instead of " << expected);
+    }
+  };
+
+  test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                         tested_function, validation_function);
+  test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                         tested_function, validation_function);
+}
+
+BOOST_AUTO_TEST_CASE(sub_group_broadcast_trivially_copyable_type) {
+  using T = trivially_copyable_16_byte_type;
+  if (sycl::queue{}.get_device().is_host())
+    return;
+
+  const size_t elements_per_thread = 1;
+  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
+                                 size_t global_size) {
+    for (size_t i = 0; i < v.size(); ++i)
+      v[i] = make_trivially_copyable_16_byte_value((int)i);
+  };
+
+  const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                  auto g, T local_value) {
+    acc[global_linear_id] = sycl::group_broadcast(sg, local_value);
+  };
+  const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                      size_t subgroup_size, size_t local_size,
+                                      size_t global_size) {
+    for (size_t i = 0; i < vIn.size(); ++i) {
+      size_t local_id       = i % local_size;
+      size_t subgroup_base  = (local_id / subgroup_size) * subgroup_size +
+                              (i / local_size) * local_size;
+      T expected = make_trivially_copyable_16_byte_value((int)subgroup_base);
+      BOOST_TEST(vIn[i] == expected,
+                 vIn[i] << " at position " << i << " instead of " << expected);
+    }
+  };
+
+  test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                         tested_function, validation_function);
+}
+
+BOOST_AUTO_TEST_CASE(subgroup_shift_trivially_copyable_type) {
+  using T = trivially_copyable_16_byte_type;
+  if (sycl::queue{}.get_device().is_host())
+    return;
+
+  const size_t elements_per_thread = 1;
+  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
+                                 size_t global_size) {
+    for (size_t i = 0; i < v.size(); ++i)
+      v[i] = make_trivially_copyable_16_byte_value((int)i);
+  };
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_left(sg, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
+            size_t global_index = i * local_size + local_index;
+
+            if (local_index >= local_size) // keep to work group size
+              break;
+            if (local_index == local_size - 1 ||
+                k == subgroup_size - 1) // not defined for last work item
+              continue;
+
+            T expected = make_trivially_copyable_16_byte_value((int)global_index + 1);
+            T computed = vIn[global_index];
+
+            BOOST_TEST(computed == expected,
+                       computed << " at position " << global_index << " instead of "
+                                << expected << " for case: sub_group, shift left");
+          }
+        }
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_right(sg, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
+            size_t global_index = i * local_size + local_index;
+
+            if (local_index >= local_size) // keep to work group size
+              break;
+            if (k == 0) // not defined for first work item
+              continue;
+
+            T expected = make_trivially_copyable_16_byte_value((int)global_index - 1);
+            T computed = vIn[global_index];
+
+            BOOST_TEST(computed == expected,
+                       computed << " at position " << global_index << " instead of "
+                                << expected << " for case: sub_group, shift right");
+          }
+        }
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

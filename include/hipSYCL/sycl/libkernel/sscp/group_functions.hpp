@@ -108,6 +108,24 @@ HIPSYCL_BUILTIN std::enable_if_t<(sizeof(T) <= 8), T> __acpp_shift_group_left(
   }
 }
 
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
+  constexpr int words_no = (sizeof(T) + sizeof(__acpp_int64) - 1) / sizeof(__acpp_int64);
+  __acpp_int64 words[words_no];
+  __builtin_memcpy(words, &x, sizeof(T));
+  for(int i = 0; i < words_no; ++i) {
+    words[i] = __acpp_shift_group_left(g, words[i], delta);
+    __acpp_group_barrier(g);
+  }
+  T result;
+  __builtin_memcpy(&result, words, sizeof(T));
+  return result;
+}
+
 template <class Group, typename T, int N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN
@@ -171,6 +189,23 @@ HIPSYCL_BUILTIN std::enable_if_t<(sizeof(T) <= 8), T> __acpp_shift_group_right(
   }
 }
 
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_shift_group_right(Group g, T x, typename Group::linear_id_type delta = 1) {
+  constexpr int words_no = (sizeof(T) + sizeof(__acpp_int64) - 1) / sizeof(__acpp_int64);
+  __acpp_int64 words[words_no];
+  __builtin_memcpy(words, &x, sizeof(T));
+  for(int i = 0; i < words_no; ++i) {
+    words[i] = __acpp_shift_group_right(g, words[i], delta);
+    __acpp_group_barrier(g);
+  }
+  T result;
+  __builtin_memcpy(&result, words, sizeof(T));
+  return result;
+}
 
 template <class Group, typename T, int N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
@@ -253,6 +288,24 @@ __acpp_group_broadcast(sub_group g, T x, typename sub_group::linear_id_type loca
         static_cast<__acpp_int32>(local_linear_id),
         maybe_bit_cast<__acpp_int64>(x)));
   }
+}
+
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_group_broadcast(Group g, T x,
+                          typename Group::linear_id_type local_linear_id = 0) {
+  constexpr int words_no = (sizeof(T) + sizeof(__acpp_int64) - 1) / sizeof(__acpp_int64);
+  __acpp_int64 words[words_no];
+  __builtin_memcpy(words, &x, sizeof(T));
+  for(int i = 0; i < words_no; ++i) {
+    words[i] = __acpp_group_broadcast(g, words[i], local_linear_id);
+  }
+  T result;
+  __builtin_memcpy(&result, words, sizeof(T));
+  return result;
 }
 
 template<typename T, int N, class Group,

@@ -836,6 +836,91 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shift_trivially_copyable_type, T,
   }
 }
 
+BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like_trivially_copyable_type, T,
+                              trivially_copyable_test_types) {
+  sycl::device dev;
+  SKIP_IF_MOLTENVK(dev)
+
+  if (dev.is_host())
+    return;
+
+  const size_t elements_per_thread = 1;
+  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
+                                 size_t global_size) {
+    for (size_t i = 0; i < v.size(); ++i)
+      v[i] = make_trivially_copyable_value<T>((int)i);
+  };
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::permute_group_by_xor(sg, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
+            size_t global_index = i * local_size + local_index;
+
+            if (local_index >= local_size) // keep to work group size
+              break;
+            if ((local_index ^ 1) >= local_size ||
+                (k ^ 1) >= subgroup_size) // only defined if target is in subgroup
+              continue;
+
+            T expected =
+                make_trivially_copyable_value<T>((int)(i * local_size + (local_index ^ 1)));
+            T computed = vIn[global_index];
+
+            BOOST_TEST(computed == expected,
+                       computed << " at position " << global_index << " instead of "
+                                << expected << " for case: sub_group, permute xor");
+          }
+        }
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::select_from_group(sg, local_value, sycl::id<1>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
+            size_t global_index = i * local_size + local_index;
+
+            if (local_index >= local_size) // keep to work group size
+              break;
+
+            T expected =
+                make_trivially_copyable_value<T>((int)(i * local_size + j * subgroup_size));
+            T computed = vIn[global_index];
+
+            BOOST_TEST(computed == expected,
+                       computed << " at position " << global_index << " instead of "
+                                << expected << " for case: sub_group, select");
+          }
+        }
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif

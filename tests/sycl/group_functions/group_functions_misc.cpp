@@ -709,6 +709,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast_trivially_copyable_type, T,
       T expected = make_trivially_copyable_value<T>((int)((i / local_size) * local_size));
       BOOST_TEST(vIn[i] == expected,
                  vIn[i] << " at position " << i << " instead of " << expected);
+
+      if (!(vIn[i] == expected))
+        break;
     }
   };
 
@@ -744,6 +747,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast_trivially_copyable_type, T,
       T expected = make_trivially_copyable_value<T>((int)subgroup_base);
       BOOST_TEST(vIn[i] == expected,
                  vIn[i] << " at position " << i << " instead of " << expected);
+
+      if (!(vIn[i] == expected))
+        break;
     }
   };
 
@@ -792,6 +798,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shift_trivially_copyable_type, T,
             BOOST_TEST(computed == expected,
                        computed << " at position " << global_index << " instead of "
                                 << expected << " for case: sub_group, shift left");
+
+            if (!(computed == expected))
+              return;
           }
         }
       }
@@ -826,6 +835,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shift_trivially_copyable_type, T,
             BOOST_TEST(computed == expected,
                        computed << " at position " << global_index << " instead of "
                                 << expected << " for case: sub_group, shift right");
+
+            if (!(computed == expected))
+              return;
           }
         }
       }
@@ -878,6 +890,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like_trivially_copyable_type, T,
             BOOST_TEST(computed == expected,
                        computed << " at position " << global_index << " instead of "
                                 << expected << " for case: sub_group, permute xor");
+
+            if (!(computed == expected))
+              return;
           }
         }
       }
@@ -911,6 +926,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like_trivially_copyable_type, T,
             BOOST_TEST(computed == expected,
                        computed << " at position " << global_index << " instead of "
                                 << expected << " for case: sub_group, select");
+
+            if (!(computed == expected))
+              return;
           }
         }
       }
@@ -920,6 +938,147 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like_trivially_copyable_type, T,
                                            tested_function, validation_function);
   }
 }
+
+#if defined(ACPP_TEST_WORK_GROUP_SHUFFLE_EXT) and !defined(REDUCED_LOCAL_MEM_USAGE)
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like_trivially_copyable_type, T,
+                              trivially_copyable_test_types) {
+  SKIP_IF_MOLTENVK(sycl::device{})
+
+  const size_t elements_per_thread = 1;
+  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
+                                 size_t global_size) {
+    for (size_t i = 0; i < v.size(); ++i)
+      v[i] = make_trivially_copyable_value<T>((int)i);
+  };
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id,
+                                    sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_left(g, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        size_t local_id = i % local_size;
+
+        if (local_id + 1 >= local_size) // output only defined if target is in group
+          continue;
+
+        T expected = make_trivially_copyable_value<T>((int)i + 1);
+        T computed = vIn[i];
+
+        BOOST_TEST(computed == expected,
+                   computed << " at position " << i << " instead of " << expected
+                            << " for case: group, shift left");
+
+        if (!(computed == expected))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id,
+                                    sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_right(g, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        size_t local_id = i % local_size;
+
+        if (local_id == 0) // output only defined if target is in group
+          continue;
+
+        T expected = make_trivially_copyable_value<T>((int)i - 1);
+        T computed = vIn[i];
+
+        BOOST_TEST(computed == expected,
+                   computed << " at position " << i << " instead of " << expected
+                            << " for case: group, shift right");
+
+        if (!(computed == expected))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id,
+                                    sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::permute_group_by_xor(g, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        size_t local_id   = i % local_size;
+        size_t group_base = i - local_id;
+
+        if ((local_id ^ 1) >= local_size) // output only defined if target is in group
+          continue;
+
+        T expected =
+            make_trivially_copyable_value<T>((int)(group_base + (local_id ^ 1)));
+        T computed = vIn[i];
+
+        BOOST_TEST(computed == expected,
+                   computed << " at position " << i << " instead of " << expected
+                            << " for case: group, permute xor");
+
+        if (!(computed == expected))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [](auto acc, size_t global_linear_id,
+                                    sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] =
+          sycl::select_from_group(g, local_value, sycl::id<g.dimensions>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn, const std::vector<T> &vOrig,
+                                        size_t subgroup_size, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected =
+            make_trivially_copyable_value<T>((int)((i / local_size) * local_size));
+        T computed = vIn[i];
+
+        BOOST_TEST(computed == expected,
+                   computed << " at position " << i << " instead of " << expected
+                            << " for case: group, select");
+
+        if (!(computed == expected))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()
 

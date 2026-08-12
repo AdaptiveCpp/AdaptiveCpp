@@ -619,6 +619,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
 
 namespace {
 
+// 16 bytes: exactly two 8-byte words, no remainder.
 struct trivially_copyable_16_byte_type {
   float m[4];
 
@@ -630,8 +631,10 @@ struct trivially_copyable_16_byte_type {
 static_assert(std::is_trivially_copyable_v<trivially_copyable_16_byte_type>);
 static_assert(!std::is_fundamental_v<trivially_copyable_16_byte_type>);
 static_assert(sizeof(trivially_copyable_16_byte_type) > 8);
+static_assert(sizeof(trivially_copyable_16_byte_type) % 8 == 0);
 
-trivially_copyable_16_byte_type make_trivially_copyable_16_byte_value(int i) {
+trivially_copyable_16_byte_type
+make_trivially_copyable_value(int i, trivially_copyable_16_byte_type *) {
   return trivially_copyable_16_byte_type{
       {(float)i, (float)i + 1, (float)i + 2, (float)i + 3}};
 }
@@ -641,16 +644,63 @@ std::ostream &operator<<(std::ostream &os,
   return os << "(" << v.m[0] << ", " << v.m[1] << ", " << v.m[2] << ", "
             << v.m[3] << ")";
 }
+
+#pragma pack(push, 1)
+struct trivially_copyable_13_byte_type {
+  uint32_t words32[2];
+  uint8_t bytes8[5];
+
+  bool operator==(const trivially_copyable_13_byte_type &other) const {
+    for (int k = 0; k < 2; ++k)
+      if (words32[k] != other.words32[k])
+        return false;
+    for (int k = 0; k < 5; ++k)
+      if (bytes8[k] != other.bytes8[k])
+        return false;
+    return true;
+  }
+};
+#pragma pack(pop)
+static_assert(std::is_trivially_copyable_v<trivially_copyable_13_byte_type>);
+static_assert(!std::is_fundamental_v<trivially_copyable_13_byte_type>);
+static_assert(sizeof(trivially_copyable_13_byte_type) == 13);
+static_assert(sizeof(trivially_copyable_13_byte_type) % 8 != 0);
+
+trivially_copyable_13_byte_type
+make_trivially_copyable_value(int i, trivially_copyable_13_byte_type *) {
+  trivially_copyable_13_byte_type v{};
+  for (int k = 0; k < 2; ++k)
+    v.words32[k] = (uint32_t)(i + k);
+  for (int k = 0; k < 5; ++k)
+    v.bytes8[k] = (uint8_t)(i + 2 + k);
+  return v;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const trivially_copyable_13_byte_type &v) {
+  os << "(" << v.words32[0] << ", " << v.words32[1];
+  for (int k = 0; k < 5; ++k)
+    os << ", " << (int)v.bytes8[k];
+  return os << ")";
+}
+
+template <typename T>
+T make_trivially_copyable_value(int i) {
+  return make_trivially_copyable_value(i, static_cast<T *>(nullptr));
+}
+
+using trivially_copyable_test_types =
+    boost::mp11::mp_list<trivially_copyable_16_byte_type, trivially_copyable_13_byte_type>;
+
 } // namespace
 
-BOOST_AUTO_TEST_CASE(group_broadcast_trivially_copyable_type) {
-  using T = trivially_copyable_16_byte_type;
-
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast_trivially_copyable_type, T,
+                              trivially_copyable_test_types) {
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
     for (size_t i = 0; i < v.size(); ++i)
-      v[i] = make_trivially_copyable_16_byte_value((int)i);
+      v[i] = make_trivially_copyable_value<T>((int)i);
   };
 
   const auto tested_function = [](auto acc, size_t global_linear_id,
@@ -661,7 +711,7 @@ BOOST_AUTO_TEST_CASE(group_broadcast_trivially_copyable_type) {
                                       size_t subgroup_size, size_t local_size,
                                       size_t global_size) {
     for (size_t i = 0; i < vIn.size(); ++i) {
-      T expected = make_trivially_copyable_16_byte_value((int)((i / local_size) * local_size));
+      T expected = make_trivially_copyable_value<T>((int)((i / local_size) * local_size));
       BOOST_TEST(vIn[i] == expected,
                  vIn[i] << " at position " << i << " instead of " << expected);
     }
@@ -673,8 +723,8 @@ BOOST_AUTO_TEST_CASE(group_broadcast_trivially_copyable_type) {
                                          tested_function, validation_function);
 }
 
-BOOST_AUTO_TEST_CASE(sub_group_broadcast_trivially_copyable_type) {
-  using T = trivially_copyable_16_byte_type;
+BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast_trivially_copyable_type, T,
+                              trivially_copyable_test_types) {
   if (sycl::queue{}.get_device().is_host())
     return;
 
@@ -682,7 +732,7 @@ BOOST_AUTO_TEST_CASE(sub_group_broadcast_trivially_copyable_type) {
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
     for (size_t i = 0; i < v.size(); ++i)
-      v[i] = make_trivially_copyable_16_byte_value((int)i);
+      v[i] = make_trivially_copyable_value<T>((int)i);
   };
 
   const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
@@ -696,7 +746,7 @@ BOOST_AUTO_TEST_CASE(sub_group_broadcast_trivially_copyable_type) {
       size_t local_id       = i % local_size;
       size_t subgroup_base  = (local_id / subgroup_size) * subgroup_size +
                               (i / local_size) * local_size;
-      T expected = make_trivially_copyable_16_byte_value((int)subgroup_base);
+      T expected = make_trivially_copyable_value<T>((int)subgroup_base);
       BOOST_TEST(vIn[i] == expected,
                  vIn[i] << " at position " << i << " instead of " << expected);
     }
@@ -706,8 +756,8 @@ BOOST_AUTO_TEST_CASE(sub_group_broadcast_trivially_copyable_type) {
                                          tested_function, validation_function);
 }
 
-BOOST_AUTO_TEST_CASE(subgroup_shift_trivially_copyable_type) {
-  using T = trivially_copyable_16_byte_type;
+BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shift_trivially_copyable_type, T,
+                              trivially_copyable_test_types) {
   if (sycl::queue{}.get_device().is_host())
     return;
 
@@ -715,7 +765,7 @@ BOOST_AUTO_TEST_CASE(subgroup_shift_trivially_copyable_type) {
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
     for (size_t i = 0; i < v.size(); ++i)
-      v[i] = make_trivially_copyable_16_byte_value((int)i);
+      v[i] = make_trivially_copyable_value<T>((int)i);
   };
 
   {
@@ -738,7 +788,7 @@ BOOST_AUTO_TEST_CASE(subgroup_shift_trivially_copyable_type) {
                 k == subgroup_size - 1) // not defined for last work item
               continue;
 
-            T expected = make_trivially_copyable_16_byte_value((int)global_index + 1);
+            T expected = make_trivially_copyable_value<T>((int)global_index + 1);
             T computed = vIn[global_index];
 
             BOOST_TEST(computed == expected,
@@ -772,7 +822,7 @@ BOOST_AUTO_TEST_CASE(subgroup_shift_trivially_copyable_type) {
             if (k == 0) // not defined for first work item
               continue;
 
-            T expected = make_trivially_copyable_16_byte_value((int)global_index - 1);
+            T expected = make_trivially_copyable_value<T>((int)global_index - 1);
             T computed = vIn[global_index];
 
             BOOST_TEST(computed == expected,

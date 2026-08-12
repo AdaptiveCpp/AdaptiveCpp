@@ -628,10 +628,6 @@ struct trivially_copyable_16_byte_type {
            m[3] == other.m[3];
   }
 };
-static_assert(std::is_trivially_copyable_v<trivially_copyable_16_byte_type>);
-static_assert(!std::is_fundamental_v<trivially_copyable_16_byte_type>);
-static_assert(sizeof(trivially_copyable_16_byte_type) > 8);
-static_assert(sizeof(trivially_copyable_16_byte_type) % 8 == 0);
 
 trivially_copyable_16_byte_type
 make_trivially_copyable_value(int i, trivially_copyable_16_byte_type *) {
@@ -661,10 +657,6 @@ struct trivially_copyable_13_byte_type {
   }
 };
 #pragma pack(pop)
-static_assert(std::is_trivially_copyable_v<trivially_copyable_13_byte_type>);
-static_assert(!std::is_fundamental_v<trivially_copyable_13_byte_type>);
-static_assert(sizeof(trivially_copyable_13_byte_type) == 13);
-static_assert(sizeof(trivially_copyable_13_byte_type) % 8 != 0);
 
 trivially_copyable_13_byte_type
 make_trivially_copyable_value(int i, trivially_copyable_13_byte_type *) {

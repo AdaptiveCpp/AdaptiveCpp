@@ -378,6 +378,9 @@ result omp_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
   std::size_t dest_element_size = op.dest().get_element_size();
 
   std::size_t total_num_bytes = op.get_num_transferred_bytes();
+  if (total_num_bytes == 0) {
+    return make_success();
+  }
 
   bool is_src_contiguous =
       is_contigous(src_offset, transferred_range, src_allocation_shape);
@@ -669,6 +672,10 @@ result omp_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) 
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
   int pattern = op.get_pattern();
+
+  if (bytes == 0) {
+    return make_success();
+  }
 
   if (!ptr) {
     return register_error(

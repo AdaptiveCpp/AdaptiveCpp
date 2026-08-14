@@ -619,7 +619,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
 
 namespace {
 
-// 16 bytes: exactly two 8-byte words, no remainder.
 struct trivially_copyable_16_byte_type {
   float m[4];
 
@@ -628,7 +627,7 @@ struct trivially_copyable_16_byte_type {
            m[3] == other.m[3];
   }
 };
-static_assert(sizeof(trivially_copyable_16_byte_type) % 8 == 0);
+static_assert(sizeof(trivially_copyable_16_byte_type) == 16);
 
 trivially_copyable_16_byte_type
 make_trivially_copyable_value(int i, trivially_copyable_16_byte_type *) {
@@ -642,6 +641,7 @@ std::ostream &operator<<(std::ostream &os,
             << v.m[3] << ")";
 }
 
+// padded to 12 bytes due to the 4-byte alignment of word32.
 struct trivially_copyable_12_byte_type {
   uint32_t word32;
   uint8_t bytes8[5];
@@ -655,7 +655,7 @@ struct trivially_copyable_12_byte_type {
     return true;
   }
 };
-static_assert(sizeof(trivially_copyable_12_byte_type) % 8 != 0);
+static_assert(sizeof(trivially_copyable_12_byte_type) == 12);
 
 trivially_copyable_12_byte_type
 make_trivially_copyable_value(int i, trivially_copyable_12_byte_type *) {
@@ -723,7 +723,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast_trivially_copyable_type, T,
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast_trivially_copyable_type, T,
                               trivially_copyable_test_types) {
-  if (sycl::queue{}.get_device().is_host())
+  sycl::device dev;
+  SKIP_IF_MOLTENVK(dev)
+
+  if (dev.is_host())
     return;
 
   const size_t elements_per_thread = 1;

@@ -176,8 +176,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
+  sycl::device dev;
+  if constexpr (detail::is_trivially_copyable_test_type_v<T>) {
+    SKIP_IF_MOLTENVK(dev)
+  }
 
-  if(!sycl::queue{}.get_device().is_host()) {
+  if(!dev.is_host()) {
     const size_t   elements_per_thread = 1;
 
     const auto data_generator = [](std::vector<T> &v, size_t local_size,

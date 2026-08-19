@@ -133,6 +133,9 @@ void vk_allocator::raw_free(void *mem) {
   std::lock_guard<std::mutex> lock{_mutex};
   auto dev_ptr = reinterpret_cast<vk::DeviceAddress>(mem);
   assert(_allocs.count(dev_ptr));
+
+  HIPSYCL_DEBUG_INFO << "vk_allocator: freed 0x" << std::hex << mem << std::dec
+                     << std::endl;
   _allocs.erase(dev_ptr);
 }
 

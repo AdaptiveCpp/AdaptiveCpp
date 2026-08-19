@@ -12,6 +12,7 @@
 #include "hipSYCL/runtime/vk/vk_hardware_manager.hpp"
 #include "hipSYCL/common/config.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/vk/vk_allocator.hpp"
 #include <algorithm>
 #include <limits>
 #include <sstream>
@@ -20,10 +21,9 @@ namespace hipsycl {
 namespace rt {
 
 vk_hardware_context::vk_hardware_context(
-    const vk::raii::PhysicalDevice &phys_device, int dev_id, uint16_t features,
-    bool portability_subset)
+    const vk::raii::PhysicalDevice &phys_device, int dev_id, uint16_t features)
     : _physical_device(phys_device), _dev_id(dev_id),
-      _physical_dev_features(features) {
+      _physical_dev_features(features), _enabled_extensions(0) {
   _properties = phys_device.getProperties();
 
   std::vector<vk::QueueFamilyProperties> queue_family_props =
@@ -93,12 +93,38 @@ vk_hardware_context::vk_hardware_context(
                                                                    : VK_FALSE;
 
   vk::DeviceCreateInfo dev_create_info{{}, queue_create_info};
-  // Outside if statement scope so lifetime is valid for raii::Device
-  // initialization
-  const char *portability_ext_name = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
-  if (portability_subset) {
-    dev_create_info.setEnabledExtensionCount(1);
-    dev_create_info.setPpEnabledExtensionNames(&portability_ext_name);
+
+  auto phys_dev_extensions =
+      _physical_device.enumerateDeviceExtensionProperties();
+
+  // Portability subset extensions used to enable MoltenVK.
+  // Calibrated timestamps extension used to enable event profiling.
+  std::array<std::pair<const char *, uint16_t>, 3> optional_exts = {
+      std::make_pair(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
+                     vk_device_extensions::khr_portability_subset),
+      std::make_pair(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
+                     vk_device_extensions::khr_calibrated_timestamps),
+      std::make_pair(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
+                     vk_device_extensions::ext_calibrated_timestamps)};
+  std::vector<const char *> enable_ext_names;
+  for (auto opt_ext : optional_exts) {
+    bool ext_supported = std::any_of(
+        std::begin(phys_dev_extensions), std::end(phys_dev_extensions),
+        [opt_ext](auto const &ext_property) {
+          return strcmp(ext_property.extensionName, opt_ext.first) == 0;
+        });
+    if (ext_supported) {
+      HIPSYCL_DEBUG_INFO << "vk_hardware_context: enabling extension "
+                         << opt_ext.first << std::endl;
+      _enabled_extensions |= opt_ext.second;
+      enable_ext_names.push_back(opt_ext.first);
+    }
+  }
+
+  if (auto num_dev_extensions = enable_ext_names.size();
+      num_dev_extensions != 0) {
+    dev_create_info.setEnabledExtensionCount(num_dev_extensions);
+    dev_create_info.setPpEnabledExtensionNames(enable_ext_names.data());
   }
 
   vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceFeatures2,
@@ -233,8 +259,50 @@ bool vk_hardware_context::has(device_support_aspect aspect) const {
     return false;
   case device_support_aspect::usm_system_allocations:
     return false;
-  case device_support_aspect::execution_timestamps:
-    return false;
+  case device_support_aspect::execution_timestamps: {
+    // Verify that device can create a query pool on the compute queue so
+    // enable capturing asynchronous timestamps during command-buffer execution
+    if (_limits.timestampPeriod == 0) {
+      return false;
+    }
+
+    const vk::QueueFamilyProperties &queue_family_props =
+        _physical_device.getQueueFamilyProperties()[_queue_index];
+    if (!queue_family_props.timestampValidBits) {
+      return false;
+    }
+
+    // Verify that device has either KHR or EXT calibrated timestamps extension
+    // that support both clock monotonic & device domains
+    std::pair<bool, bool> required_domains(false, false);
+
+    // vkTimeDomainKHR is aliased to vkTimeDomainEXT
+    auto check_required_domains =
+        [&required_domains](vk::TimeDomainEXT &time_domain) {
+          if (time_domain == vk::TimeDomainEXT::eClockMonotonic) {
+            required_domains.first = true;
+          }
+
+          if (time_domain == vk::TimeDomainEXT::eDevice) {
+            required_domains.second = true;
+          }
+        };
+
+    // Prefer using KHR entry point rather than EXT if a device supports both
+    if (are_extensions_enabled(
+            vk_device_extensions::khr_calibrated_timestamps)) {
+      auto time_domains = _physical_device.getCalibrateableTimeDomainsKHR();
+      std::for_each(std::begin(time_domains), std::end(time_domains),
+                    check_required_domains);
+    } else if (are_extensions_enabled(
+                   vk_device_extensions::ext_calibrated_timestamps)) {
+      auto time_domains = _physical_device.getCalibrateableTimeDomainsEXT();
+      std::for_each(std::begin(time_domains), std::end(time_domains),
+                    check_required_domains);
+    }
+
+    return required_domains.first && required_domains.second;
+  }
   case device_support_aspect::sscp_kernels:
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
     return true;
@@ -618,19 +686,10 @@ vk_hardware_manager::vk_hardware_manager()
       backend_features |= vk_device_features::storagePushConstant16;
     }
 
-    auto phys_dev_extensions = phys_dev.enumerateDeviceExtensionProperties();
-    bool portability_ext_supported = std::any_of(
-        std::begin(phys_dev_extensions), std::end(phys_dev_extensions),
-        [](auto const &ext_property) {
-          return strcmp(ext_property.extensionName,
-                        VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) == 0;
-        });
-
     auto device_name = phys_dev.getProperties().deviceName;
     if (device_matches(visibility_mask, backend_id::vk, device_index,
                        device_index, 0, device_name, {})) {
-      _devices.emplace_back(phys_dev, device_index, backend_features,
-                            portability_ext_supported);
+      _devices.emplace_back(phys_dev, device_index, backend_features);
     }
     device_index++;
   }

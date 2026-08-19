@@ -12,7 +12,6 @@
 #pragma once
 
 #include "../hardware.hpp"
-#include "hipSYCL/runtime/vk/vk_allocator.hpp"
 #include <vulkan/vulkan_raii.hpp>
 
 namespace hipsycl {
@@ -39,10 +38,21 @@ enum feature_bits {
 };
 }; // namespace vk_device_features
 
+// Bit for each extension we can enable when creating a logical device,
+// improves extension querying compared to C string comparisons against
+// extension names.
+namespace vk_device_extensions {
+enum extension_bits : uint16_t {
+  khr_portability_subset = 1 << 0,
+  khr_calibrated_timestamps = 1 << 1,
+  ext_calibrated_timestamps = 1 << 2,
+};
+} // namespace vk_device_extensions
+
 class vk_hardware_context : public hardware_context {
 public:
   vk_hardware_context(const vk::raii::PhysicalDevice &, int dev_id,
-                      uint16_t features, bool portability_subset);
+                      uint16_t features);
   vk_hardware_context(vk_hardware_context const &) = delete;
   vk_hardware_context(vk_hardware_context &&) = default;
 
@@ -85,6 +95,10 @@ public:
   uint32_t get_subgroup_size() const { return _subgroup_size; }
   uint16_t get_phys_dev_features() const { return _physical_dev_features; }
 
+  bool are_extensions_enabled(uint16_t bits) const {
+    return (bits & _enabled_extensions) == bits;
+  }
+
 private:
   size_t global_mem_size() const;
 
@@ -100,6 +114,7 @@ private:
 
   int _dev_id;
   uint16_t _physical_dev_features;
+  uint16_t _enabled_extensions;
   std::unique_ptr<vk_allocator> _allocator;
 };
 

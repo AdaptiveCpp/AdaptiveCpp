@@ -17,6 +17,7 @@
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
 #include "hipSYCL/runtime/vk/vk_code_object.hpp"
+#include "hipSYCL/runtime/vk/vk_profiling.hpp"
 #include <mutex>
 #include <vulkan/vulkan_raii.hpp>
 
@@ -63,12 +64,16 @@ public:
 
 private:
   // Helper functions
+  vk::CommandBuffer begin_command_buffer(vk::CommandBufferUsageFlagBits);
+  void end_command_buffer(vk::CommandBuffer &cmd_buf);
   vk::CommandBuffer get_command_buffer();
 
   void submit_command_buffer(vk::CommandBuffer &cmd_buf);
 
   std::pair<vk_alloc_info *, bool>
   find_or_create_allocation(vk::DeviceAddress ptr, unsigned size);
+
+  void profile_if_enabled(operation &op, const dag_node_ptr &node);
 
   // Members for tracking backend device
   vk_hardware_manager *_hw_manager;
@@ -104,6 +109,10 @@ private:
     std::unordered_map<uint64_t, ValueType> _alloc_map;
     mutable std::mutex _mutex;
   } _temp_allocs;
+
+  // Members for profiling
+  std::optional<vk_async_profiling> _profiling;
+  bool _dev_has_khr_calibrated_timestamps;
 
   // Members for command synchronization
   uint64_t _timeline_value = 0;

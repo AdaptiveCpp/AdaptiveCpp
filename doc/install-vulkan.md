@@ -343,6 +343,28 @@ command has completed, but before we tell other SYCL commands the DAG node has
 completed. For example, freeing temporary allocations created to implement
 memcopy.
 
+#### Profiling
+
+Support for SYCL event profiling requires device support for the
+[VK_KHR_calibrated_timestamps](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_calibrated_timestamps.html) or
+[VK_EXT_calibrated_timestamps](https://docs.vulkan.org/refpages/latest/refpages/source/VK_EXT_calibrated_timestamps.html)
+extensions to align device and host side counters.
+
+`vkGetCalibratedTimestampsKHR` is used to get the host timestamp for when a command is submitted, and also
+command start and/or end timestamps for when a command is executed asynchronously on host using a worker thread.
+
+For the most common case where commands are executed asynchronously on device in a vkCommandBuffer,
+a single element `vkQueryPool` is created for each instrumentation counter. The command-buffer then
+has extra commands included to bookend it's execution that record the device side timestamps
+into the query pool. When instrumentation counter is queried it reports back the device side
+timestamp converted to a host side timepoint using the calibrated timestamp reference.
+
+A single large query pool that is shared by all event instrumentation counters is
+not used because the choice of static query pool size would have been arbitrary.
+Additionally, the runtime wouldn't frequently free the timestamps to return to the pool,
+as the rt DAG nodes which owns the lifetime of the counters needs to outlive the user
+facing `sycl::event` object.
+
 ### Compiler
 
 #### clspv

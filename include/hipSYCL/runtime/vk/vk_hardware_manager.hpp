@@ -42,7 +42,7 @@ enum feature_bits {
 // improves extension querying compared to C string comparisons against
 // extension names.
 namespace vk_device_extensions {
-enum extension_bits {
+enum extension_bits : uint16_t {
   khr_portability_subset = 1 << 0,
   khr_calibrated_timestamps = 1 << 1,
   ext_calibrated_timestamps = 1 << 2,

@@ -26,10 +26,8 @@ calibrated_timestamps vk_get_calibrated_timestamps(const vk::raii::Device &dev,
 }
 
 uint64_t vk_get_query_pool_result(const vk::raii::QueryPool &query_pool) {
-  std::vector<uint64_t> data;
-  vk::Result result;
   // Get timestamp data as 64-bit int rather than 32-bit default.
-  std::tie(result, data) = query_pool.getResults<uint64_t>(
+  auto [result, data] = query_pool.getResults<uint64_t>(
       0, 1, sizeof(uint64_t), 0,
       vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
 

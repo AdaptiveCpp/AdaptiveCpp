@@ -193,7 +193,7 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &node) {
             print_error(__acpp_here(), error_info{err_msg});
           }
 
-          if (_profiling) {
+          if (_profiling && _profiling->start_time) {
             // Since we're dong work before command buffer starts executing,
             // use an earlier host timestamp
             _profiling->start_time->take_host_timestamp();
@@ -294,7 +294,7 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &node) {
     const uint64_t wait_value = _timeline_value;
     const uint64_t signal_value = ++_timeline_value;
 
-    if (_profiling) {
+    if (_profiling && _profiling->finish_time) {
       // Since we need to do work after the command-buffer finishes executing
       // override semaphore value to wait on
       _profiling->finish_time->set_semaphore_wait_val(signal_value);
@@ -338,7 +338,7 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &node) {
           }
           _temp_allocs.erase(wait_value);
 
-          if (_profiling) {
+          if (_profiling && _profiling->finish_time) {
             // Since we're dong work after command buffer starts executing,
             // use a later host timestamp
             _profiling->finish_time->take_host_timestamp();
@@ -363,7 +363,7 @@ vk_queue::begin_command_buffer(vk::CommandBufferUsageFlagBits flags) {
   cmd_buf.begin(vk::CommandBufferBeginInfo(
       vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
-  if (_profiling) {
+  if (_profiling && _profiling->start_time) {
     // When profiling, start the command buffer with commands to reset and
     // write a query pool timestamp. This gives the device side timestamp
     // for when the command begins execution.
@@ -377,7 +377,7 @@ vk_queue::begin_command_buffer(vk::CommandBufferUsageFlagBits flags) {
 }
 
 void vk_queue::end_command_buffer(vk::CommandBuffer &cmd_buf) {
-  if (_profiling) {
+  if (_profiling && _profiling->finish_time) {
     // When profiling, end the command buffer with commands to reset and
     // write a query pool timestamp. This gives the device side timestamp
     // for when the command finishes execution.
@@ -486,8 +486,12 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
 
   if (_profiling) {
     // Only let a user read the timestamps after the signal semaphore has fired
-    _profiling->start_time->set_semaphore_wait_val(signal_value);
-    _profiling->finish_time->set_semaphore_wait_val(signal_value);
+    if (_profiling->start_time) {
+      _profiling->start_time->set_semaphore_wait_val(signal_value);
+    }
+    if (_profiling->finish_time) {
+      _profiling->finish_time->set_semaphore_wait_val(signal_value);
+    }
   }
 
   HIPSYCL_DEBUG_INFO << "vk_queue: submit command-buffer with "
@@ -570,8 +574,12 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &node) {
 
   if (_profiling) {
     // Only let a user read the timestamps after the signal semaphore has fired
-    _profiling->start_time->set_semaphore_wait_val(signal_value);
-    _profiling->finish_time->set_semaphore_wait_val(signal_value);
+    if (_profiling->start_time) {
+      _profiling->start_time->set_semaphore_wait_val(signal_value);
+    }
+    if (_profiling->finish_time) {
+      _profiling->finish_time->set_semaphore_wait_val(signal_value);
+    }
   }
 
   _host_worker([=]() mutable {
@@ -593,7 +601,7 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &node) {
       print_error(__acpp_here(), error_info{err_msg});
     }
 
-    if (_profiling) {
+    if (_profiling && _profiling->start_time) {
       _profiling->start_time->take_host_timestamp();
     }
 
@@ -602,7 +610,7 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &node) {
     std::memset(vptr + offset, pattern, size);
     ptr_alloc.first->_dev_mem.unmapMemory();
 
-    if (_profiling) {
+    if (_profiling && _profiling->finish_time) {
       _profiling->finish_time->take_host_timestamp();
     }
 

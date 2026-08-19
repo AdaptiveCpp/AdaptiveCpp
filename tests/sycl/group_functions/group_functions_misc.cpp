@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
   sycl::device dev;
-  if constexpr (detail::is_trivially_copyable_test_type_v<T>) {
+  if constexpr (std::is_same_v<detail::trivially_copyable_12_byte_type, T>) {
     SKIP_IF_MOLTENVK(dev)
   }
 

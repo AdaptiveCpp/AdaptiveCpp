@@ -70,6 +70,77 @@ namespace compiler {
 
 namespace {
 
+// When linking LLVM IR, structs with identical layout get deduplicated, so the
+// struct return type at a call site can differ from the one of the callee. The
+// Emitter does not support this and assumes in several places that both are the
+// same type, so we just unify them here.
+void unifyCallSiteStructReturnTypes(llvm::Module &M) {
+  llvm::SmallVector<llvm::CallInst *> Calls;
+  for (llvm::Function &F : M)
+    for (llvm::BasicBlock &BB : F)
+      for (llvm::Instruction &I : BB)
+        if (auto *Call = llvm::dyn_cast<llvm::CallInst>(&I))
+          Calls.push_back(Call);
+
+  for (llvm::CallInst *Call : Calls) {
+    // musttail requires an exact signature match, so we cannot repack the result.
+    if (Call->isMustTailCall())
+      continue;
+
+    // Only direct calls, and only those that actually have a mismatch.
+    auto *Callee =
+        llvm::dyn_cast<llvm::Function>(Call->getCalledOperand());
+    if (!Callee || Call->getFunctionType() == Callee->getFunctionType())
+      continue;
+
+    // Everything except the return type must match: anything else is a real
+    // signature conflict that we must not paper over.
+    llvm::FunctionType *CallType = Call->getFunctionType();
+    llvm::FunctionType *CalleeType = Callee->getFunctionType();
+    if (CallType->isVarArg() != CalleeType->isVarArg() ||
+        Call->getCallingConv() != Callee->getCallingConv() ||
+        CallType->params() != CalleeType->params())
+      continue;
+
+    // Both return types must be non-empty structs of identical layout, so that
+    // repacking them field by field is valid.
+    auto *CallReturnType =
+        llvm::dyn_cast<llvm::StructType>(CallType->getReturnType());
+    auto *CalleeReturnType =
+        llvm::dyn_cast<llvm::StructType>(CalleeType->getReturnType());
+    if (!CallReturnType || !CalleeReturnType ||
+        CallReturnType->getNumElements() == 0 ||
+        !CallReturnType->isLayoutIdentical(CalleeReturnType))
+      continue;
+
+    llvm::SmallVector<llvm::Value *> Arguments(Call->args());
+    llvm::SmallVector<llvm::OperandBundleDef> Bundles;
+    Call->getOperandBundlesAsDefs(Bundles);
+
+    llvm::IRBuilder<> Builder{Call};
+    llvm::CallInst *NormalizedCall = Builder.CreateCall(
+        CalleeType, Callee, Arguments, Bundles, Call->getName() + ".normalized");
+    NormalizedCall->setCallingConv(Call->getCallingConv());
+    NormalizedCall->setAttributes(Call->getAttributes());
+    NormalizedCall->copyIRFlags(Call);
+    NormalizedCall->setDebugLoc(Call->getDebugLoc());
+    NormalizedCall->copyMetadata(*Call);
+    if (Call->getTailCallKind() == llvm::CallInst::TCK_NoTail)
+      NormalizedCall->setTailCallKind(llvm::CallInst::TCK_NoTail);
+
+    llvm::Value *Replacement = llvm::PoisonValue::get(CallReturnType);
+    for (unsigned I = 0; I < CallReturnType->getNumElements(); ++I) {
+      llvm::Value *Element = Builder.CreateExtractValue(NormalizedCall, I);
+      Replacement = Builder.CreateInsertValue(Replacement, Element, I);
+    }
+    if (auto *ReplacementInstruction =
+            llvm::dyn_cast<llvm::Instruction>(Replacement))
+      ReplacementInstruction->takeName(Call);
+    Call->replaceAllUsesWith(Replacement);
+    Call->eraseFromParent();
+  }
+}
+
 // these are remapped for f32 and f64
 static constexpr std::array remapped_llvm_math_builtins = {
   "sin", "cos", "tan", "sqrt",
@@ -556,6 +627,8 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     registerError("LLVMToMetal: Failed to prepare module for Metal translation");
     return false;
   }
+
+  unifyCallSiteStructReturnTypes(FlavoredModule);
 
   std::unordered_set<std::string> kernelNames(KernelNames.begin(), KernelNames.end());
 

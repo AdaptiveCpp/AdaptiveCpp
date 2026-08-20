@@ -248,7 +248,8 @@ if(WITH_VULKAN_BACKEND)
      vk/vk_queue.cpp
      vk/vk_event.cpp
      vk/vk_code_object.cpp
-     vk/vk_hardware_manager.cpp)
+     vk/vk_hardware_manager.cpp
+     vk/vk_profiling.cpp)
   target_include_directories(rt-backend-vk PRIVATE
                              ${HIPSYCL_SOURCE_DIR}/include
                              ${ACPP_BINARY_ROOT}/include/

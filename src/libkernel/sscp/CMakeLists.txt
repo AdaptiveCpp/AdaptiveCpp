@@ -2,14 +2,25 @@ if(POLICY CMP0116)
   cmake_policy(SET CMP0116 NEW)  # Normalize paths in depfile
 endif()
 
-# SSCP libkernel bitcode is generated while building AdaptiveCpp. Keep these
-# tools independently configurable so cross builds can use executables from the
-# build host while CLANG_EXECUTABLE_PATH and LLVM_TOOLS_BINARY_DIR continue to
-# describe the target LLVM installation used by the installed runtime.
-set(ACPP_BITCODE_CLANG "${CLANG_EXECUTABLE_PATH}" CACHE FILEPATH
-    "Build-host clang++ used to generate SSCP libkernel bitcode")
-set(ACPP_BITCODE_LLVM_LINK "${LLVM_TOOLS_BINARY_DIR}/llvm-link" CACHE FILEPATH
-    "Build-host llvm-link used to link SSCP libkernel bitcode")
+# SSCP libkernel bitcode is generated while building AdaptiveCpp. Cross builds
+# may need build-host executables here while CLANG_EXECUTABLE_PATH and
+# LLVM_TOOLS_BINARY_DIR continue to describe the target LLVM installation used
+# by the installed runtime. Native builds must use that matching LLVM toolchain.
+if(CMAKE_CROSSCOMPILING)
+  set(ACPP_BITCODE_CLANG "${CLANG_EXECUTABLE_PATH}" CACHE FILEPATH
+      "Build-host clang++ matching AdaptiveCpp's LLVM version")
+  set(ACPP_BITCODE_LLVM_LINK "${LLVM_TOOLS_BINARY_DIR}/llvm-link" CACHE FILEPATH
+      "Build-host llvm-link matching AdaptiveCpp's LLVM version")
+else()
+  if(DEFINED ACPP_BITCODE_CLANG OR DEFINED ACPP_BITCODE_LLVM_LINK)
+    message(FATAL_ERROR
+      "ACPP_BITCODE_CLANG and ACPP_BITCODE_LLVM_LINK may only be overridden "
+      "when cross-compiling. Native builds must use the LLVM toolchain "
+      "selected by CLANG_EXECUTABLE_PATH and LLVM_TOOLS_BINARY_DIR.")
+  endif()
+  set(ACPP_BITCODE_CLANG "${CLANG_EXECUTABLE_PATH}")
+  set(ACPP_BITCODE_LLVM_LINK "${LLVM_TOOLS_BINARY_DIR}/llvm-link")
+endif()
 
 function(libkernel_generate_bitcode_library)
   set(options)

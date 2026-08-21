@@ -14,6 +14,7 @@
 #include "../allocator.hpp"
 #include "../hints.hpp"
 
+#include <atomic>
 #include <map>
 #include <memory>
 
@@ -77,6 +78,13 @@ public:
   MTL::ResidencySet* get_residency_set() const { return _residency_set; }
   void commit_residency_set();
 
+  // Monotonic counter bumped on every allocation and free. Allows consumers
+  // (e.g. the queue's residency tracking) to detect allocation changes without
+  // taking the allocator lock.
+  uint64_t generation() const {
+    return _generation.load(std::memory_order_relaxed);
+  }
+
   template<typename F>
   void for_each_buffer(F&& f) const {
     std::lock_guard<std::mutex> lock{_mutex};
@@ -106,6 +114,7 @@ private:
   mutable std::mutex _mutex;
   MTL::ResidencySet* _residency_set = nullptr;
   bool _residency_set_dirty = false;
+  std::atomic<uint64_t> _generation{0};
   std::shared_ptr<metal_mmap_region> _mmap_region;
 };
 

@@ -52,3 +52,9 @@ build*/
 
 # clangd cache
 .cache
+
+# macOS
+.DS_Store
+
+# local install prefix
+/install/

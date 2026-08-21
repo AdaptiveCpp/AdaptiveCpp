@@ -233,6 +233,7 @@ void* metal_allocator::raw_allocate(
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[canonical_ptr] = block;
   add_to_residency_set(lock, buffer);
+  ++_generation;
   return canonical_ptr;
 }
 
@@ -252,6 +253,7 @@ void *metal_allocator::raw_allocate_usm(
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
   add_to_residency_set(lock, buffer);
+  ++_generation;
   return host_ptr;
 }
 
@@ -272,6 +274,7 @@ metal_allocator::raw_allocate_optimized_host(
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
   add_to_residency_set(lock, buffer);
+  ++_generation;
   return host_ptr;
 }
 
@@ -290,6 +293,7 @@ void metal_allocator::raw_free(void *mem)
     }
     _ptr_to_block.erase(it);
   }
+  ++_generation;
 }
 
 bool metal_allocator::is_usm_accessible_from(backend_descriptor b) const

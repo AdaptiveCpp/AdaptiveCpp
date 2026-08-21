@@ -12,6 +12,7 @@
 
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/backend.hpp"
+#include "hipSYCL/sycl/backend_interop.hpp"
 #include "hipSYCL/sycl/buffer.hpp"
 #include "hipSYCL/sycl/event.hpp"
 #include "hipSYCL/sycl/info/event.hpp"
@@ -1420,6 +1421,24 @@ BOOST_AUTO_TEST_CASE(device_free_memory)
         dev.get_info<sycl::info::device::AdaptiveCpp_free_memory>(),
         sycl::exception);
   }
+}
+#endif
+#if defined(__APPLE__) && defined(SYCL_EXT_ACPP_BACKEND_METAL)
+BOOST_AUTO_TEST_CASE(get_native_metal_event) {
+  namespace s = sycl;
+
+  s::queue q{s::property::queue::in_order{}};
+  if (q.get_device().get_backend() != s::backend::metal) {
+    BOOST_TEST_MESSAGE("Skipping get_native_metal_event: not a Metal device");
+    return;
+  }
+
+  s::event event = q.single_task([]() {});
+  auto native_event = s::get_native<s::backend::metal>(event);
+
+  BOOST_CHECK(native_event.event != nullptr);
+  BOOST_CHECK(native_event.value != 0);
+  event.wait();
 }
 #endif
 #ifdef SYCL_KHR_DEFAULT_CONTEXT

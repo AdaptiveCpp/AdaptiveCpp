@@ -612,7 +612,9 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     FPM.addPass(llvm::DCEPass());
     FPM.addPass(llvm::ADCEPass());
     FPM.addPass(llvm::StructurizeCFGPass());
-    FPM.addPass(llvm::SimplifyCFGPass());
+    // Since LLVM 22 this pass removes the Flow blocks that StructurizeCFG creates,
+    // so a loop gets more than one exit again. HLExtractorPass needs exactly one
+    FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().setSimplifyCondBranch(false)));
     AddressSpaceInferencePass ASIPass{ASMap};
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));

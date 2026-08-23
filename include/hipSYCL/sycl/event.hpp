@@ -27,8 +27,15 @@
 namespace hipsycl {
 namespace sycl {
 
+class event;
+
+namespace detail {
+rt::dag_node_ptr extract_rt_event(const event &e);
+} // namespace detail
+
 class event {
   friend class handler;
+  friend rt::dag_node_ptr detail::extract_rt_event(const event &e);
 public:
   event()
   {}
@@ -238,6 +245,13 @@ HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count)
   return _node.use_count();
 }
 
+namespace detail {
+
+inline rt::dag_node_ptr extract_rt_event(const event &e) {
+  return e._node;
+}
+
+} // namespace detail
 
 } // namespace sycl
 } // namespace hipsycl

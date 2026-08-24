@@ -242,7 +242,7 @@ set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") #
 set(WITH_CPU_BACKEND true)
 
 if(WITH_VULKAN_BACKEND)
-  find_package(Vulkan QUIET COMPONENTS SPIRV-Tools REQUIRED)
+  find_package(Vulkan 1.4 QUIET COMPONENTS SPIRV-Tools REQUIRED)
 endif()
 
 if(WITH_CUDA_BACKEND)

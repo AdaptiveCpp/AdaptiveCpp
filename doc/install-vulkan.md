@@ -185,6 +185,7 @@ Devices known to be well supported by the backend include:
 | MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled                        |
 | Swiftshader  | Google 5.0.0      | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                            |
 | V3D          | Mesa 25.0.7       | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                            |
+| Adreno 750   | Qualcomm 0.744.1  | Qualcomm iGPU        | Can run kernels, full status needs explored                                           |
 
 Other devices are untested and support status is unknown.
 

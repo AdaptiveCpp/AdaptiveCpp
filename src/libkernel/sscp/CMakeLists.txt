@@ -93,11 +93,20 @@ function(libkernel_generate_bitcode_target)
   endif()
 
   set(linked_output ${CMAKE_CURRENT_BINARY_DIR}/libkernel-sscp-${target}-full.bc)
-  add_custom_command(
-    OUTPUT ${linked_output}
-    COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-link -o=${linked_output} ${output_files}
-    DEPENDS ${output_files} ${target_depends}
-  )
+  if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(ACPP_LLVMLINK_PATH "" CACHE PATH "Path to native llvm-link to use when cross compiling")
+    add_custom_command(
+      OUTPUT ${linked_output}
+      COMMAND ${ACPP_LLVMLINK_PATH} -o=${linked_output} ${output_files}
+      DEPENDS ${output_files} ${target_depends}
+    )
+  else()
+    add_custom_command(
+      OUTPUT ${linked_output}
+      COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-link -o=${linked_output} ${output_files}
+      DEPENDS ${output_files} ${target_depends}
+    )
+  endif()
 
   install(FILES ${linked_output} DESTINATION lib/hipSYCL/bitcode)
 

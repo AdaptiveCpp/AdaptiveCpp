@@ -47,6 +47,7 @@ RUN apt-get -u update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN <<EOF
+    set -e
     # skip if ROCM_VERSION empty (yeah.. Intel not ROCm .. but whatever)
     if [ -z "${ROCM_VERSION}" ]; then exit 0; fi
     wget -q https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16695.4/intel-igc-core_1.0.16695.4_amd64.deb
@@ -63,6 +64,7 @@ RUN <<EOF
 EOF
 
 RUN <<EOF
+    set -e
     # skip if CUDA_MAJOR_VERSION empty
     if [ -z "${CUDA_MAJOR_VERSION}" ]; then exit 0; fi
     mkdir -p /opt/cuda-${CUDA_MAJOR_VERSION}.${CUDA_MINOR_VERSION}
@@ -73,6 +75,7 @@ RUN <<EOF
 EOF
 
 RUN <<EOF
+    set -e
     # skip if ROCM_VERSION empty
     if [ -z "${ROCM_VERSION}" ]; then exit 0; fi
     wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -
@@ -84,6 +87,7 @@ RUN <<EOF
 EOF
 
 RUN <<EOF
+    set -e
     wget -q https://apt.llvm.org/llvm.sh
     chmod +x llvm.sh
     ./llvm.sh ${LLVM_VERSION}

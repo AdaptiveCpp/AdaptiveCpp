@@ -407,7 +407,7 @@ public:
     }
     
     void* ptr = clSVMAlloc(_ctx.get(),
-                      CL_MEM_SVM_FINE_GRAIN_BUFFER & CL_DEVICE_SVM_ATOMICS,
+                      CL_MEM_SVM_FINE_GRAIN_BUFFER | CL_DEVICE_SVM_ATOMICS,
                       size, static_cast<cl_uint>(alignment));
     if(ptr)
       err = CL_SUCCESS;

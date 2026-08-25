@@ -24,12 +24,13 @@
 
 #include <mach/mach_time.h>
 
-#include <unordered_set>
+#include <vector>
 
 namespace MTL {
 
 class Device;
 class Buffer;
+class Resource;
 class CommandBuffer;
 class CommandQueue;
 class ComputeCommandEncoder;
@@ -159,9 +160,10 @@ public:
   virtual ~metal_inorder_queue();
 
   // Makes all USM allocations known to the allocator resident for the given
-  // encoder. Within one open command buffer, each allocation is only passed
-  // to useResource once, and the scan is skipped entirely if the allocator
-  // state has not changed since the last scan.
+  // encoder. Residency established this way is scoped to the encoder, so this
+  // must be called for every encoder; what is cached across encoders is only
+  // the *set* of allocations, which is rebuilt (taking the allocator lock)
+  // exclusively when the allocator generation changes.
   // Public because it is invoked by the free kernel launch helper.
   void make_allocations_resident(MTL::ComputeCommandEncoder* encoder);
 
@@ -219,10 +221,11 @@ private:
 
   static constexpr int max_ops_per_command_buffer = 32;
 
-  // Residency dedup state, valid for the current open command buffer only.
-  std::unordered_set<MTL::Buffer*> _resident_buffers;
+  // Cached snapshot of the allocations that must be made resident, together
+  // with the allocator generation it was taken at. Rebuilt only when the
+  // allocator generation changes; independent of command buffer boundaries.
+  std::vector<const MTL::Resource*> _resident_resources;
   uint64_t _residency_generation{~static_cast<uint64_t>(0)};
-  bool _residency_pass_done{false};
 
   metal_allocator* _allocator = nullptr;
   device_id _device_id;

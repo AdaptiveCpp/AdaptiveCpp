@@ -80,14 +80,20 @@ public:
     return _generation.load(std::memory_order_relaxed);
   }
 
-  template<typename F>
-  void for_each_buffer(F&& f) const {
+  // Replaces the contents of `out` with all Metal buffers currently backing
+  // USM allocations, and returns the generation the snapshot corresponds to.
+  // Snapshot and generation are taken under the same lock, so the returned
+  // pair is always consistent.
+  template<typename Container>
+  uint64_t snapshot_buffers(Container& out) const {
     std::lock_guard<std::mutex> lock{_mutex};
+    out.clear();
     for (auto& [ptr, block] : _ptr_to_block) {
       if (block.buffer) {
-        f(block.buffer);
+        out.push_back(block.buffer);
       }
     }
+    return _generation.load(std::memory_order_relaxed);
   }
 
 private:

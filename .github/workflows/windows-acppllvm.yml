@@ -16,18 +16,20 @@ jobs:
         cuda_or_rocm: ['cuda']
         os: ['windows-2022']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
         path: AdaptiveCpp
     - name: Use MSVC Command prompt
-      uses: ilammy/msvc-dev-cmd@v1
-    - name: Install LLVM and Clang
-      uses: KyleMayes/install-llvm-action@v2.0.7
+      uses: TheMrMilchmann/setup-msvc-dev@v4
       with:
-        version: "${{matrix.base_compiler}}"
+        arch: x64
+    - name: Install LLVM and Clang
+      uses: ZhongRuoyu/setup-llvm@v0.2.0
+      with:
+        llvm-version: "${{matrix.base_compiler}}"
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         variant: sccache
         key: ${{ github.job }}-${{matrix.clang_version}}-${{matrix.cuda_or_rocm}}
@@ -37,7 +39,7 @@ jobs:
       run: |
         git clone --recurse-submodules https://github.com/llvm/llvm-project --depth 1 --single-branch -b release/${{matrix.clang_version}}.x llvm
     - name: cuda-toolkit
-      uses: Jimver/cuda-toolkit@v0.2.19
+      uses: Jimver/cuda-toolkit@v0.2.35
       with:
         method: local
         log-file-suffix: ${{matrix.clang_version}}_${{matrix.os}}.txt
@@ -52,7 +54,7 @@ jobs:
         echo "PATH=$env:GITHUB_WORKSPACE/ninja_install;$env:PATH" >> $env:GITHUB_ENV
     - name: Restore Cache installed Boost
       id: cache-boost-install
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: ${{github.workspace}}/boost/install
         key: ${{runner.os}}-boost1830-install
@@ -81,7 +83,7 @@ jobs:
 
     - name: Save Boost Cache
       if: steps.cache-boost-install.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         path: ${{github.workspace}}/boost/install
         key: ${{steps.cache-boost-install.outputs.cache-primary-key}}
@@ -157,7 +159,7 @@ jobs:
         cd $env:GITHUB_WORKSPACE/build/tests-sscp
         $env:ACPP_DEBUG_LEVEL=3
         .\sycl_tests.exe
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       if: github.event_name == 'push'
       with:
         name: AdaptiveCpp-LLVM${{matrix.clang_version}}-Win

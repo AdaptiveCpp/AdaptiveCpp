@@ -17,7 +17,7 @@ jobs:
         clang_version: ['15']
         cuda: ['11.0']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Build AdaptiveCpp
       run: |
         mkdir build && cd build
@@ -43,7 +43,7 @@ jobs:
         mv output.json ${GITHUB_WORKSPACE}
 
     - name: Download previous benchmark data
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ./cache
         key: ${{ runner.os }}-benchmark

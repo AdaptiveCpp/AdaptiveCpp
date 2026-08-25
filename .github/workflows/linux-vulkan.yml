@@ -17,7 +17,7 @@ jobs:
         clang: ['17']
         os: [ubuntu-22.04]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           fetch-depth: 20
@@ -54,7 +54,7 @@ jobs:
         clspv_commit: ['88d8ff71000bf995493c8daaed865ec1ac216309']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
         path: AdaptiveCpp
@@ -78,7 +78,7 @@ jobs:
         vulkaninfo --summary
 
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         key: ${{ github.job }}-${{matrix.clang_version}}
         restore-keys: |
@@ -86,14 +86,14 @@ jobs:
 
     - name: cache clspv
       id: cache-clspv
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{github.workspace}}/clspv/build/install
         key: ${{matrix.clspv_commit}}
 
     - name: checkout clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: google/clspv
         path: clspv

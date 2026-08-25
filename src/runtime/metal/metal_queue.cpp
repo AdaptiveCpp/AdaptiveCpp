@@ -205,8 +205,8 @@ result launch_kernel_from_library(
   }
 
   if (has_indirect_access && !allocator->get_residency_set()) {
-    // Older devices without residency sets need explicit residency declarations.
-    // Deduplicate the declarations across kernels sharing this command buffer.
+    // Older devices without residency sets need explicit residency declarations
+    // for every encoder. Cache the allocation snapshot between launches.
     queue->make_allocations_resident(encoder);
   }
 
@@ -334,11 +334,6 @@ MTL::CommandBuffer* metal_inorder_queue::get_open_command_buffer() {
   _open_buffer_has_trailing_signal = false;
   _open_op_count = 0;
 
-  // Residency dedup state is only valid for a single command buffer.
-  _resident_buffers.clear();
-  _residency_pass_done = false;
-  _residency_generation = ~static_cast<uint64_t>(0);
-
   return cmd_buf;
 }
 
@@ -386,8 +381,6 @@ result metal_inorder_queue::flush() {
   _open_buffer->release();
   _open_buffer = nullptr;
   _open_op_count = 0;
-  _resident_buffers.clear();
-  _residency_pass_done = false;
 
   return make_success();
 }
@@ -404,26 +397,21 @@ void metal_inorder_queue::make_allocations_resident(
   MTL::ComputeCommandEncoder* encoder) {
   constexpr auto usage = MTL::ResourceUsageRead | MTL::ResourceUsageWrite;
 
-  const uint64_t gen = _allocator->generation();
-  if (_residency_pass_done && gen == _residency_generation) {
-    // No allocation or free since the last full scan of this command buffer,
-    // and every allocation has already been made resident in it.
-    return;
-  }
-  if (gen != _residency_generation) {
-    // Allocation set changed; dedup cache may contain stale entries (a freed
-    // buffer's address can be reused by a new allocation).
-    _resident_buffers.clear();
+  // Residency requested via useResource(s) is scoped to the encoder, and a
+  // fresh compute encoder is created per dispatch, so the full set has to be
+  // passed to every encoder. What is cached is only the construction of that
+  // set: the allocator map is rescanned - and its lock taken - exclusively
+  // when an allocation or free happened since the last scan. This turns the
+  // per-launch cost from O(allocations) under the allocator mutex into a
+  // single lock-free generation check plus one useResources call.
+  if (_allocator->generation() != _residency_generation) {
+    _residency_generation = _allocator->snapshot_buffers(_resident_resources);
   }
 
-  _allocator->for_each_buffer([&](MTL::Buffer* buf) {
-    if (_resident_buffers.insert(buf).second) {
-      encoder->useResource(buf, usage);
-    }
-  });
-
-  _residency_generation = gen;
-  _residency_pass_done = true;
+  if (!_resident_resources.empty()) {
+    encoder->useResources(_resident_resources.data(),
+                          _resident_resources.size(), usage);
+  }
 }
 
 void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& node) {

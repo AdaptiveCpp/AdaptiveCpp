@@ -17,11 +17,13 @@
 #include <atomic>
 #include <map>
 #include <memory>
+#include <vector>
 
 namespace MTL {
 
 class Device;
 class Buffer;
+class Resource;
 
 } // namespace MTL
 
@@ -84,17 +86,17 @@ public:
   // USM allocations, and returns the generation the snapshot corresponds to.
   // Snapshot and generation are taken under the same lock, so the returned
   // pair is always consistent.
-  template<typename Container>
-  uint64_t snapshot_buffers(Container& out) const {
-    std::lock_guard<std::mutex> lock{_mutex};
-    out.clear();
-    for (auto& [ptr, block] : _ptr_to_block) {
-      if (block.buffer) {
-        out.push_back(block.buffer);
-      }
-    }
-    return _generation.load(std::memory_order_relaxed);
-  }
+  //
+  // Each returned buffer is retain()'d before being handed out: the snapshot
+  // may be cached and used by the caller (e.g. passed to useResources())
+  // after this lock has been released, and without an extra reference a
+  // concurrent raw_free() on another thread could release/deallocate the
+  // buffer in that window. The caller owns the extra reference and must
+  // release() every entry once it stops using the snapshot (e.g. when
+  // replacing it with a newer one, or on destruction).
+  // (Not a template: retain() requires MTL::Buffer to be a complete type,
+  // which this header intentionally does not pull in - see metal_allocator.cpp.)
+  uint64_t snapshot_buffers(std::vector<const MTL::Resource*>& out) const;
 
 private:
   MTL::Buffer* alloc_buffer(size_t size_bytes);

@@ -378,6 +378,18 @@ void metal_allocator::calibrate() {
   buffer->release();
 }
 
+uint64_t metal_allocator::snapshot_buffers(std::vector<const MTL::Resource*>& out) const {
+  std::lock_guard<std::mutex> lock{_mutex};
+  out.clear();
+  for (auto& [ptr, block] : _ptr_to_block) {
+    if (block.buffer) {
+      block.buffer->retain();
+      out.push_back(block.buffer);
+    }
+  }
+  return _generation.load(std::memory_order_relaxed);
+}
+
 std::tuple<MTL::Buffer*, size_t, metal_allocator::usm_alloc_type> metal_allocator::get_usm_block(const void* ptr) const {
   std::lock_guard<std::mutex> lock{_mutex};
   if (_ptr_to_block.empty()) {

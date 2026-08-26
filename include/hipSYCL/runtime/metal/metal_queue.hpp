@@ -194,6 +194,11 @@ private:
 
   void profiling_setup(operation& op, const dag_node_ptr& node);
 
+  // Releases the extra reference held on every entry of _resident_resources
+  // (see comment on that member). Must be called before replacing the cache
+  // with a new snapshot, and on destruction.
+  void release_resident_resources();
+
   MTL::Device* _device = nullptr;
   MTL::CommandQueue* _command_queue = nullptr;
   MTL::SharedEvent* _shared_event = nullptr;
@@ -224,6 +229,12 @@ private:
   // Cached snapshot of the allocations that must be made resident, together
   // with the allocator generation it was taken at. Rebuilt only when the
   // allocator generation changes; independent of command buffer boundaries.
+  // Each entry holds an extra reference taken by metal_allocator::
+  // snapshot_buffers() (retained manually, not via NS::SharedPtr, for the
+  // same reason as _open_buffer above), so a concurrent free() of one of
+  // these buffers on another thread cannot deallocate it while it is cached
+  // here or being passed to useResources(). That reference is released when
+  // the cache is replaced (generation change) or the queue is destroyed.
   std::vector<const MTL::Resource*> _resident_resources;
   uint64_t _residency_generation{~static_cast<uint64_t>(0)};
 

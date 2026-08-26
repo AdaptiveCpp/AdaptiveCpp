@@ -366,6 +366,12 @@ void metal_inorder_queue::finish_batched_op() {
   }
 }
 
+void metal_inorder_queue::release_resident_resources() {
+  for (const MTL::Resource* r : _resident_resources) {
+    const_cast<MTL::Resource*>(r)->release();
+  }
+}
+
 void metal_inorder_queue::make_allocations_resident(
   MTL::ComputeCommandEncoder* encoder) {
   constexpr auto usage = MTL::ResourceUsageRead | MTL::ResourceUsageWrite;
@@ -378,6 +384,12 @@ void metal_inorder_queue::make_allocations_resident(
   // per-launch cost from O(allocations) under the allocator mutex into a
   // single lock-free generation check plus one useResources call.
   if (_allocator->generation() != _residency_generation) {
+    // snapshot_buffers() retains every buffer it hands back, since the
+    // resulting cache outlives the allocator lock and free() on another
+    // thread must not be able to deallocate a buffer while it is cached
+    // here / passed to useResources() below. Release the previous
+    // snapshot's references before replacing it.
+    release_resident_resources();
     _residency_generation = _allocator->snapshot_buffers(_resident_resources);
   }
 
@@ -996,6 +1008,7 @@ metal_inorder_queue::~metal_inorder_queue() {
   // Drain pending work before releasing queue-owned Metal objects that may be
   // referenced by completion handlers.
   wait();
+  release_resident_resources();
   _event_listener->release();
   _shared_event->release();
   _command_queue->release();

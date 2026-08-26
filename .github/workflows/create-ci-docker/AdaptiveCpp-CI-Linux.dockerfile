@@ -90,16 +90,23 @@ RUN <<EOF
     set -e
     wget -q https://apt.llvm.org/llvm.sh
     chmod +x llvm.sh
-    # Github runners sometimes have trouble reaching the LLVM repository
-    # We retry multiple times to make the CI more stable
-    for i in 1 2 3 4 5; do 
-        ./llvm.sh ${LLVM_VERSION} && echo "Attempt $i failed, retrying in 15s..."
-        sleep 15 
-    done 
+    success=0
+    for i in 1 2 3 4 5; do
+        if ./llvm.sh ${LLVM_VERSION}; then
+            success=1
+            break
+        fi
+        echo "Attempt $i failed, retrying in 15s..."
+        sleep 15
+    done
+    if [ "$success" -ne 1 ]; then
+        echo "llvm.sh failed after 5 attempts"
+        exit 1
+    fi
     apt-get install -y libclang-${LLVM_VERSION}-dev clang-tools-${LLVM_VERSION} libomp-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-dev
     apt-get install -y -o DPkg::options::="--force-overwrite" libclang-rt-${LLVM_VERSION}-dev
     rm -rf /var/lib/apt/lists/*
-    python3 -m pip install lit
+    python3 -m pip install lit==18.1.8
     ln -s /usr/bin/FileCheck-${LLVM_VERSION} /usr/bin/FileCheck
 EOF
 

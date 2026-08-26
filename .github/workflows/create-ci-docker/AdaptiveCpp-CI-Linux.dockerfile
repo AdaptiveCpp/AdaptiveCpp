@@ -90,7 +90,19 @@ RUN <<EOF
     set -e
     wget -q https://apt.llvm.org/llvm.sh
     chmod +x llvm.sh
-    ./llvm.sh ${LLVM_VERSION}
+    success=0
+    for i in 1 2 3 4 5; do
+        if ./llvm.sh ${LLVM_VERSION}; then
+            success=1
+            break
+        fi
+        echo "Attempt $i failed, retrying in 15s..."
+        sleep 15
+    done
+    if [ "$success" -ne 1 ]; then
+        echo "llvm.sh failed after 5 attempts"
+        exit 1
+    fi
     apt-get install -y libclang-${LLVM_VERSION}-dev clang-tools-${LLVM_VERSION} libomp-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-dev
     apt-get install -y -o DPkg::options::="--force-overwrite" libclang-rt-${LLVM_VERSION}-dev
     rm -rf /var/lib/apt/lists/*

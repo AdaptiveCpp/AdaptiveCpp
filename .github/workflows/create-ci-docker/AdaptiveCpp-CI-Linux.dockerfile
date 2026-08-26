@@ -94,7 +94,7 @@ RUN <<EOF
     apt-get install -y libclang-${LLVM_VERSION}-dev clang-tools-${LLVM_VERSION} libomp-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-dev
     apt-get install -y -o DPkg::options::="--force-overwrite" libclang-rt-${LLVM_VERSION}-dev
     rm -rf /var/lib/apt/lists/*
-    python3 -m pip install lit
+    python3 -m pip install lit==18.1.8
     ln -s /usr/bin/FileCheck-${LLVM_VERSION} /usr/bin/FileCheck
 EOF
 

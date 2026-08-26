@@ -23,8 +23,10 @@ inputs:
     required: true
     default: 'ubuntu-22.04'
   GITHUB_TOKEN:
+    type: boolean
     required: true
   FORCE_BUILD:
+    type: boolean
     default: false
   
 outputs:
@@ -165,7 +167,7 @@ runs:
         fi
         
     - name: Build and push Docker images
-      if: (steps.filter-last-push.outputs.docker == 'true' || steps.tag-exists.outputs.tag == 'not found' || inputs.FORCE_BUILD) && github.event_name != 'pull_request'
+      if: (steps.filter-last-push.outputs.docker == 'true' || steps.tag-exists.outputs.tag == 'not found' || inputs.FORCE_BUILD == 'true') && github.event_name != 'pull_request'
       uses: docker/build-push-action@v6
       id: build
       with:

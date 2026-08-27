@@ -266,7 +266,7 @@ bool vk_hardware_context::has(device_support_aspect aspect) const {
       return false;
     }
 
-    const vk::QueueFamilyProperties &queue_family_props =
+    const vk::QueueFamilyProperties queue_family_props =
         _physical_device.getQueueFamilyProperties()[_queue_index];
     if (!queue_family_props.timestampValidBits) {
       return false;

@@ -75,6 +75,22 @@ std::optional<uint64_t> getConstU64(llvm::Value* V) {
   return std::nullopt;
 }
 
+bool isWideInteger(const Type* T) {
+  return T->isIntegerTy() && T->getIntegerBitWidth() > 64;
+}
+
+constexpr unsigned supportedWideIntegerOps[] = {
+  Instruction::Shl, Instruction::LShr, Instruction::AShr,
+  Instruction::And, Instruction::Or,   Instruction::Xor,
+};
+
+bool isSupportedWideIntegerOp(unsigned Opcode) {
+  for (unsigned Supported : supportedWideIntegerOps) {
+    if (Supported == Opcode) return true;
+  }
+  return false;
+}
+
 std::optional<std::string> extractStringConstant(llvm::Value* V, std::string& errorStr) {
   llvm::GlobalVariable* GV = nullptr;
 
@@ -942,8 +958,34 @@ bool MetalEmitter::emitCastInstruction(const CastInst* CI, const std::string& na
   } else if (dyn_cast<BitCastInst>(CI)) {
     os << indent(level) << name << " = as_type<" << destType << ">(" << src << "); // " << instToString(*CI) << "\n";
   } else if (dyn_cast<SExtInst>(CI)) {
-    auto destSigned = getSignedType(CI->getDestTy());
-    os << indent(level) << name << " = as_type<" << destType << ">((" << destSigned << ")__as_signed(" << src << ")); // " << instToString(*CI) << "\n";
+    if (isWideInteger(CI->getDestTy())) {
+      // i128 is a uint4 of four 32 bit words, so a sign extension fills the
+      // words the source does not cover:
+      //   i32 -5                 -> uint4(0xfffffffb, ~0u, ~0u, ~0u)
+      //   i64 0xfffffffe00000001 -> uint4(0x00000001, 0xfffffffe, ~0u, ~0u)
+      // A plain cast to uint4 would copy the value into every word instead,
+      // so the words are written one by one.
+      const unsigned srcBits = CI->getSrcTy()->getIntegerBitWidth();
+      const std::string value = "__as_signed(" + src + ")";
+      const std::string fill = "(" + value + " < 0 ? 0xffffffffu : 0u)";
+      std::string words[4] = {fill, fill, fill, fill};
+      if (srcBits == 64) {
+        words[0] = "(uint)(" + src + ")";
+        words[1] = "(uint)((" + src + ") >> 32)";
+      } else if (srcBits <= 32) {
+        words[0] = "(uint)(" + value + ")";
+      } else {
+        errorMsg = "Error: Unsupported sign extension source width: " +
+                   std::to_string(srcBits);
+        return false;
+      }
+      os << indent(level) << name << " = uint4(" << words[0] << ", " << words[1]
+         << ", " << words[2] << ", " << words[3] << "); // "
+         << instToString(*CI) << "\n";
+    } else {
+      auto destSigned = getSignedType(CI->getDestTy());
+      os << indent(level) << name << " = as_type<" << destType << ">((" << destSigned << ")__as_signed(" << src << ")); // " << instToString(*CI) << "\n";
+    }
   } else if (CI->getOpcode() == Instruction::SIToFP) {
     os << indent(level) << name << " = (" << destType << ") __as_signed(" << src << "); // " << instToString(*CI) << "\n";
   } else if (CI->getOpcode() == Instruction::FPToSI) {
@@ -962,6 +1004,16 @@ void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::strin
   std::string rhs = emitExpr(BO->getOperand(1));
 
   std::string resultType = mapType(BO->getType());
+
+  const auto* shiftConstant = dyn_cast<ConstantInt>(BO->getOperand(1));
+  const uint64_t shiftAmount =
+    shiftConstant ? shiftConstant->getValue().getLimitedValue() : ~0ull;
+
+  if (isWideInteger(BO->getType()) && !isSupportedWideIntegerOp(BO->getOpcode())) {
+    errorMsg = "Error: Unsupported operation on an integer wider than 64 bits: " +
+               instToString(*BO);
+    return;
+  }
 
   switch (BO->getOpcode()) {
     case Instruction::FAdd:
@@ -998,16 +1050,16 @@ void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::strin
       break;
 
     case Instruction::Shl:
-      if (resultType == "uint4") {
+      if (isWideInteger(BO->getType())) {
         // TODO: track >> + trunc for performance
         auto _x = lhs + ".x";
         auto _y = lhs + ".y";
         auto _z = lhs + ".z";
-        if (rhs == "0x20u") {
+        if (shiftAmount == 32) {
           os << indent(level) << name << " = uint4(0," << _x << "," << _y << "," << _z << "); //" << instToString(*BO) << "\n";
-        } else if (rhs == "0x40u") {
+        } else if (shiftAmount == 64) {
           os << indent(level) << name << " = uint4(0,0," << _x << "," << _y << "); //" << instToString(*BO) << "\n";
-        } else if (rhs == "0x60u") {
+        } else if (shiftAmount == 96) {
           os << indent(level) << name << " = uint4(0,0,0," << _x << "); //" << instToString(*BO) << "\n";
         } else {
           errorMsg = "ERROR: Unsupported uint4 shift left amount: " + rhs;
@@ -1017,20 +1069,36 @@ void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::strin
       }
       break;
     case Instruction::AShr:
-      os << indent(level) << name << " = as_type<" << resultType << ">((__as_signed(" << lhs << ")) >> (__as_signed(" << rhs << ")));\n";
+      if (isWideInteger(BO->getType())) {
+        auto _y = lhs + ".y";
+        auto _z = lhs + ".z";
+        auto _w = lhs + ".w";
+        auto sign = "as_type<uint>(__as_signed(" + lhs + ".w) >> 31)";
+        if (shiftAmount == 32) {
+          os << indent(level) << name << " = uint4(" << _y << "," << _z << "," << _w << "," << sign << "); // " << instToString(*BO) << "\n";
+        } else if (shiftAmount == 64) {
+          os << indent(level) << name << " = uint4(" << _z << "," << _w << "," << sign << "," << sign << "); // " << instToString(*BO) << "\n";
+        } else if (shiftAmount == 96) {
+          os << indent(level) << name << " = uint4(" << _w << "," << sign << "," << sign << "," << sign << "); // " << instToString(*BO) << "\n";
+        } else {
+          errorMsg = "ERROR: Unsupported uint4 arithmetic right shift amount: " + rhs;
+        }
+      } else {
+        os << indent(level) << name << " = as_type<" << resultType << ">((__as_signed(" << lhs << ")) >> (__as_signed(" << rhs << ")));\n";
+      }
       break;
 
     case Instruction::LShr:
-      if (resultType == "uint4") {
+      if (isWideInteger(BO->getType())) {
         // TODO: track >> + trunc for performance
         auto _y = lhs + ".y";
         auto _z = lhs + ".z";
         auto _w = lhs + ".w";
-        if (rhs == "0x20u") {
+        if (shiftAmount == 32) {
           os << indent(level) << name << " = uint4(" << _y << "," << _z << "," << _w << ",0); // " << instToString(*BO) << "\n";
-        } else if (rhs == "0x40u") {
+        } else if (shiftAmount == 64) {
           os << indent(level) << name << " = uint4(" << _z << "," << _w << ",0,0); // " << instToString(*BO) << "\n";
-        } else if (rhs == "0x60u") {
+        } else if (shiftAmount == 96) {
           os << indent(level) << name << " = uint4(" << _w << ",0,0,0); // " << instToString(*BO) << "\n";
         } else {
           errorMsg = "ERROR: Unsupported uint4 logical right shift amount: " + rhs;
@@ -1067,12 +1135,16 @@ void MetalEmitter::emitICmpInstruction(const ICmpInst* IC, const std::string& na
 
   auto resultType = mapType(IC->getType());
 
+  const bool isWide = isWideInteger(IC->getOperand(0)->getType());
+
   switch (IC->getPredicate()) {
     case ICmpInst::ICMP_EQ:
-      os << indent(level) << name << " = (" << lhs << " == " << rhs << ");\n";
+      os << indent(level) << name << " = " << (isWide ? "all(" : "(")
+         << lhs << " == " << rhs << ");\n";
       break;
     case ICmpInst::ICMP_NE:
-      os << indent(level) << name << " = (" << lhs << " != " << rhs << ");\n";
+      os << indent(level) << name << " = " << (isWide ? "any(" : "(")
+         << lhs << " != " << rhs << ");\n";
       break;
     case ICmpInst::ICMP_UGT:
       os << indent(level) << name << " = (" << lhs << " > " << rhs << ");\n";
@@ -1277,6 +1349,16 @@ std::string MetalEmitter::emitExpr(const Value* V) {
   if (auto *CI = dyn_cast<ConstantInt>(V)) {
     if (CI->getBitWidth() == 1) {
       return CI->isZero() ? "false" : "true";
+    }
+    if (isWideInteger(CI->getType())) {
+      std::ostringstream vec;
+      vec << mapType(CI->getType()) << "(" << std::hex;
+      for (unsigned bit = 0; bit < CI->getBitWidth(); bit += 32) {
+        if (bit > 0) vec << ", ";
+        vec << "0x" << CI->getValue().extractBitsAsZExtValue(32, bit) << "u";
+      }
+      vec << ")";
+      return vec.str();
     }
     uint64_t val = CI->getZExtValue();
     std::ostringstream hex;

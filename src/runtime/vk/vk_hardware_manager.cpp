@@ -441,14 +441,17 @@ vk_hardware_context::get_property(device_uint_list_property prop) const {
 }
 
 std::string vk_hardware_context::get_driver_version() const {
-  // TODO - Not all vendors will use driver versions in this form
-  uint32_t version = _properties.driverVersion;
-  uint32_t major = VK_API_VERSION_MAJOR(version);
-  uint32_t minor = VK_API_VERSION_MINOR(version);
-  uint32_t patch = VK_API_VERSION_PATCH(version);
-  return std::to_string(major) + "." + std::to_string(minor) + "." +
-         std::to_string(patch);
+  auto properties2 =
+      _physical_device.getProperties2<vk::PhysicalDeviceProperties2,
+                                      vk::PhysicalDeviceDriverProperties>();
+  vk::PhysicalDeviceDriverProperties const &driver_props =
+      properties2.get<vk::PhysicalDeviceDriverProperties>();
+  std::string driver(std::string(driver_props.driverName));
+  driver.append(", ");
+  driver.append(std::string(driver_props.driverInfo));
+  return driver;
 }
+
 std::string vk_hardware_context::get_profile() const { return "FULL_PROFILE"; }
 
 std::size_t vk_hardware_context::get_platform_index() const { return 0; }
@@ -561,7 +564,6 @@ vk_hardware_manager::vk_hardware_manager()
       static_cast<uint32_t>(enabled_extensions.size()), // enabledExtensionCount
       enabled_extensions.data() // ppEnabledExtensionNames
   };
-  _instance = vk::raii::Instance(_context, create_info);
 
 #ifndef NDEBUG
   vk::DebugUtilsMessageSeverityFlagsEXT severity_flags(
@@ -575,8 +577,13 @@ vk_hardware_manager::vk_hardware_manager()
   vk::DebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
       {}, severity_flags, message_type_flags, &debugCallback};
 
+  create_info.pNext = &debug_utils_messenger_create_info;
+  _instance = vk::raii::Instance(_context, create_info);
+
   _debug_messenger =
       _instance.createDebugUtilsMessengerEXT(debug_utils_messenger_create_info);
+#else
+  _instance = vk::raii::Instance(_context, create_info);
 #endif
 
   // Iterate over physical devices and find those capable being instantiated

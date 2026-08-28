@@ -42,7 +42,7 @@ runs:
     - uses: dorny/paths-filter@v3
       id: filter-last-push
       with:
-        base: ${{ github.ref }}
+        base: develop
         filters: |
           docker:
             - '.github/workflows/create-ci-docker/**'

@@ -121,11 +121,9 @@ public:
                      error_type::invalid_parameter_error});
   }
 
-  /// Returns true if this launcher describes a host-side custom (interop)
-  /// operation. Such operations execute user code synchronously during
-  /// invoke(), and that code is free to submit native work directly against
-  /// native handles (e.g. the native command queue). Backends that batch
-  /// native submissions must take this into account to preserve ordering.
+  /// True for host-side custom (interop) operations, whose invoke() may
+  /// submit native work directly. Backends that batch native submissions
+  /// need to know this to preserve ordering.
   bool is_custom_operation() const {
     return static_cast<bool>(_static_data.custom_op)
            || _static_data.type == rt::kernel_type::custom;

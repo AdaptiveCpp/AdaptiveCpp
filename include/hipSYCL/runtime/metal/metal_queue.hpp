@@ -24,11 +24,15 @@
 
 #include <mach/mach_time.h>
 
+#include <vector>
+
 namespace MTL {
 
 class Device;
+class Resource;
 class CommandBuffer;
 class CommandQueue;
+class ComputeCommandEncoder;
 class SharedEvent;
 class SharedEventListener;
 
@@ -154,9 +158,18 @@ public:
 
   virtual ~metal_inorder_queue();
 
+  // Makes all known USM allocations resident for `encoder`. Residency is
+  // scoped to the encoder, so this must be called for every one; the
+  // allocation set itself is cached and only rebuilt when it changes.
+  // Public because the free kernel launch helper calls it.
+  void make_allocations_resident(MTL::ComputeCommandEncoder* encoder);
+
 private:
   MTL::CommandBuffer* new_command_buffer();
   void profiling_setup(operation& op, const dag_node_ptr& node);
+
+  // Releases the extra reference held on every entry of _resident_resources.
+  void release_resident_resources();
 
   MTL::Device* _device = nullptr;
   MTL::CommandQueue* _command_queue = nullptr;
@@ -170,6 +183,15 @@ private:
   // by external mutex, so no atomics needed.
   uint64_t _pending_cpu_event{0};
   uint64_t _pending_gpu_event{0};
+
+  // Cached snapshot of the allocations that must be made resident, plus the
+  // allocator generation it was taken at; rebuilt only when that generation
+  // changes. Each entry holds an extra reference taken by
+  // metal_allocator::snapshot_buffers() so a concurrent free() elsewhere
+  // cannot deallocate it while cached here; released when the cache is
+  // replaced or the queue is destroyed.
+  std::vector<const MTL::Resource*> _resident_resources;
+  uint64_t _residency_generation{~static_cast<uint64_t>(0)};
 
   metal_allocator* _allocator = nullptr;
   device_id _device_id;

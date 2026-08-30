@@ -24,16 +24,11 @@
 
 #include <mach/mach_time.h>
 
-#include <vector>
-
 namespace MTL {
 
 class Device;
-class Buffer;
-class Resource;
 class CommandBuffer;
 class CommandQueue;
-class ComputeCommandEncoder;
 class SharedEvent;
 class SharedEventListener;
 
@@ -159,45 +154,31 @@ public:
 
   virtual ~metal_inorder_queue();
 
-  // Makes all USM allocations known to the allocator resident for the given
-  // encoder. Residency established this way is scoped to the encoder, so this
-  // must be called for every encoder; what is cached across encoders is only
-  // the *set* of allocations, which is rebuilt (taking the allocator lock)
-  // exclusively when the allocator generation changes.
-  // Public because it is invoked by the free kernel launch helper.
-  void make_allocations_resident(MTL::ComputeCommandEncoder* encoder);
-
 private:
-  // Common setup for freshly created command buffers: encodes the wait on the
-  // previous queue work and attaches pending profiling handlers.
+  // Encodes the wait on prior queue work and attaches pending profiling
+  // handlers; shared by get_open_command_buffer() and
+  // new_dedicated_command_buffer().
   MTL::CommandBuffer* prepare_command_buffer(MTL::CommandBuffer* cmd_buf);
 
-  // Returns the currently open (uncommitted) command buffer of this queue,
-  // creating one if none exists. Operations append their encoders to the open
-  // buffer; it is committed lazily by flush().
+  // Returns the open (uncommitted) command buffer, creating one if needed.
+  // Committed lazily by flush().
   MTL::CommandBuffer* get_open_command_buffer();
 
-  // Batching bookkeeping to be invoked after an operation has been fully
-  // encoded into the open buffer: enforces a bound on ops per command buffer
-  // and closes the window for per-op GPU profiling timestamps.
+  // Bounds the number of ops per command buffer and flushes when profiling
+  // needs the buffer to end with exactly the profiled operation.
   void finish_batched_op();
 
-  // Creates a fresh command buffer that is NOT the open buffer, for operations
-  // that must be committed immediately (e.g. device->host copies with CPU-side
-  // completion logic). Serializes against all prior work on this queue.
+  // A command buffer that is committed immediately instead of joining
+  // _open_buffer, for ops needing immediate CPU-side completion handling
+  // (e.g. host-staged copies).
   MTL::CommandBuffer* new_dedicated_command_buffer();
 
-  // Commits the open command buffer, if any. Synchronization with subsequent
-  // work is expressed exclusively through explicit events and host-visible
-  // copies, matching the semantics of the non-batched submission path.
+  // Commits the open command buffer, if any. No implicit signal/wait is
+  // added: that would serialize command buffers the GPU could otherwise run
+  // concurrently, so synchronization stays explicit (events, host copies).
   result flush();
 
   void profiling_setup(operation& op, const dag_node_ptr& node);
-
-  // Releases the extra reference held on every entry of _resident_resources
-  // (see comment on that member). Must be called before replacing the cache
-  // with a new snapshot, and on destruction.
-  void release_resident_resources();
 
   MTL::Device* _device = nullptr;
   MTL::CommandQueue* _command_queue = nullptr;
@@ -212,31 +193,16 @@ private:
   uint64_t _pending_cpu_event{0};
   uint64_t _pending_gpu_event{0};
 
-  // Command buffer batching: operations append encoders to _open_buffer which
-  // is committed lazily (on wait/event/flush boundaries or when
-  // max_ops_per_command_buffer is reached). Encoders within a command buffer
-  // execute in encoding order, so batching preserves in-order semantics.
-  // Retained manually; must not be a NS::SharedPtr because this header must
-  // not include Foundation headers (see metal_hardware_manager.cpp, which
-  // defines the metal-cpp private implementation symbols).
+  // Currently open command buffer that ops append encoders to; committed
+  // lazily by flush(). Retained manually rather than via NS::SharedPtr
+  // because this header must stay free of Foundation headers (see
+  // metal_hardware_manager.cpp, which defines the metal-cpp private impls).
   MTL::CommandBuffer* _open_buffer = nullptr;
   bool _open_buffer_has_trailing_signal{false};
   int _open_op_count{0};
   bool _flush_after_current_op{false};
 
   static constexpr int max_ops_per_command_buffer = 32;
-
-  // Cached snapshot of the allocations that must be made resident, together
-  // with the allocator generation it was taken at. Rebuilt only when the
-  // allocator generation changes; independent of command buffer boundaries.
-  // Each entry holds an extra reference taken by metal_allocator::
-  // snapshot_buffers() (retained manually, not via NS::SharedPtr, for the
-  // same reason as _open_buffer above), so a concurrent free() of one of
-  // these buffers on another thread cannot deallocate it while it is cached
-  // here or being passed to useResources(). That reference is released when
-  // the cache is replaced (generation change) or the queue is destroyed.
-  std::vector<const MTL::Resource*> _resident_resources;
-  uint64_t _residency_generation{~static_cast<uint64_t>(0)};
 
   metal_allocator* _allocator = nullptr;
   device_id _device_id;

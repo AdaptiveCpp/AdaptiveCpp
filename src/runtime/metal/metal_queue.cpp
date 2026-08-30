@@ -106,7 +106,6 @@ result launch_kernel_from_library(
   MTL::Library* library,
   MTL::Device* device,
   MTL::CommandBuffer* command_buffer,
-  metal_inorder_queue* queue,
   metal_allocator* allocator,
   std::string_view kernel_name,
   const rt::range<3>& num_groups,
@@ -197,11 +196,10 @@ result launch_kernel_from_library(
       encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out, buf_offset);
   }
 
-  // SSCP kernels may dereference arbitrary USM pointers (pointer chasing via
-  // the address-delta translation), so every allocation must be resident for
-  // this encoder. make_allocations_resident() skips the allocator scan when
-  // the allocation set is unchanged.
-  queue->make_allocations_resident(encoder);
+  // TODO: switch to MTL4 API for O(1) buffer bindings
+  allocator->for_each_buffer([&](MTL::Buffer* buf) {
+    encoder->useResource(buf, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
+  });
 
   MTL::Size num_groups_size = MTL::Size::Make(
     num_groups[0],
@@ -225,9 +223,7 @@ result launch_kernel_from_library(
 
   encoder->endEncoding();
 
-  // The kernel is now encoded into the (possibly shared) open command buffer.
-  // Committing is the responsibility of the caller via finish_batched_op() /
-  // flush(), so that consecutive operations can share one command buffer.
+  // Caller commits (via finish_batched_op()/flush()) so ops can share a buffer.
 
   return make_success();
 }
@@ -254,7 +250,7 @@ result memset_device(
   blit_encoder->fillBuffer(buffer, NS::Range::Make(offset, num_bytes), pattern);
   blit_encoder->endEncoding();
 
-  // Committing is the responsibility of the caller (batching-aware).
+  // Caller commits so this can join a shared open command buffer.
 
   return make_success();
 }
@@ -289,8 +285,7 @@ metal_inorder_queue::prepare_command_buffer(MTL::CommandBuffer* cmd_buf) {
       }
     });
     _profiling_setup.reset();
-    // Close the command buffer right after this operation so that the
-    // recorded GPU timestamps correspond to exactly this operation.
+    // Flush after this op so its GPU timestamps aren't shared with others.
     _flush_after_current_op = true;
   }
   return cmd_buf;
@@ -314,9 +309,7 @@ MTL::CommandBuffer* metal_inorder_queue::get_open_command_buffer() {
 }
 
 MTL::CommandBuffer* metal_inorder_queue::new_dedicated_command_buffer() {
-  // Note: no autorelease pool is created here. The returned buffer is
-  // autoreleased and must remain valid until the caller commits it, so it
-  // relies on the caller's pool (same contract as the rest of Metal-cpp).
+  // Relies on the caller's autorelease pool, like the rest of Metal-cpp.
   return prepare_command_buffer(_command_queue->commandBuffer());
 }
 
@@ -327,14 +320,10 @@ result metal_inorder_queue::flush() {
 
   MTL::CommandBuffer* cb = _open_buffer;
 
-  // Note: no implicit signal is appended here. Synchronization points are
-  // expressed explicitly through events (insert_event) and host-visible
-  // copies, exactly as in the non-batched submission path. Adding a
-  // signal/wait pair per commit would serialize command buffers that the
-  // GPU could otherwise execute concurrently.
+  // No implicit signal/wait is added on commit: that would serialize command
+  // buffers the GPU could otherwise run concurrently. If this buffer already
+  // has an explicit signal (from insert_event()), later buffers must wait on it.
   if (_open_buffer_has_trailing_signal) {
-    // An event signal was explicitly encoded into this buffer; subsequent
-    // command buffers must observe it.
     _pending_gpu_event = _event_counter.load();
     _open_buffer_has_trailing_signal = false;
   }
@@ -366,39 +355,6 @@ void metal_inorder_queue::finish_batched_op() {
   }
 }
 
-void metal_inorder_queue::release_resident_resources() {
-  for (const MTL::Resource* r : _resident_resources) {
-    const_cast<MTL::Resource*>(r)->release();
-  }
-}
-
-void metal_inorder_queue::make_allocations_resident(
-  MTL::ComputeCommandEncoder* encoder) {
-  constexpr auto usage = MTL::ResourceUsageRead | MTL::ResourceUsageWrite;
-
-  // Residency requested via useResource(s) is scoped to the encoder, and a
-  // fresh compute encoder is created per dispatch, so the full set has to be
-  // passed to every encoder. What is cached is only the construction of that
-  // set: the allocator map is rescanned - and its lock taken - exclusively
-  // when an allocation or free happened since the last scan. This turns the
-  // per-launch cost from O(allocations) under the allocator mutex into a
-  // single lock-free generation check plus one useResources call.
-  if (_allocator->generation() != _residency_generation) {
-    // snapshot_buffers() retains every buffer it hands back, since the
-    // resulting cache outlives the allocator lock and free() on another
-    // thread must not be able to deallocate a buffer while it is cached
-    // here / passed to useResources() below. Release the previous
-    // snapshot's references before replacing it.
-    release_resident_resources();
-    _residency_generation = _allocator->snapshot_buffers(_resident_resources);
-  }
-
-  if (!_resident_resources.empty()) {
-    encoder->useResources(_resident_resources.data(),
-                          _resident_resources.size(), usage);
-  }
-}
-
 void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& node) {
   if (!node) {
     return;
@@ -421,9 +377,7 @@ void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& nod
     op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(setup.finish_time);
   }
   if (setup.start_time || setup.finish_time) {
-    // Close any open command buffer so that the profiled operation starts on
-    // a fresh one; prepare_command_buffer() consumes the setup and arranges
-    // for the buffer to be committed right after the operation.
+    // Flush so the profiled operation starts on its own command buffer.
     flush();
     _profiling_setup = std::move(setup);
   }
@@ -440,9 +394,7 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
     cmd_buf->encodeSignalEvent(_shared_event, val);
     _open_buffer_has_trailing_signal = true;
   }
-  // The event must be able to complete for waiters, so commit now. The
-  // trailing signal also serializes subsequent work against everything
-  // encoded before the event.
+  // Commit now: the event must be able to complete for waiters.
   flush();
 
   return std::make_shared<metal_node_event>(metal_event_handle{_shared_event, val});
@@ -507,11 +459,9 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
     if (prev_cpu_event == 0) {
       do_h2h_copy();
     } else {
-      // wait for the prior CPU async work (e.g. device->host copy) to complete
-      // before reading from src_ptr.
-      // Close any open command buffer first: subsequent operations must be
-      // serialized against the deferred CPU-side copy via the event chain,
-      // which only works for command buffers created after this point.
+      // Wait for the prior CPU async work (e.g. device->host copy) to
+      // complete before reading from src_ptr. Flush first: the event chain
+      // that serializes against it only covers buffers created after this.
       if (result r = flush(); !r.is_success()) {
         return r;
       }
@@ -529,10 +479,8 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
 
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
-  // Copies involving unregistered host memory require staging buffers and
-  // CPU-side completion handling, so they always run in their own dedicated,
-  // immediately-committed command buffer. Pure device-to-device copies can
-  // join the currently open command buffer.
+  // Host-involving copies need staging buffers and CPU-side completion
+  // handling, so they get their own dedicated, immediately-committed buffer.
   const bool needs_staging = !src_is_device || !dst_is_device;
   if (needs_staging) {
     if (result r = flush(); !r.is_success()) {
@@ -729,11 +677,9 @@ result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_p
   auto *node_ptr = node.get();
   profiling_setup(op, node);
 
-  // Custom (interop) operations run host code synchronously during invoke().
-  // That code may create and commit its own native command buffers on this
-  // queue (e.g. FFT libraries using Metal interop). Because Metal executes
-  // command buffers of a queue in commit order, everything encoded so far
-  // must be committed before the host code runs.
+  // Custom (interop) ops may commit their own command buffers on this queue
+  // during invoke() (e.g. FFT libraries); Metal runs them in commit order,
+  // so everything encoded so far must be committed first.
   if (op.get_launcher().is_custom_operation()) {
     if (result r = flush(); !r.is_success()) {
       return r;
@@ -795,9 +741,8 @@ result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   inorder_queue_event<metal_event_handle>* metal_evt = cast<inorder_queue_event<metal_event_handle>>(evt.get());
   auto handle = metal_evt->request_backend_event();
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-  // The wait is appended to the open command buffer; encoders within a
-  // command buffer execute in encoding order, so all previously batched work
-  // of this queue precedes the wait.
+  // Appending to the open buffer preserves order: encoders within a command
+  // buffer run in encoding order, so prior batched work precedes the wait.
   auto* cmd_buf = get_open_command_buffer();
   cmd_buf->encodeWait(handle.event, handle.value);
   finish_batched_op();
@@ -825,11 +770,9 @@ device_id metal_inorder_queue::get_device() const {
   return _device_id;
 }
 void* metal_inorder_queue::get_native_type() const {
-  // Handing out the native command queue implies that external code may
-  // commit its own command buffers on it. Metal executes command buffers of
-  // a queue in commit order, so any batched, not yet committed work must be
-  // committed first. (const_cast is safe: batching state is only touched
-  // from submission context.)
+  // External code may commit its own buffers on this queue, so flush ours
+  // first to keep commit order correct. Safe: batching state is only
+  // touched from submission context.
   const_cast<metal_inorder_queue*>(this)->flush();
   return static_cast<void*>(_command_queue);
 }
@@ -983,7 +926,7 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   }
 
   result launch_result = launch_kernel_from_library(
-    library, _device, get_open_command_buffer(), this, _allocator, kernel_name,
+    library, _device, get_open_command_buffer(), _allocator, kernel_name,
     num_groups, group_size, local_mem_size,
     _arg_mapper.get_mapped_args(),
     const_cast<std::size_t*>(_arg_mapper.get_mapped_arg_sizes()),
@@ -1008,7 +951,6 @@ metal_inorder_queue::~metal_inorder_queue() {
   // Drain pending work before releasing queue-owned Metal objects that may be
   // referenced by completion handlers.
   wait();
-  release_resident_resources();
   _event_listener->release();
   _shared_event->release();
   _command_queue->release();

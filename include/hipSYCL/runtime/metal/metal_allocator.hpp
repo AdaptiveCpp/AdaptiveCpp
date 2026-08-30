@@ -14,16 +14,13 @@
 #include "../allocator.hpp"
 #include "../hints.hpp"
 
-#include <atomic>
 #include <map>
 #include <memory>
-#include <vector>
 
 namespace MTL {
 
 class Device;
 class Buffer;
-class Resource;
 
 } // namespace MTL
 
@@ -75,28 +72,15 @@ public:
 
   size_t get_delta() const { return _delta; }
 
-  // Monotonic counter bumped on every allocation and free. Allows consumers
-  // (e.g. the queue's residency tracking) to detect allocation changes without
-  // taking the allocator lock.
-  uint64_t generation() const {
-    return _generation.load(std::memory_order_relaxed);
+  template<typename F>
+  void for_each_buffer(F&& f) const {
+    std::lock_guard<std::mutex> lock{_mutex};
+    for (auto& [ptr, block] : _ptr_to_block) {
+      if (block.buffer) {
+        f(block.buffer);
+      }
+    }
   }
-
-  // Replaces the contents of `out` with all Metal buffers currently backing
-  // USM allocations, and returns the generation the snapshot corresponds to.
-  // Snapshot and generation are taken under the same lock, so the returned
-  // pair is always consistent.
-  //
-  // Each returned buffer is retain()'d before being handed out: the snapshot
-  // may be cached and used by the caller (e.g. passed to useResources())
-  // after this lock has been released, and without an extra reference a
-  // concurrent raw_free() on another thread could release/deallocate the
-  // buffer in that window. The caller owns the extra reference and must
-  // release() every entry once it stops using the snapshot (e.g. when
-  // replacing it with a newer one, or on destruction).
-  // (Not a template: retain() requires MTL::Buffer to be a complete type,
-  // which this header intentionally does not pull in - see metal_allocator.cpp.)
-  uint64_t snapshot_buffers(std::vector<const MTL::Resource*>& out) const;
 
 private:
   MTL::Buffer* alloc_buffer(size_t size_bytes);
@@ -113,7 +97,6 @@ private:
   };
   std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
-  std::atomic<uint64_t> _generation{0};
   std::shared_ptr<metal_mmap_region> _mmap_region;
 };
 

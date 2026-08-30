@@ -233,7 +233,6 @@ void* metal_allocator::raw_allocate(
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[canonical_ptr] = block;
   add_to_residency_set(lock, buffer);
-  ++_generation;
   return canonical_ptr;
 }
 
@@ -253,7 +252,6 @@ void *metal_allocator::raw_allocate_usm(
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
   add_to_residency_set(lock, buffer);
-  ++_generation;
   return host_ptr;
 }
 
@@ -274,7 +272,6 @@ metal_allocator::raw_allocate_optimized_host(
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
   add_to_residency_set(lock, buffer);
-  ++_generation;
   return host_ptr;
 }
 
@@ -293,7 +290,6 @@ void metal_allocator::raw_free(void *mem)
     }
     _ptr_to_block.erase(it);
   }
-  ++_generation;
 }
 
 bool metal_allocator::is_usm_accessible_from(backend_descriptor b) const
@@ -430,18 +426,6 @@ void metal_allocator::calibrate() {
     ^(void*, NS::UInteger) { });
   _delta = buffer->gpuAddress() - reinterpret_cast<uintptr_t>(buffer->contents());
   buffer->release();
-}
-
-uint64_t metal_allocator::snapshot_buffers(std::vector<const MTL::Resource*>& out) const {
-  std::lock_guard<std::mutex> lock{_mutex};
-  out.clear();
-  for (auto& [ptr, block] : _ptr_to_block) {
-    if (block.buffer) {
-      block.buffer->retain();
-      out.push_back(block.buffer);
-    }
-  }
-  return _generation.load(std::memory_order_relaxed);
 }
 
 std::tuple<MTL::Buffer*, size_t, metal_allocator::usm_alloc_type> metal_allocator::get_usm_block(const void* ptr) const {

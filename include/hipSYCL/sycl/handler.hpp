@@ -51,6 +51,9 @@
 #include "hipSYCL/glue/kernel_launcher_factory.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
+#if defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
+#include "hipSYCL/glue/llvm-sscp/free_function_kernel_launcher.hpp"
+#endif
 
 #include "hipSYCL/algorithms/reduction/reduction_engine.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
@@ -750,6 +753,44 @@ public:
   detail::local_memory_allocator& get_local_memory_allocator()
   {
     return _local_mem_allocator;
+  }
+
+  // Implementation entry point for the sycl_khr_free_function_kernels extension.
+  // Launches the free function kernel identified by the function pointer Func as
+  // an nd-range kernel, passing each element of args as a separate kernel
+  // argument (the kernel's parameters), rather than wrapping it in a lambda.
+  //
+  // This routes the launch through the regular DAG/command-group machinery, so
+  // events, dependencies and command graphs behave as for any other kernel.
+  template <auto *Func, int Dim, typename... Args>
+  void AdaptiveCpp_launch_free_function_kernel(sycl::range<Dim> global_range,
+                                               sycl::range<Dim> local_range,
+                                               Args &&...args) {
+#if defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
+    std::size_t local_mem_size = _local_mem_allocator.get_allocation_size();
+
+    glue::kernel_launcher_data launcher_data;
+    glue::free_function_kernels::configure<Func, Dim>(
+        launcher_data, global_range, local_range, local_mem_size,
+        std::forward<Args>(args)...);
+
+    // Free function kernels are only supported by the generic SSCP flow, so we
+    // do not construct any of the SMCP backend launchers here.
+    common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>
+        backend_launchers;
+    rt::kernel_launcher launcher{launcher_data, std::move(backend_launchers)};
+
+    auto kernel_op = rt::make_operation<rt::kernel_operation>(
+        launcher_data.sscp_kernel_id, std::move(launcher), _requirements);
+
+    rt::dag_node_ptr node =
+        create_task(std::move(kernel_op), _execution_hints, _requirements);
+    _command_group_nodes.push_back(node);
+#else
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "handler: Free function kernels (sycl_khr_free_function_"
+                    "kernels) are only supported by the generic SSCP compiler."};
+#endif
   }
 
 private:

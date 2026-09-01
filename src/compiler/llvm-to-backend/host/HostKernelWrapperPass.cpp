@@ -64,7 +64,7 @@ void replaceUsesOfGVWith(llvm::Function &F, llvm::StringRef GlobalVarName, llvm:
  * struct and the user arguments need to be passed to the wrapper.
  */
 llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocalMemSize,
-                                    const std::array<int, 3> &KnownWgSize) {
+                                    const std::array<size_t, 3> &KnownWgSize) {
   auto M = F.getParent();
   auto &Ctx = M->getContext();
 

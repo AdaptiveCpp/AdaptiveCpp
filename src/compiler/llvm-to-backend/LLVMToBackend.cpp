@@ -177,13 +177,13 @@ bool LLVMToBackendTranslator::setBuildOption(const std::string &Option, const st
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build option: " << Option << "=" << Value << "\n";
 
   if(Option == "known-group-size-x") {
-    KnownGroupSizeX = std::stoi(Value);
+    KnownGroupSizeX = std::stoull(Value);
     return true;
   } else if (Option == "known-group-size-y") {
-    KnownGroupSizeY = std::stoi(Value);
+    KnownGroupSizeY = std::stoull(Value);
     return true;
   } else if (Option == "known-group-size-z") {
-    KnownGroupSizeZ = std::stoi(Value);
+    KnownGroupSizeZ = std::stoull(Value);
     return true;
   } else if (Option == "known-local-mem-size") {
     KnownLocalMemSize = std::stoi(Value);

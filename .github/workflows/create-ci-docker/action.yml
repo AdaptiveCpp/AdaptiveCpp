@@ -42,7 +42,7 @@ runs:
     - uses: dorny/paths-filter@v3
       id: filter-last-push
       with:
-        base: ${{ github.ref }}
+        base: develop
         filters: |
           docker:
             - '.github/workflows/create-ci-docker/**'
@@ -160,17 +160,18 @@ runs:
       shell: bash
       run: |
         # use fallback if no changes were made to docker
-        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+        if [[ "${{ steps.filter-last-push.outputs.docker }}" == "false" ]]; then
           echo "docker_image=${{ steps.select-metadata.outputs.fallback_tag }}" >> $GITHUB_OUTPUT
         else
           echo "docker_image=${{ steps.select-metadata.outputs.docker_image }}" >> $GITHUB_OUTPUT
         fi
         
     - name: Build and push Docker images
-      if: (steps.filter-last-push.outputs.docker == 'true' || steps.tag-exists.outputs.tag == 'not found' || inputs.FORCE_BUILD == 'true') && github.event_name != 'pull_request'
+      if: steps.filter-last-push.outputs.docker == 'true' || steps.tag-exists.outputs.tag == 'not found' || inputs.FORCE_BUILD == 'true'
       uses: docker/build-push-action@v6
       id: build
       with:
+        context: .github/workflows/create-ci-docker
         file: .github/workflows/create-ci-docker/AdaptiveCpp-CI-Linux.dockerfile
         platforms: linux/amd64
         push: true

@@ -688,6 +688,10 @@ public:
     _command_group_nodes.push_back(node);
   }
 
+  void khr_prefetch_host(const void *ptr, std::size_t num_bytes) {
+    prefetch_host(ptr, num_bytes);
+  }
+
   void prefetch(const void *ptr, std::size_t num_bytes) {
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())

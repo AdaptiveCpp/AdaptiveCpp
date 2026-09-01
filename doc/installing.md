@@ -9,6 +9,12 @@ On Mac, the CPU backend and the experimental [Metal backend](install-metal.md) a
 Windows support with CPU and CUDA backends is expected to work when [linking AdaptiveCpp into LLVM](#building-an-llvm-toolchain-with-adaptivecpp-linked-in-experimental-but-also-for-windows).
 For Windows, you may also [download](https://nightly.link/AdaptiveCpp/AdaptiveCpp/workflows/windows-acppllvm/develop/AdaptiveCpp-LLVM20-Win.zip) nightly binaries for AdaptiveCpp from the `develop` branch.
 
+## Installation as a package
+
+The following package managers have AdaptiveCpp available:
+* The Arch Linux AUR has a package under the name [adaptivecpp](https://aur.archlinux.org/packages/adaptivecpp).
+* A Homebrew distribution for MacOS is available under the name [adaptivecpp](https://formulae.brew.sh/formula/adaptivecpp#default).
+
 ## Installation from source (Linux)
 
 ### Software dependencies

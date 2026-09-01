@@ -191,6 +191,8 @@ if(WITH_PSTL_TESTS)
     pstl/transform_reduce.cpp
     pstl/transform_inclusive_scan.cpp
     pstl/transform_exclusive_scan.cpp
+    pstl/unique_copy.cpp
+    pstl/unique.cpp
     pstl/pointer_validation.cpp
     pstl/allocation_map.cpp
     pstl/free_space_map.cpp)

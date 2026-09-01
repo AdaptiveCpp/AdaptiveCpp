@@ -218,6 +218,18 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
 
 template <class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_left(hipsycl::stdpar::par_unseq,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
+
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_right(hipsycl::stdpar::par_unseq,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
+
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt min_element(hipsycl::stdpar::par_unseq, ForwardIt first,
                       ForwardIt last);
 
@@ -326,6 +338,18 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2, ForwardIt2 last2,
                                     BinaryPredicate p);
+
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_left(hipsycl::stdpar::par,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
+
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt shift_right(hipsycl::stdpar::par,
+                ForwardIt first, ForwardIt last,
+                typename std::iterator_traits<ForwardIt>::difference_type n);
 
 template <class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT

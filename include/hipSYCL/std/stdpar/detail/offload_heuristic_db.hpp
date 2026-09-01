@@ -75,6 +75,8 @@ struct transform_inclusive_scan {};
 struct transform_exclusive_scan {};
 struct transform_reduce {};
 struct reduce {};
+struct shift_left {};
+struct shift_right {};
 } // namespace algorithm_type
 
 template<class AlgorithmCategory, class ExecPolicy>

@@ -171,6 +171,7 @@ runs:
       uses: docker/build-push-action@v6
       id: build
       with:
+        context: .github/workflows/create-ci-docker
         file: .github/workflows/create-ci-docker/AdaptiveCpp-CI-Linux.dockerfile
         platforms: linux/amd64
         push: true

@@ -356,22 +356,30 @@ kernel_adaptivity_engine::finalize_binary_configuration(
         kernel_entry.kernel_args.resize(num_kernel_args);
 
       auto process_kernel_arg = [&](int i) {
-        uint64_t arg_value = 0;
-        std::memcpy(&arg_value, _arg_mapper.get_mapped_args()[i],
-                    _kernel_info->get_argument_size(i));
-        if (_kernel_info->get_argument_type(i) !=
-                hcf_kernel_info::argument_type::pointer &&
-            is_likely_invariant_argument(kernel_entry, i, data.content_version,
-                                         arg_value) &&
-            !has_annotation(_kernel_info, i,
-                            hcf_kernel_info::annotation_type::specialized)) {
-          HIPSYCL_DEBUG_INFO << "adaptivity_engine: Kernel argument " << i
-                             << " is invariant or common, specializing."
-                             << std::endl;
-          config.set_specialized_kernel_argument(i, arg_value);
+        std::size_t arg_size = _kernel_info->get_argument_size(i);
+        if (arg_size <= 8) {
+          uint64_t arg_value = 0;
+          std::memcpy(&arg_value, _arg_mapper.get_mapped_args()[i], arg_size);
+          if (_kernel_info->get_argument_type(i) !=
+                  hcf_kernel_info::argument_type::pointer &&
+              is_likely_invariant_argument(kernel_entry, i,
+                                           data.content_version, arg_value) &&
+              !has_annotation(_kernel_info, i,
+                              hcf_kernel_info::annotation_type::specialized)) {
+            HIPSYCL_DEBUG_INFO << "adaptivity_engine: Kernel argument " << i
+                               << " is invariant or common, specializing."
+                               << std::endl;
+            config.set_specialized_kernel_argument(i, arg_value);
+          } else {
+            HIPSYCL_DEBUG_INFO
+                << "adaptivity_engine: Not specializing kernel argument " << i
+                << std::endl;
+          }
         } else {
-          HIPSYCL_DEBUG_INFO << "adaptivity_engine: Not specializing kernel argument " << i
-                             << std::endl;
+          HIPSYCL_DEBUG_INFO
+              << "adaptivity_engine: Not specializing kernel argument " << i
+              << " (scalars larger than 64 bit are currently unhandled)"
+              << std::endl;
         }
       };
 

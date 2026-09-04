@@ -149,7 +149,10 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
                   llvm::Function *LifetimeIntrinsic =
                       llvm::Intrinsic::getOrInsertDeclaration(&M, Id, IntrinsicType);
 #endif
-                  llvm::SmallVector<llvm::Value*> CallArgs{CB->getArgOperand(0), NewAI};
+                  llvm::SmallVector<llvm::Value*> CallArgs;
+                  if (CB->arg_size() > 1)
+                    CallArgs.push_back(CB->getArgOperand(0));
+                  CallArgs.push_back(NewAI);
                   llvm::CallInst::Create(llvm::FunctionCallee(LifetimeIntrinsic), CallArgs, "", llvmutils::makeInsertionPoint(CB));
                 }
               }

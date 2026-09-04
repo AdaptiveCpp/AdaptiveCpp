@@ -782,6 +782,7 @@ result vk_queue::submit_sscp_kernel_from_code_object(
     raw_translator->setBuildOption(
         "-max-ubo-size",
         std::to_string(_dev_ctx->get_max_uniform_buffer_range()));
+    raw_translator->setBuildOption("-device-name", _dev_ctx->get_device_name());
 
     // Lower kernels to SPIR-V
     bool enable_dead_arg_elimination = kernel_names.size() == 1;
@@ -841,13 +842,15 @@ result vk_queue::submit_sscp_kernel_from_code_object(
     return res;
 
   auto pipeline = kernel->create_pipeline(group_size);
+  vk_kernel_uniform_descriptors &kernel_descriptors =
+      kernel->create_kernel_descriptors();
 
   vk::CommandBuffer cmd_buf =
       begin_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
   // command-buffer must be in the recording state before we set push constants
-  pipeline->set_args(cmd_buf, _arg_mapper);
-  pipeline->bind(cmd_buf);
+  pipeline->set_args(cmd_buf, kernel_descriptors, _arg_mapper);
+  pipeline->bind(cmd_buf, kernel_descriptors);
 
   HIPSYCL_DEBUG_INFO << "vk_queue: Attempting to submit SSCP kernel"
                      << std::endl;
@@ -855,6 +858,8 @@ result vk_queue::submit_sscp_kernel_from_code_object(
   end_command_buffer(cmd_buf);
 
   submit_command_buffer(cmd_buf);
+
+  kernel_descriptors.set_completion_val(_semaphore, _timeline_value);
   on_kernel_launch_complete(kernel_name, obj);
 
   return make_success();

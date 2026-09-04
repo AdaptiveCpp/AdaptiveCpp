@@ -59,8 +59,17 @@ public:
 
   vk_alloc_info *find_alloc_info(vk::DeviceAddress ptr);
 
+  // Creates a single buffer backed by allocated device memory, and created with
+  // properties which allow its device address returned
   std::pair<vk::raii::Buffer, vk::raii::DeviceMemory>
-  create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage_flags);
+  create_device_address_buffer(vk::DeviceSize size);
+
+  // Given a list of uniform buffers sets scraped from SPIR-V reflection
+  // allocates enough memory for all of then, then creates buffers into the
+  // memory which are bound the appropriate offset
+  std::tuple<std::vector<vk::raii::Buffer>, std::vector<vk::DeviceSize>,
+             vk::raii::DeviceMemory>
+  create_uniform_buffers(std::vector<vk::DeviceSize> sizes);
 
 private:
   uint32_t find_memory_type(vk::MemoryPropertyFlags properties,

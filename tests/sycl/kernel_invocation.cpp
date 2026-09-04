@@ -85,6 +85,8 @@ BOOST_AUTO_TEST_CASE(empty_kernel_submission) {
   });
 
   e3D.wait_and_throw();
+
+  sycl::free(d_y, q);
 }
 
 BOOST_AUTO_TEST_CASE(basic_parallel_for) {

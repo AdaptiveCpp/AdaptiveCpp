@@ -21,6 +21,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/inorder_queue_event.hpp"
 #include "hipSYCL/runtime/metal/metal_event.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #if defined(__APPLE__)
 #include "hipSYCL/runtime/metal/metal_hardware_manager.hpp"
 #endif
@@ -173,6 +174,75 @@ template <> struct backend_interop<sycl::backend::metal> {
 #endif
   }
 
+  static sycl::event make_sycl_event(const native_event_type &native_event,
+                                     const sycl::context &ctx) {
+#if defined(__APPLE__)
+    if (!native_event.event) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"make_event: invalid native Metal event",
+                         rt::error_type::invalid_parameter_error});
+      return {};
+    }
+
+    rt::runtime *runtime = ctx.AdaptiveCpp_runtime();
+    rt::backend *backend =
+        runtime->backends().get(rt::backend_id::metal);
+    if (!backend) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"make_event: Metal backend not available",
+                         rt::error_type::runtime_error});
+      return {};
+    }
+
+    rt::device_id event_device;
+    std::shared_ptr<rt::dag_node_event> runtime_event;
+    for (const sycl::device &dev : ctx.get_devices()) {
+      rt::device_id candidate = sycl::detail::extract_rt_device(dev);
+      if (candidate.get_backend() != rt::backend_id::metal)
+        continue;
+
+      runtime_event = backend->create_event_from_native_handle(
+          &native_event, candidate);
+      if (runtime_event) {
+        event_device = candidate;
+        break;
+      }
+    }
+
+    if (!runtime_event) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"make_event: native Metal event does not belong to "
+                         "the supplied context",
+                         rt::error_type::invalid_parameter_error});
+      return {};
+    }
+
+    auto op = std::make_unique<rt::kernel_operation>(
+        "<native Metal event>", rt::kernel_launcher({}, {}),
+        rt::requirements_list{runtime});
+    rt::dag_node_ptr node = std::make_shared<rt::dag_node>(
+        rt::execution_hints{}, rt::node_list_t{}, std::move(op), runtime);
+    node->assign_to_device(event_device);
+    node->assign_to_executor(nullptr);
+    node->assign_to_execution_lane(nullptr);
+    node->assign_execution_index(0);
+    node->get_execution_hints().set_hint(rt::hints::instant_execution{});
+    node->get_operation()->get_instrumentations().mark_set_complete();
+    node->mark_submitted(std::move(runtime_event));
+
+    return sycl::event{node};
+#else
+    rt::register_error(
+        __acpp_here(),
+        rt::error_info{"make_event: Metal backend not supported on this OS",
+                       rt::error_type::runtime_error});
+    return {};
+#endif
+  }
+
   static native_allocation_type get_native_allocation(const void *ptr, const sycl::context &ctx) {
     rt::backend *b =
         ctx.AdaptiveCpp_runtime()->backends().get(rt::backend_id::metal);
@@ -201,7 +271,7 @@ template <> struct backend_interop<sycl::backend::metal> {
   static constexpr bool can_make_device = false;
   static constexpr bool can_make_context = false;
   static constexpr bool can_make_queue = false;
-  static constexpr bool can_make_event = false;
+  static constexpr bool can_make_event = true;
   static constexpr bool can_make_buffer = false;
   static constexpr bool can_make_sampled_image = false;
   static constexpr bool can_make_image_sampler = false;

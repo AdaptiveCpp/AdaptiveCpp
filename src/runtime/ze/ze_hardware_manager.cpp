@@ -146,10 +146,8 @@ ze_event_pool_manager::allocate_event(uint32_t& event_ordinal) {
     // If pool is full, spawn a new pool
     spawn_pool();
   }
-  const uint32_t ordinal = _num_used_events;
+  event_ordinal = _num_used_events;
   ++_num_used_events;
-
-  event_ordinal = ordinal;
 
   return _pool;
 }

@@ -185,6 +185,17 @@ metal_allocator::metal_allocator(MTL::Device* device, const device_id &id)
   , _mmap_region(std::make_shared<metal_mmap_region>(
       static_cast<size_t>(get_total_ram() * mmap_region_size_fraction), _page_size))
 {
+  NS::SharedPtr<MTL::ResidencySetDescriptor> desc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());
+  NS::Error* err = nullptr;
+  _residency_set = _device->newResidencySet(desc.get(), &err);
+  if (!_residency_set) {
+    std::string msg = "metal_allocator: Could not create residency set";
+    if (err && err->localizedDescription()) {
+      msg += std::string{": "} + err->localizedDescription()->utf8String();
+    }
+    throw std::runtime_error(msg);
+  }
+
   calibrate();
 }
 
@@ -194,6 +205,8 @@ metal_allocator::~metal_allocator() {
       block.buffer->release();
     }
   }
+  _residency_set->endResidency();
+  _residency_set->release();
 }
 
 void* metal_allocator::raw_allocate(
@@ -212,6 +225,7 @@ void* metal_allocator::raw_allocate(
   };
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[canonical_ptr] = block;
+  add_to_residency_set(buffer);
   return canonical_ptr;
 }
 
@@ -230,6 +244,7 @@ void *metal_allocator::raw_allocate_usm(
   };
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
+  add_to_residency_set(buffer);
   return host_ptr;
 }
 
@@ -249,6 +264,7 @@ metal_allocator::raw_allocate_optimized_host(
   };
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
+  add_to_residency_set(buffer);
   return host_ptr;
 }
 
@@ -260,6 +276,7 @@ void metal_allocator::raw_free(void *mem)
   auto it = _ptr_to_block.find(mem);
   if (it != _ptr_to_block.end()) {
     if(it->second.buffer) {
+      remove_from_residency_set(it->second.buffer);
       it->second.buffer->release();
     } else {
       std::free(mem);
@@ -365,6 +382,16 @@ MTL::Buffer* metal_allocator::alloc_buffer(size_t size_bytes) {
     }
   }
   return buffer;
+}
+
+void metal_allocator::add_to_residency_set(MTL::Buffer* buffer) {
+  _residency_set->addAllocation(buffer);
+  _residency_set->commit();
+}
+
+void metal_allocator::remove_from_residency_set(MTL::Buffer* buffer) {
+  _residency_set->removeAllocation(buffer);
+  _residency_set->commit();
 }
 
 void metal_allocator::calibrate() {

@@ -11,6 +11,8 @@
 
 #include "hipSYCL/runtime/metal/metal_allocator.hpp"
 
+#include "hipSYCL/common/debug.hpp"
+
 #include <Metal/Metal.hpp>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
@@ -189,11 +191,14 @@ metal_allocator::metal_allocator(MTL::Device* device, const device_id &id)
   NS::Error* err = nullptr;
   _residency_set = _device->newResidencySet(desc.get(), &err);
   if (!_residency_set) {
-    std::string msg = "metal_allocator: Could not create residency set";
-    if (err && err->localizedDescription()) {
-      msg += std::string{": "} + err->localizedDescription()->utf8String();
-    }
-    throw std::runtime_error(msg);
+    HIPSYCL_DEBUG_WARNING << "metal_allocator: Device does not provide "
+                             "residency sets, falling back to per-encoder "
+                             "residency"
+                          << (err && err->localizedDescription()
+                                ? std::string{": "} +
+                                    err->localizedDescription()->utf8String()
+                                : std::string{})
+                          << std::endl;
   }
 
   calibrate();
@@ -205,8 +210,10 @@ metal_allocator::~metal_allocator() {
       block.buffer->release();
     }
   }
-  _residency_set->endResidency();
-  _residency_set->release();
+  if (_residency_set) {
+    _residency_set->endResidency();
+    _residency_set->release();
+  }
 }
 
 void* metal_allocator::raw_allocate(
@@ -385,11 +392,17 @@ MTL::Buffer* metal_allocator::alloc_buffer(size_t size_bytes) {
 }
 
 void metal_allocator::add_to_residency_set(MTL::Buffer* buffer) {
+  if (!_residency_set) {
+    return;
+  }
   _residency_set->addAllocation(buffer);
   _residency_set->commit();
 }
 
 void metal_allocator::remove_from_residency_set(MTL::Buffer* buffer) {
+  if (!_residency_set) {
+    return;
+  }
   _residency_set->removeAllocation(buffer);
   _residency_set->commit();
 }

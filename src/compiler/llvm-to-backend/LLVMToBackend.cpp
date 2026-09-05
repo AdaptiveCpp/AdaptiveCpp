@@ -453,12 +453,14 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
       return false;
 
     // Generate compilation stats
+    KernelCompilationStats.clear();
     for(auto& KN : Kernels) {
       KernelStats KS;
       KS.Name = KN;
       KS.IsFreeOfIndirectAccess = false;
       if(auto* F = M.getFunction(KN))
         KS.IsFreeOfIndirectAccess = KernelIsFreeOfIndirectAccess[F];
+      KernelCompilationStats.push_back(KS);
     }
 
     return true;

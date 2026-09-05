@@ -73,7 +73,18 @@ public:
 
   size_t get_delta() const { return _delta; }
 
+  // Null if the device does not provide residency sets
   MTL::ResidencySet* get_residency_set() const { return _residency_set; }
+
+  template<typename F>
+  void for_each_buffer(F&& f) const {
+    std::lock_guard<std::mutex> lock{_mutex};
+    for (auto& [ptr, block] : _ptr_to_block) {
+      if (block.buffer) {
+        f(block.buffer);
+      }
+    }
+  }
 
 private:
   MTL::Buffer* alloc_buffer(size_t size_bytes);

@@ -195,6 +195,12 @@ result launch_kernel_from_library(
       encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out, buf_offset);
   }
 
+  if (!allocator->get_residency_set()) {
+    allocator->for_each_buffer([&](MTL::Buffer* buf) {
+      encoder->useResource(buf, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
+    });
+  }
+
   MTL::Size num_groups_size = MTL::Size::Make(
     num_groups[0],
     num_groups[1],
@@ -284,7 +290,9 @@ metal_inorder_queue::metal_inorder_queue(MTL::Device* device, metal_allocator* a
   , _sscp_code_object_invoker(this)
   , _kernel_cache{kernel_cache::get()}
 {
-  _command_queue->addResidencySet(allocator->get_residency_set());
+  if (auto* residency_set = allocator->get_residency_set()) {
+    _command_queue->addResidencySet(residency_set);
+  }
 
   _reflection_map = glue::jit::construct_default_reflection_map(hw_ctx);
 }

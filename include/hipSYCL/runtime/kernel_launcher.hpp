@@ -118,7 +118,15 @@ public:
     return make_error(
           __acpp_here(),
           error_info{"No kernel launcher is present for requested backend",
-                    error_type::invalid_parameter_error});
+                     error_type::invalid_parameter_error});
+  }
+
+  /// True for host-side custom (interop) operations, whose invoke() may
+  /// submit native work directly. Backends that batch native submissions
+  /// need to know this to preserve ordering.
+  bool is_custom_operation() const {
+    return static_cast<bool>(_static_data.custom_op)
+           || _static_data.type == rt::kernel_type::custom;
   }
 
   const kernel_configuration& get_kernel_configuration() const {

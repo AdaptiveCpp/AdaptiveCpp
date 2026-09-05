@@ -4,7 +4,6 @@ set(LLVM_TO_BACKEND_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${ACPP_BINARY_ROOT}/include)
 
-set(CMAKE_INSTALL_RPATH ${base} ${base}/../../)
 
 function(create_llvm_based_library)
   set(options STATIC)
@@ -65,6 +64,7 @@ function(create_llvm_based_library)
   endif()
 
   set(install_subdir hipSYCL/llvm-to-backend)
+  set_target_properties(${target} PROPERTIES INSTALL_RPATH "${base};${base}/../../")
   install(TARGETS ${target}
     RUNTIME DESTINATION bin/${install_subdir}
     LIBRARY DESTINATION lib/${install_subdir}
@@ -117,6 +117,7 @@ function(create_llvm_to_backend_tool)
     ${LLVM_DEFINITIONS_LIST})
   target_compile_definitions(${target}-tool PRIVATE -DHIPSYCL_TOOL_COMPONENT)
   target_link_libraries(${target}-tool PRIVATE ${target})
+  set_target_properties(${target}-tool PROPERTIES INSTALL_RPATH "${base}/../../../lib/hipSYCL/llvm-to-backend;${base}/../../../lib")
 
   set(install_subdir hipSYCL/llvm-to-backend)
   install(TARGETS ${target}-tool
@@ -162,6 +163,7 @@ if(WITH_SSCP_COMPILER)
       GlobalInliningAttributorPass.cpp
       DeadArgumentEliminationPass.cpp
       ProcessS2ReflectionPass.cpp
+      ResolveTargetBuiltinsPass.cpp
       ../sscp/KernelOutliningPass.cpp
       Utils.cpp
       )

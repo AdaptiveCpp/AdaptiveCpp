@@ -519,7 +519,7 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
   vk::TimelineSemaphoreSubmitInfo timeline_info{
       num_wait_semaphores, wait_values.data(), 1u, &signal_value};
   std::vector<vk::PipelineStageFlags> wait_stages(
-      num_wait_semaphores, vk::PipelineStageFlagBits::eComputeShader);
+      num_wait_semaphores, vk::PipelineStageFlagBits::eAllCommands);
   vk::SubmitInfo submit_info(num_wait_semaphores, semaphores.data(),
                              wait_stages.data(), 1, &cmd_buf, 1,
                              semaphores.data());

@@ -75,6 +75,7 @@ public:
 
   // Null if the device does not provide residency sets
   MTL::ResidencySet* get_residency_set() const { return _residency_set; }
+  void commit_residency_set();
 
   template<typename F>
   void for_each_buffer(F&& f) const {
@@ -104,6 +105,7 @@ private:
   std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
   MTL::ResidencySet* _residency_set = nullptr;
+  bool _residency_set_dirty = false;
   std::shared_ptr<metal_mmap_region> _mmap_region;
 };
 

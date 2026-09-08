@@ -396,15 +396,29 @@ void metal_allocator::add_to_residency_set(MTL::Buffer* buffer) {
     return;
   }
   _residency_set->addAllocation(buffer);
-  _residency_set->commit();
+  _residency_set_dirty = true;
 }
 
 void metal_allocator::remove_from_residency_set(MTL::Buffer* buffer) {
   if (!_residency_set) {
     return;
   }
+  if (_residency_set_dirty) {
+    _residency_set->commit();
+    _residency_set_dirty = false;
+  }
   _residency_set->removeAllocation(buffer);
   _residency_set->commit();
+}
+
+void metal_allocator::commit_residency_set() {
+  std::lock_guard<std::mutex> lock{_mutex};
+  if (!_residency_set || !_residency_set_dirty) {
+    return;
+  }
+  _residency_set->commit();
+  _residency_set->requestResidency();
+  _residency_set_dirty = false;
 }
 
 void metal_allocator::calibrate() {

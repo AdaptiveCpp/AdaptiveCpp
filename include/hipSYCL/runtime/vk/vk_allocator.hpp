@@ -21,13 +21,22 @@ namespace rt {
 
 class vk_hardware_context;
 
+enum class vk_alloc_type {
+  USER = 0,    // User application allocated memory
+  STAGING = 1, // Staging buffer to use for memcpy to/from host pointer
+  UNIFORM = 2, // For passing uniform arguments to the kernel
+};
+
 struct vk_alloc_info {
   vk_alloc_info() = delete;
 
-  vk::DeviceAddress _base_ptr;
+  vk_alloc_type _type;
+
+  vk::DeviceAddress _base_ptr; // For USER allocations only
   size_t bytes;
   vk::raii::Buffer _buffer;
   vk::raii::DeviceMemory _dev_mem;
+  vk::MemoryPropertyFlags _mem_flags;
 };
 
 class vk_allocator : public backend_allocator {
@@ -57,11 +66,13 @@ public:
 
   std::size_t get_global_mem_size() const;
 
-  vk_alloc_info *find_alloc_info(vk::DeviceAddress ptr);
+  vk_alloc_info *find_user_alloc(vk::DeviceAddress ptr);
+
+  vk_alloc_info *staging_allocate(size_t size_bytes);
 
   // Creates a single buffer backed by allocated device memory, and created with
   // properties which allow its device address returned
-  std::pair<vk::raii::Buffer, vk::raii::DeviceMemory>
+  std::tuple<vk::raii::Buffer, vk::raii::DeviceMemory, vk::MemoryPropertyFlags>
   create_device_address_buffer(vk::DeviceSize size);
 
   // Given a list of uniform buffers sets scraped from SPIR-V reflection
@@ -72,8 +83,9 @@ public:
   create_uniform_buffers(std::vector<vk::DeviceSize> sizes);
 
 private:
-  uint32_t find_memory_type(vk::MemoryPropertyFlags properties,
-                            uint32_t type_filter = UINT32_MAX) const;
+  std::pair<uint32_t, vk::MemoryPropertyFlags>
+  find_memory_type(vk::MemoryPropertyFlags properties,
+                   uint32_t type_filter = UINT32_MAX) const;
 
   rt::device_id _dev;
   vk_hardware_context *_hw_ctx; // non owning

@@ -19,14 +19,14 @@ namespace compiler {
 
 class GlobalSizesFitInI32OptPass : public llvm::PassInfoMixin<GlobalSizesFitInI32OptPass> {
 public:
-  GlobalSizesFitInI32OptPass(bool GlobalSizesFitInInt, int KnownGroupSizeX = -1,
-                             int KnownGroupSizeY = -1, int KnownGroupSizeZ = -1);
+  GlobalSizesFitInI32OptPass(bool GlobalSizesFitInInt, size_t KnownGroupSizeX = 0,
+                             size_t KnownGroupSizeY = 0, size_t KnownGroupSizeZ = 0);
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);
 private:
-  int KnownGroupSizeX;
-  int KnownGroupSizeY;
-  int KnownGroupSizeZ;
+  size_t KnownGroupSizeX;
+  size_t KnownGroupSizeY;
+  size_t KnownGroupSizeZ;
   bool GlobalSizesFitInInt;
 };
 

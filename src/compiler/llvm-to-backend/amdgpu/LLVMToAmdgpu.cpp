@@ -642,7 +642,7 @@ void LLVMToAmdgpuTranslator::applyKernelProperties(llvm::Function* F) {
   F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
 
   if (KnownGroupSizeX != 0 && KnownGroupSizeY != 0 && KnownGroupSizeZ != 0) {
-    int FlatGroupSize = KnownGroupSizeX * KnownGroupSizeY * KnownGroupSizeZ;
+    size_t FlatGroupSize = KnownGroupSizeX * KnownGroupSizeY * KnownGroupSizeZ;
 
     if (!F->hasFnAttribute("amdgpu-flat-work-group-size"))
       F->addFnAttr("amdgpu-flat-work-group-size",

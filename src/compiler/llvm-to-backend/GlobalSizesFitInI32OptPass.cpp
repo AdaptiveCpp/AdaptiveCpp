@@ -71,8 +71,8 @@ bool insertRangeAssumptionForBuiltinCalls(llvm::Module &M, llvm::StringRef Built
   return true;
 }
 
-GlobalSizesFitInI32OptPass::GlobalSizesFitInI32OptPass(bool FitsInInt, int GroupSizeX,
-                                                       int GroupSizeY, int GroupSizeZ)
+GlobalSizesFitInI32OptPass::GlobalSizesFitInI32OptPass(bool FitsInInt, size_t GroupSizeX,
+                                                       size_t GroupSizeY, size_t GroupSizeZ)
     : GlobalSizesFitInInt{FitsInInt}, KnownGroupSizeX{GroupSizeX}, KnownGroupSizeY{GroupSizeY},
       KnownGroupSizeZ{GroupSizeZ} {}
 

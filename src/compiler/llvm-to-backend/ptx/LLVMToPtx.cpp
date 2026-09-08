@@ -354,6 +354,7 @@ void LLVMToPtxTranslator::applyKernelProperties(llvm::Function* F) {
   M.getOrInsertNamedMetadata("nvvm.annotations")
       ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 
+  auto SizeT = M.getDataLayout().getLargestLegalIntType(M.getContext());
   if(KnownGroupSizeX > 0 && KnownGroupSizeY > 0 && KnownGroupSizeZ > 0) {
 
     llvm::SmallVector<llvm::Metadata*, 7> KnownGroupSizeOperands;
@@ -361,15 +362,15 @@ void LLVMToPtxTranslator::applyKernelProperties(llvm::Function* F) {
     
     KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidx"));
     KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
-      llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeX)));
+      llvm::ConstantInt::get(SizeT, KnownGroupSizeX)));
 
     KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidy"));
     KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
-      llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeY)));
+      llvm::ConstantInt::get(SizeT, KnownGroupSizeY)));
     
     KnownGroupSizeOperands.push_back(llvm::MDString::get(M.getContext(), "maxntidz"));
     KnownGroupSizeOperands.push_back(llvm::ValueAsMetadata::getConstant(
-      llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), KnownGroupSizeZ)));
+      llvm::ConstantInt::get(SizeT, KnownGroupSizeZ)));
     
     M.getOrInsertNamedMetadata("nvvm.annotations")
       ->addOperand(llvm::MDTuple::get(M.getContext(), KnownGroupSizeOperands));

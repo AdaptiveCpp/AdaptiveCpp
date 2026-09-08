@@ -2,6 +2,8 @@ name: Windows Vulkan
 
 on: [push, pull_request]
 
+permissions: read-all
+
 jobs:
   test:
     name: clang ${{ matrix.clang_version }}
@@ -47,6 +49,7 @@ jobs:
         install_runtime: true
         cache: true
         stripdown: true
+        github_token: ${{secrets.GITHUB_TOKEN}}
 
     - name: Configure SDK Path
       run: |

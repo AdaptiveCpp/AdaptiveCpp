@@ -22,7 +22,7 @@ jobs:
         rocm_version: ['5.6.1']
         os: [ubuntu-22.04]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           fetch-depth: 20
@@ -59,12 +59,12 @@ jobs:
         clang_version: ['18', '20']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
         path: AdaptiveCpp
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         key: ${{ github.job }}-${{matrix.clang_version}}-${{matrix.docker.cuda_or_rocm}}
         restore-keys: |

@@ -39,7 +39,7 @@ runs:
     - name: Redact GITHUB_TOKEN
       shell: bash
       run: echo "::add-mask::${{ inputs.GITHUB_TOKEN }}"
-    - uses: dorny/paths-filter@v3
+    - uses: dorny/paths-filter@v4
       id: filter-last-push
       with:
         base: ${{ github.ref }}
@@ -56,16 +56,16 @@ runs:
         REPO_OWNER=${{ github.repository_owner }}
         echo "REPO_OWNER=${REPO_OWNER@L}" >> $GITHUB_OUTPUT
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ inputs.GITHUB_TOKEN }}
     - name: Docker metadata
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       id: metadata
       if: inputs.CUDA_MAJOR_VERSION != '' && inputs.ROCM_VERSION != ''
       with:
@@ -78,7 +78,7 @@ runs:
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}-
     - name: Docker metadata no CUDA
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       id: metadata-no-cuda
       if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION != ''
       with:
@@ -91,7 +91,7 @@ runs:
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-rocm-${{ inputs.ROCM_VERSION }}-
     - name: Docker metadata no ROCm
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       id: metadata-no-rocm
       if: inputs.CUDA_MAJOR_VERSION != '' && inputs.ROCM_VERSION == ''
       with:
@@ -104,7 +104,7 @@ runs:
           latest=false
           prefix=${{ inputs.BASE_TAG }}-llvm-${{ inputs.LLVM_VERSION }}-cuda-${{ inputs.CUDA_MAJOR_VERSION }}.${{ inputs.CUDA_MINOR_VERSION }}.${{ inputs.CUDA_PATCH_VERSION }}-
     - name: Docker metadata no CUDA no ROCm
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       id: metadata-no-cuda-no-rocm
       if: inputs.CUDA_MAJOR_VERSION == '' && inputs.ROCM_VERSION == ''
       with:
@@ -148,7 +148,7 @@ runs:
         ${OUTPUT_EOF}
         EOF
 
-    - uses: tyriis/docker-image-tag-exists@v2.1.0
+    - uses: tyriis/docker-image-tag-exists@v3.0.1
       id: tag-exists
       with:
         registry: ghcr.io
@@ -168,7 +168,7 @@ runs:
         
     - name: Build and push Docker images
       if: (steps.filter-last-push.outputs.docker == 'true' || steps.tag-exists.outputs.tag == 'not found' || inputs.FORCE_BUILD == 'true') && github.event_name != 'pull_request'
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       id: build
       with:
         file: .github/workflows/create-ci-docker/AdaptiveCpp-CI-Linux.dockerfile

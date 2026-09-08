@@ -8,11 +8,11 @@ jobs:
     name: Vulkan backend macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         key: ${{ github.job }}
         restore-keys: |
@@ -40,14 +40,14 @@ jobs:
 
     - name: cache clspv
       id: cache-clspv
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{github.workspace}}/clspv/build/install
         key: ${{env.clspv_commit}}
 
     - name: checkout clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: google/clspv
         path: clspv

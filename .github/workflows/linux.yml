@@ -28,7 +28,7 @@ jobs:
             cuda_patch_version: 2
             rocm: 6.3.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           fetch-depth: 20
@@ -67,11 +67,11 @@ jobs:
       run:
         shell: bash
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'    
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         key: ${{ github.job }}-${{matrix.docker.clang}}-${{matrix.docker.os}}-${{matrix.docker.cuda}}-${{matrix.docker.rocm}}-${{ matrix.test_kind }}
     - name: build AdaptiveCpp
@@ -145,7 +145,7 @@ jobs:
         nvhpc: [26.5]
         cuda: [13.2]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
     - name: Free Disk Space (Ubuntu)

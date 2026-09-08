@@ -29,6 +29,7 @@ namespace MTL {
 class Device;
 class CommandBuffer;
 class CommandQueue;
+class Fence;
 class SharedEvent;
 class SharedEventListener;
 
@@ -170,6 +171,11 @@ private:
   // by external mutex, so no atomics needed.
   uint64_t _pending_cpu_event{0};
   uint64_t _pending_gpu_event{0};
+
+  // Needed for explicit ordering of resources from MTLResources
+  // It is only used if a kernel with memory indirection was submitted
+  MTL::Fence* _fence = nullptr;
+  bool _fence_chain_active = false;
 
   metal_allocator* _allocator = nullptr;
   device_id _device_id;

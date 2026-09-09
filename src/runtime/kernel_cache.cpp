@@ -442,6 +442,9 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
           }
           _hcf_kernel_info[generate_info_id(id, kernel_name)] =
               std::move(kernel_info);
+          // Also index by name so that free function kernels can be resolved
+          // without knowing which HCF object provides them.
+          _kernel_name_providers[kernel_name] = id;
         }
       }
     }
@@ -512,9 +515,17 @@ void hcf_cache::unregister_hcf_object(hcf_object_id id) {
                 symbol_providers.end());
           }
         });
+    // Remove this object's kernels from the name->object index.
+    if (auto *kernels_node = it->second->root_node()->get_subnode("kernels")) {
+      for (const auto &kernel_name : kernels_node->get_subnodes()) {
+        auto provider = _kernel_name_providers.find(kernel_name);
+        if (provider != _kernel_name_providers.end() && provider->second == id)
+          _kernel_name_providers.erase(provider);
+      }
+    }
     // Then we can remove the HCF itself.
     // Note: We don't necessarily need to remove the HCF kernel info, since
-    // just maintaining this data won't have any side effects as long as 
+    // just maintaining this data won't have any side effects as long as
     // the HCF object is no longer selected for execution.
     _hcf_objects.erase(id);
   }
@@ -556,6 +567,30 @@ const hcf_kernel_info *
 hcf_cache::get_kernel_info(hcf_object_id obj,
                            const std::string &kernel_name) const {
   return get_kernel_info(obj, std::string_view{kernel_name});
+}
+
+hcf_cache::resolved_kernel
+hcf_cache::get_kernel_info_by_name(std::string_view kernel_name) const {
+  auto query = [&, this]() -> resolved_kernel {
+    std::lock_guard<std::mutex> lock{_mutex};
+    auto it = _kernel_name_providers.find(std::string{kernel_name});
+    if (it == _kernel_name_providers.end())
+      return {};
+    hcf_object_id obj = it->second;
+    auto info_it = _hcf_kernel_info.find(generate_info_id(obj, kernel_name));
+    if (info_it == _hcf_kernel_info.end())
+      return {};
+    return resolved_kernel{obj, info_it->second.get()};
+  };
+
+  if (auto result = query(); result.info) {
+    return result;
+  } else {
+    // The providing HCF object may not have registered yet due to static
+    // initialization order; actively scan the binary and retry.
+    scan_binary_for_hcf();
+    return query();
+  }
 }
 
 const hcf_image_info *

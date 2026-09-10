@@ -693,7 +693,8 @@ private:
     for(int i = 0; i < _allocations.size(); ++i) {
       intptr_t candidate = reinterpret_cast<intptr_t>(_allocations[i]);
       auto alloc_info = _alloc_infos[i];
-      if(candidate >= ptr_int && candidate < ptr_int + alloc_info.size) {
+      if(ptr_int >= candidate &&
+         ptr_int < candidate + static_cast<intptr_t>(alloc_info.size)) {
         h(i, alloc_info);
         return true;
       }

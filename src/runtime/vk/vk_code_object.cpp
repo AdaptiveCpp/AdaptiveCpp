@@ -184,6 +184,8 @@ vk_kernel_uniform_descriptors &vk_kernel_object::create_kernel_descriptors() {
   // If no descriptors are currently free resort to a blocking wait until the
   // first kernel using them completes
   _uniform_descriptors[0].is_available(true);
+  // We don't need to reinitialize the descriptor object as if we get here
+  // they have already been used before
   return _uniform_descriptors[0];
 }
 
@@ -595,12 +597,12 @@ static void verify_spv_capabilities(const uint16_t phys_dev_features,
                     "SPIR-V Capability PushConstant16 not supported by device");
       break;
     case spv::CapabilityUniformAndStorageBuffer8BitAccess:
-      check_support(vk_device_features::storagePushConstant8,
+      check_support(vk_device_features::uniformAndStorageBuffer8BitAccess,
                     "SPIR-V Capability UniformAndStorageBuffer8 not supported "
                     "by device");
       break;
     case spv::CapabilityUniformAndStorageBuffer16BitAccess:
-      check_support(vk_device_features::storagePushConstant16,
+      check_support(vk_device_features::uniformAndStorageBuffer16BitAccess,
                     "SPIR-V Capability UniformAndStorageBuffer16 not supported "
                     "by device");
       break;

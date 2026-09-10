@@ -8,7 +8,7 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#pragma
+#pragma once
 
 #include "../LLVMToBackend.hpp"
 

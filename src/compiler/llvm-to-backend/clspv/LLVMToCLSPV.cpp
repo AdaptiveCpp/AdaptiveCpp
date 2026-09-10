@@ -372,10 +372,12 @@ bool LLVMToCLSPVTranslator::applyBuildOption(const std::string &Option,
 
   if (Option == "-max-ubo-size") {
     this->MaxUniformBufferRange = Value;
+    return true;
   }
 
   if (Option == "-device-name") {
     this->DeviceName = Value;
+    return true;
   }
 
   return false;

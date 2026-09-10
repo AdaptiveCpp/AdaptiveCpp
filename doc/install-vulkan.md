@@ -319,7 +319,7 @@ work-group size variant.
 #### Kernel Arguments
 
 There are two different mechanisms used for passing arguments to the SPIR-V kernel.
-The preferred was is push constants, which are copied into the command buffer executing
+The preferred is push constants, which are copied into the command buffer executing
 the kernel and suitable for small numbers of kernel arguments.
 
 For larger numbers of kernel arguments or struct arguments that are decomposed, uniform buffers

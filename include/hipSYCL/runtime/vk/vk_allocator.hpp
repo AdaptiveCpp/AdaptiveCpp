@@ -65,8 +65,8 @@ public:
   create_device_address_buffer(vk::DeviceSize size);
 
   // Given a list of uniform buffers sets scraped from SPIR-V reflection
-  // allocates enough memory for all of then, then creates buffers into the
-  // memory which are bound the appropriate offset
+  // allocates enough memory for all of them, then creates buffers into the
+  // memory which are bound to the appropriate offset
   std::tuple<std::vector<vk::raii::Buffer>, std::vector<vk::DeviceSize>,
              vk::raii::DeviceMemory>
   create_uniform_buffers(std::vector<vk::DeviceSize> sizes);

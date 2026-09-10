@@ -668,6 +668,9 @@ public:
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
     std::lock_guard<std::mutex> lock{_mutex};
+    // nothing to register before the first allocation
+    if(_allocations.empty())
+      return CL_SUCCESS;
     return k.setSVMPointers(_allocations);
   }
 

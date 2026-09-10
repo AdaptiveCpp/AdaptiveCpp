@@ -79,6 +79,7 @@ ACPP_DEFINE_REFLECT_QUERY(target_arch)
 ACPP_DEFINE_REFLECT_QUERY(target_has_independent_forward_progress)
 ACPP_DEFINE_REFLECT_QUERY(target_is_cpu)
 ACPP_DEFINE_REFLECT_QUERY(target_is_gpu)
+ACPP_DEFINE_REFLECT_QUERY(spirv_has_native_float_atomics)
 ACPP_DEFINE_REFLECT_QUERY(runtime_backend)
 ACPP_DEFINE_REFLECT_QUERY(compiler_backend)
 

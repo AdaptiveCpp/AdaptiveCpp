@@ -46,12 +46,14 @@ extern "C" bool __acpp_sscp_jit_reflect_knows_runtime_backend();
 extern "C" bool __acpp_sscp_jit_reflect_knows_compiler_backend();
 extern "C" bool __acpp_sscp_jit_reflect_knows_target_is_cpu();
 extern "C" bool __acpp_sscp_jit_reflect_knows_target_is_gpu();
+extern "C" bool __acpp_sscp_jit_reflect_knows_spirv_has_native_float_atomics();
 
 extern "C" int __acpp_sscp_jit_reflect_target_vendor_id();
 extern "C" int __acpp_sscp_jit_reflect_target_arch();
 extern "C" bool __acpp_sscp_jit_reflect_target_is_cpu();
 extern "C" bool __acpp_sscp_jit_reflect_target_is_gpu();
 extern "C" bool __acpp_sscp_jit_reflect_target_has_independent_forward_progress();
+extern "C" bool __acpp_sscp_jit_reflect_spirv_has_native_float_atomics();
 extern "C" int __acpp_sscp_jit_reflect_runtime_backend();
 extern "C" hipsycl::sycl::AdaptiveCpp_jit::compiler_backend __acpp_sscp_jit_reflect_compiler_backend();
 

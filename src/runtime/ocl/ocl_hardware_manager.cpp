@@ -182,6 +182,7 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
     _has_intel_extension_profile = true;
   std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
   _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
+  _has_cl_ext_float_atomics_extension = (extensions.find("cl_ext_float_atomics") != std::string::npos);
 }
 
 bool ocl_hardware_context::is_cpu() const {
@@ -218,6 +219,10 @@ bool ocl_hardware_context::has_intel_extension_profile() const {
 
 bool ocl_hardware_context::has_cl_khr_priority_hints_extension() const {
   return _has_cl_khr_priority_hints_extension;
+}
+
+bool ocl_hardware_context::has_cl_ext_float_atomics_extension() const {
+  return _has_cl_ext_float_atomics_extension;
 }
 
 

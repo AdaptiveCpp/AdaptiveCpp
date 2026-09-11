@@ -232,7 +232,7 @@ void* metal_allocator::raw_allocate(
   };
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[canonical_ptr] = block;
-  add_to_residency_set(buffer);
+  add_to_residency_set(lock, buffer);
   return canonical_ptr;
 }
 
@@ -251,7 +251,7 @@ void *metal_allocator::raw_allocate_usm(
   };
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
-  add_to_residency_set(buffer);
+  add_to_residency_set(lock, buffer);
   return host_ptr;
 }
 
@@ -271,7 +271,7 @@ metal_allocator::raw_allocate_optimized_host(
   };
   std::lock_guard<std::mutex> lock{_mutex};
   _ptr_to_block[host_ptr] = block;
-  add_to_residency_set(buffer);
+  add_to_residency_set(lock, buffer);
   return host_ptr;
 }
 
@@ -283,7 +283,7 @@ void metal_allocator::raw_free(void *mem)
   auto it = _ptr_to_block.find(mem);
   if (it != _ptr_to_block.end()) {
     if(it->second.buffer) {
-      remove_from_residency_set(it->second.buffer);
+      remove_from_residency_set(lock, it->second.buffer);
       it->second.buffer->release();
     } else {
       std::free(mem);
@@ -391,7 +391,7 @@ MTL::Buffer* metal_allocator::alloc_buffer(size_t size_bytes) {
   return buffer;
 }
 
-void metal_allocator::add_to_residency_set(MTL::Buffer* buffer) {
+void metal_allocator::add_to_residency_set(const std::lock_guard<std::mutex>&, MTL::Buffer* buffer) {
   if (!_residency_set) {
     return;
   }
@@ -399,7 +399,7 @@ void metal_allocator::add_to_residency_set(MTL::Buffer* buffer) {
   _residency_set_dirty = true;
 }
 
-void metal_allocator::remove_from_residency_set(MTL::Buffer* buffer) {
+void metal_allocator::remove_from_residency_set(const std::lock_guard<std::mutex>&, MTL::Buffer* buffer) {
   if (!_residency_set) {
     return;
   }

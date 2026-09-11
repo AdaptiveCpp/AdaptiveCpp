@@ -240,4 +240,28 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions) {
 }
 
 
+BOOST_AUTO_TEST_CASE_TEMPLATE(default_construction, _dimensions, test_dimensions) {
+  namespace s = sycl;
+  constexpr auto d = _dimensions::value;
+
+  {
+    s::range<d> range;
+    for(int i = 0; i < d; ++i) BOOST_TEST(range[i] == 0);
+  }
+  {
+    s::id<d> id;
+    for(int i = 0; i < d; ++i) BOOST_TEST(id[i] == 0);
+  }
+  {
+    s::nd_range<d> nd_range;
+    for(int i = 0; i < d; ++i) {
+      BOOST_TEST(nd_range.get_global_range()[i] == 0);
+      BOOST_TEST(nd_range.get_local_range()[i] == 0);
+      BOOST_TEST(nd_range.get_group_range()[i] == 0);
+      BOOST_TEST(nd_range.get_offset()[i] == 0);
+    }
+  }
+}
+
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

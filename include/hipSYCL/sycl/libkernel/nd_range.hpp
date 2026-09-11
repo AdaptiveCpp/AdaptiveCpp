@@ -22,6 +22,14 @@ struct nd_range {
   static constexpr int dimensions = Dimensions;
 
   ACPP_UNIVERSAL_TARGET
+  nd_range()
+    : _global_range{},
+      _local_range{},
+      _num_groups{},
+      _offset{}
+  {}
+
+  ACPP_UNIVERSAL_TARGET
   nd_range(range<Dimensions> globalSize,
            range<Dimensions> localSize,
            id<Dimensions> offset = id<Dimensions>())

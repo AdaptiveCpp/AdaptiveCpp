@@ -29,6 +29,9 @@
 #include <cstdint>
 
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
+#include <llvm/Transforms/Scalar/GVN.h>
+#include <llvm/Transforms/Scalar/SimplifyCFG.h>
+#include <llvm/Transforms/Utils/SimplifyCFGOptions.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -54,6 +57,18 @@ namespace hipsycl {
 namespace compiler {
 
 namespace {
+
+// Simplify each function before it is force-inlined into the kernel, while
+// its parameter attributes (e.g. `dereferenceable` on a `const T&`) still let
+// SimplifyCFG fold short-circuited conditions into selects.
+void runPreInlineSimplification(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+  llvm::FunctionPassManager FPM;
+  FPM.addPass(llvm::GVNPass());
+  FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().hoistCommonInsts(true)));
+  llvm::ModulePassManager MPM;
+  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+  MPM.run(M, MAM);
+}
 
 void printModuleToFile(llvm::Module& M, const std::string& File,
                       const std::string& Header){
@@ -351,6 +366,10 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     GlobalInliningAttributorPass InliningPass{Kernels};
     InliningPass.run(M, MAM);
     MAM.clear();
+
+    runPreInlineSimplification(M, MAM);
+    MAM.clear();
+
     llvm::AlwaysInlinerPass AIP;
     AIP.run(M, MAM);
 

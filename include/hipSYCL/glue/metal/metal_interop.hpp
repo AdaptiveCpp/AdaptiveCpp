@@ -178,22 +178,18 @@ template <> struct backend_interop<sycl::backend::metal> {
                                      const sycl::context &ctx) {
 #if defined(__APPLE__)
     if (!native_event.event) {
-      rt::register_error(
-          __acpp_here(),
-          rt::error_info{"make_event: invalid native Metal event",
-                         rt::error_type::invalid_parameter_error});
-      return {};
+      throw sycl::exception{
+        sycl::make_error_code(sycl::errc::invalid),
+        "make_event: invalid native Metal event"};
     }
 
     rt::runtime *runtime = ctx.AdaptiveCpp_runtime();
     rt::backend *backend =
         runtime->backends().get(rt::backend_id::metal);
     if (!backend) {
-      rt::register_error(
-          __acpp_here(),
-          rt::error_info{"make_event: Metal backend not available",
-                         rt::error_type::runtime_error});
-      return {};
+      throw sycl::exception{
+        sycl::make_error_code(sycl::errc::backend_mismatch),
+        "make_event: Metal backend not available"};
     }
 
     rt::device_id event_device;
@@ -215,17 +211,15 @@ template <> struct backend_interop<sycl::backend::metal> {
 
     if (!ctx_has_metal_device) {
       throw sycl::exception{
-          sycl::make_error_code(sycl::errc::backend_mismatch),
-          "make_event: the supplied context does not contain a Metal device"};
+        sycl::make_error_code(sycl::errc::backend_mismatch),
+        "make_event: the supplied context does not contain a Metal device"};
     }
 
     if (!runtime_event) {
-      rt::register_error(
-          __acpp_here(),
-          rt::error_info{"make_event: native Metal event does not belong to "
-                         "the supplied context",
-                         rt::error_type::invalid_parameter_error});
-      return {};
+      throw sycl::exception{
+        sycl::make_error_code(sycl::errc::invalid),
+        "make_event: native Metal event does not belong to the supplied "
+        "context"};
     }
 
     auto op = std::make_unique<rt::kernel_operation>(
@@ -243,11 +237,9 @@ template <> struct backend_interop<sycl::backend::metal> {
 
     return sycl::event{node};
 #else
-    rt::register_error(
-        __acpp_here(),
-        rt::error_info{"make_event: Metal backend not supported on this OS",
-                       rt::error_type::runtime_error});
-    return {};
+    throw sycl::exception{
+      sycl::make_error_code(sycl::errc::backend_mismatch),
+      "make_event: Metal backend not supported on this OS"};
 #endif
   }
 

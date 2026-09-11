@@ -69,6 +69,7 @@ public:
 
   bool has_intel_extension_profile() const;
   bool has_cl_khr_priority_hints_extension() const;
+  bool has_cl_ext_float_atomics_extension() const;
 
   void init_allocator(ocl_hardware_manager* mgr);
 private:
@@ -80,6 +81,7 @@ private:
   ocl_allocator _alloc;
   bool _has_intel_extension_profile;
   bool _has_cl_khr_priority_hints_extension;
+  bool _has_cl_ext_float_atomics_extension;
 };
 
 class ocl_hardware_manager : public backend_hardware_manager

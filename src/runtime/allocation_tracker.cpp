@@ -19,8 +19,8 @@ namespace {
 using amap_t = common::allocation_map<allocation_info>;
 
 amap_t& get_allocation_map() {
-  static amap_t amap;
-  return amap;
+  static amap_t *amap = new amap_t;
+  return *amap;
 }
 
 }

@@ -200,6 +200,14 @@ HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(round, __nv_roundf, __nv_round)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(rsqrt, __nv_rsqrtf, __nv_rsqrt)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sqrt, __nv_sqrtf, __nv_sqrt)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sin, __nv_sinf, __nv_sin)
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(float x, float* sinval,
+                                                 float* cosval) {
+  __nv_sincosf(x, sinval, cosval);
+}
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f64(double x, double* sinval,
+                                                 double* cosval) {
+  __nv_sincos(x, sinval, cosval);
+}
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sinh, __nv_sinhf, __nv_sinh)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sinpi, __nv_sinpif, __nv_sinpi)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(tan, __nv_tanf, __nv_tan)

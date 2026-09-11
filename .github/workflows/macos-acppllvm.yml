@@ -12,12 +12,12 @@ jobs:
       matrix:
         clang_version: ['19']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
         path: AdaptiveCpp
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         key: ${{ github.job }}-${{matrix.clang_version}}
         restore-keys: |

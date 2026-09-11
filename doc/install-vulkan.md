@@ -20,7 +20,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable from commit `88d8ff71000bf995493c8daaed865ec1ac216309`.
+* A `clspv` executable from commit `3d017c6d751cdabed1a5051b20c6bf5f71e8fd32`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -82,6 +82,10 @@ the features used in the kernel:
   instructions to be used in the implementation of SYCL sub-group builtins.
 * `VK_SUBGROUP_FEATURE_SHUFFLE_BIT` - Allows SPIR-V `CapabilityGroupNonUniformShuffle`
   instructions to be used in the implementation of SYCL sub-group builtins.
+* `uniformAndStorageBuffer8BitAccess` - Allows 8-bit arguments to be passed to
+  SPIR-V kernels via uniform buffers.
+* `uniformAndStorageBuffer16BitAccess` - Allows 16-bit arguments to be passed to
+  SPIR-V kernels via uniform buffers.
 
 ## Building
 
@@ -175,18 +179,20 @@ own bugs that need addressed (which may turn out to be not device specific once 
 Devices known to be well supported by the backend include:
 
 | Driver Name  | Driver Version    | Device Type          | Status
-| ------------ | ----------------- | -------------------- | ------------------------------------------------------------------------------------- |
-| llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                                                        |
-| RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                                                        |
-| RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                                                        |
-| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                 |
-| Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Issues with sub-groups                                                                |
-| RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Tests pass in isolation, but device stops being detected when running full sycl suite |
-| MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled                        |
-| Swiftshader  | Google 5.0.0      | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                            |
-| V3D          | Mesa 25.0.7       | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                            |
+| ------------ | ----------------- | -------------------- | ----------------------------------------------------------------------------------------------- |
+| llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                                                                  |
+| RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                                                                  |
+| RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                                                                  |
+| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                           |
+| Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Issues with sub-groups                                                                          |
+| RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Issues with group functions tests & device stops being detected when running full sycl suite[1] |
+| MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled                                  |
+| Swiftshader  | Google 5.0.0      | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                                      |
+| V3D          | Mesa 25.0.7       | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                                      |
 
 Other devices are untested and support status is unknown.
+
+[1] A workaround to this issue is to set the `ACPP_PERSISTENT_RUNTIME=1` environment variable.
 
 ## Benchmarks
 
@@ -310,11 +316,22 @@ each work-group size variant of a kernel. At adaptivity level 0, a specializatio
 constant is used to set the work-group size on the same `vk_executable_object` object for each
 work-group size variant.
 
-For small numbers of kernel arguments, no buffer descriptors may be required and all
-arguments can be set pushing push constants before the invocation of the Vulkan
-command-buffer containing the kernel. For larger numbers of kernel arguments or struct
-arguments that are decomposed, a single uniform buffer is used with binding 0,
-and each argument is an offset into that uniform buffer.
+#### Kernel Arguments
+
+There are two different mechanisms used for passing arguments to the SPIR-V kernel.
+The preferred is push constants, which are copied into the command buffer executing
+the kernel and suitable for small numbers of kernel arguments.
+
+For larger numbers of kernel arguments or struct arguments that are decomposed, uniform buffers
+are used. This may be multiple uniform buffers but most likely a single uniform buffer where
+each argument is an offset into that uniform buffer.
+
+In order to use uniform buffers, it's not just the buffers & memory that need to be created
+to hold the arguments for a kernel invocation, it's also the descriptor set which
+defines the binding of buffers to the compute pipeline. In order for multiple invocations
+of the same kernel with different arguments to behave correctly a `vk_kernel_uniform_descriptors`
+class is defined by the backend for containing all information, and a pool of objects
+is created which can be reused as the invocations associated with them complete execution.
 
 #### Queue
 
@@ -342,6 +359,28 @@ Host threads are also used to perform work that needs to be done after the devic
 command has completed, but before we tell other SYCL commands the DAG node has
 completed. For example, freeing temporary allocations created to implement
 memcopy.
+
+#### Profiling
+
+Support for SYCL event profiling requires device support for the
+[VK_KHR_calibrated_timestamps](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_calibrated_timestamps.html) or
+[VK_EXT_calibrated_timestamps](https://docs.vulkan.org/refpages/latest/refpages/source/VK_EXT_calibrated_timestamps.html)
+extensions to align device and host side counters.
+
+`vkGetCalibratedTimestampsKHR` is used to get the host timestamp for when a command is submitted, and also
+command start and/or end timestamps for when a command is executed asynchronously on host using a worker thread.
+
+For the most common case where commands are executed asynchronously on device in a vkCommandBuffer,
+a single element `vkQueryPool` is created for each instrumentation counter. The command-buffer then
+has extra commands included to bookend it's execution that record the device side timestamps
+into the query pool. When instrumentation counter is queried it reports back the device side
+timestamp converted to a host side timepoint using the calibrated timestamp reference.
+
+A single large query pool that is shared by all event instrumentation counters is
+not used because the choice of static query pool size would have been arbitrary.
+Additionally, the runtime wouldn't frequently free the timestamps to return to the pool,
+as the rt DAG nodes which owns the lifetime of the counters needs to outlive the user
+facing `sycl::event` object.
 
 ### Compiler
 

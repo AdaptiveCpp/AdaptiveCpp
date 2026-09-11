@@ -29,6 +29,9 @@
 #include <cstdint>
 
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
+#include <llvm/Transforms/Scalar/GVN.h>
+#include <llvm/Transforms/Scalar/SimplifyCFG.h>
+#include <llvm/Transforms/Utils/SimplifyCFGOptions.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -55,6 +58,18 @@ namespace compiler {
 
 namespace {
 
+// Simplify each function before it is force-inlined into the kernel, while
+// its parameter attributes (e.g. `dereferenceable` on a `const T&`) still let
+// SimplifyCFG fold short-circuited conditions into selects.
+void runPreInlineSimplification(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+  llvm::FunctionPassManager FPM;
+  FPM.addPass(llvm::GVNPass());
+  FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().hoistCommonInsts(true)));
+  llvm::ModulePassManager MPM;
+  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+  MPM.run(M, MAM);
+}
+
 void printModuleToFile(llvm::Module& M, const std::string& File,
                       const std::string& Header){
 
@@ -73,37 +88,6 @@ void printModuleToFile(llvm::Module& M, const std::string& File,
   Out << Header;
   M.print(Out, nullptr);
   Out << ";----------------- End AdaptiveCpp IR dump ---------------\n";
-}
-
-void enableModuleStateDumping(llvm::Module &M, const std::string &PipelineStage,
-                              const std::string &Kernels) {
-  std::string Filter =
-      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_FILTER", "");
-
-  std::string FallbackFileName = M.getSourceFileName()+".ll";
-  std::string FileName =
-      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_" + PipelineStage, "");
-
-  if(FileName == "1")
-    FileName = FallbackFileName;
-  
-  std::string Header =
-      "; AdaptiveCpp SSCP S2 IR dump; Compiling kernels: " + Kernels + ", stage: " + PipelineStage + "\n";
-
-  if(FileName.length() != 0) {
-    if(Kernels == Filter || Filter.empty())
-      printModuleToFile(M, FileName, Header);
-  }
-
-  std::string AllFileName =
-      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_ALL", "");
-  if(AllFileName == "1")
-    AllFileName = FallbackFileName;
-
-  if(AllFileName.length() != 0 && AllFileName != FileName) {
-    if(Kernels == Filter || Filter.empty())
-      printModuleToFile(M, AllFileName, Header);
-  }
 }
 
 bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
@@ -382,6 +366,10 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     GlobalInliningAttributorPass InliningPass{Kernels};
     InliningPass.run(M, MAM);
     MAM.clear();
+
+    runPreInlineSimplification(M, MAM);
+    MAM.clear();
+
     llvm::AlwaysInlinerPass AIP;
     AIP.run(M, MAM);
 
@@ -484,12 +472,14 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
       return false;
 
     // Generate compilation stats
+    KernelCompilationStats.clear();
     for(auto& KN : Kernels) {
       KernelStats KS;
       KS.Name = KN;
       KS.IsFreeOfIndirectAccess = false;
       if(auto* F = M.getFunction(KN))
         KS.IsFreeOfIndirectAccess = KernelIsFreeOfIndirectAccess[F];
+      KernelCompilationStats.push_back(KS);
     }
 
     return true;
@@ -863,6 +853,42 @@ std::string LLVMToBackendTranslator::getCompilationIdentifier() const {
   return Result;
 }
 
+void LLVMToBackendTranslator::enableModuleStateDumping(llvm::Module &M,
+                                                       const std::string &PipelineStage,
+                                                       const std::string &Kernels) {
+  std::string Filter =
+      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_FILTER", "");
+
+  std::string FallbackFileName = M.getSourceFileName()+".ll";
+  std::string FileName =
+      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_" + PipelineStage, "");
+
+  if(FileName == "1")
+    FileName = FallbackFileName;
+  
+  std::string Header =
+      "; AdaptiveCpp SSCP S2 IR dump; Compiling kernels: " + Kernels + ", stage: " + PipelineStage + "\n";
+
+  if(FileName.length() != 0) {
+    if(Kernels == Filter || Filter.empty())
+      printModuleToFile(M, FileName, Header);
+  }
+
+  std::string AllFileName =
+      getEnvironmentVariableOrDefault<std::string>("DUMP_IR_ALL", "");
+  if(AllFileName == "1")
+    AllFileName = FallbackFileName;
+
+  if(AllFileName.length() != 0 && AllFileName != FileName) {
+    if(Kernels == Filter || Filter.empty())
+      printModuleToFile(M, AllFileName, Header);
+  }
+}
+
+void LLVMToBackendTranslator::enableModuleStateDumping(llvm::Module &M,
+                                                       const std::string &PipelineStage) {
+  enableModuleStateDumping(M, PipelineStage, getCompilationIdentifier());
+}
 }
 }
 

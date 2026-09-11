@@ -24,11 +24,13 @@
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DebugInfo.h>
+#include <llvm/IR/DiagnosticPrinter.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Metadata.h>
@@ -181,29 +183,78 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
       GV.setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
   }
 
-  llvm::ModulePassManager MPM;
-  PH.ModuleAnalysisManager->clear(); // for some reason we need to reset the analyses... otherwise
-                                     // we get a crash at IPSCCP
-
-  PH.PassBuilder->registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
-    MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
-  });
-  PH.PassBuilder->registerModuleAnalyses(*PH.ModuleAnalysisManager);
-
-  registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true);
-  HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done registering\n";
-
-  llvm::FunctionPassManager FPM;
-  FPM.addPass(HostKernelWrapperPass{KnownLocalMemSize, KnownGroupSizeX, KnownGroupSizeY, KnownGroupSizeZ});
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
-
-  MPM.run(M, *PH.ModuleAnalysisManager);
+  if(auto* Barrier = M.getFunction("__acpp_cbs_barrier")) {
+#if LLVM_VERSION_MAJOR >= 16
+    Barrier->setMemoryEffects(llvm::MemoryEffects::unknown());
+#else
+    Barrier->removeFnAttr(llvm::Attribute::ReadNone);
+    Barrier->removeFnAttr(llvm::Attribute::ReadOnly);
+    Barrier->removeFnAttr(llvm::Attribute::WriteOnly);
+    Barrier->removeFnAttr(llvm::Attribute::ArgMemOnly);
+    Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOnly);
+    Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOrArgMemOnly);
+#endif
+  }
+  
   HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done toBackendFlavor\n";
+  return true;
+}
+
+bool LLVMToHostTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) {
+  assert(PH.PassBuilder);
+  assert(PH.ModuleAnalysisManager);
+
+  // silence optimization remarks,..
+  M.getContext().setDiagnosticHandlerCallBack(
+#if LLVM_VERSION_MAJOR >= 19
+      [](const llvm::DiagnosticInfo *DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI->getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI->print(DP);
+          llvm::errs() << "\n";
+        }
+      });
+#else
+      [](const llvm::DiagnosticInfo &DI, void *Context) {
+        llvm::DiagnosticPrinterRawOStream DP(llvm::errs());
+        if (DI.getSeverity() == llvm::DS_Error) {
+          llvm::errs() << "LLVMToBackend: Error: ";
+          DI.print(DP);
+          llvm::errs() << "\n";
+        }
+      });
+#endif
+
+  llvm::ModulePassManager MPM =
+      PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O1);
+  MPM.run(M, *PH.ModuleAnalysisManager);
+
   return true;
 }
 
 bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     std::string &out) {
+
+  withPassBuilderAndMAM([&](llvm::PassBuilder &PB, llvm::ModuleAnalysisManager &MAM) {
+    llvm::ModulePassManager MPM;
+    PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
+      MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
+    });
+    PB.registerModuleAnalyses(MAM);
+
+    registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true);
+    HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done registering\n";
+
+    llvm::FunctionPassManager FPM;
+    FPM.addPass(HostKernelWrapperPass{KnownLocalMemSize, KnownGroupSizeX, KnownGroupSizeY,
+                                      KnownGroupSizeZ});
+    MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+
+    MPM.run(FlavoredModule, MAM);
+  });
+
+  enableModuleStateDumping(FlavoredModule, "CBS");
 
   llvm::SmallVector<char> InputFile;
   int InputFD;

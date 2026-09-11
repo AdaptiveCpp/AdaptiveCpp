@@ -3,7 +3,7 @@ import os
 import platform
 
 config.name = 'AdaptiveCpp Plugin'
-config.test_format = lit.formats.ShTest(True)
+config.test_format = lit.formats.ShTest()
 
 config.suffixes = ['.c', '.cpp', '.cc']
 

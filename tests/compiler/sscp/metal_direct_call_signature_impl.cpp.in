@@ -1,0 +1,13 @@
+#include "metal_direct_call_signature.hpp"
+
+struct UnrelatedTwoFloat {
+  float First;
+  float Second;
+};
+
+SYCL_EXTERNAL __attribute__((noinline)) float
+consumeAggregatePair(float Value) {
+  UnrelatedTwoFloat KeepTypeAlive{3.0f, 4.0f};
+  const auto [First, Second] = makeAggregatePair(Value);
+  return First + Second + 0.0f * KeepTypeAlive.First;
+}

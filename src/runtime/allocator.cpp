@@ -55,8 +55,8 @@ void *allocate_shared(backend_allocator *alloc, size_t bytes,
 }
 
 void deallocate(backend_allocator* alloc, void *mem) {
-  alloc->raw_free(mem);
   application::event_handler_layer().on_deallocation(mem);
+  alloc->raw_free(mem);
 }
 
 }

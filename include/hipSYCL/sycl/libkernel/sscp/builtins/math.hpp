@@ -191,6 +191,9 @@ HIPSYCL_SSCP_BUILTIN double __acpp_sscp_rsqrt_f64(double);
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_sin_f32(float);
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_sin_f64(double);
 
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f32(float, float*, float*);
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f64(double, double*, double*);
+
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_sinh_f32(float);
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_sinh_f64(double);
 

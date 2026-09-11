@@ -205,10 +205,16 @@ HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(sqrt)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(sin)
 
 
-template<class T, class FloatPtr>
-HIPSYCL_BUILTIN T __acpp_sincos(T x, FloatPtr cosval) noexcept {
-  *cosval = sscp_builtins::__acpp_cos(x);
-  return sscp_builtins::__acpp_sin(x);
+HIPSYCL_BUILTIN float __acpp_sincos(float x, float* cosval) noexcept {
+  float sinval;
+  __acpp_sscp_sincos_f32(x, &sinval, cosval);
+  return sinval;
+}
+
+HIPSYCL_BUILTIN double __acpp_sincos(double x, double* cosval) noexcept {
+  double sinval;
+  __acpp_sscp_sincos_f64(x, &sinval, cosval);
+  return sinval;
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(sinh)

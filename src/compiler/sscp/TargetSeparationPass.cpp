@@ -18,6 +18,7 @@
 #include "hipSYCL/compiler/sscp/DynamicFunctionSupport.hpp"
 #include "hipSYCL/compiler/sscp/StdAtomicRemapperPass.hpp"
 #include "hipSYCL/compiler/sscp/DeviceAssertPass.hpp"
+#include "hipSYCL/compiler/sscp/HcfRegistrationPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/sscp/pcuda/ExternDynamicLocalMemoryPass.hpp"
@@ -632,12 +633,21 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
 
     {
       ScopedPrintingTimer Timer {"S1 IR constant application"};
+      // Important: Last argument (CreateIfUnused) must be true, so that the HCF
+      // GV will always be generated, and can then be processed by the HcfRegistrationPass
+      // in the next step
       S1IRConstantReplacer HostSideReplacer{
           {{SscpIsHostIdentifier, 1}, {SscpIsDeviceIdentifier, 0}},
           {{SscpHcfObjectIdIdentifier, HcfObjectId}, {SscpHcfObjectSizeIdentifier, HcfString.size()}},
-          {{SscpHcfContentIdentifier, HcfString}}};
+          {{SscpHcfContentIdentifier, HcfString}}, true};
 
       HostSideReplacer.run(M, MAM);
+    }
+
+    {
+      ScopedPrintingTimer Timer {"HCF Registration"};
+      HcfRegistrationPass HRP;
+      HRP.run(M, MAM);
     }
 
     {

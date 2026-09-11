@@ -96,6 +96,7 @@ void *load_library(const std::string &filename, std::string &message) {
 void *get_symbol_from_library(void *handle, const std::string &symbolName,
                               std::string &message) {
 #ifndef _WIN32
+  dlerror(); // clear any unchecked errors from `dlsym` calls by other libraries
   void *symbol = dlsym(handle, symbolName.c_str());
   if (const char *err = dlerror()) {
     message = "Could not find symbol name: " + symbolName;

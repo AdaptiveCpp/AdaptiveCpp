@@ -203,6 +203,10 @@ protected:
   // including function and parameter attributes.
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) = 0;
 
+  void enableModuleStateDumping(llvm::Module &M, const std::string &PipelineStage,
+                                     const std::string &Kernels);
+  void enableModuleStateDumping(llvm::Module &M, const std::string &PipelineStage);
+
   void registerError(const std::string& E) {
     Errors.push_back(E);
   }

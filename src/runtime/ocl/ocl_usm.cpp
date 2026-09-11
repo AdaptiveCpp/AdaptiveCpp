@@ -407,7 +407,7 @@ public:
     }
     
     void* ptr = clSVMAlloc(_ctx.get(),
-                      CL_MEM_SVM_FINE_GRAIN_BUFFER & CL_DEVICE_SVM_ATOMICS,
+                      CL_MEM_SVM_FINE_GRAIN_BUFFER | CL_DEVICE_SVM_ATOMICS,
                       size, static_cast<cl_uint>(alignment));
     if(ptr)
       err = CL_SUCCESS;
@@ -668,6 +668,9 @@ public:
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
     std::lock_guard<std::mutex> lock{_mutex};
+    // nothing to register before the first allocation
+    if(_allocations.empty())
+      return CL_SUCCESS;
     return k.setSVMPointers(_allocations);
   }
 
@@ -690,7 +693,8 @@ private:
     for(int i = 0; i < _allocations.size(); ++i) {
       intptr_t candidate = reinterpret_cast<intptr_t>(_allocations[i]);
       auto alloc_info = _alloc_infos[i];
-      if(candidate >= ptr_int && candidate < ptr_int + alloc_info.size) {
+      if(ptr_int >= candidate &&
+         ptr_int < candidate + static_cast<intptr_t>(alloc_info.size)) {
         h(i, alloc_info);
         return true;
       }

@@ -13,6 +13,7 @@
 #define TESTS_GROUP_FUNCTIONS_HH
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <functional>
 #include <iostream>
@@ -25,19 +26,108 @@
 
 #define HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
 
-
-
-#ifdef TESTS_GROUPFUNCTION_FULL
-using test_types =
-    boost::mp11::mp_list<char, int, unsigned int, long long, float, double, sycl::vec<int, 1>,
-                     sycl::vec<int, 2>, sycl::vec<int, 3>, sycl::vec<int, 4>,
-                     sycl::vec<int, 8>, sycl::vec<short, 16>, sycl::vec<long, 3>,
-                     sycl::vec<unsigned int, 3>>;
-#else
-using test_types = boost::mp11::mp_list<char, unsigned int, float, double, sycl::vec<int, 2>>;
-#endif
-
 namespace detail {
+
+struct trivially_copyable_16_byte_type {
+  float m[4];
+
+  ACPP_KERNEL_TARGET
+  void initialize(size_t init) {
+    for (int i = 0; i < 4; ++i)
+      m[i] = static_cast<float>(init) + i;
+  }
+
+  ACPP_KERNEL_TARGET
+  bool operator==(const trivially_copyable_16_byte_type &other) const {
+    for (int i = 0; i < 4; ++i)
+      if (m[i] != other.m[i])
+        return false;
+    return true;
+  }
+
+  ACPP_KERNEL_TARGET
+  trivially_copyable_16_byte_type
+  operator+(const trivially_copyable_16_byte_type &other) const {
+    trivially_copyable_16_byte_type result{};
+    for (int i = 0; i < 4; ++i)
+      result.m[i] = m[i] + other.m[i];
+    return result;
+  }
+};
+static_assert(std::is_trivially_copyable_v<trivially_copyable_16_byte_type>);
+static_assert(sizeof(trivially_copyable_16_byte_type) == 16);
+
+// Padded to 12 bytes due to the 4-byte alignment of word32.
+// Exercises logic for non-8-byte divisible types.
+struct trivially_copyable_12_byte_type {
+  uint32_t word32;
+  uint8_t  bytes8[5];
+
+  ACPP_KERNEL_TARGET
+  void initialize(size_t init) {
+    word32 = static_cast<uint32_t>(init);
+    for (int i = 0; i < 5; ++i)
+      bytes8[i] = static_cast<uint8_t>(init + 1 + i);
+  }
+
+  ACPP_KERNEL_TARGET
+  bool operator==(const trivially_copyable_12_byte_type &other) const {
+    if (word32 != other.word32)
+      return false;
+    for (int i = 0; i < 5; ++i)
+      if (bytes8[i] != other.bytes8[i])
+        return false;
+    return true;
+  }
+
+  ACPP_KERNEL_TARGET
+  trivially_copyable_12_byte_type
+  operator+(const trivially_copyable_12_byte_type &other) const {
+    trivially_copyable_12_byte_type result{};
+    result.word32 = word32 + other.word32;
+    for (int i = 0; i < 5; ++i)
+      result.bytes8[i] = static_cast<uint8_t>(bytes8[i] + other.bytes8[i]);
+    return result;
+  }
+};
+static_assert(std::is_trivially_copyable_v<trivially_copyable_12_byte_type>);
+static_assert(sizeof(trivially_copyable_12_byte_type) == 12);
+
+template<typename T>
+inline constexpr bool is_trivially_copyable_test_type_v =
+    std::is_same_v<T, trivially_copyable_16_byte_type> ||
+    std::is_same_v<T, trivially_copyable_12_byte_type>;
+
+inline std::string type_to_string(const trivially_copyable_16_byte_type &v) {
+  std::stringstream ss{};
+
+  ss << "(" << v.m[0];
+  for (int i = 1; i < 4; ++i)
+    ss << ", " << v.m[i];
+  ss << ")";
+
+  return ss.str();
+}
+
+inline std::string type_to_string(const trivially_copyable_12_byte_type &v) {
+  std::stringstream ss{};
+
+  ss << "(" << v.word32;
+  for (int i = 0; i < 5; ++i)
+    ss << ", " << +v.bytes8[i];
+  ss << ")";
+
+  return ss.str();
+}
+
+template<typename T>
+struct is_sycl_vec : std::false_type {};
+
+template<typename T, int N>
+struct is_sycl_vec<sycl::vec<T, N>> : std::true_type {};
+
+template<typename T>
+inline constexpr bool is_sycl_vec_v = is_sycl_vec<T>::value;
 
 inline uint32_t get_subgroup_size(const sycl::queue& q) {
   auto sizes = q.get_device().get_info<sycl::info::device::sub_group_sizes>();
@@ -51,8 +141,8 @@ inline uint32_t get_subgroup_size() {
 
 template<typename T>
 auto elementType_helper() {
-  if constexpr(std::is_arithmetic_v<T>) return T{};
-  else return T{}.s0();
+  if constexpr(is_sycl_vec_v<T>) return T{}.s0();
+  else return T{};
 }
 
 template<typename T>
@@ -142,7 +232,7 @@ T initialize_type(T init) {
   return init;
 }
 
-template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
+template<typename T, typename std::enable_if_t<is_sycl_vec_v<T>, int> = 0>
 ACPP_KERNEL_TARGET
 T initialize_type(elementType<T> init) {
   constexpr size_t N = T::size();
@@ -170,6 +260,15 @@ T initialize_type(elementType<T> init) {
   static_assert(true, "invalide vector type!");
 }
 
+template<typename T,
+         typename std::enable_if_t<is_trivially_copyable_test_type_v<T>, int> = 0>
+ACPP_KERNEL_TARGET
+T initialize_type(size_t init) {
+  T value{};
+  value.initialize(init);
+  return value;
+}
+
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 ACPP_KERNEL_TARGET
 T get_offset(size_t margin, size_t divisor = 1) {
@@ -187,11 +286,18 @@ T get_offset(size_t margin, size_t divisor = 1) {
   return static_cast<T>(std::numeric_limits<T>::max() / divisor - margin - 1);
 }
 
-template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
+template<typename T, typename std::enable_if_t<is_sycl_vec_v<T>, int> = 0>
 ACPP_KERNEL_TARGET
 T get_offset(size_t margin, size_t divisor = 1) {
   using eT = elementType<T>;
   return initialize_type<T>(get_offset<eT>(margin + 16, divisor));
+}
+
+template<typename T,
+         typename std::enable_if_t<is_trivially_copyable_test_type_v<T>, int> = 0>
+ACPP_KERNEL_TARGET
+T get_offset(size_t margin, size_t divisor = 1) {
+  return T{};
 }
 
 inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
@@ -251,6 +357,20 @@ void check_binary_reduce(std::vector<T> buffer, std::vector<T> input, size_t loc
 }
 
 } // namespace detail
+
+#ifdef TESTS_GROUPFUNCTION_FULL
+using test_types =
+    boost::mp11::mp_list<char, int, unsigned int, long long, float, double, sycl::vec<int, 1>,
+                     sycl::vec<int, 2>, sycl::vec<int, 3>, sycl::vec<int, 4>,
+                     sycl::vec<int, 8>, sycl::vec<short, 16>, sycl::vec<long, 3>,
+                     sycl::vec<unsigned int, 3>>;
+#else
+using test_types = boost::mp11::mp_list<char, unsigned int, float, double, sycl::vec<int, 2>>;
+#endif
+
+using shuffle_test_types =
+    boost::mp11::mp_push_back<test_types, detail::trivially_copyable_16_byte_type,
+                              detail::trivially_copyable_12_byte_type>;
 
 template<int N, int M, typename T>
 class test_kernel;

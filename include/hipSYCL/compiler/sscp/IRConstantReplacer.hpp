@@ -232,7 +232,8 @@ class S1IRConstantReplacer : public llvm::PassInfoMixin<S1IRConstantReplacer> {
 public:
   S1IRConstantReplacer(const std::unordered_map<std::string, int> &IntConstants,
                        const std::unordered_map<std::string, uint64_t> &UInt64Constants,
-                       const std::unordered_map<std::string, std::string> &StringConstants = {});
+                       const std::unordered_map<std::string, std::string> &StringConstants = {},
+                       bool CreateIfUnused = false);
 
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);
@@ -241,6 +242,7 @@ private:
   std::unordered_map<std::string, int> IntConstants;
   std::unordered_map<std::string, uint64_t> UInt64Constants;
   std::unordered_map<std::string, std::string> StringConstants;
+  bool ForceCreation;
 };
 
 }

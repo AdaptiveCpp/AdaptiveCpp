@@ -2,6 +2,8 @@ name: Linux Vulkan
 
 on: [push, pull_request]
 
+permissions: read-all
+
 jobs:
   prep-container:
     name: Prepare CI container clang ${{ matrix.clang }}, ${{ matrix.os }}
@@ -17,7 +19,7 @@ jobs:
         clang: ['17']
         os: [ubuntu-22.04]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           fetch-depth: 20
@@ -51,10 +53,10 @@ jobs:
       matrix:
         docker: ${{fromJson(needs.prep-container.outputs.docker_matrix)}}
         clang_version: ['19', '21']
-        clspv_commit: ['88d8ff71000bf995493c8daaed865ec1ac216309']
+        clspv_commit: ['3d017c6d751cdabed1a5051b20c6bf5f71e8fd32']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
         path: AdaptiveCpp
@@ -65,6 +67,7 @@ jobs:
         vulkan_version: 1.4.341.1
         cache: true
         stripdown: true
+        github_token: ${{secrets.GITHUB_TOKEN}})
 
     # Install mesa 25.x vulkan driver
     - name: Install LLVMpipe
@@ -78,7 +81,7 @@ jobs:
         vulkaninfo --summary
 
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         key: ${{ github.job }}-${{matrix.clang_version}}
         restore-keys: |
@@ -86,14 +89,14 @@ jobs:
 
     - name: cache clspv
       id: cache-clspv
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{github.workspace}}/clspv/build/install
         key: ${{matrix.clspv_commit}}
 
     - name: checkout clspv
       if: steps.cache-clspv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: google/clspv
         path: clspv
@@ -153,10 +156,11 @@ jobs:
               -DLLVM_DIR=${GITHUB_WORKSPACE}/install/lib/cmake/llvm
         ninja -j2
 
+    # See https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2163 for disabled test
     - name: run SYCL tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ACPP_VISIBILITY_MASK="vk" ./sycl_tests
+        ACPP_VISIBILITY_MASK="vk" ./sycl_tests -t \!buffer_tests/*
 
     - name: run lit SSCP tests
       run: |

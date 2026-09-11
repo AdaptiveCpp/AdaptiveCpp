@@ -53,6 +53,23 @@ Tout maybe_bit_cast(Tin x) {
   }
 }
 
+template <class T, class Operation>
+HIPSYCL_FORCE_INLINE
+T apply_on_words(T x, Operation op) {
+  constexpr int words_no =
+      (sizeof(T) + sizeof(__acpp_int64) - 1) / sizeof(__acpp_int64);
+  __acpp_int64 words[words_no] = {};
+  __builtin_memcpy(words, &x, sizeof(T));
+  for(int i = 0; i < words_no; ++i)
+    words[i] = op(words[i]);
+  struct alignas(T) storage_type {
+    unsigned char bytes[sizeof(T)];
+  };
+  storage_type storage;
+  __builtin_memcpy(&storage, words, sizeof(T));
+  return __builtin_bit_cast(T, storage);
+}
+
 // barrier
 template <int Dim>
 HIPSYCL_BUILTIN void
@@ -106,6 +123,19 @@ HIPSYCL_BUILTIN std::enable_if_t<(sizeof(T) <= 8), T> __acpp_shift_group_left(
     return maybe_bit_cast<T>(__acpp_sscp_sub_group_shl_i64(
         maybe_bit_cast<__acpp_int64>(x), static_cast<__acpp_uint32>(delta)));
   }
+}
+
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
+  return apply_on_words(x, [g, delta](__acpp_int64 word) {
+    __acpp_int64 result = __acpp_shift_group_left(g, word, delta);
+    __acpp_group_barrier(g);
+    return result;
+  });
 }
 
 template <class Group, typename T, int N,
@@ -171,6 +201,18 @@ HIPSYCL_BUILTIN std::enable_if_t<(sizeof(T) <= 8), T> __acpp_shift_group_right(
   }
 }
 
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_shift_group_right(Group g, T x, typename Group::linear_id_type delta = 1) {
+  return apply_on_words(x, [g, delta](__acpp_int64 word) {
+    __acpp_int64 result = __acpp_shift_group_right(g, word, delta);
+    __acpp_group_barrier(g);
+    return result;
+  });
+}
 
 template <class Group, typename T, int N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
@@ -253,6 +295,18 @@ __acpp_group_broadcast(sub_group g, T x, typename sub_group::linear_id_type loca
         static_cast<__acpp_int32>(local_linear_id),
         maybe_bit_cast<__acpp_int64>(x)));
   }
+}
+
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_group_broadcast(Group g, T x,
+                          typename Group::linear_id_type local_linear_id = 0) {
+  return apply_on_words(x, [g, local_linear_id](__acpp_int64 word) {
+    return __acpp_group_broadcast(g, word, local_linear_id);
+  });
 }
 
 template<typename T, int N, class Group,
@@ -1070,6 +1124,19 @@ HIPSYCL_BUILTIN std::enable_if_t<(sizeof(T) <= 8), T> __acpp_permute_group_by_xo
   }
 }
 
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_permute_group_by_xor(Group g, T x, typename Group::linear_id_type mask) {
+  return apply_on_words(x, [g, mask](__acpp_int64 word) {
+    __acpp_int64 result = __acpp_permute_group_by_xor(g, word, mask);
+    __acpp_group_barrier(g);
+    return result;
+  });
+}
+
 template <class Group, typename T, int N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_BUILTIN
@@ -1140,6 +1207,19 @@ HIPSYCL_BUILTIN std::enable_if_t<(sizeof(T) <= 8), T> __acpp_select_from_group(
   }
 }
 
+
+template <class Group, typename T,
+          std::enable_if_t<is_group_v<std::decay_t<Group>> &&
+                                std::is_trivially_copyable_v<T> && (sizeof(T) > 8),
+                            bool> = true>
+HIPSYCL_BUILTIN
+T __acpp_select_from_group(Group g, T x, typename Group::id_type remote_local_id) {
+  return apply_on_words(x, [g, remote_local_id](__acpp_int64 word) {
+    __acpp_int64 result = __acpp_select_from_group(g, word, remote_local_id);
+    __acpp_group_barrier(g);
+    return result;
+  });
+}
 
 template <class Group, typename T, int N,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>

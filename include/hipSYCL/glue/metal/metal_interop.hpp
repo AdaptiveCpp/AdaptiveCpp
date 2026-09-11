@@ -14,9 +14,13 @@
 #ifdef SYCL_EXT_ACPP_BACKEND_METAL
 #include "hipSYCL/sycl/context.hpp"
 #include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/sycl/event.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/inorder_queue_event.hpp"
+#include "hipSYCL/runtime/metal/metal_event.hpp"
 #if defined(__APPLE__)
 #include "hipSYCL/runtime/metal/metal_hardware_manager.hpp"
 #endif
@@ -36,6 +40,7 @@ template <> struct backend_interop<sycl::backend::metal> {
   using native_mem_type = void *;
   using native_device_type = MTL::Device *;
   using native_queue_type = MTL::CommandQueue *;
+  using native_event_type = rt::metal_event_handle;
 
   template <class Accessor_type>
   static native_mem_type get_native_mem(const Accessor_type &a) {
@@ -96,6 +101,78 @@ template <> struct backend_interop<sycl::backend::metal> {
         static_cast<rt::inorder_queue *>(launcher_params)->get_native_type());
   }
 
+  static native_event_type get_native_event(const sycl::event &e) {
+#if defined(__APPLE__)
+    rt::dag_node_ptr node = sycl::detail::extract_rt_event(e);
+    if (!node) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"get_native_event: invalid event",
+                         rt::error_type::invalid_parameter_error});
+      return {nullptr, 0};
+    }
+
+    if (!node->is_submitted()) {
+      rt::runtime_keep_alive_token{}.get()->dag().flush_and_gc();
+    }
+
+    if (!node->is_submitted()) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"get_native_event: event has not been submitted",
+                         rt::error_type::runtime_error});
+      return {nullptr, 0};
+    }
+
+    if (node->is_cancelled()) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"get_native_event: event has been cancelled",
+                         rt::error_type::runtime_error});
+      return {nullptr, 0};
+    }
+
+    if (node->get_assigned_device().get_backend() != rt::backend_id::metal) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"get_native_event: event does not belong to the "
+                         "Metal backend",
+                         rt::error_type::invalid_parameter_error});
+      return {nullptr, 0};
+    }
+
+    auto event = node->get_event();
+    if (!event) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"get_native_event: event has not been submitted",
+                         rt::error_type::runtime_error});
+      return {nullptr, 0};
+    }
+
+    auto *metal_event =
+        dynamic_cast<rt::inorder_queue_event<rt::metal_event_handle> *>(
+            event.get());
+    if (!metal_event) {
+      rt::register_error(
+          __acpp_here(),
+          rt::error_info{"get_native_event: event is not backed by a native "
+                         "Metal event",
+                         rt::error_type::feature_not_supported});
+      return {nullptr, 0};
+    }
+
+    return metal_event->request_backend_event();
+#else
+    rt::register_error(
+        __acpp_here(),
+        rt::error_info{"get_native_event: Metal backend not supported on this "
+                       "OS",
+                       rt::error_type::runtime_error});
+    return {nullptr, 0};
+#endif
+  }
+
   static native_allocation_type get_native_allocation(const void *ptr, const sycl::context &ctx) {
     rt::backend *b =
         ctx.AdaptiveCpp_runtime()->backends().get(rt::backend_id::metal);
@@ -137,7 +214,7 @@ template <> struct backend_interop<sycl::backend::metal> {
   static constexpr bool can_extract_native_context = false;
   // sycl::get_native(queue) is not implemented; use interop_handle::get_native_queue()
   static constexpr bool can_extract_native_queue = false;
-  static constexpr bool can_extract_native_event = false;
+  static constexpr bool can_extract_native_event = true;
   static constexpr bool can_extract_native_buffer = false;
   static constexpr bool can_extract_native_sampled_image = false;
   static constexpr bool can_extract_native_image_sampler = false;

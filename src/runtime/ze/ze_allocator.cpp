@@ -128,6 +128,7 @@ bool ze_allocator::is_usm_accessible_from(backend_descriptor b) const {
 result ze_allocator::query_pointer(const void* ptr, pointer_info& out) const {
 
   ze_memory_allocation_properties_t props;
+  props.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
   props.pNext = nullptr;
 
   ze_device_handle_t dev;

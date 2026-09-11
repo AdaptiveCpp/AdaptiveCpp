@@ -106,6 +106,7 @@ result launch_kernel_from_library(
   MTL::Library* library,
   MTL::Device* device,
   MTL::CommandBuffer* command_buffer,
+  metal_inorder_queue* queue,
   metal_allocator* allocator,
   std::string_view kernel_name,
   const rt::range<3>& num_groups,
@@ -196,10 +197,10 @@ result launch_kernel_from_library(
       encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out, buf_offset);
   }
 
+  // SSCP kernels may dereference arbitrary USM pointers, so every allocation
+  // must be resident for this encoder.
   // TODO: switch to MTL4 API for O(1) buffer bindings
-  allocator->for_each_buffer([&](MTL::Buffer* buf) {
-    encoder->useResource(buf, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
-  });
+  queue->make_allocations_resident(encoder);
 
   MTL::Size num_groups_size = MTL::Size::Make(
     num_groups[0],
@@ -311,6 +312,31 @@ MTL::CommandBuffer* metal_inorder_queue::new_command_buffer() {
   }
 
   return cmd_buf;
+}
+
+void metal_inorder_queue::release_resident_resources() {
+  for (const MTL::Resource* r : _resident_resources) {
+    const_cast<MTL::Resource*>(r)->release();
+  }
+}
+
+void metal_inorder_queue::make_allocations_resident(
+  MTL::ComputeCommandEncoder* encoder) {
+  constexpr auto usage = MTL::ResourceUsageRead | MTL::ResourceUsageWrite;
+
+  // The allocation set is only rescanned - under the allocator lock - when
+  // the generation changed since the last scan, turning the per-launch cost
+  // from O(allocations) under that lock into a lock-free generation check
+  // plus one useResources call.
+  if (_allocator->generation() != _residency_generation) {
+    release_resident_resources();
+    _residency_generation = _allocator->snapshot_buffers(_resident_resources);
+  }
+
+  if (!_resident_resources.empty()) {
+    encoder->useResources(_resident_resources.data(),
+                          _resident_resources.size(), usage);
+  }
 }
 
 void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& node) {
@@ -836,7 +862,7 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   }
 
   return launch_kernel_from_library(
-    library, _device, new_command_buffer(), _allocator, kernel_name,
+    library, _device, new_command_buffer(), this, _allocator, kernel_name,
     num_groups, group_size, local_mem_size,
     _arg_mapper.get_mapped_args(),
     const_cast<std::size_t*>(_arg_mapper.get_mapped_arg_sizes()),
@@ -855,6 +881,7 @@ metal_inorder_queue::~metal_inorder_queue() {
   // Drain pending work before releasing queue-owned Metal objects that may be
   // referenced by completion handlers.
   wait();
+  release_resident_resources();
   _event_listener->release();
   _shared_event->release();
   _command_queue->release();

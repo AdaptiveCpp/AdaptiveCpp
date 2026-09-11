@@ -14,13 +14,16 @@
 #include "../allocator.hpp"
 #include "../hints.hpp"
 
+#include <atomic>
 #include <map>
 #include <memory>
+#include <vector>
 
 namespace MTL {
 
 class Device;
 class Buffer;
+class Resource;
 
 } // namespace MTL
 
@@ -72,15 +75,18 @@ public:
 
   size_t get_delta() const { return _delta; }
 
-  template<typename F>
-  void for_each_buffer(F&& f) const {
-    std::lock_guard<std::mutex> lock{_mutex};
-    for (auto& [ptr, block] : _ptr_to_block) {
-      if (block.buffer) {
-        f(block.buffer);
-      }
-    }
+  // Bumped on every allocation/free, so consumers (e.g. residency tracking in
+  // the queue) can tell the allocation set changed without taking the lock.
+  uint64_t generation() const {
+    return _generation.load(std::memory_order_relaxed);
   }
+
+  // Fills `out` with all Metal buffers currently backing USM allocations and
+  // returns the generation the snapshot was taken at. Each buffer is
+  // retain()'d, since the snapshot is meant to be cached and used (e.g. via
+  // useResources()) after this call returns; the caller must release() every
+  // entry once it stops using the snapshot.
+  uint64_t snapshot_buffers(std::vector<const MTL::Resource*>& out) const;
 
 private:
   MTL::Buffer* alloc_buffer(size_t size_bytes);
@@ -97,6 +103,7 @@ private:
   };
   std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
+  std::atomic<uint64_t> _generation{0};
   std::shared_ptr<metal_mmap_region> _mmap_region;
 };
 

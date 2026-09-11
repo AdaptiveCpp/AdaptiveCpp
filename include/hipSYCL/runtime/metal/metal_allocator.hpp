@@ -90,8 +90,8 @@ public:
 private:
   MTL::Buffer* alloc_buffer(size_t size_bytes);
   void calibrate();
-  void add_to_residency_set(MTL::Buffer* buffer);
-  void remove_from_residency_set(MTL::Buffer* buffer);
+  void add_to_residency_set(const std::lock_guard<std::mutex>&, MTL::Buffer* buffer);
+  void remove_from_residency_set(const std::lock_guard<std::mutex>&, MTL::Buffer* buffer);
 
   MTL::Device* _device = nullptr;
   device_id _device_id;

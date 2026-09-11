@@ -2257,7 +2257,8 @@ class compiler:
     linker_args = [
       "-L"+self._acpp_lib_path,
       "-lacpp-rt",
-      "-lacpp-common"
+      "-lacpp-common",
+      "-lsycl_tracer"
     ]
 
     if sys.platform == "darwin":

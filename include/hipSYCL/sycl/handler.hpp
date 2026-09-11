@@ -54,6 +54,8 @@
 
 #include "hipSYCL/algorithms/reduction/reduction_engine.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
+#include "tracer_utils.hpp"
+#include "tracer_utils_internal.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
 
@@ -273,9 +275,12 @@ public:
   void depends_on(event e) {
     // No need to consider default constructed events that are
     // not bound to a node
+
+    TRACER_FUNCTION1ARG(depends_on_start)
     if(e._node) {
       _requirements.add_node_requirement(e._node);
     }
+    TRACER_FUNCTION2ARG_END(depends_on_end, e.AdaptiveCpp_hash_code());
   }
 
   void depends_on(const std::vector<event> &events) {
@@ -288,14 +293,20 @@ public:
   template <typename KernelName = __acpp_unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
+    TRACER_FUNCTION1ARG(single_task_start);
+    
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
       sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
+
+    TRACER_FUNCTION1ARG_END(single_task_end);
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
+
+    TRACER_FUNCTION1ARG(parallel_for_start)
 
     if(numWorkItems.size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
@@ -310,13 +321,16 @@ public:
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
     }
+
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel>
   void parallel_for(range<1> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
-
+    
+    TRACER_FUNCTION1ARG(parallel_for_start)
     if(numWorkItems == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
 
@@ -329,7 +343,12 @@ public:
       };
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+
+
     }
+
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -337,6 +356,10 @@ public:
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
+
+
+
+    TRACER_FUNCTION1ARG(parallel_for_start)
 
     if(numWorkItems.size() == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
@@ -351,6 +374,8 @@ public:
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
     }
+
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
@@ -358,6 +383,8 @@ public:
   void parallel_for(range<1> numWorkItems,
                     id<1> workItemOffset,
                     const ReductionsAndKernel &... redu_kernel) {
+
+    TRACER_FUNCTION1ARG(parallel_for_start)
 
     if(numWorkItems == 0)
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
@@ -372,12 +399,18 @@ public:
 
       detail::separate_last_argument_and_apply(invoker, redu_kernel...);
     }
+
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   template <typename KernelName = __acpp_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
+
+
+    TRACER_FUNCTION1ARG(parallel_for_start)
+
     auto invoker = [&](auto&& kernel, auto&& ... reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
         executionRange.get_offset(), executionRange.get_global_range(),
@@ -386,6 +419,8 @@ public:
     };
 
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+    TRACER_FUNCTION1ARG_END(parallel_for_end)
   }
 
   // Hierarchical kernel dispatch API
@@ -408,6 +443,9 @@ public:
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
                                const ReductionsAndKernel &... redu_kernel) {
+    
+    TRACER_FUNCTION1ARG(parallel_for_work_group_start);
+
     auto invoker = [&](auto &&kernel, auto &&... reductions) {
       this->submit_kernel<KernelName,
                           rt::kernel_type::hierarchical_parallel_for>(
@@ -415,6 +453,8 @@ public:
           kernel, reductions...);
     };
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+
+    TRACER_FUNCTION1ARG_END(parallel_for_work_group_end)
   }
 
   // Scoped parallelism API
@@ -451,28 +491,53 @@ public:
 
   //------ Explicit copy operations API
 
+
+
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src, std::shared_ptr<T> dest) {
+
+
+    TRACER_FUNCTION1ARG(copy_start)
+
     copy_ptr(src, dest);
+
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
+
+
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(std::shared_ptr<T> src, accessor<T, dim, mode, tgt, variant> dest) {
+
+    TRACER_FUNCTION1ARG(copy_start)
+    
     copy_ptr(src, dest);
+
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(accessor<T, dim, mode, tgt, variant> src, T *dest) {
+
+    TRACER_FUNCTION1ARG(copy_start)
+
     copy_ptr(src, dest);
+
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void copy(const T *src, accessor<T, dim, mode, tgt, variant> dest) {
+
+    TRACER_FUNCTION1ARG(copy_start)
+
     copy_ptr(src, dest);
+
+    TRACER_FUNCTION1ARG_END(copy_end)
   }
 
   template <typename T, int dim, access::mode srcMode, access::mode dstMode,
@@ -481,6 +546,9 @@ public:
   void copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
             accessor<T, dim, dstMode, destTgt, VariantDest> dest)
   {
+
+
+    TRACER_FUNCTION1ARG(copy_start)
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
 
@@ -520,6 +588,8 @@ public:
     rt::dag_node_ptr node = create_task(std::move(explicit_copy), _execution_hints);
 
     _command_group_nodes.push_back(node);
+
+    TRACER_FUNCTION1ARG_END(copy_end);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -554,15 +624,23 @@ public:
                   "host_image targets are unsupported");
 
 
+
+
+    TRACER_FUNCTION1ARG(fill_start);
+
     this->submit_kernel<__acpp_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         sycl::id<dim>{}, get_range(dest),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
+
+    TRACER_FUNCTION1ARG_END(fill_end)
   }
 
   // ------ USM functions ------
 
   void memcpy(void *dest, const void *src, std::size_t num_bytes) {
+
+    TRACER_FUNCTION1ARG(memcpy_start)
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -609,6 +687,8 @@ public:
     rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
 
     _command_group_nodes.push_back(node);
+
+    TRACER_FUNCTION1ARG_END(memcpy_end)
   }
   
   template <typename T>
@@ -620,6 +700,9 @@ public:
 
   template <class T> void fill(void *ptr, const T &pattern, std::size_t count) {
     // For special cases we can map this to a potentially more low-level memset
+
+    TRACER_FUNCTION1ARG(fill_start)
+
     if (sizeof(T) == 1) {
       unsigned char val = *reinterpret_cast<const unsigned char*>(&pattern);
       
@@ -638,9 +721,13 @@ public:
           get_preferred_group_size<1>(),
           detail::kernels::fill_kernel_usm{typed_ptr, pattern});
     }
+
+    TRACER_FUNCTION1ARG_END(fill_end)
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
+
+    TRACER_FUNCTION1ARG(memset_start)
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw exception{make_error_code(errc::invalid),
@@ -653,6 +740,8 @@ public:
     rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
 
     _command_group_nodes.push_back(node);
+
+    TRACER_FUNCTION1ARG_END(memset_end)
   }
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {

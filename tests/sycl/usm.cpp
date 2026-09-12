@@ -1390,5 +1390,105 @@ BOOST_AUTO_TEST_CASE(usm_shared_ptr_gpu_delta_constant) {
   sycl::free(gpu_addrs, q);
 }
 
+// Tests memory ordering between dispatches with many arguments
+BOOST_AUTO_TEST_CASE(usm_chained_dispatch_many_args_ordering) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    return;
+  }
+
+  static constexpr std::size_t N = 1 << 20;
+  static constexpr int Iterations = 8;
+  static constexpr int K = 8;
+
+  int* a[K];
+  for (int k = 0; k < K; ++k)
+    a[k] = sycl::malloc_shared<int>(N, q);
+
+  int *p0=a[0], *p1=a[1], *p2=a[2], *p3=a[3],
+      *p4=a[4], *p5=a[5], *p6=a[6], *p7=a[7];
+
+  for (int it = 0; it < Iterations; ++it) {
+    q.parallel_for(sycl::range<1>(N), [=](sycl::id<1> idx) {
+      std::size_t i = idx[0];
+      int v = it * 7;
+      p0[i] = v;     p1[i] = v + 1; p2[i] = v + 2; p3[i] = v + 3;
+      p4[i] = v + 4; p5[i] = v + 5; p6[i] = v + 6;
+    });
+    q.parallel_for(sycl::range<1>(N), [=](sycl::id<1> idx) {
+      std::size_t i = idx[0];
+      p7[i] = p0[i] + p1[i] + p2[i] + p3[i] + p4[i] + p5[i] + p6[i];
+    });
+  }
+  q.wait();
+
+  const int expected = 7 * ((Iterations - 1) * 7) + 21;
+  bool ok = true;
+  for (std::size_t i = 0; i < N; ++i) {
+    if (a[7][i] != expected) {
+      BOOST_TEST_MESSAGE("mismatch at i=" << i << " expected=" << expected
+                                          << " got=" << a[7][i]);
+      ok = false;
+      break;
+    }
+  }
+  BOOST_CHECK(ok);
+
+  for (int k = 0; k < K; ++k)
+    sycl::free(a[k], q);
+}
+
+// Same, but with memory indirection
+BOOST_AUTO_TEST_CASE(shared_indirect_chained_ordering) {
+  sycl::queue q{sycl::property::queue::in_order{}};
+
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    return;
+  }
+
+  static constexpr std::size_t N = 1 << 20;
+  static constexpr int Iterations = 64;
+
+  int** producer_table = sycl::malloc_shared<int*>(2, q);
+  int** consumer_table = sycl::malloc_shared<int*>(2, q);
+  int* a = sycl::malloc_shared<int>(N, q);
+  int* b = sycl::malloc_shared<int>(N, q);
+  producer_table[0] = a;
+  producer_table[1] = b;
+  consumer_table[0] = a;
+  consumer_table[1] = b;
+  for (std::size_t i = 0; i < N; ++i) {
+    a[i] = 0;
+    b[i] = 0;
+  }
+
+  for (int it = 0; it < Iterations; ++it) {
+    q.parallel_for(sycl::range<1>(N), [=](sycl::id<1> idx) {
+      producer_table[0][idx[0]] = producer_table[1][idx[0]] + 1;
+    });
+    q.parallel_for(sycl::range<1>(N), [=](sycl::id<1> idx) {
+      consumer_table[1][idx[0]] = consumer_table[0][idx[0]];
+    });
+  }
+  q.wait();
+
+  bool ok = true;
+  for (std::size_t i = 0; i < N; ++i) {
+    if (b[i] != Iterations) {
+      BOOST_TEST_MESSAGE("mismatch at i=" << i << " expected=" << Iterations
+                                          << " got=" << b[i]);
+      ok = false;
+      break;
+    }
+  }
+  BOOST_CHECK(ok);
+
+  sycl::free(producer_table, q);
+  sycl::free(consumer_table, q);
+  sycl::free(a, q);
+  sycl::free(b, q);
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this
                             // line

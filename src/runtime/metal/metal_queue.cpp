@@ -328,7 +328,6 @@ MTL::CommandBuffer* metal_inorder_queue::get_open_command_buffer() {
 
   _open_buffer = cmd_buf;
   _open_buffer->retain();
-  _open_buffer_has_trailing_signal = false;
   _open_op_count = 0;
 
   return cmd_buf;
@@ -345,14 +344,6 @@ result metal_inorder_queue::flush() {
   }
 
   MTL::CommandBuffer* cb = _open_buffer;
-
-  // No implicit signal/wait is added on commit: that would serialize command
-  // buffers the GPU could otherwise run concurrently. If this buffer already
-  // has an explicit signal (from insert_event()), later buffers must wait on it.
-  if (_open_buffer_has_trailing_signal) {
-    _pending_gpu_event = _event_counter.load();
-    _open_buffer_has_trailing_signal = false;
-  }
 
   cb->addCompletedHandler([](MTL::CommandBuffer* completed) {
     if (NS::Error* err = completed->error()) {
@@ -413,6 +404,7 @@ void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& nod
 }
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;
 
   auto val = ++_event_counter;
@@ -421,7 +413,6 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
       NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
     auto* cmd_buf = get_open_command_buffer();
     cmd_buf->encodeSignalEvent(_shared_event, val);
-    _open_buffer_has_trailing_signal = true;
   }
   // Commit now: the event must be able to complete for waiters.
   flush();
@@ -434,6 +425,7 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_eve
 }
 
 result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting memcpy..." << std::endl;
 
   assert(op.source().get_base_ptr());
@@ -705,6 +697,7 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
 }
 
 result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_ptr& node) {
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting kernel..." << std::endl;
 
   rt::backend_kernel_launch_capabilities cap;
@@ -746,6 +739,7 @@ result metal_inorder_queue::submit_prefetch(prefetch_operation& op, const dag_no
 }
 
 result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_ptr& node) {
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting memset..." << std::endl;
 
   void* ptr = op.get_pointer();
@@ -771,6 +765,7 @@ result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_p
 }
 
 result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting wait for other queue..." << std::endl;
 
   assert(node);
@@ -799,6 +794,7 @@ result metal_inorder_queue::submit_external_wait_for(const dag_node_ptr& node) {
 }
 
 result metal_inorder_queue::wait() {
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Waiting for queue completion..." << std::endl;
   insert_event()->wait();
   _fence_chain_active = false;
@@ -809,9 +805,9 @@ device_id metal_inorder_queue::get_device() const {
   return _device_id;
 }
 void* metal_inorder_queue::get_native_type() const {
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
   // External code may commit its own buffers on this queue, so flush ours
-  // first to keep commit order correct. Safe: batching state is only
-  // touched from submission context.
+  // first to keep commit order correct.
   const_cast<metal_inorder_queue*>(this)->flush();
   return static_cast<void*>(_command_queue);
 }
@@ -832,7 +828,7 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   HIPSYCL_DEBUG_INFO << "[Metal] submit_sscp_kernel_from_code_object() called for kernel: "
                      << kernel_name << std::endl;
 
-  common::spin_lock_guard lock{_sscp_submission_spin_lock};
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
 
   // Validate kernel info
   if (!kernel_info) {

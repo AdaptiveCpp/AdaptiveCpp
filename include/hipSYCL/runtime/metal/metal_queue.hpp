@@ -16,13 +16,13 @@
 #include "../kernel_cache.hpp"
 #include "../queue_completion_event.hpp"
 
-#include "hipSYCL/common/spin_lock.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 
 #include "metal_allocator.hpp"
 #include "metal_event.hpp"
 
 #include <mach/mach_time.h>
+#include <mutex>
 
 namespace MTL {
 
@@ -189,8 +189,7 @@ private:
   // threads concurrently with submit_*() / insert_event().
   std::atomic<uint64_t> _event_counter{0};
 
-  // Only touched by submit_*() and insert_event(), which are serialized
-  // by external mutex, so no atomics needed.
+  // Protected by _mutex.
   uint64_t _pending_cpu_event{0};
   uint64_t _pending_gpu_event{0};
 
@@ -204,7 +203,6 @@ private:
   // because this header must stay free of Foundation headers (see
   // metal_hardware_manager.cpp, which defines the metal-cpp private impls).
   MTL::CommandBuffer* _open_buffer = nullptr;
-  bool _open_buffer_has_trailing_signal{false};
   int _open_op_count{0};
   bool _flush_after_current_op{false};
 
@@ -223,7 +221,7 @@ private:
 
   kernel_configuration _config;
 
-  common::spin_lock _sscp_submission_spin_lock;
+  mutable std::recursive_mutex _mutex;
 
   std::optional<metal_profiling_setup> _profiling_setup;
 };

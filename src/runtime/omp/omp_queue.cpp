@@ -668,6 +668,7 @@ result omp_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr& no
 result omp_queue::submit_memset(memset_operation &op, const dag_node_ptr& node) {
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
+  if (bytes == 0) return make_success();
   int pattern = op.get_pattern();
 
   if (!ptr) {

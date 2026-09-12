@@ -507,6 +507,10 @@ BOOST_AUTO_TEST_CASE(memset) {
 
   q.memset(mem, 0, test_size);
   q.memset(mem + 1, 12, test_size - 2);
+
+  // memsets with size==0 shouldn't do anything
+  q.memset(mem, 42, 0);
+
   std::vector<unsigned char> host_mem(test_size);
   q.memcpy(host_mem.data(), mem, test_size);
 

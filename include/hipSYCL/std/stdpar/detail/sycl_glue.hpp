@@ -435,6 +435,10 @@ public:
 
   void release(void* ptr, std::size_t size) {
     if(_pool && is_from_pool(ptr)) {
+      // Must match the rounding claim() applies, or release() computes the
+      // wrong buddy-allocator level and the block is lost from the pool.
+      if(size < _page_size)
+        size = _page_size;
       uint64_t address = reinterpret_cast<uint64_t>(ptr)-reinterpret_cast<uint64_t>(_base_address);
       _free_space_map.release(address, size);
 

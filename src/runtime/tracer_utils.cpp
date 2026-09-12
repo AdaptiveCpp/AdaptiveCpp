@@ -1,7 +1,7 @@
 
-#include "hipSYCL/sycl/tracer_utils.hpp"
+#include "hipSYCL/sycl/tracing/tracer_utils.hpp"
 #include "hipSYCL/common/dylib_loader.hpp"
-#include "hipSYCL/sycl/tracer_utils_internal.hpp"
+#include "hipSYCL/sycl/tracing/tracer_utils_internal.hpp"
 
 #ifdef __cplusplus
 extern "C" {

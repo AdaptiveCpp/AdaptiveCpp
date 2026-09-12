@@ -22,12 +22,9 @@ set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STD
 
 set(CMAKE_INSTALL_RPATH ${base} ${base}/hipSYCL)
 
-add_library(sycl_tracer SHARED
-  tracer_utils.cpp
-  tracer_utils_internal.cpp)
-
 add_library(acpp-rt SHARED
-
+  tracer_utils.cpp
+  tracer_utils_internal.cpp
   allocator.cpp
   allocation_tracker.cpp
   application.cpp
@@ -66,10 +63,8 @@ add_library(acpp-rt SHARED
   pcuda/pcuda_event.cpp
  )
 
-target_link_libraries(sycl_tracer PUBLIC acpp-common)
 target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
 target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
-target_link_libraries(acpp-rt PUBLIC acpp-common sycl_tracer)
 
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.

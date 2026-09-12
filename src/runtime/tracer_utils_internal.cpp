@@ -7,10 +7,10 @@
 #include <unordered_map>
 
 #include "hipSYCL/common/dylib_loader.hpp"
-#include "hipSYCL/sycl/tracer_utils.hpp"
+#include "hipSYCL/sycl/tracing/tracer_utils.hpp"
 
 #define MYLIB_EXPORTS
-#include "hipSYCL/sycl/tracer_utils_internal.hpp"
+#include "hipSYCL/sycl/tracing/tracer_utils_internal.hpp"
 
 #define EQUALIZE_HELPER(type)                                                                      \
   if (this->type.size() == this->size - 1) {                                                       \

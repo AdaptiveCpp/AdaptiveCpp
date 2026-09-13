@@ -171,12 +171,7 @@ sycl::event copy(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
   using value_type1 = typename std::iterator_traits<ForwardIt1>::value_type;
   using value_type2 = typename std::iterator_traits<ForwardIt2>::value_type;
 
-  if (std::is_trivially_copyable_v<value_type1> &&
-      std::is_same_v<value_type1, value_type2> &&
-      util::is_contiguous<ForwardIt1>() && util::is_contiguous<ForwardIt2>() &&
-      detail::should_use_memcpy(q.get_device())) {
-    return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1), deps);
-  } else {
+  auto invoke_kernel = [&]() -> sycl::event {
     return q.parallel_for(sycl::range{size}, deps,
                           [=](sycl::id<1> id) {
                             auto input = first;
@@ -185,6 +180,19 @@ sycl::event copy(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
                             std::advance(output, id[0]);
                             *output = *input;
                           });
+  };
+
+  if constexpr (std::is_trivially_copyable_v<value_type1> &&
+                std::is_same_v<value_type1, value_type2> &&
+                util::is_contiguous<ForwardIt1>() &&
+                util::is_contiguous<ForwardIt2>()) {
+    if (detail::should_use_memcpy(q.get_device())) {
+      return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1), deps);
+    } else {
+      return invoke_kernel();
+    }
+  } else {
+    return invoke_kernel();
   }
 }
 
@@ -278,12 +286,7 @@ sycl::event move(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
   using value_type1 = typename std::iterator_traits<ForwardIt1>::value_type;
   using value_type2 = typename std::iterator_traits<ForwardIt2>::value_type;
 
-  if (std::is_trivially_copyable_v<value_type1> &&
-      std::is_same_v<value_type1, value_type2> &&
-      util::is_contiguous<ForwardIt1>() && util::is_contiguous<ForwardIt2>() &&
-      detail::should_use_memcpy(q.get_device())) {
-    return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1), deps);
-  } else {
+  auto invoke_kernel = [&]() -> sycl::event {
     return q.parallel_for(sycl::range{size}, deps,
                           [=](sycl::id<1> id) {
                             auto input = first;
@@ -292,6 +295,19 @@ sycl::event move(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
                             std::advance(output, id[0]);
                             *output = std::move(*input);
                           });
+  };
+
+  if constexpr (std::is_trivially_copyable_v<value_type1> &&
+                std::is_same_v<value_type1, value_type2> &&
+                util::is_contiguous<ForwardIt1>() &&
+                util::is_contiguous<ForwardIt2>()) {
+    if (detail::should_use_memcpy(q.get_device())) {
+      return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1), deps);
+    } else {
+      return invoke_kernel();
+    }
+  } else {
+    return invoke_kernel();
   }
 }
 

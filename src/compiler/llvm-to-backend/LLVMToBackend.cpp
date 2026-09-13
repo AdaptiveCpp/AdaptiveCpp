@@ -33,6 +33,7 @@
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 #include <llvm/Transforms/Utils/SimplifyCFGOptions.h>
 #include <llvm/ADT/APFloat.h>
+#include <llvm/ADT/StringMap.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/DiagnosticInfo.h>
@@ -414,23 +415,23 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     // But we need to handle noalias-if-no-indirect-access before
     // dead argument elimination, since parameter index won't be correct
     // anymore afterwards!
-    llvm::SmallDenseMap<llvm::Function*, bool> KernelIsFreeOfIndirectAccess;
+    llvm::StringMap<bool> KernelIsFreeOfIndirectAccess;
     for(const auto& KN : Kernels) {
       if(auto* F = M.getFunction(KN)) {
-        KernelIsFreeOfIndirectAccess[F] = utils::IsFunctionFreeOfIndirectAccess(F);
+        KernelIsFreeOfIndirectAccess[KN] = utils::IsFunctionFreeOfIndirectAccess(F);
       }
     }
 
     for(auto& P : NoAliasIfNoIndirectAccessParameters) {
       auto* F = M.getFunction(P.first);
-      auto IsFreeOfIndirectAccess = [&](auto* F) -> bool {
-        auto It = KernelIsFreeOfIndirectAccess.find(F);
+      auto IsFreeOfIndirectAccess = [&](llvm::StringRef Name, auto* F) -> bool {
+        auto It = KernelIsFreeOfIndirectAccess.find(Name);
         if(It != KernelIsFreeOfIndirectAccess.end())
           return It->second;
         return utils::IsFunctionFreeOfIndirectAccess(F); 
       };
 
-      if(F && IsFreeOfIndirectAccess(F)) {
+      if(F && IsFreeOfIndirectAccess(P.first, F)) {
         for (int i : P.second) {
           HIPSYCL_DEBUG_INFO << "LLVMToBackend: Attaching noalias attribute to parameter " << i
                               << " of kernel " << P.first << "\n";
@@ -476,9 +477,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     for(auto& KN : Kernels) {
       KernelStats KS;
       KS.Name = KN;
-      KS.IsFreeOfIndirectAccess = false;
-      if(auto* F = M.getFunction(KN))
-        KS.IsFreeOfIndirectAccess = KernelIsFreeOfIndirectAccess[F];
+      KS.IsFreeOfIndirectAccess = KernelIsFreeOfIndirectAccess.lookup(KN);
       KernelCompilationStats.push_back(KS);
     }
 

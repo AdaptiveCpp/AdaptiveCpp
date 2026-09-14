@@ -343,7 +343,11 @@ result metal_inorder_queue::flush() {
     return make_success();
   }
 
+  NS::SharedPtr<NS::AutoreleasePool> pool =
+    NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
   MTL::CommandBuffer* cb = _open_buffer;
+  auto val = ++_event_counter;
+  cb->encodeSignalEvent(_shared_event, val);
 
   cb->addCompletedHandler([](MTL::CommandBuffer* completed) {
     if (NS::Error* err = completed->error()) {
@@ -359,6 +363,7 @@ result metal_inorder_queue::flush() {
   // those residency-set updates visible before submitting the batched work.
   _allocator->commit_residency_set();
   cb->commit();
+  _last_submitted_event = val;
 
   _open_buffer->release();
   _open_buffer = nullptr;
@@ -407,17 +412,12 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
   std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;
 
-  auto val = ++_event_counter;
-  {
-    NS::SharedPtr<NS::AutoreleasePool> pool =
-      NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-    auto* cmd_buf = get_open_command_buffer();
-    cmd_buf->encodeSignalEvent(_shared_event, val);
-  }
+  get_open_command_buffer();
   // Commit now: the event must be able to complete for waiters.
   flush();
 
-  return std::make_shared<metal_node_event>(metal_event_handle{_shared_event, val});
+  return std::make_shared<metal_node_event>(
+    metal_event_handle{_shared_event, _last_submitted_event});
 }
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_event() {
@@ -494,6 +494,7 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
         });
       _pending_gpu_event = val_done;
       _pending_cpu_event = val_done;
+      _last_submitted_event = val_done;
     }
     return make_success();
   }
@@ -673,12 +674,18 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
 
     _pending_gpu_event = val_done;
     _pending_cpu_event = val_done;
+    _last_submitted_event = val_done;
   } else {
     if (deferred_h2d_done_event != 0) {
       command_buffer->encodeSignalEvent(_shared_event, deferred_h2d_done_event);
       _pending_cpu_event = deferred_h2d_done_event;
     }
     if (needs_staging) {
+      auto val = deferred_h2d_done_event;
+      if (val == 0) {
+        val = ++_event_counter;
+        command_buffer->encodeSignalEvent(_shared_event, val);
+      }
       command_buffer->addCompletedHandler([](MTL::CommandBuffer* cb) {
         if (NS::Error* err = cb->error()) {
           std::string msg = "metal_queue: Memcpy failed: ";
@@ -687,6 +694,7 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
         }
       });
       command_buffer->commit();
+      _last_submitted_event = val;
     } else {
       // Device-to-device copy joined the open command buffer.
       finish_batched_op();
@@ -774,8 +782,8 @@ result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   inorder_queue_event<metal_event_handle>* metal_evt = cast<inorder_queue_event<metal_event_handle>>(evt.get());
   auto handle = metal_evt->request_backend_event();
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-  // Appending to the open buffer preserves order: encoders within a command
-  // buffer run in encoding order, so prior batched work precedes the wait.
+  // An event wait applies to commands encoded after it, including subsequent
+  // operations appended to this open command buffer.
   auto* cmd_buf = get_open_command_buffer();
   cmd_buf->encodeWait(handle.event, handle.value);
   finish_batched_op();
@@ -794,10 +802,15 @@ result metal_inorder_queue::submit_external_wait_for(const dag_node_ptr& node) {
 }
 
 result metal_inorder_queue::wait() {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Waiting for queue completion..." << std::endl;
-  insert_event()->wait();
-  _fence_chain_active = false;
+  auto evt = insert_event();
+  evt->wait();
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  auto handle = static_cast<metal_node_event*>(evt.get())->request_backend_event();
+  // Another thread may have submitted work while the mutex was released.
+  if (!_open_buffer && _last_submitted_event == handle.value) {
+    _fence_chain_active = false;
+  }
   return make_success();
 }
 
@@ -813,8 +826,12 @@ void* metal_inorder_queue::get_native_type() const {
 }
 
 result metal_inorder_queue::query_status(inorder_queue_status& status) {
-  auto current = _event_counter.load();
-  status = inorder_queue_status{_shared_event->signaledValue() >= current};
+  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  if (result r = flush(); !r.is_success()) {
+    return r;
+  }
+  status = inorder_queue_status{
+    _shared_event->signaledValue() >= _last_submitted_event};
   return make_success();
 }
 

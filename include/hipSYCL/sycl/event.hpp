@@ -24,6 +24,9 @@
 #include "hipSYCL/runtime/instrumentation.hpp"
 #include <cstddef>
 
+#include "hipSYCL/sycl/tracer_utils.hpp"
+#include "hipSYCL/sycl/tracer_utils_internal.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
@@ -63,15 +66,19 @@ public:
     return std::vector<event>{};
   }
 
-  void wait()
-  {
-    if(this->_node){
-      if(!this->_node->is_submitted())
+  void wait() {
+
+    TRACER_FUNCTION1ARG(wait_event_start);
+
+    if (this->_node) {
+      if (!this->_node->is_submitted())
         _requires_runtime.get()->dag().flush_and_gc();
-      
+
       assert(this->_node->is_submitted());
       this->_node->wait();
     }
+
+    TRACER_FUNCTION2ARG_END(wait_event_end, this->AdaptiveCpp_hash_code());
   }
 
   static void wait(const std::vector<event> &eventList)

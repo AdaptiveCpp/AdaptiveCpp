@@ -174,9 +174,8 @@ private:
   // (e.g. host-staged copies).
   MTL::CommandBuffer* new_dedicated_command_buffer();
 
-  // Commits the open command buffer, if any. No implicit signal/wait is
-  // added: that would serialize command buffers the GPU could otherwise run
-  // concurrently, so synchronization stays explicit (events, host copies).
+  // Commits the open command buffer, if any, with a completion signal.
+  // Subsequent buffers do not wait on this signal unless explicitly requested.
   result flush();
 
   void profiling_setup(operation& op, const dag_node_ptr& node);
@@ -190,6 +189,7 @@ private:
   std::atomic<uint64_t> _event_counter{0};
 
   // Protected by _mutex.
+  uint64_t _last_submitted_event{0};
   uint64_t _pending_cpu_event{0};
   uint64_t _pending_gpu_event{0};
 

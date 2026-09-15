@@ -15,6 +15,7 @@
 #include "hipSYCL/runtime/ocl/ocl_allocator.hpp"
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
 #include "hipSYCL/runtime/settings.hpp"
+#include "hipSYCL/common/stable_running_hash.hpp"
 
 #include <CL/cl.h>
 #include <CL/opencl.hpp>
@@ -183,6 +184,22 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
   std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
   _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
   _has_cl_ext_float_atomics_extension = (extensions.find("cl_ext_float_atomics") != std::string::npos);
+
+  common::stable_running_hash uid_hash;
+  // add PCI bus info to the hash if defined
+#ifdef CL_DEVICE_PCI_BUS_INFO_KHR
+  if(extensions.find("cl_khr_pci_bus_info") != std::string::npos) {
+    cl_device_pci_bus_info_khr pci{};
+    if(dev.getInfo(CL_DEVICE_PCI_BUS_INFO_KHR, &pci) == CL_SUCCESS)
+      uid_hash(&pci, sizeof(pci));
+  }
+#endif
+  // add vendor and device names to the hash
+  std::string vendor = info_query<CL_DEVICE_VENDOR, std::string>(dev);
+  std::string name = info_query<CL_DEVICE_NAME, std::string>(dev);
+  uid_hash(vendor.data(), vendor.size());
+  uid_hash(name.data(), name.size());
+  _device_uid = uid_hash.get_current_hash();
 }
 
 bool ocl_hardware_context::is_cpu() const {
@@ -223,6 +240,10 @@ bool ocl_hardware_context::has_cl_khr_priority_hints_extension() const {
 
 bool ocl_hardware_context::has_cl_ext_float_atomics_extension() const {
   return _has_cl_ext_float_atomics_extension;
+}
+
+uint64_t ocl_hardware_context::get_device_uid() const {
+  return _device_uid;
 }
 
 

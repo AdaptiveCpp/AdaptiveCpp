@@ -525,6 +525,8 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       compilation_flow::sscp);
   _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
+  _config.append_base_configuration(
+      kernel_base_config_parameter::device_uid, hw_ctx->get_device_uid());
   
   for(const auto& flag : kernel_info->get_compilation_flags())
     _config.set_build_flag(flag);

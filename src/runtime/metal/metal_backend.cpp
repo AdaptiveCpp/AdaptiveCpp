@@ -11,6 +11,8 @@
 #include "hipSYCL/runtime/backend_loader.hpp"
 #include "hipSYCL/runtime/metal/metal_backend.hpp"
 
+#include <Metal/Metal.hpp>
+
 HIPSYCL_PLUGIN_API_EXPORT
 hipsycl::rt::backend *hipsycl_backend_plugin_create() {
   return new hipsycl::rt::metal_backend();
@@ -84,6 +86,19 @@ std::unique_ptr<backend_executor>
 metal_backend::create_inorder_executor(device_id dev, int priority) {
   std::unique_ptr<inorder_queue> q(_hw.make_queue(dev.get_id()));
   return std::make_unique<inorder_executor>(std::move(q));
+}
+
+std::shared_ptr<dag_node_event>
+metal_backend::create_event_from_native_handle(const void *native_handle,
+                                               device_id dev) {
+  if (!native_handle || dev.get_backend() != backend_id::metal)
+    return nullptr;
+
+  const auto *handle = static_cast<const metal_event_handle *>(native_handle);
+  if (!handle->event)
+    return nullptr;
+
+  return std::make_shared<metal_node_event>(*handle);
 }
 
 metal_backend::~metal_backend() = default;

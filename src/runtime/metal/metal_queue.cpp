@@ -412,12 +412,13 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
   std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;
 
-  get_open_command_buffer();
+  NS::SharedPtr<MTL::CommandBuffer> command_buffer =
+    NS::RetainPtr(get_open_command_buffer());
   // Commit now: the event must be able to complete for waiters.
   flush();
 
   return std::make_shared<metal_node_event>(
-    metal_event_handle{_shared_event, _last_submitted_event});
+    metal_event_handle{_shared_event, _last_submitted_event}, command_buffer.get());
 }
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_event() {

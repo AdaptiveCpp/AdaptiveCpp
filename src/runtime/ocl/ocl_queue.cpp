@@ -389,12 +389,12 @@ result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
 /// the other queue must be from the same backend
 result ocl_queue::submit_queue_wait_for(const dag_node_ptr& evt) {
 
-  ocl_node_event *ocl_evt =
-      static_cast<ocl_node_event *>(evt->get_event().get());
+  auto *ocl_evt =
+      static_cast<inorder_queue_event<cl::Event> *>(evt->get_event().get());
   
-  std::vector<cl::Event> events{ocl_evt->get_event()};
+  std::vector<cl::Event> events{ocl_evt->request_backend_event()};
 
-  if (_hw_manager->get_context(ocl_evt->get_device()) !=
+  if (_hw_manager->get_context(evt->get_assigned_device()) !=
       _hw_manager->get_context(_hw_manager->get_device_id(_device_index))) {
     return submit_external_wait_for(evt);
   }

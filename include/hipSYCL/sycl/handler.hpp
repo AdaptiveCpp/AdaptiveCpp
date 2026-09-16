@@ -647,6 +647,9 @@ public:
                       "handler: explicit memset() is unsupported for queues "
                       "not bound to devices"};
 
+    if (num_bytes == 0)
+      AdaptiveCpp_enqueue_custom_operation([](auto&){});
+
     auto op = rt::make_operation<rt::memset_operation>(
         ptr, static_cast<unsigned char>(value), num_bytes);
 

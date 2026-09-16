@@ -14,8 +14,8 @@
 #include "dag_manager.hpp"
 #include "backend.hpp"
 #include "settings.hpp"
+#include "allocation_tracker.hpp"
 
-#include <memory>
 #include <iostream>
 
 namespace hipsycl {
@@ -40,6 +40,10 @@ public:
   const backend_manager &backends() const { return _backends; }
 
 private:
+  // Holds a reference to the global allocation map to guarantee that it
+  // outlives the runtime. Must be declared first, so that it is destructed last
+  std::shared_ptr<allocation_map_t> _allocation_map;
+
   // !! Attention: order is important, as backends have to be still present,
   // when the dag_manager is destructed!
   backend_manager _backends;

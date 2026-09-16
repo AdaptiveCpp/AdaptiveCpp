@@ -259,6 +259,7 @@ if(WITH_SSCP_COMPILER)
     sscp/HostKernelNameExtractionPass.cpp
     sscp/AggregateArgumentExpansionPass.cpp
     sscp/StdBuiltinRemapperPass.cpp
+    sscp/TargetSpecificIRmapper.cpp
     sscp/StdAtomicRemapperPass.cpp
     sscp/DeviceAssertPass.cpp
     sscp/HcfRegistrationPass.cpp

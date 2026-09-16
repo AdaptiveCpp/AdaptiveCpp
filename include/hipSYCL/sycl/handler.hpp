@@ -647,15 +647,14 @@ public:
                       "handler: explicit memset() is unsupported for queues "
                       "not bound to devices"};
 
-    if (num_bytes == 0)
+    if (num_bytes == 0) {
       AdaptiveCpp_enqueue_custom_operation([](auto&){});
+    } else {
+      auto op = rt::make_operation<rt::memset_operation>(ptr, static_cast<unsigned char>(value), num_bytes);
 
-    auto op = rt::make_operation<rt::memset_operation>(
-        ptr, static_cast<unsigned char>(value), num_bytes);
-
-    rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
-
-    _command_group_nodes.push_back(node);
+      rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
+      _command_group_nodes.push_back(node);
+    }
   }
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {

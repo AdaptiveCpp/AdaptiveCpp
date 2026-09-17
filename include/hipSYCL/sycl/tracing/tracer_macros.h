@@ -65,14 +65,4 @@
 #define INIT_FUNCTIONS(type, arg_type)                                         \
   void ACPP_COMMON_EXPORT init_##type(arg_type);
 
-#ifndef _WIN32
-#define MYLIB_API
-#else
-#ifdef MYLIB_EXPORTS
-#define MYLIB_API __declspec(dllexport)
-#else
-#define MYLIB_API __declspec(dllimport)
-#endif
-#endif
-
 #endif // TRACER_MACROS_H

@@ -1,3 +1,5 @@
+#define MYLIB_EXPORTS
+
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -6,7 +8,6 @@
 
 #include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/sycl/tracing/tracer_utils.hpp"
-
 #include "hipSYCL/sycl/tracing/tracer_utils_internal.hpp"
 
 #define EQUALIZE_HELPER(type)                                                  \

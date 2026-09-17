@@ -128,6 +128,11 @@ void inorder_executor::submit_directly(const dag_node_ptr& node, operation *op,
           // Nothing to synchronize, the requirement was enqueued on the same
           // inorder queue and will therefore be executed before
           // the new node
+        } else if (!req->get_assigned_execution_lane()) {
+          HIPSYCL_DEBUG_INFO
+              << " --> Synchronizes with imported backend event for node: "
+              << req << std::endl;
+          res = _q->submit_queue_wait_for(req);
         } else {
           assert(req->get_event());
 

@@ -2,13 +2,9 @@
 
 #include "hipSYCL/common/export.hpp"
 #include "tracer_macros.h"
-#include <chrono>
-#include <vector>
 
 #ifndef TRACER_UTILS_H
 #define TRACER_UTILS_H
-
-#define INIT_FUNCTIONS(type, arg_type) void ACPP_COMMON_EXPORT init_##type(arg_type);
 
 template <typename T> struct TD;
 
@@ -25,7 +21,8 @@ typedef void (*tracer_function_submit_t)(void *state, std::size_t event_hash,
 typedef void (*tracer_function_wait_t)(void *state, hashtype event);
 typedef void (*tracer_function_depends_on_t)(void *state, hashtype event);
 typedef void (*tracer_function_true_object_t)(void *state, hashtype object_id);
-typedef void (*tracer_function_queue_impl_t)(void *state, hashtype queue_hash, bool is_in_order);
+typedef void (*tracer_function_queue_impl_t)(void *state, hashtype queue_hash,
+                                             bool is_in_order);
 
 typedef void (*finalizer_function_t)(void *);
 

@@ -24,8 +24,8 @@ template <typename F> using Args_t = typename function_traits<F>::Args_t;
 
 using time_point = std::chrono::high_resolution_clock::time_point;
 
-#define CALL_FUNCTIONS(type, function_type) void call_##type() {
-} // namespace tracer_utils
+#define CALL_FUNCTIONS(type, function_type)                                    \
+  Return_t<function_type> call_##type(Args_t<function_type> args);
 
 struct ACPP_COMMON_EXPORT tracer_funcs {
 
@@ -34,9 +34,8 @@ struct ACPP_COMMON_EXPORT tracer_funcs {
   void set_tracer_equal_num();
   void clear_all();
 
-  template <auto F> void call_tracer(auto... Args) { F(Args...); }
-
   std::size_t size = 0;
+  ALL_TYPES_NOSTATE(CALL_FUNCTIONS);
   ALL_TYPES(MEMBER_VECTOR);
 };
 
@@ -49,7 +48,6 @@ ACPP_COMMON_EXPORT void set_tracer_equal_num(tracer_funcs &);
 ACPP_COMMON_EXPORT void finalize_tracing();
 
 ACPP_COMMON_EXPORT extern tracer_funcs tracer_state;
-}
-; // namespace tracer_utils
+}; // namespace tracer_utils
 
 #endif // TRACER_UTILS_H

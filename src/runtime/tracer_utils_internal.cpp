@@ -12,15 +12,16 @@
 #define MYLIB_EXPORTS
 #include "hipSYCL/sycl/tracing/tracer_utils_internal.hpp"
 
-#define EQUALIZE_HELPER(type)                                                                      \
-  if (this->type.size() == this->size - 1) {                                                       \
-    this->type.push_back(nullptr);                                                                 \
+#define EQUALIZE_HELPER(type)                                                  \
+  if (this->type.size() == this->size - 1) {                                   \
+    this->type.push_back(nullptr);                                             \
   }
 
-#define DEBUG(type)                                                                                \
-  if (this->type.size() < this->size - 1) {                                                        \
-    std::cout << "Error: Number of " << #type                                                      \
-              << " function pointers smaller than number tracer files" << std::endl;               \
+#define DEBUG(type)                                                            \
+  if (this->type.size() < this->size - 1) {                                    \
+    std::cout << "Error: Number of " << #type                                  \
+              << " function pointers smaller than number tracer files"         \
+              << std::endl;                                                    \
   }
 
 #define CLEAR(type, x) this->type.clear();
@@ -33,6 +34,27 @@
 
 namespace tracer_utils {
 using time_point = std::chrono::high_resolution_clock::time_point;
+
+#define CALL_FUNCTION_DEFINITION_BEGIN(name, type)                             \
+  Return_t<type> tracer_funcs::call_##name(Args_t<type> args) {                \
+    for (int i = 0; i < size; i++) {                                           \
+      if (this->name[i] != nullptr) {                                          \
+        std::apply([this, i](auto... args) { this->name[i](args...); }, args); \
+      }                                                                        \
+    }                                                                          \
+  }
+
+#define CALL_FUNCTION_DEFINITION_END(name, type)                               \
+  Return_t<type> tracer_funcs::call_##name(Args_t<type> args) {                \
+    for (int i = size - 1; i >= 0; i--) {                                      \
+      if (this->name[i] != nullptr) {                                          \
+        std::apply([this, i](auto... args) { this->name[i](args...); }, args); \
+      }                                                                        \
+    }                                                                          \
+  }
+
+ALL_TYPES_NOSTATE_BEGIN(CALL_FUNCTION_DEFINITION_BEGIN);
+ALL_TYPES_NOSTATE_END(CALL_FUNCTION_DEFINITION_END);
 
 bool is_init = false;
 
@@ -48,7 +70,8 @@ void tracer_funcs::initialize_tracer() {
 
   // If the init has not run yet, we initialize and set the flag
 
-  // std::cout << "Hello World from inside the tracer_funcs constructor" << std::endl;
+  // std::cout << "Hello World from inside the tracer_funcs constructor" <<
+  // std::endl;
 
   if (const char *env_p = std::getenv("SYCL_TOOL_LIBRARIES")) {
     std::string path(env_p);
@@ -66,8 +89,9 @@ void tracer_funcs::initialize_tracer() {
         std::string message{};
         so_libraries.push_back(so_lib);
         tracer_functs_initialize_t tracer_func_initializer =
-            (tracer_functs_initialize_t)hipsycl::common::get_symbol_from_library(
-                so_lib, "init_register", message);
+            (tracer_functs_initialize_t)
+                hipsycl::common::get_symbol_from_library(
+                    so_lib, "init_register", message);
 
         if (!message.empty())
           std::cout << message << std::endl;
@@ -85,7 +109,8 @@ void tracer_funcs::initialize_tracer() {
 
 void tracer_funcs::run_finalizers() {
 
-  // std::cout << "Hello World from inside the tracer_funcs finalizer stuff" << std::endl;
+  // std::cout << "Hello World from inside the tracer_funcs finalizer stuff" <<
+  // std::endl;
   for (int i = this->size - 1; i >= 0; i--)
     if (this->finalize[i] != nullptr)
       this->finalize[i](this->states[i]);

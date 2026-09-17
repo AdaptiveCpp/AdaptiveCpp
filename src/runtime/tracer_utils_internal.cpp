@@ -1,10 +1,8 @@
 #include <chrono>
-#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <list>
 #include <sstream>
-#include <unordered_map>
 
 #include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/sycl/tracing/tracer_utils.hpp"
@@ -36,19 +34,23 @@ namespace tracer_utils {
 using time_point = std::chrono::high_resolution_clock::time_point;
 
 #define CALL_FUNCTION_DEFINITION_BEGIN(name, type)                             \
-  Return_t<type> tracer_funcs::call_##name(Args_t<type> args) {                \
+  Return_t<type> tracer_funcs::call_##name(Args_tail_t<type> args) {           \
     for (int i = 0; i < size; i++) {                                           \
       if (this->name[i] != nullptr) {                                          \
-        std::apply([this, i](auto... args) { this->name[i](args...); }, args); \
+        std::apply(                                                            \
+            [this, i](auto... args) { this->name[i](states[i], args...); },    \
+            args);                                                             \
       }                                                                        \
     }                                                                          \
   }
 
 #define CALL_FUNCTION_DEFINITION_END(name, type)                               \
-  Return_t<type> tracer_funcs::call_##name(Args_t<type> args) {                \
+  Return_t<type> tracer_funcs::call_##name(Args_tail_t<type> args) {           \
     for (int i = size - 1; i >= 0; i--) {                                      \
       if (this->name[i] != nullptr) {                                          \
-        std::apply([this, i](auto... args) { this->name[i](args...); }, args); \
+        std::apply(                                                            \
+            [this, i](auto... args) { this->name[i](states[i], args...); },    \
+            args);                                                             \
       }                                                                        \
     }                                                                          \
   }

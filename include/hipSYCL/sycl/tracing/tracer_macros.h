@@ -23,7 +23,7 @@
   MACRO(free_start, tracer_function_t);                                        \
   MACRO(depends_on_start, tracer_function_t);
 
-#define ALL_TYPES_NOSTATE_END(MACRO)                                          \
+#define ALL_TYPES_NOSTATE_END(MACRO)                                           \
   MACRO(queue_impl_destructor, tracer_function_true_object_t);                 \
   MACRO(dag_node_destructor, tracer_function_true_object_t);                   \
   MACRO(submit_end, tracer_function_submit_t);                                 \
@@ -44,8 +44,8 @@
   MACRO(depends_on_end, tracer_function_depends_on_t);                         \
   MACRO(finalize, finalizer_function_t);
 
-#define ALL_TYPES_NOSTATE(MACRO)                                              \
-  ALL_TYPES_NOSTATE_BEGIN(MACRO)                                              \
+#define ALL_TYPES_NOSTATE(MACRO)                                               \
+  ALL_TYPES_NOSTATE_BEGIN(MACRO)                                               \
   ALL_TYPES_NOSTATE_END(MACRO)
 
 #define ALL_TYPES(MACRO)                                                       \
@@ -55,18 +55,10 @@
 #define MEMBER_VECTOR(name, type) std::vector<type> name;
 
 #define TRACER_FUNCTION_VA_ARGS(type, ...)                                     \
-  for (int i = 0; i < tracer_utils::tracer_state.size; i++) {                  \
-    if (tracer_utils::tracer_state.type[i] != nullptr)                         \
-      tracer_utils::tracer_state.type[i](tracer_utils::tracer_state.states[i], \
-                                         ##__VA_ARGS__);                       \
-  }
+  tracer_utils::tracer_state.call_##type(std::forward_as_tuple(__VA_ARGS__));
 
-#define TRACER_FUNCTION_VA_ARGS_END(type, ...)                                 \
-  for (int i = tracer_utils::tracer_state.size - 1; i >= 0; i--) {             \
-    if (tracer_utils::tracer_state.type[i] != nullptr)                         \
-      tracer_utils::tracer_state.type[i](tracer_utils::tracer_state.states[i], \
-                                         ##__VA_ARGS__);                       \
-  }
+#define TRACER_FUNCTION_VA_ARGS_END(type, ...)                                \
+  tracer_utils::tracer_state.call_##type(std::forward_as_tuple(__VA_ARGS__));
 
 #define TRACER_FUNCTION1ARG(type) TRACER_FUNCTION_VA_ARGS(type)
 #define TRACER_FUNCTION2ARG(type, arg2) TRACER_FUNCTION_VA_ARGS(type, arg2)

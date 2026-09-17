@@ -54,8 +54,8 @@
 
 #include "hipSYCL/algorithms/reduction/reduction_engine.hpp"
 #include "hipSYCL/algorithms/util/memory_streaming.hpp"
-#include "tracer_utils.hpp"
-#include "tracer_utils_internal.hpp"
+#include "tracing/tracer_utils.hpp"
+#include "tracing/tracer_utils_internal.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
 

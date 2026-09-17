@@ -4,7 +4,7 @@
 #define SYCL_IMPLEMENTATION_HIPSYCL
 #define SYCL_IMPLEMENTATION_ACPP
 
-#include "tracer_utils.hpp"
-#include "tracer_utils_internal.hpp"
+#include "tracing/tracer_utils.hpp"
+#include "tracing/tracer_utils_internal.hpp"
 
 #endif

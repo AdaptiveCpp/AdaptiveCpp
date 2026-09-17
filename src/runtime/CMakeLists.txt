@@ -1,114 +1,112 @@
-  find_package(Threads REQUIRED)
+find_package(Threads REQUIRED)
 
 
-  include(CheckIPOSupported)
-  check_ipo_supported(RESULT is_ipo_supported OUTPUT ipo_error)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT is_ipo_supported OUTPUT ipo_error)
 
-  set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")
-  set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
-
-
-  list(INSERT CMAKE_MODULE_PATH 0 "${ACPP_SOURCE_ROOT}/cmake/")
-  find_package(Filesystem REQUIRED "${ACPP_FILESYSTEM_SEARCH_OPTIONS}")
-  set(CXX_FILESYSTEM_HEADER "${CXX_FILESYSTEM_HEADER}" PARENT_SCOPE)
-  set(CXX_FILESYSTEM_NAMESPACE "${CXX_FILESYSTEM_NAMESPACE}" PARENT_SCOPE)
-  list(REMOVE_AT CMAKE_MODULE_PATH 0)
-
-  set(HIPSYCL_RT_EXTRA_CXX_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
-  set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
+set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")
+set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
 
 
-  set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
+list(INSERT CMAKE_MODULE_PATH 0 "${ACPP_SOURCE_ROOT}/cmake/")
+find_package(Filesystem REQUIRED "${ACPP_FILESYSTEM_SEARCH_OPTIONS}")
+set(CXX_FILESYSTEM_HEADER "${CXX_FILESYSTEM_HEADER}" PARENT_SCOPE)
+set(CXX_FILESYSTEM_NAMESPACE "${CXX_FILESYSTEM_NAMESPACE}" PARENT_SCOPE)
+list(REMOVE_AT CMAKE_MODULE_PATH 0)
 
-  set(CMAKE_INSTALL_RPATH ${base} ${base}/hipSYCL)
+set(HIPSYCL_RT_EXTRA_CXX_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
+set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${ACPP_RT_SANITIZE_FLAGS})
 
-  add_library(acpp-rt SHARED
-    tracer_utils.cpp
-    tracer_utils_internal.cpp
-    allocator.cpp
-    allocation_tracker.cpp
-    application.cpp
-    runtime.cpp
-    error.cpp
-    backend.cpp
-    backend_loader.cpp
-    device_id.cpp
-    operations.cpp
-    data.cpp
-    inorder_executor.cpp
-    kernel_cache.cpp
-    kernel_configuration.cpp
-    multi_queue_executor.cpp
-    runtime_event_handlers.cpp
-    dag.cpp
-    dag_node.cpp
-    dag_builder.cpp
-    dag_direct_scheduler.cpp
-    dag_unbound_scheduler.cpp
-    dag_manager.cpp
-    dag_submitted_ops.cpp
-    settings.cpp
-    adaptivity_engine.cpp
-    generic/async_worker.cpp
-    hw_model/memcpy.cpp
-    serialization/serialization.cpp
-    support/reflection.cpp
-    support/minicoro_wrapper.cpp
-    pcuda/pcuda_device_topology.cpp
-    pcuda/pcuda_error.cpp
-    pcuda/pcuda_stream.cpp
-    pcuda/pcuda_runtime_api.cpp
-    pcuda/pcuda_runtime.cpp
-    pcuda/pcuda_thread_state.cpp
-    pcuda/pcuda_event.cpp
-   )
 
-  target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
-  target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
+set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
+
+set(CMAKE_INSTALL_RPATH ${base} ${base}/hipSYCL)
+
+add_library(acpp-rt SHARED
+  tracer_utils.cpp
+  tracer_utils_internal.cpp
+  allocator.cpp
+  allocation_tracker.cpp
+  application.cpp
+  runtime.cpp
+  error.cpp
+  backend.cpp
+  backend_loader.cpp
+  device_id.cpp
+  operations.cpp
+  data.cpp
+  inorder_executor.cpp
+  kernel_cache.cpp
+  kernel_configuration.cpp
+  multi_queue_executor.cpp
+  runtime_event_handlers.cpp
+  dag.cpp
+  dag_node.cpp
+  dag_builder.cpp
+  dag_direct_scheduler.cpp
+  dag_unbound_scheduler.cpp
+  dag_manager.cpp
+  dag_submitted_ops.cpp
+  settings.cpp
+  adaptivity_engine.cpp
+  generic/async_worker.cpp
+  hw_model/memcpy.cpp
+  serialization/serialization.cpp
+  support/reflection.cpp
+  support/minicoro_wrapper.cpp
+  pcuda/pcuda_device_topology.cpp
+  pcuda/pcuda_error.cpp
+  pcuda/pcuda_stream.cpp
+  pcuda/pcuda_runtime_api.cpp
+  pcuda/pcuda_runtime.cpp
+  pcuda/pcuda_thread_state.cpp
+  pcuda/pcuda_event.cpp)
+
+target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
+target_link_libraries(acpp-rt PUBLIC acpp-common)
 
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
-  target_include_directories(acpp-rt
-    PUBLIC
-      $<BUILD_INTERFACE:${HIPSYCL_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>
-    PRIVATE
-      ${HIPSYCL_SOURCE_DIR}
-      ${ACPP_BINARY_ROOT}/include
-  )
-
+target_include_directories(acpp-rt
+  PUBLIC
+    $<BUILD_INTERFACE:${HIPSYCL_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  PRIVATE
+    ${HIPSYCL_SOURCE_DIR}
+    ${ACPP_BINARY_ROOT}/include
+)
 
 # to get the search path next to the rt lib, we need to know the output name, so set it explicitly.
-  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "acpp-rt")
-  if(WIN32)
-    set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
-    if(ACPP_LLVM_COMPONENT AND MSVC)
-      target_compile_options(acpp-rt PRIVATE /EHs)
-    endif()
+set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "acpp-rt")
+if(WIN32)
+  set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  if(ACPP_LLVM_COMPONENT AND MSVC)
+    target_compile_options(acpp-rt PRIVATE /EHs)
+  endif()
 
-    # ensure actual output and expected are equivalent
-    set_target_properties(acpp-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
-    if(MinGW)
-      set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
-    else()
-      set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
-    endif()
+  # ensure actual output and expected are equivalent
+  set_target_properties(acpp-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
+  if(MinGW)
+    set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
   else()
-    target_link_libraries(acpp-rt PRIVATE dl std::filesystem)
-
-    # ensure actual output and expected are equivalent
-    set_target_properties(acpp-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
-    if(NOT APPLE)
-      set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.so" PARENT_SCOPE)
-    else()
-      set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dylib" PARENT_SCOPE)
-    endif()
+    set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
   endif()
-  if(is_ipo_supported)
-    set_property(TARGET acpp-rt PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-  endif()
+else()
+  target_link_libraries(acpp-rt PRIVATE dl std::filesystem)
 
- 
+  # ensure actual output and expected are equivalent
+  set_target_properties(acpp-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
+  if(NOT APPLE)
+    set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.so" PARENT_SCOPE)
+  else()
+    set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dylib" PARENT_SCOPE)
+  endif()
+endif()
+if(is_ipo_supported)
+  set_property(TARGET acpp-rt PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+endif()
+
 install(TARGETS acpp-rt
         EXPORT install_exports
         INCLUDES DESTINATION include/AdaptiveCpp

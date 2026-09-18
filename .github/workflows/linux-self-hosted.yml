@@ -1,6 +1,10 @@
 name: Self-hosted CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+
 jobs:
   test-gpu-nvidia:
     if: github.repository_id == '140986400'

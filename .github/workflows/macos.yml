@@ -1,6 +1,9 @@
 name: macOS build
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
 
 jobs:
   build_appleclang:

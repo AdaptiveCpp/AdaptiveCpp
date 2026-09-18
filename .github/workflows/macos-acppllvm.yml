@@ -3,6 +3,7 @@ name: AdaptiveCpp-LLVM macOS
 on:
   pull_request:
   push:
+    branches: [ develop ]
 
 jobs:
   build_2stage_from_appleclang:

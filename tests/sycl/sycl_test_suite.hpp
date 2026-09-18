@@ -50,7 +50,7 @@ struct kernel_name {};
 #define SKIP_IF_MOLTENVK(dev)                                                  \
   if ((dev.get_backend() == sycl::backend::vk) &&                              \
       (std::string::npos !=                                                    \
-       dev.get_info<sycl::info::device::name>().find("Apple Paravirtual"))) {  \
+       dev.get_info<sycl::info::device::driver_version>().find("MoltenVK"))) { \
     BOOST_TEST_MESSAGE("Test not yet supported using MoltenVK backend");       \
     return;                                                                    \
   }

@@ -23,7 +23,7 @@ namespace hipsycl {
 namespace rt {
 
 result vk_sscp_code_object_invoker::submit_kernel(
-    const kernel_operation &op, hcf_object_id hcf_object,
+    const kernel_operation &, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
     std::size_t num_args, std::string_view kernel_name,
@@ -36,13 +36,13 @@ result vk_sscp_code_object_invoker::submit_kernel(
 }
 
 vk_kernel_object::vk_kernel_object()
-    : _exe_obj(nullptr), _name(), _desc_set_layout(nullptr),
-      _desc_pool(nullptr) {}
+    : _exe_obj(nullptr), _name(), _desc_pool(nullptr),
+      _desc_set_layout(nullptr) {}
 
 vk_kernel_object::vk_kernel_object(std::string name,
                                    vk_executable_object *exe_obj)
-    : _exe_obj(exe_obj), _name(name), _desc_set_layout(nullptr),
-      _desc_pool(nullptr) {}
+    : _exe_obj(exe_obj), _name(name), _desc_pool(nullptr),
+      _desc_set_layout(nullptr) {}
 
 void vk_kernel_object::add_spv_arg(spv_kernel_argument arg) {
   _args.push_back(arg);

@@ -1,5 +1,3 @@
-#define MYLIB_EXPORTS
-
 #include <chrono>
 #include <cstdlib>
 #include <iostream>

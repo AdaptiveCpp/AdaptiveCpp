@@ -1,8 +1,6 @@
 
 #include "hipSYCL/sycl/tracing/tracer_utils.hpp"
 #include "hipSYCL/common/dylib_loader.hpp"
-
-#define MYLIB_EXPORTS
 #include "hipSYCL/sycl/tracing/tracer_utils_internal.hpp"
 
 #ifdef __cplusplus

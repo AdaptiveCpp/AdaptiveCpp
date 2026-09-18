@@ -103,7 +103,7 @@ else()
     set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dylib" PARENT_SCOPE)
   endif()
 endif()
-if(is_ipo_supported)
+if(is_ipo_supported AND NOT WIN32)
   set_property(TARGET acpp-rt PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
 

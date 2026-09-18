@@ -226,8 +226,7 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &node) {
   }
 
   // Append a copy-buffer command for every strided copy.
-  vk::CommandBuffer cmd_buf =
-      begin_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+  vk::CommandBuffer cmd_buf = begin_command_buffer();
   std::vector<vk::BufferCopy> copy_regions;
   if (dimension == 1) {
     size_t x_src_offset = src_offset[0];
@@ -357,8 +356,7 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &node) {
   return make_success();
 }
 
-vk::CommandBuffer
-vk_queue::begin_command_buffer(vk::CommandBufferUsageFlagBits flags) {
+vk::CommandBuffer vk_queue::begin_command_buffer() {
   auto cmd_buf = get_command_buffer();
   cmd_buf.begin(vk::CommandBufferBeginInfo(
       vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
@@ -545,8 +543,7 @@ result vk_queue::submit_kernel(kernel_operation &op, const dag_node_ptr &node) {
 result vk_queue::submit_prefetch(prefetch_operation &op,
                                  const dag_node_ptr &node) {
   profile_if_enabled(op, node);
-  vk::CommandBuffer cmd_buf =
-      begin_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+  vk::CommandBuffer cmd_buf = begin_command_buffer();
   // Empty command buffer, ignore perf hint as no-op
   end_command_buffer(cmd_buf);
 
@@ -773,7 +770,7 @@ result vk_queue::submit_sscp_kernel_from_code_object(
 
     // Construct SPIR-V translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator =
-        std::move(compiler::createLLVMToCLSPVTranslator(kernel_names));
+        compiler::createLLVMToCLSPVTranslator(kernel_names);
 
     auto raw_translator = translator.get();
     raw_translator->setBuildOption(
@@ -845,8 +842,7 @@ result vk_queue::submit_sscp_kernel_from_code_object(
   vk_kernel_uniform_descriptors &kernel_descriptors =
       kernel->create_kernel_descriptors();
 
-  vk::CommandBuffer cmd_buf =
-      begin_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+  vk::CommandBuffer cmd_buf = begin_command_buffer();
 
   // command-buffer must be in the recording state before we set push constants
   pipeline->set_args(cmd_buf, kernel_descriptors, _arg_mapper);

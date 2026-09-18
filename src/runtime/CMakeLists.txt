@@ -23,6 +23,8 @@ set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STD
 set(CMAKE_INSTALL_RPATH ${base} ${base}/hipSYCL)
 
 add_library(acpp-rt SHARED
+  tracing/tracer_utils.cpp
+  tracing/tracer_utils_internal.cpp
   allocator.cpp
   allocation_tracker.cpp
   application.cpp
@@ -79,6 +81,7 @@ target_include_directories(acpp-rt
 set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "acpp-rt")
 if(WIN32)
   set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  target_compile_definitions(acpp-rt PRIVATE MYLIB_EXPORTS)
   if(ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(acpp-rt PRIVATE /EHs)
   endif()

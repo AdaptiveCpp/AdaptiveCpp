@@ -26,7 +26,7 @@ namespace rt {
 
 class vk_hardware_manager;
 class vk_hardware_context;
-class vk_alloc_info;
+struct vk_alloc_info;
 
 class vk_queue : public inorder_queue {
 public:
@@ -64,7 +64,7 @@ public:
 
 private:
   // Helper functions
-  vk::CommandBuffer begin_command_buffer(vk::CommandBufferUsageFlagBits);
+  vk::CommandBuffer begin_command_buffer();
   void end_command_buffer(vk::CommandBuffer &cmd_buf);
   vk::CommandBuffer get_command_buffer();
 

@@ -115,7 +115,10 @@ result launch_kernel_from_library(
   std::size_t* arg_sizes,
   std::size_t num_args,
   const rt::hcf_kernel_info* kernel_info,
-  const std::optional<std::vector<int>>& retained_indices)
+  const std::optional<std::vector<int>>& retained_indices,
+  bool has_indirect_access,
+  MTL::Fence* fence,
+  bool wait_fence)
 {
   if (!library) {
     return make_error(__acpp_here(),
@@ -166,6 +169,10 @@ result launch_kernel_from_library(
                       error_info{"metal: Failed to create compute encoder"});
   }
 
+  if (wait_fence) {
+    encoder->waitForFence(fence);
+  }
+
   encoder->setComputePipelineState(pipeline_state.get());
   uint32_t user_local_mem_size = local_mem_size;
 
@@ -196,10 +203,11 @@ result launch_kernel_from_library(
       encoder, device, allocator, function.get(), args, arg_sizes, num_args, is_pointer_arg, buffers_out, buf_offset);
   }
 
-  // TODO: switch to MTL4 API for O(1) buffer bindings
-  allocator->for_each_buffer([&](MTL::Buffer* buf) {
-    encoder->useResource(buf, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
-  });
+  if (has_indirect_access && !allocator->get_residency_set()) {
+    allocator->for_each_buffer([&](MTL::Buffer* buf) {
+      encoder->useResource(buf, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
+    });
+  }
 
   MTL::Size num_groups_size = MTL::Size::Make(
     num_groups[0],
@@ -220,6 +228,10 @@ result launch_kernel_from_library(
                      << ", " << threadgroup_size.depth << ")" << std::endl;
 
   encoder->dispatchThreadgroups(num_groups_size, threadgroup_size);
+
+  if (fence) {
+    encoder->updateFence(fence);
+  }
 
   encoder->endEncoding();
 
@@ -246,7 +258,8 @@ result memset_device(
   metal_allocator* allocator,
   void* ptr,
   unsigned char pattern,
-  std::size_t num_bytes)
+  std::size_t num_bytes,
+  MTL::Fence* fence)
 {
   auto [buffer, offset, _3] = allocator->get_usm_block(ptr);
   if (!buffer) {
@@ -260,7 +273,13 @@ result memset_device(
       error_info{"metal_queue: Failed to create blit encoder for memset"});
   }
 
+  if (fence) {
+    blit_encoder->waitForFence(fence);
+  }
   blit_encoder->fillBuffer(buffer, NS::Range::Make(offset, num_bytes), pattern);
+  if (fence) {
+    blit_encoder->updateFence(fence);
+  }
   blit_encoder->endEncoding();
 
   command_buffer->addCompletedHandler([](MTL::CommandBuffer* command_buffer) {
@@ -290,10 +309,16 @@ metal_inorder_queue::metal_inorder_queue(MTL::Device* device, metal_allocator* a
   , _sscp_code_object_invoker(this)
   , _kernel_cache{kernel_cache::get()}
 {
+  if (auto* residency_set = allocator->get_residency_set()) {
+    _command_queue->addResidencySet(residency_set);
+    _fence = device->newFence();
+  }
+
   _reflection_map = glue::jit::construct_default_reflection_map(hw_ctx);
 }
 
 MTL::CommandBuffer* metal_inorder_queue::new_command_buffer() {
+  _allocator->commit_residency_set();
   auto* cmd_buf = _command_queue->commandBuffer();
   if (auto prev = std::exchange(_pending_gpu_event, 0)) {
     cmd_buf->encodeWait(_shared_event, prev);
@@ -521,6 +546,10 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
       error_info{"metal_queue: Failed to create blit encoder for memcpy"});
   }
 
+  if (_fence_chain_active) {
+    blit_encoder->waitForFence(_fence);
+  }
+
   // copy from src or staging buffer to dst or staging buffer
   for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
     for (std::size_t row = 0; row < transferred_range[1]; ++row) {
@@ -537,6 +566,10 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
         to_offset + dst_linear_index * dest_element_size,
         transferred_range[2] * src_element_size);
     }
+  }
+
+  if (_fence_chain_active) {
+    blit_encoder->updateFence(_fence);
   }
 
   blit_encoder->endEncoding();
@@ -645,7 +678,8 @@ result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_p
       error_info{"metal_queue: Failed to create command buffer for memset"});
   }
 
-  return memset_device(command_buffer, _allocator, ptr, pattern, num_bytes);
+  return memset_device(command_buffer, _allocator, ptr, pattern, num_bytes,
+                       _fence_chain_active ? _fence : nullptr);
 }
 
 result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
@@ -677,6 +711,7 @@ result metal_inorder_queue::submit_external_wait_for(const dag_node_ptr& node) {
 result metal_inorder_queue::wait() {
   HIPSYCL_DEBUG_INFO << "metal_queue: Waiting for queue completion..." << std::endl;
   insert_event()->wait();
+  _fence_chain_active = false;
   return make_success();
 }
 
@@ -821,6 +856,12 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
 
   const auto& jit_output_metadata = obj->get_jit_output_metadata();
   const auto& retained_indices = jit_output_metadata.kernel_retained_arguments_indices;
+  const bool has_indirect_access = !jit_output_metadata.is_free_of_indirect_access;
+
+  const bool wait_fence = _fence_chain_active;
+  if (_fence && has_indirect_access) {
+    _fence_chain_active = true;
+  }
   if (retained_indices.has_value()) {
     _arg_mapper.apply_dead_argument_elimination_mask(retained_indices.value());
   }
@@ -842,7 +883,10 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
     const_cast<std::size_t*>(_arg_mapper.get_mapped_arg_sizes()),
     _arg_mapper.get_mapped_num_args(),
     kernel_info,
-    retained_indices);
+    retained_indices,
+    has_indirect_access,
+    _fence_chain_active ? _fence : nullptr,
+    wait_fence);
 
 #else
   return make_error(__acpp_here(),
@@ -857,6 +901,9 @@ metal_inorder_queue::~metal_inorder_queue() {
   wait();
   _event_listener->release();
   _shared_event->release();
+  if (_fence) {
+    _fence->release();
+  }
   _command_queue->release();
 }
 

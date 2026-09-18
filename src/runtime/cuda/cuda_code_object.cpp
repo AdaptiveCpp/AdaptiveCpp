@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cassert>
+#include <fenv.h>
+#include <float.h>
 
 #include <cuda_runtime_api.h>
 #include <cuda.h>
@@ -85,9 +87,25 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
   std::string error_log_buffer(error_log_buffer_size, '\0');
   option_vals[1] = error_log_buffer.data();
 
+  // The NVIDIA PTX JIT compiler can raise benign FP exceptions internally;
+  // avoid tripping a caller's hardware FPE traps (e.g. OpenFOAM's trapFpe).
+#if defined(_WIN32)
+  unsigned int prev_fpe_mask = _controlfp(0, 0);
+  _controlfp(_MCW_EM, _MCW_EM);
+#elif defined(__USE_GNU)
+  int prev_fpe_mask = fegetexcept();
+  fedisableexcept(FE_ALL_EXCEPT);
+#endif
+
   auto err = cuModuleLoadDataEx(
       &module, source.data(),
       num_options, option_names.data(), option_vals.data());
+
+#if defined(_WIN32)
+  _controlfp(prev_fpe_mask, _MCW_EM);
+#elif defined(__USE_GNU)
+  feenableexcept(prev_fpe_mask);
+#endif
 
   if (err != CUDA_SUCCESS) {
     const auto error_log_size = reinterpret_cast<std::size_t>(option_vals[0]);

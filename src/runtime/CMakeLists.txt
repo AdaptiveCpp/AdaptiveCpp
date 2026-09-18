@@ -23,8 +23,8 @@ set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STD
 set(CMAKE_INSTALL_RPATH ${base} ${base}/hipSYCL)
 
 add_library(acpp-rt SHARED
-  tracer_utils.cpp
-  tracer_utils_internal.cpp
+  tracing/tracer_utils.cpp
+  tracing/tracer_utils_internal.cpp
   allocator.cpp
   allocation_tracker.cpp
   application.cpp

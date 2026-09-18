@@ -47,9 +47,63 @@ std::size_t vk_allocator::get_global_mem_size() const {
   return _mem_properties.memoryHeaps[heap_index].size;
 }
 
+std::tuple<std::vector<vk::raii::Buffer>, std::vector<vk::DeviceSize>,
+           vk::raii::DeviceMemory>
+vk_allocator::create_uniform_buffers(std::vector<vk::DeviceSize> sizes) {
+  const auto &device = _hw_ctx->get_device();
+  std::vector<vk::raii::Buffer> buffers;
+  std::vector<vk::DeviceSize> offsets;
+
+  vk::DeviceSize total_size = 0;
+  uint32_t type_bitmask = UINT32_MAX;
+
+  // First create the buffers and extract requirements for the memory allocation
+  const vk::DeviceSize min_uniform_align =
+      _hw_ctx->get_min_uniform_buffer_offset_alignment();
+  for (size_t i = 0; i < sizes.size(); i++) {
+    vk::BufferCreateInfo buffer_info{{},
+                                     sizes[i],
+                                     vk::BufferUsageFlagBits::eUniformBuffer,
+                                     vk::SharingMode::eExclusive};
+    vk::raii::Buffer buffer(device, buffer_info);
+    vk::MemoryRequirements mem_reqs = buffer.getMemoryRequirements();
+
+    // Find the alignment of this buffer, and add padding
+    vk::DeviceSize align = std::max(mem_reqs.alignment, min_uniform_align);
+    vk::DeviceSize padding = (align - (total_size % align)) % align;
+    total_size += padding;
+    offsets.push_back(total_size);
+
+    total_size += mem_reqs.size;
+    type_bitmask = type_bitmask & mem_reqs.memoryTypeBits;
+
+    buffers.push_back(std::move(buffer));
+  }
+
+  constexpr vk::MemoryPropertyFlags mem_prop_flags =
+      vk::MemoryPropertyFlagBits::eHostVisible |
+      vk::MemoryPropertyFlagBits::eHostCoherent;
+  vk::MemoryAllocateInfo alloc_info{
+      total_size, find_memory_type(mem_prop_flags, type_bitmask)};
+
+  vk::raii::DeviceMemory buffer_mem(device, alloc_info);
+  for (size_t i = 0; i < buffers.size(); i++) {
+    buffers[i].bindMemory(buffer_mem, offsets[i]);
+  }
+
+  HIPSYCL_DEBUG_INFO << "vk_allocator: created " << buffers.size()
+                     << " uniform buffers backed by a " << total_size
+                     << " byte memory allocation" << std::endl;
+
+  return {std::move(buffers), std::move(offsets), std::move(buffer_mem)};
+}
+
 std::pair<vk::raii::Buffer, vk::raii::DeviceMemory>
-vk_allocator::create_buffer(vk::DeviceSize size,
-                            vk::BufferUsageFlags usage_flags) {
+vk_allocator::create_device_address_buffer(vk::DeviceSize size) {
+  constexpr vk::BufferUsageFlags usage_flags =
+      vk::BufferUsageFlagBits::eTransferSrc |
+      vk::BufferUsageFlagBits::eTransferDst |
+      vk::BufferUsageFlagBits::eShaderDeviceAddress;
   constexpr vk::MemoryPropertyFlags mem_prop_flags =
       vk::MemoryPropertyFlagBits::eHostVisible |
       vk::MemoryPropertyFlagBits::eHostCoherent;
@@ -100,11 +154,7 @@ void *vk_allocator::raw_allocate(size_t, size_t size_bytes,
                                  const allocation_hints &) {
   std::lock_guard<std::mutex> lock{_mutex};
 
-  constexpr vk::BufferUsageFlags usage_flags =
-      vk::BufferUsageFlagBits::eTransferSrc |
-      vk::BufferUsageFlagBits::eTransferDst |
-      vk::BufferUsageFlagBits::eShaderDeviceAddress;
-  auto [buffer, device_mem] = create_buffer(size_bytes, usage_flags);
+  auto [buffer, device_mem] = create_device_address_buffer(size_bytes);
 
   vk::BufferDeviceAddressInfo addr_info{buffer};
   vk::DeviceAddress ptr = _hw_ctx->get_device().getBufferAddress(addr_info);
@@ -148,7 +198,7 @@ void *vk_allocator::raw_allocate_usm(size_t, const allocation_hints &) {
   return nullptr;
 }
 
-bool vk_allocator::is_usm_accessible_from(backend_descriptor b) const {
+bool vk_allocator::is_usm_accessible_from(backend_descriptor) const {
   return false;
 }
 
@@ -184,8 +234,7 @@ result vk_allocator::query_pointer(const void *ptr, pointer_info &out) const {
       error_info{"vk_allocator: Could not find pointer allocation"});
 }
 
-result vk_allocator::mem_advise(const void *addr, std::size_t num_bytes,
-                                int advise) const {
+result vk_allocator::mem_advise(const void *, std::size_t, int) const {
   HIPSYCL_DEBUG_WARNING << "vk_allocator: Ignoring mem_advise() hint"
                         << std::endl;
   return make_success();

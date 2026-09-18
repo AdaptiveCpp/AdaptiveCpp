@@ -1169,6 +1169,61 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(coarse_grained_events_status_before_dependency) {
+  sycl::property_list props{
+      sycl::property::queue::in_order{},
+      sycl::property::queue::AdaptiveCpp_coarse_grained_events{}};
+  sycl::queue producer{props};
+  sycl::queue consumer{producer.get_context(), producer.get_device(), props};
+
+  if (!producer.get_device().has(sycl::aspect::usm_shared_allocations)) {
+    return;
+  }
+
+  if (producer.get_device().get_backend() == sycl::backend::metal) {
+    return;
+  }
+
+  constexpr std::size_t N = 1 << 16;
+  auto *data = sycl::malloc_shared<int>(N, producer);
+  auto *out = sycl::malloc_shared<int>(N, producer);
+  BOOST_REQUIRE(data);
+  BOOST_REQUIRE(out);
+
+  // Exercise both a partial batch and the automatic command-buffer flush.
+  for (int num_ops : {1, 32, 33}) {
+    for (int rep = 0; rep < 20; ++rep) {
+      std::fill_n(data, N, 0);
+      std::fill_n(out, N, -1);
+      sycl::event e;
+      for (int op = 0; op < num_ops; ++op) {
+        e = producer.parallel_for(sycl::range<1>{N}, [=](sycl::id<1> idx) {
+          data[idx[0]] = op + 1;
+        });
+      }
+
+      // A premature "complete" result can cause depends_on() to drop e.
+      e.get_info<sycl::info::event::command_execution_status>();
+      consumer.submit([&](sycl::handler &cgh) {
+        cgh.depends_on(e);
+        cgh.parallel_for(sycl::range<1>{N}, [=](sycl::id<1> idx) {
+          out[idx[0]] = data[idx[0]];
+        });
+      });
+      consumer.wait_and_throw();
+      producer.wait_and_throw();
+
+      BOOST_CHECK(std::all_of(out, out + N,
+                             [=](int value) { return value == num_ops; }));
+      BOOST_CHECK(e.get_info<sycl::info::event::command_execution_status>() ==
+                  sycl::info::event_command_status::complete);
+    }
+  }
+
+  sycl::free(data, producer);
+  sycl::free(out, producer);
+}
+
 BOOST_AUTO_TEST_CASE(coarse_grained_events_cross_queue_deadlock) {
   constexpr size_t N = 4;
 
@@ -1439,6 +1494,36 @@ BOOST_AUTO_TEST_CASE(get_native_metal_event) {
   BOOST_CHECK(native_event.event != nullptr);
   BOOST_CHECK(native_event.value != 0);
   event.wait();
+}
+
+BOOST_AUTO_TEST_CASE(make_metal_event) {
+  namespace s = sycl;
+
+  const s::property_list props{s::property::queue::in_order{}};
+  s::queue producer{props};
+  if (producer.get_device().get_backend() != s::backend::metal) {
+    BOOST_TEST_MESSAGE("Skipping make_metal_event: not a Metal device");
+    return;
+  }
+
+  s::queue consumer{producer.get_context(), producer.get_device(), props};
+  int *value = s::malloc_shared<int>(1, producer);
+  BOOST_REQUIRE(value != nullptr);
+  *value = 0;
+
+  s::event produced = producer.single_task([=]() { *value = 41; });
+  auto native_event = s::get_native<s::backend::metal>(produced);
+  s::event imported = s::make_event<s::backend::metal>(
+      native_event, producer.get_context());
+
+  s::event consumed = consumer.submit([&](s::handler &cgh) {
+    cgh.depends_on(imported);
+    cgh.single_task([=]() { *value += 1; });
+  });
+  consumed.wait();
+
+  BOOST_CHECK_EQUAL(*value, 42);
+  s::free(value, producer);
 }
 #endif
 #ifdef SYCL_KHR_DEFAULT_CONTEXT

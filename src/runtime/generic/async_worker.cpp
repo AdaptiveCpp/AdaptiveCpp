@@ -95,6 +95,7 @@ void worker_thread::work()
     }
 
     operation();
+    operation = nullptr;
 
     {
       std::lock_guard<std::mutex> lock{_mutex};

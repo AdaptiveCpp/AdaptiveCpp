@@ -156,6 +156,8 @@ public:
   virtual ~metal_inorder_queue();
 
 private:
+  friend class metal_sscp_code_object_invoker;
+
   // Encodes the wait on prior queue work and attaches pending profiling
   // handlers; shared by get_open_command_buffer() and
   // new_dedicated_command_buffer().
@@ -179,6 +181,14 @@ private:
   result flush();
 
   void profiling_setup(operation& op, const dag_node_ptr& node);
+  void host_profiling_setup(operation& op, const dag_node_ptr& node);
+
+  // The caller must hold _mutex.
+  result submit_sscp_kernel_unlocked(hcf_object_id hcf_object,
+    std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const kernel_configuration &config);
 
   MTL::Device* _device = nullptr;
   MTL::CommandQueue* _command_queue = nullptr;
@@ -221,7 +231,7 @@ private:
 
   kernel_configuration _config;
 
-  mutable std::recursive_mutex _mutex;
+  mutable std::mutex _mutex;
 
   std::optional<metal_profiling_setup> _profiling_setup;
 };

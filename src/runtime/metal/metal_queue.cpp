@@ -335,7 +335,10 @@ MTL::CommandBuffer* metal_inorder_queue::get_open_command_buffer() {
 
 MTL::CommandBuffer* metal_inorder_queue::new_dedicated_command_buffer() {
   // Relies on the caller's autorelease pool, like the rest of Metal-cpp.
-  return prepare_command_buffer(_command_queue->commandBuffer());
+  auto* cmd_buf = prepare_command_buffer(_command_queue->commandBuffer());
+  // This buffer is committed directly, so no batched flush is needed
+  _flush_after_current_op = false;
+  return cmd_buf;
 }
 
 result metal_inorder_queue::flush() {
@@ -408,8 +411,29 @@ void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& nod
   }
 }
 
+void metal_inorder_queue::host_profiling_setup(operation& op, const dag_node_ptr& node) {
+  if (!node) {
+    return;
+  }
+
+  uint64_t now = metal_now_ns();
+  auto& hints = node->get_execution_hints();
+  if (hints.has_hint<rt::hints::request_instrumentation_submission_timestamp>()) {
+    op.get_instrumentations().add_instrumentation<instrumentations::submission_timestamp>(
+      std::make_shared<metal_submission_timestamp>(now));
+  }
+  if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+    op.get_instrumentations().add_instrumentation<instrumentations::execution_start_timestamp>(
+      std::make_shared<metal_execution_start_timestamp>(now));
+  }
+  if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+    op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(
+      std::make_shared<metal_execution_finish_timestamp>(now));
+  }
+}
+
 std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  std::lock_guard<std::mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;
 
   NS::SharedPtr<MTL::CommandBuffer> command_buffer =
@@ -426,7 +450,7 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_eve
 }
 
 result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  std::lock_guard<std::mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting memcpy..." << std::endl;
 
   assert(op.source().get_base_ptr());
@@ -706,7 +730,6 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
 }
 
 result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_ptr& node) {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting kernel..." << std::endl;
 
   rt::backend_kernel_launch_capabilities cap;
@@ -714,41 +737,36 @@ result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_p
 
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
   auto *node_ptr = node.get();
-  profiling_setup(op, node);
-
-  // Custom (interop) ops may commit their own command buffers on this queue
-  // during invoke() (e.g. FFT libraries); Metal runs them in commit order,
-  // so everything encoded so far must be committed first.
   if (op.get_launcher().is_custom_operation()) {
-    if (result r = flush(); !r.is_success()) {
-      return r;
+    {
+      std::lock_guard<std::mutex> lock{_mutex};
+
+      // Custom operations may submit directly to the native queue. Commit pending
+      // work first and use host timestamps for work that we do not encode
+      host_profiling_setup(op, node);
+      if (result r = flush(); !r.is_success()) {
+        return r;
+      }
     }
+    return op.get_launcher().invoke(backend_id::metal, this, cap, node_ptr);
   }
 
+  std::lock_guard<std::mutex> lock{_mutex};
+  struct profiling_cleanup {
+    std::optional<metal_profiling_setup>& setup;
+    ~profiling_cleanup() { setup.reset(); }
+  } cleanup{_profiling_setup};
+  profiling_setup(op, node);
   return op.get_launcher().invoke(backend_id::metal, this, cap, node_ptr);
 }
 
 result metal_inorder_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& node) {
-  if (node) {
-    uint64_t now = metal_now_ns();
-    auto& hints = node->get_execution_hints();
-    if (hints.has_hint<rt::hints::request_instrumentation_submission_timestamp>())
-      op.get_instrumentations().add_instrumentation<instrumentations::submission_timestamp>(
-        std::make_shared<metal_submission_timestamp>(now));
-    if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
-      op.get_instrumentations().add_instrumentation<instrumentations::execution_start_timestamp>(
-        std::make_shared<metal_execution_start_timestamp>(now));
-    }
-    if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
-      op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(
-        std::make_shared<metal_execution_finish_timestamp>(now));
-    }
-  }
+  host_profiling_setup(op, node);
   return make_success();
 }
 
 result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_ptr& node) {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  std::lock_guard<std::mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting memset..." << std::endl;
 
   void* ptr = op.get_pointer();
@@ -774,14 +792,15 @@ result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_p
 }
 
 result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting wait for other queue..." << std::endl;
 
   assert(node);
   auto evt = node->get_event(); assert(evt);
   assert(dynamic_is<inorder_queue_event<metal_event_handle>>(evt.get()));
   inorder_queue_event<metal_event_handle>* metal_evt = cast<inorder_queue_event<metal_event_handle>>(evt.get());
+  // Lock after resolving the event to avoid cross-queue deadlocks
   auto handle = metal_evt->request_backend_event();
+  std::lock_guard<std::mutex> lock{_mutex};
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
   // An event wait applies to commands encoded after it, including subsequent
   // operations appended to this open command buffer.
@@ -806,7 +825,7 @@ result metal_inorder_queue::wait() {
   HIPSYCL_DEBUG_INFO << "metal_queue: Waiting for queue completion..." << std::endl;
   auto evt = insert_event();
   evt->wait();
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  std::lock_guard<std::mutex> lock{_mutex};
   auto handle = static_cast<metal_node_event*>(evt.get())->request_backend_event();
   // Another thread may have submitted work while the mutex was released.
   if (!_open_buffer && _last_submitted_event == handle.value) {
@@ -819,7 +838,7 @@ device_id metal_inorder_queue::get_device() const {
   return _device_id;
 }
 void* metal_inorder_queue::get_native_type() const {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  std::lock_guard<std::mutex> lock{_mutex};
   // External code may commit its own buffers on this queue, so flush ours
   // first to keep commit order correct.
   const_cast<metal_inorder_queue*>(this)->flush();
@@ -827,7 +846,7 @@ void* metal_inorder_queue::get_native_type() const {
 }
 
 result metal_inorder_queue::query_status(inorder_queue_status& status) {
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
+  std::lock_guard<std::mutex> lock{_mutex};
   if (result r = flush(); !r.is_success()) {
     return r;
   }
@@ -842,11 +861,21 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   unsigned local_mem_size, void **args, std::size_t *arg_sizes,
   std::size_t num_args, const kernel_configuration &initial_config)
 {
+  std::lock_guard<std::mutex> lock{_mutex};
+  return submit_sscp_kernel_unlocked(
+    hcf_object, kernel_name, kernel_info, num_groups,
+    group_size, local_mem_size, args, arg_sizes, num_args, initial_config);
+}
+
+result metal_inorder_queue::submit_sscp_kernel_unlocked(hcf_object_id hcf_object,
+  std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+  const rt::range<3> &num_groups, const rt::range<3> &group_size,
+  unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+  std::size_t num_args, const kernel_configuration &initial_config)
+{
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
   HIPSYCL_DEBUG_INFO << "[Metal] submit_sscp_kernel_from_code_object() called for kernel: "
                      << kernel_name << std::endl;
-
-  std::lock_guard<std::recursive_mutex> lock{_mutex};
 
   // Validate kernel info
   if (!kernel_info) {
@@ -1032,7 +1061,7 @@ result metal_sscp_code_object_invoker::submit_kernel(
   const rt::hcf_kernel_info* kernel_info,
   const kernel_configuration& config)
 {
-  return _queue->submit_sscp_kernel_from_code_object(
+  return _queue->submit_sscp_kernel_unlocked(
     hcf_object, kernel_name, kernel_info,
     num_groups, group_size, local_mem_size,
     args, arg_sizes, num_args,

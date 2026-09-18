@@ -55,7 +55,6 @@ vk_allocator::create_uniform_buffers(std::vector<vk::DeviceSize> sizes) {
   std::vector<vk::DeviceSize> offsets;
 
   vk::DeviceSize total_size = 0;
-  vk::DeviceSize max_alignment = 0;
   uint32_t type_bitmask = UINT32_MAX;
 
   // First create the buffers and extract requirements for the memory allocation
@@ -199,7 +198,7 @@ void *vk_allocator::raw_allocate_usm(size_t, const allocation_hints &) {
   return nullptr;
 }
 
-bool vk_allocator::is_usm_accessible_from(backend_descriptor b) const {
+bool vk_allocator::is_usm_accessible_from(backend_descriptor) const {
   return false;
 }
 
@@ -235,8 +234,7 @@ result vk_allocator::query_pointer(const void *ptr, pointer_info &out) const {
       error_info{"vk_allocator: Could not find pointer allocation"});
 }
 
-result vk_allocator::mem_advise(const void *addr, std::size_t num_bytes,
-                                int advise) const {
+result vk_allocator::mem_advise(const void *, std::size_t, int) const {
   HIPSYCL_DEBUG_WARNING << "vk_allocator: Ignoring mem_advise() hint"
                         << std::endl;
   return make_success();

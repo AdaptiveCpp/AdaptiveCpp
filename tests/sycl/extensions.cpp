@@ -24,6 +24,7 @@
 #include "hipSYCL/sycl/queue.hpp"
 
 #include "sycl_test_suite.hpp"
+#include <algorithm>
 #include <boost/test/tools/old/interface.hpp>
 #ifdef LIB_NUMA_AVAILABLE
 #include <numa.h>
@@ -1177,10 +1178,6 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events_status_before_dependency) {
   sycl::queue consumer{producer.get_context(), producer.get_device(), props};
 
   if (!producer.get_device().has(sycl::aspect::usm_shared_allocations)) {
-    return;
-  }
-
-  if (producer.get_device().get_backend() == sycl::backend::metal) {
     return;
   }
 

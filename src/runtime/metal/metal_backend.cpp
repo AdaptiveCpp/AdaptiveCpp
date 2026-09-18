@@ -98,7 +98,7 @@ metal_backend::create_event_from_native_handle(const void *native_handle,
   if (!handle->event)
     return nullptr;
 
-  return std::make_shared<metal_node_event>(*handle);
+  return std::make_shared<metal_node_event>(*handle, nullptr);
 }
 
 metal_backend::~metal_backend() = default;

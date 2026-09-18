@@ -17,12 +17,19 @@
 namespace hipsycl {
 namespace rt {
 
-metal_node_event::metal_node_event(metal_event_handle handle)
-  : _handle{handle} {
+metal_node_event::metal_node_event(metal_event_handle handle,
+                                 MTL::CommandBuffer* command_buffer)
+  : _handle{handle}, _command_buffer{command_buffer} {
   _handle.event->retain();
+  if (_command_buffer) {
+    _command_buffer->retain();
+  }
 }
 
 metal_node_event::~metal_node_event() {
+  if (_command_buffer) {
+    _command_buffer->release();
+  }
   _handle.event->release();
 }
 
@@ -31,6 +38,11 @@ bool metal_node_event::is_complete() const {
 }
 
 void metal_node_event::wait() {
+  // The shared event may signal before completion handlers have finished.
+  if (_command_buffer) {
+    _command_buffer->waitUntilCompleted();
+    return;
+  }
   while (!_handle.event->waitUntilSignaledValue(_handle.value, 1000)) {
     std::this_thread::yield();
   }

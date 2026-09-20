@@ -396,6 +396,14 @@ private:
   uint64_t next_multiple_of(uint64_t a, uint64_t b) {
     return ceil_division(a, b) * b;
   }
+
+  // claim() and release() must agree on this, or release() computes the
+  // wrong buddy-allocator level and the block is lost from the pool.
+  std::size_t effective_size(std::size_t size) const {
+    if(size < _page_size)
+      size = _page_size;
+    return size;
+  }
 public:
   memory_pool(std::size_t size)
       : _pool_size{size}, _pool{nullptr},
@@ -408,8 +416,7 @@ public:
     if(_pool_size == 0)
       return nullptr;
 
-    if(size < _page_size)
-      size = _page_size;
+    size = effective_size(size);
 
     uint64_t address = 0;
     if(_free_space_map.claim(size, address)) {
@@ -435,10 +442,7 @@ public:
 
   void release(void* ptr, std::size_t size) {
     if(_pool && is_from_pool(ptr)) {
-      // Must match the rounding claim() applies, or release() computes the
-      // wrong buddy-allocator level and the block is lost from the pool.
-      if(size < _page_size)
-        size = _page_size;
+      size = effective_size(size);
       uint64_t address = reinterpret_cast<uint64_t>(ptr)-reinterpret_cast<uint64_t>(_base_address);
       _free_space_map.release(address, size);
 

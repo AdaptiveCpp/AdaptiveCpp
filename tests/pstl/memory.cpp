@@ -2,7 +2,6 @@
 #include <execution>
 #include <vector>
 #include <cstdlib>
-#include <unistd.h>
 
 #include <boost/test/unit_test.hpp>
 #include <boost/mp11/list.hpp>
@@ -68,9 +67,7 @@ BOOST_AUTO_TEST_CASE(pstl_aligned_alloc) {
 }
 
 BOOST_AUTO_TEST_CASE(pstl_memory_pool_release_reclaims_space) {
-  const std::size_t page_size = static_cast<std::size_t>(sysconf(_SC_PAGESIZE));
-  const std::size_t pool_size = page_size * 4;
-  hipsycl::stdpar::memory_pool pool{pool_size};
+  hipsycl::stdpar::memory_pool pool{1 << 14};
 
   // Repeatedly claim/release a small, non-page-aligned size. Before the
   // effective_size() rounding fix, release() would file each freed block

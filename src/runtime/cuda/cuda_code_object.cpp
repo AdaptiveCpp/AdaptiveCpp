@@ -86,7 +86,7 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
   std::string error_log_buffer(error_log_buffer_size, '\0');
   option_vals[1] = error_log_buffer.data();
 
-  // Suppress caller FPE traps during JIT; fesetenv (not feupdateenv) avoids replaying trapped exceptions.
+  // Suppress caller FPE traps during JIT, as some apps and libs may enable them during execution and break the JIT
   std::fenv_t caller_fpe_env;
   std::feholdexcept(&caller_fpe_env);
 

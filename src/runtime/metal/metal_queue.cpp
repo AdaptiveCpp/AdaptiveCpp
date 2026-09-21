@@ -742,7 +742,10 @@ result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_p
       std::lock_guard<std::mutex> lock{_mutex};
 
       // Custom operations may submit directly to the native queue. Commit pending
-      // work first and use host timestamps for work that we do not encode
+      // work first and use host timestamps for work that we do not encode, so
+      // submission, start and end all report the submission time.
+      // TODO: report GPU time by bracketing invoke() with command buffers and
+      // using GPUEndTime of the one before and GPUStartTime of the one after.
       host_profiling_setup(op, node);
       if (result r = flush(); !r.is_success()) {
         return r;

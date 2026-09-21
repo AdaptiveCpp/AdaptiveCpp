@@ -3,7 +3,7 @@
 **Note**: PCUDA is under development and in WIP/experimental state. Only a small subset of the target functionality is currently implemented (see feature support further down)
 
 AdaptiveCpp supports a dialect of the CUDA/HIP language called portable CUDA (PCUDA). This is exclusively supported with the generic JIT compiler (`--acpp-targets=generic`), and is supported on all backends.
-Similarly to using `--acpp-targets=generic` with SYCL or C++ standard parallelism code (stdpar), AdaptiveCpp can JIT-compile the input PCUDA code for any target from a single binary, including CPUs, NVIDIA GPUs, AMD GPUs, and Intel GPUs.
+Similarly to using `--acpp-targets=generic` with SYCL or C++ standard parallelism code (stdpar), AdaptiveCpp can JIT-compile the input PCUDA code for any target from a single binary, including CPUs, NVIDIA GPUs, AMD GPUs, Intel GPUs, and Apple GPUs.
 
 Possible use cases for PCUDA include:
 

@@ -50,6 +50,8 @@ This example uses the HIP backend, other backends such as CUDA work similarly.
 
 On the Metal backend, `h.get_native_queue<sycl::backend::metal>()` returns an `MTL::CommandQueue*`. `get_native_mem()` returns the USM pointer. Use `sycl::get_native_allocation<sycl::backend::metal>()` to get the underlying `MTL::Buffer` and the pointer's offset within it. See the [Metal installation instructions](install-metal.md#interoperability-with-metal).
 
+Profiling information for custom operations is currently not measured on the Metal GPU: the submission, start and end timestamps all report the host time at which the operation was submitted.
+
 ```c++
 sycl::queue q;
 

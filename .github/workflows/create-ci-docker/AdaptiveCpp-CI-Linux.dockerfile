@@ -95,6 +95,9 @@ RUN <<EOF
         if ./llvm.sh ${LLVM_VERSION}; then
             success=1
             break
+        else
+            # Clean up after a failed download
+            rm -f /etc/apt/trusted.gpg.d/apt.llvm.org.asc
         fi
         echo "Attempt $i failed, retrying in 15s..."
         sleep 15

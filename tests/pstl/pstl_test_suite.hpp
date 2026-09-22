@@ -103,12 +103,7 @@ struct non_trivial_move {
 
 
 // Minimal forward iterator whose operator*() returns by value (no backing
-// storage) -- regression test for copy()/move() requiring the memcpy
-// fast-path's address-of expressions to be gated by `if constexpr` on
-// is_contiguous<T>(), not a runtime `if` (which requires them to compile
-// unconditionally for every iterator type). Do NOT replace with
-// boost::counting_iterator: its operator*() returns a real reference, so
-// it does not reproduce this bug.
+// storage) 
 template<class T>
 struct counting_iterator {
   using value_type = T;

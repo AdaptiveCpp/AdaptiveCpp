@@ -239,6 +239,8 @@ set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build AdaptiveCpp support for AM
 set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build AdaptiveCpp support for OpenCL SPIR-V devices supporting USM")
 set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") # Default to OFF while experimental
 
+set(ACPP_TRACING OFF CACHE BOOL "Enable SYCL tracing hooks in acpp-rt")
+
 set(WITH_CPU_BACKEND true)
 
 if(WITH_VULKAN_BACKEND)

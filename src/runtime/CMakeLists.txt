@@ -65,6 +65,9 @@ add_library(acpp-rt SHARED
 target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
 target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
 target_link_libraries(acpp-rt PUBLIC acpp-common)
+if(ACPP_TRACING)
+  target_compile_definitions(acpp-rt PRIVATE ACPP_TRACING_ENABLED)
+endif()
 
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.

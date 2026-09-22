@@ -31,6 +31,7 @@
 namespace tracer_utils {
 using time_point = std::chrono::high_resolution_clock::time_point;
 
+#ifdef ACPP_TRACING_ENABLED
 #define CALL_FUNCTION_DEFINITION_BEGIN(name, type)                             \
   Return_t<type> tracer_funcs::call_##name(Args_tail_t<type> args) {           \
     for (int i = 0; i < size; i++) {                                           \
@@ -52,6 +53,13 @@ using time_point = std::chrono::high_resolution_clock::time_point;
       }                                                                        \
     }                                                                          \
   }
+#else
+#define CALL_FUNCTION_DEFINITION_BEGIN(name, type)                             \
+  Return_t<type> tracer_funcs::call_##name(Args_tail_t<type> args) {}
+
+#define CALL_FUNCTION_DEFINITION_END(name, type)                               \
+  Return_t<type> tracer_funcs::call_##name(Args_tail_t<type> args) {}
+#endif
 
 ALL_TYPES_NOSTATE_BEGIN(CALL_FUNCTION_DEFINITION_BEGIN);
 ALL_TYPES_NOSTATE_END(CALL_FUNCTION_DEFINITION_END);
@@ -67,7 +75,7 @@ std::list<void *> so_libraries;
 std::list<tracer_functs_initialize_t> init_funcs;
 
 void tracer_funcs::initialize_tracer() {
-
+#ifdef ACPP_TRACING_ENABLED
   // If the init has not run yet, we initialize and set the flag
 
   // std::cout << "Hello World from inside the tracer_funcs constructor" <<
@@ -105,10 +113,11 @@ void tracer_funcs::initialize_tracer() {
       }
     }
   }
+#endif
 }
 
 void tracer_funcs::run_finalizers() {
-
+#ifdef ACPP_TRACING_ENABLED
   // std::cout << "Hello World from inside the tracer_funcs finalizer stuff" <<
   // std::endl;
   for (int i = this->size - 1; i >= 0; i--)
@@ -116,6 +125,7 @@ void tracer_funcs::run_finalizers() {
       this->finalize[i](this->states[i]);
 
   clear_all();
+#endif
 }
 
 void tracer_funcs::clear_all() {

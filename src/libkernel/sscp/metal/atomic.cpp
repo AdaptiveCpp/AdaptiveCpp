@@ -529,3 +529,166 @@ HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_atomic_fetch_max_f32(
     old_bits = expected;
   }
 }
+
+// Metal lacks general 64-bit atomics. Use hashed 32-bit locks in device memory,
+// including for objects in threadgroup memory. The runtime binds a table shared
+// across kernels at buffer(2).
+// Based on metal-float64 (MIT): https://github.com/philipturner/metal-float64
+
+HIPSYCL_SSCP_BUILTIN u32* __acpp_sscp_metal_symbol_atomic64_lock_base(const char* s);
+HIPSYCL_SSCP_BUILTIN u64 __acpp_sscp_metal_symbol_active_threads(const char* s);
+HIPSYCL_SSCP_BUILTIN u64 __acpp_sscp_metal_ballot(const char* s, bool pred);
+
+namespace {
+
+// Must match metal_allocator::atomic64_lock_table_size
+constexpr u64 atomic64_lock_table_size = 16384;
+
+inline u32* atomic64_lock_for(const void* ptr) {
+  u32* base = __acpp_sscp_metal_symbol_atomic64_lock_base("__acpp_sscp_metal_atomic64_lock_base");
+  u64 address = (u64)ptr;
+  u64 hash = ((address >> 3) ^ (address >> 17)) & (atomic64_lock_table_size - 1);
+  return base + hash;
+}
+
+inline u64 atomic64_active_threads() {
+  return __acpp_sscp_metal_symbol_active_threads("(ulong)(simd_vote::vote_t)simd_active_threads_mask()");
+}
+
+inline u64 atomic64_ballot(bool pred) {
+  return __acpp_sscp_metal_ballot("(ulong)(simd_vote::vote_t)simd_ballot(%s)", pred);
+}
+
+inline bool atomic64_try_lock(u32* lock) {
+  u32 expected = 0;
+  return __acpp_sscp_metal_atomic_cmpxchg_u32(
+    "atomic_compare_exchange_weak_explicit(__atomic_pointer_cast<uint>(%s), __pointer_cast<uint>(%s), %s, memory_order_relaxed, memory_order_relaxed)",
+    lock, &expected, (u32)1);
+}
+
+inline void atomic64_unlock(u32* lock) {
+  __acpp_sscp_metal_atomic_store_u32(
+    "atomic_store_explicit(__atomic_pointer_cast<uint>(%s), %s, memory_order_relaxed)",
+    lock, (u32)0);
+}
+
+inline u64 atomic64_read(u64* ptr) {
+  u32* lower = (u32*)ptr;
+  u32 low = __acpp_sscp_metal_atomic_load_u32("atomic_load_explicit(__atomic_pointer_cast<uint>(%s), memory_order_relaxed)", lower);
+  u32 high = __acpp_sscp_metal_atomic_load_u32("atomic_load_explicit(__atomic_pointer_cast<uint>(%s), memory_order_relaxed)", lower + 1);
+  return ((u64)high << 32) | (u64)low;
+}
+
+inline void atomic64_write(u64* ptr, u64 value) {
+  u32* lower = (u32*)ptr;
+  __acpp_sscp_metal_atomic_store_u32(
+    "atomic_store_explicit(__atomic_pointer_cast<uint>(%s), %s, memory_order_relaxed)",
+    lower, (u32)value);
+  __acpp_sscp_metal_atomic_store_u32(
+    "atomic_store_explicit(__atomic_pointer_cast<uint>(%s), %s, memory_order_relaxed)",
+    lower + 1, (u32)(value >> 32));
+}
+
+// SIMD lanes execute in lockstep. A lane that exits early can starve the lock
+// holder, so keep all active lanes in the loop until each has finished
+template<class F>
+inline u64 atomic64_update(u64* ptr, __acpp_sscp_memory_scope scope, F f) {
+  u32* lock = atomic64_lock_for(ptr);
+  u64 old = 0;
+  // Prevent loop peeling for finished lanes.
+  volatile bool done = false;
+  u64 active = atomic64_active_threads();
+  u64 done_active = 0;
+  while (active != done_active) {
+    if (!done) {
+      if (atomic64_try_lock(lock)) {
+        __acpp_sscp_memory_fence(scope, __acpp_sscp_memory_order::seq_cst);
+        old = atomic64_read(ptr);
+        atomic64_write(ptr, f(old));
+        __acpp_sscp_memory_fence(scope, __acpp_sscp_memory_order::seq_cst);
+        atomic64_unlock(lock);
+        done = true;
+      }
+    }
+    done_active = atomic64_ballot(done);
+  }
+  return old;
+}
+
+inline bool atomic64_compare_exchange(u64* ptr, u64* expected, u64 desired,
+                                      __acpp_sscp_memory_scope scope) {
+  u32* lock = atomic64_lock_for(ptr);
+  bool success = false;
+  volatile bool done = false;
+  u64 active = atomic64_active_threads();
+  u64 done_active = 0;
+  while (active != done_active) {
+    if (!done) {
+      if (atomic64_try_lock(lock)) {
+        __acpp_sscp_memory_fence(scope, __acpp_sscp_memory_order::seq_cst);
+        u64 old = atomic64_read(ptr);
+        success = old == *expected;
+        if (success) {
+          atomic64_write(ptr, desired);
+        } else {
+          *expected = old;
+        }
+        __acpp_sscp_memory_fence(scope, __acpp_sscp_memory_order::seq_cst);
+        atomic64_unlock(lock);
+        done = true;
+      }
+    }
+    done_active = atomic64_ballot(done);
+  }
+  return success;
+}
+
+}
+
+#define ACPP_ATOMIC64_UPDATE(op, type, expr) \
+HIPSYCL_SSCP_BUILTIN type __acpp_sscp_atomic_##op##_##type( \
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order order, \
+    __acpp_sscp_memory_scope scope, type *ptr, type x) { \
+  return (type)atomic64_update((u64*)ptr, scope, [=](u64 old) { return (u64)(expr); }); \
+}
+
+ACPP_ATOMIC64_UPDATE(exchange,  i64, (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_and, i64, old & (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_or,  i64, old | (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_xor, i64, old ^ (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_add, i64, old + (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_add, u64, old + x)
+ACPP_ATOMIC64_UPDATE(fetch_sub, i64, old - (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_sub, u64, old - x)
+ACPP_ATOMIC64_UPDATE(fetch_min, i64, (i64)old < x ? old : (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_min, u64, old < x ? old : x)
+ACPP_ATOMIC64_UPDATE(fetch_max, i64, (i64)old > x ? old : (u64)x)
+ACPP_ATOMIC64_UPDATE(fetch_max, u64, old > x ? old : x)
+
+#undef ACPP_ATOMIC64_UPDATE
+
+#define ACPP_ATOMIC64_COMPARE_EXCHANGE(op) \
+HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_##op##_i64( \
+    __acpp_sscp_address_space as, __acpp_sscp_memory_order success, \
+    __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope, \
+    i64 *ptr, i64 *expected, i64 desired) { \
+  return atomic64_compare_exchange((u64*)ptr, (u64*)expected, (u64)desired, scope); \
+}
+
+// The lock makes both forms equally strong, so weak cannot fail spuriously
+ACPP_ATOMIC64_COMPARE_EXCHANGE(weak)
+ACPP_ATOMIC64_COMPARE_EXCHANGE(strong)
+
+#undef ACPP_ATOMIC64_COMPARE_EXCHANGE
+
+HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
+  __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+  __acpp_sscp_memory_scope scope, i64 *ptr, i64 x) {
+  atomic64_update((u64*)ptr, scope, [=](u64) { return (u64)x; });
+}
+
+HIPSYCL_SSCP_BUILTIN i64 __acpp_sscp_atomic_load_i64(
+  __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
+  __acpp_sscp_memory_scope scope, i64 *ptr) {
+  return (i64)atomic64_update((u64*)ptr, scope, [](u64 old) { return old; });
+}

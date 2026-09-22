@@ -352,7 +352,7 @@ bool metal_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::fp64:
     return false;
   case device_support_aspect::atomic64:
-    return false;
+    return true;
   case device_support_aspect::free_memory:
     return false;
   default:

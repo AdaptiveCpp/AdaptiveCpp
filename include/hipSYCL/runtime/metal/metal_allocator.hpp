@@ -73,6 +73,10 @@ public:
 
   size_t get_delta() const { return _delta; }
 
+  // Shared across kernels, size must match atomic.cpp in the Metal library.
+  static constexpr size_t atomic64_lock_table_size = 16384;
+  void* get_atomic64_lock_table();
+
   // Null if the device does not provide residency sets
   MTL::ResidencySet* get_residency_set() const { return _residency_set; }
   void commit_residency_set();
@@ -104,6 +108,7 @@ private:
   };
   std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
+  void* _atomic64_lock_table = nullptr;
   MTL::ResidencySet* _residency_set = nullptr;
   bool _residency_set_dirty = false;
   std::shared_ptr<metal_mmap_region> _mmap_region;

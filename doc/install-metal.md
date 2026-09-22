@@ -109,7 +109,9 @@ The Metal backend is experimental and has the following important limitations:
 
 * **`double` is not supported.** Apple Silicon GPUs do not have hardware support for double-precision floating point. Support for `double` is planned for a future release as a software emulation (soft-double) for compatibility, but it will not deliver hardware-native performance.
 
-* **64-bit atomics (`atomic64`) are not supported.** Metal does not provide 64-bit atomic operations on Apple Silicon GPUs.
+* **64-bit integer atomics (`atomic64`) are emulated.** They may be slower than native atomics, especially under contention.
+
+* **Pointer-to-integer casts have limited support.** Avoid converting pointers to integers and back in Metal kernels (`ptrtoint`/`inttoptr`), or sharing integer representations of pointers between CPU and GPU. The same allocation may have different host and GPU addresses, so those integer values can differ.
 
 * **SYCL event performance.** Every SYCL event must be signalled by a Metal command buffer. An operation that returns a regular event is therefore committed separately instead of being batched with adjacent operations. If you do not need per-operation events, the [coarse-grained events extension](extensions.md#acpp_ext_coarse_grained_events) avoids this overhead and noticeably reduces launch latency.
 

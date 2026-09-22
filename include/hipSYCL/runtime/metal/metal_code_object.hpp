@@ -34,6 +34,7 @@ public:
   virtual ~metal_executable_object() {}
 
   virtual MTL::Library* get_library() const = 0;
+  virtual bool requires_atomic64_locks() const = 0;
 
   virtual result get_build_result() const = 0;
 
@@ -65,6 +66,7 @@ public:
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
   virtual MTL::Library* get_library() const override;
+  virtual bool requires_atomic64_locks() const override;
   virtual MTL::Device* get_device() const override;
 
   const std::string& get_msl_source() const { return _msl_source; }
@@ -82,6 +84,7 @@ private:
 
   // Keep the MSL source for potential debugging
   std::string _msl_source;
+  bool _requires_atomic64_locks = true;
 };
 
 } // namespace rt

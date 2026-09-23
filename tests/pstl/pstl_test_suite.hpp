@@ -12,6 +12,8 @@
 #ifndef HIPSYCL_PSTL_TEST_SUITE_HPP
 #define HIPSYCL_PSTL_TEST_SUITE_HPP
 
+#include <cstddef>
+#include <iterator>
 
 struct enable_unified_shared_memory {
   enable_unified_shared_memory() {
@@ -97,6 +99,30 @@ struct non_trivial_move {
   }
 
   int x;
+};
+
+
+// Minimal forward iterator whose operator*() returns by value (no backing
+// storage) 
+template<class T>
+struct counting_iterator {
+  using value_type = T;
+  using difference_type = std::ptrdiff_t;
+  using pointer = void;
+  using reference = T;
+  using iterator_category = std::forward_iterator_tag;
+
+  counting_iterator() = default;
+  explicit counting_iterator(T value) : _value{value} {}
+
+  T operator*() const { return _value; }
+  counting_iterator& operator++() { ++_value; return *this; }
+  counting_iterator operator++(int) { auto tmp = *this; ++(*this); return tmp; }
+
+  friend bool operator==(const counting_iterator& a, const counting_iterator& b) { return a._value == b._value; }
+  friend bool operator!=(const counting_iterator& a, const counting_iterator& b) { return a._value != b._value; }
+
+  T _value{};
 };
 
 #endif

@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/atomic.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 
 #include "helpers.hpp"
@@ -55,24 +56,50 @@ HIPSYCL_SSCP_BUILTIN u16 __acpp_sscp_metal_atomic_fetch_u16(const char* s, u16* 
 HIPSYCL_SSCP_BUILTIN u32 __acpp_sscp_metal_atomic_fetch_u32(const char* s, u32* ptr, u32 val);
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_metal_atomic_fetch_f32(const char* s, f32* ptr, f32 val);
 
+namespace {
+
+inline void fence_before_atomic(__acpp_sscp_memory_order order, __acpp_sscp_memory_scope scope) {
+  if (order == __acpp_sscp_memory_order::release ||
+      order == __acpp_sscp_memory_order::acq_rel ||
+      order == __acpp_sscp_memory_order::seq_cst) {
+    __acpp_sscp_memory_fence(scope, order);
+  }
+}
+
+inline void fence_after_atomic(__acpp_sscp_memory_order order, __acpp_sscp_memory_scope scope) {
+  if (order == __acpp_sscp_memory_order::acquire ||
+      order == __acpp_sscp_memory_order::acq_rel ||
+      order == __acpp_sscp_memory_order::seq_cst) {
+    __acpp_sscp_memory_fence(scope, order);
+  }
+}
+
+} // namespace
+
 // ********************** atomic load ***************************
 
 HIPSYCL_SSCP_BUILTIN i8 __acpp_sscp_atomic_load_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, i8 *ptr) {
-  return __acpp_sscp_metal_atomic_load_i8("atomic_load_explicit(__atomic_pointer_cast<char>(%s), memory_order_relaxed)", ptr);
+  i8 result = __acpp_sscp_metal_atomic_load_i8("atomic_load_explicit(__atomic_pointer_cast<char>(%s), memory_order_relaxed)", ptr);
+  fence_after_atomic(order, scope);
+  return result;
 }
 
 HIPSYCL_SSCP_BUILTIN i16 __acpp_sscp_atomic_load_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, i16 *ptr) {
-  return __acpp_sscp_metal_atomic_load_i16("atomic_load_explicit(__atomic_pointer_cast<short>(%s), memory_order_relaxed)", ptr);
+  i16 result = __acpp_sscp_metal_atomic_load_i16("atomic_load_explicit(__atomic_pointer_cast<short>(%s), memory_order_relaxed)", ptr);
+  fence_after_atomic(order, scope);
+  return result;
 }
 
 HIPSYCL_SSCP_BUILTIN i32 __acpp_sscp_atomic_load_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, i32 *ptr) {
-  return __acpp_sscp_metal_atomic_load_i32("atomic_load_explicit(__atomic_pointer_cast<int>(%s), memory_order_relaxed)", ptr);
+  i32 result = __acpp_sscp_metal_atomic_load_i32("atomic_load_explicit(__atomic_pointer_cast<int>(%s), memory_order_relaxed)", ptr);
+  fence_after_atomic(order, scope);
+  return result;
 }
 
 // ********************** atomic store ***************************
@@ -80,18 +107,21 @@ HIPSYCL_SSCP_BUILTIN i32 __acpp_sscp_atomic_load_i32(
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, i8 *ptr, i8 x) {
+  fence_before_atomic(order, scope);
   __acpp_sscp_metal_atomic_store_i8("atomic_store_explicit(__atomic_pointer_cast<char>(%s), %s, memory_order_relaxed)", ptr, x);
 }
 
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, i16 *ptr, i16 x) {
+  fence_before_atomic(order, scope);
   __acpp_sscp_metal_atomic_store_i16("atomic_store_explicit(__atomic_pointer_cast<short>(%s), %s, memory_order_relaxed)", ptr, x);
 }
 
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, i32 *ptr, i32 x) {
+  fence_before_atomic(order, scope);
   __acpp_sscp_metal_atomic_store_i32("atomic_store_explicit(__atomic_pointer_cast<int>(%s), %s, memory_order_relaxed)", ptr, x);
 }
 

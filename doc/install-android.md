@@ -18,7 +18,7 @@ $ adb shell getprop ro.build.version.sdk
 
 The command `adb shell` by itself runs an interactive shell, and before getting started we will also create a directory on the device to work in called
 `sycl` under `/data/local/tmp`. The `/data/local/tmp/sycl` path will be used in later steps of this guide as part of CMake configuration commands, but
-if can be substituted for you preferred device working directory.
+it can be substituted for you preferred device working directory.
 
 ```sh
 $ adb shell
@@ -60,7 +60,7 @@ The Vulkan backend requires a clspv executable to compile LLVM IR to Vulkan SPIR
 cross compiled for Android is required. This itself is a two stage process as it first requires `libclc` to be natively
 compiled, and then used in the cross compiled build. See the [libclc doc](https://github.com/llvm/llvm-project/tree/main/libclc#configure-for-vulkan-clspv-targets)
 for details on the Vulkan specific arguments. At the time of writing clspv is using upstream clang with a version number 23 but this
-is not required to match the LLVM version used to build AdaptiveCpp, as clspv is statically compiled as an standalone binary.
+is not required to match the LLVM version used to build AdaptiveCpp, as clspv is statically compiled as a standalone binary.
 
 ```sh
 $ git clone https://github.com/google/clspv.git
@@ -90,7 +90,7 @@ $ ninja
 > This step is needed for the Vulkan backend only.
 
 The Android NDK does not provide the SPIRV Tools headers and libraries that are distributed by the
-Vulkan SDK. When cross compiling, the SPIR-VTools project therefore need to be manually cross compiled
+Vulkan SDK. When cross compiling, the SPIRV-Tools project therefore needs to be manually cross compiled
 with the NDK toolchain.
 
 ```sh
@@ -115,8 +115,8 @@ $ export SPIRV_TOOLS_SOURCE_PATH=$PWD/..
 > This step is needed for the Vulkan backend only.
 
 The Android NDK only provides the Vulkan C headers, not the layered C++ bindings provided by Khronos
-which are part of the Vulkan SDK and used in the AdaptiveCpp source code. These source of these
-headers needs to be cloned but not built.
+which are part of the Vulkan SDK and used in the AdaptiveCpp source code. The source of these
+headers must cloned but it does not need to be built.
 
 ```sh
 $ git clone --recurse-submodules https://github.com/KhronosGroup/Vulkan-Hpp.git
@@ -125,9 +125,9 @@ $ export VULKAN_HPP_PATH=$PWD/Vulkan-Hpp
 
 ## Cross Compile LLVM
 
-In order to perform SSCP compilation at runtime AdaptiveCpp needs an cross compiled LLVM and tools to link against. We [build LLVM](install-llvm.md)
+In order to perform SSCP compilation at runtime, AdaptiveCpp needs an cross compiled LLVM and tools to link against. We [build LLVM](install-llvm.md)
 from source separately as a step prior to cross compiling AdaptiveCpp. Here we only use "Aarch64" for the LLVM targets to build, as
-we know that's the CPU architecture of the Android device we're cross compiling for.
+we know that's the CPU architecture of the Android device we're cross compiling for in our worked example.
 
 These instructions build LLVM version 20, and this should then match the LLVM version used to build a host AdaptiveCpp in
 a later step.
@@ -173,7 +173,7 @@ right arguments to native LLVM tools that match the LLVM version being linked in
 builtins bitcode to be created. The other consideration is passing the right device path to where cross compiled LLVM tooling will be at
 runtime so that the SSCP JIT can function.
 
-In the command below `-DCLANG_EXECUTABLE_PATH` and `-DACPP_LLVM_LINK_PATH` must be native executables to satisfy the first
+In the command below `-DACPP_BITCODE_CLANG` and `-DACPP_BITCODE_LLVM_LINK` must be host executables to satisfy the first
 consideration, while `-DACPP_LLC_PATH`, `-DACPP_LLD_PATH`, `-DACPP_OPT_PATH`, and `-DACPP_CLSPV_PATH` (Vulkan only) must
 be paths to where the cross compiled tools will be pushed on device to satisfy the second consideration.
 
@@ -187,9 +187,8 @@ $ cmake .. -GNinja \
   -DANDROID_PLATFORM=android-34 \
   -DCMAKE_INSTALL_PREFIX=$PWD/install \
   -DLLVM_DIR=$LLVM_NDK_INSTALL/lib/cmake/llvm \
-  -DCLANG_EXECUTABLE_PATH=/usr/bin/clang-20 \
-  -DACPP_LLVMLINK_PATH=/usr/bin/llvm-link-20 \
-  -DTARGET_TRIPLE=aarch64-unknown-linux-android34 \
+  -DACPP_BITCODE_CLANG=/usr/bin/clang-20 \
+  -DACPP_BITCODE_LLVM_LINK=/usr/bin/llvm-link-20 \
   -DACPP_LLC_PATH=/data/local/tmp/sycl/llc \
   -DACPP_LLD_PATH=/data/local/tmp/sycl/ld.lld \
   -DACPP_OPT_PATH=/data/local/tmp/sycl/opt
@@ -265,7 +264,7 @@ int main() {
 }
 ```
 
-To do the compilation itself we use the AdaptiveCpp compiler frontend for the SYCL,
+To do the compilation itself we use the AdaptiveCpp compiler frontend for SYCL,
 but point to the sysroot resources for the NDK.
 
 ```sh
@@ -354,3 +353,8 @@ SYCL application SUCCESS
 ```
 
 Congratulations is you followed these instructions all the way through to the end!
+
+## Restrictions
+
+* When using the host CPU target there is no device side math library linked to resolve math symbols that are generated by
+  JIT compilation. Resolving this is future work.

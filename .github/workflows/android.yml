@@ -6,7 +6,6 @@ env:
   NDK_VERSION: r27d
   ANDROID_ABI: arm64-v8a
   ANDROID_PLATFORM: android-34
-  ANDROID_TRIPLE: aarch64-unknown-linux-android34
 
 jobs:
   build-android:
@@ -19,7 +18,7 @@ jobs:
 
     steps:
     - name: Checkout AdaptiveCpp
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         submodules: 'recursive'
         path: AdaptiveCpp
@@ -29,7 +28,7 @@ jobs:
     # ------------------------------------------------------------------
     - name: Cache Android NDK
       id: cache-ndk
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ github.workspace }}/android-ndk-${{ env.NDK_VERSION }}
         key: android-ndk-${{ env.NDK_VERSION }}
@@ -43,7 +42,6 @@ jobs:
     - name: Export NDK path
       run: echo "NDK=${GITHUB_WORKSPACE}/android-ndk-${NDK_VERSION}" >> $GITHUB_ENV
 
-
     # ------------------------------------------------------------------
     # Build tooling
     # ------------------------------------------------------------------
@@ -54,7 +52,7 @@ jobs:
 
     # Native clang/llvm/lld/libomp matching the cross LLVM major version. These
     # are used on the host both to generate the libkernel builtin bitcode
-    # (-DCLANG_EXECUTABLE_PATH / -DACPP_LLVMLINK_PATH) and to build the native
+    # (-DACPP_BITCODE_CLANG / -DACPP_BITCODE_LLVM_LINK) and to build the native
     # AdaptiveCpp compiler used to compile the SYCL application.
     - name: Install native LLVM ${{ matrix.llvm }}
       run: |
@@ -72,7 +70,7 @@ jobs:
     # ccache shared across LLVM + AdaptiveCpp builds
     # ------------------------------------------------------------------
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.21
       with:
         key: android-${{ matrix.llvm }}
         restore-keys: |
@@ -83,7 +81,7 @@ jobs:
     # ------------------------------------------------------------------
     - name: Cache cross compiled LLVM
       id: cache-llvm
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ github.workspace }}/llvm-project/build-ndk/install
         # Bump the trailing version to invalidate when build flags change.
@@ -143,9 +141,8 @@ jobs:
           -DCMAKE_INSTALL_PREFIX=$PWD/install \
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DLLVM_DIR=$LLVM_NDK_INSTALL/lib/cmake/llvm \
-          -DCLANG_EXECUTABLE_PATH=/usr/bin/clang-${{ matrix.llvm }} \
-          -DACPP_LLVMLINK_PATH=/usr/bin/llvm-link-${{ matrix.llvm }} \
-          -DTARGET_TRIPLE=${ANDROID_TRIPLE} \
+          -DACPP_BITCODE_CLANG=/usr/bin/clang-${{ matrix.llvm }} \
+          -DACPP_BITCODE_LLVM_LINK=/usr/bin/llvm-link-${{ matrix.llvm }} \
           -DWITH_VULKAN_BACKEND=OFF \
           -DWITH_CUDA_BACKEND=OFF \
           -DWITH_ROCM_BACKEND=OFF \

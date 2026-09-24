@@ -12,11 +12,15 @@
 #define ACPP_ALLOCATION_TRACKER_HPP
 
 #include <cstdint>
+#include <memory>
 #include "runtime_event_handlers.hpp"
 #include "hipSYCL/common/allocation_map.hpp"
 
 namespace hipsycl {
 namespace rt {
+
+using allocation_map_t = common::allocation_map<allocation_info>;
+std::shared_ptr<allocation_map_t> get_allocation_map();
 
 class allocation_tracker {
 public:

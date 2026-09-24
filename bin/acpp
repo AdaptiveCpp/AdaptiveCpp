@@ -25,6 +25,8 @@ import uuid
 import binascii
 import shutil
 
+from pathlib import Path
+
 def print_warning(*args):
   print("acpp warning:", *args, file=sys.stderr)
 
@@ -927,6 +929,26 @@ class acpp_config:
     if normalized_path:
       return normalized_path
     return path
+
+  
+  @property
+  def cache_dir(self):
+    # TODO Maybe try to unify this with the .acpp cache path
+    # that the runtime uses e.g. for the JIT cache?
+    if sys.platform == "win32":
+      # %LOCALAPPDATA%\MyApp\Cache
+      base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
+    elif sys.platform == "darwin":
+      # ~/Library/Caches/MyApp
+      base = Path.home() / "Library" / "Caches"
+    else:
+      # $XDG_CACHE_HOME/MyApp, or ~/.cache/MyApp
+      base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+
+    path = base / "acpp"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
 
   @property
   def version(self):

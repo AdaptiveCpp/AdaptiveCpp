@@ -28,11 +28,8 @@ enum class vk_alloc_type {
 };
 
 struct vk_alloc_info {
-  vk_alloc_info() = delete;
-
   vk_alloc_type _type;
-
-  vk::DeviceAddress _base_ptr; // For USER allocations only
+  std::optional<vk::DeviceAddress> _base_ptr; // For USER allocations only
   size_t bytes;
   vk::raii::Buffer _buffer;
   vk::raii::DeviceMemory _dev_mem;

@@ -28,19 +28,23 @@ class vk_hardware_manager;
 class vk_hardware_context;
 struct vk_alloc_info;
 
+struct vk_staging_allocation {
+  vk_alloc_info *src;
+  vk_alloc_info *dst;
+};
+
 // Maps command signal value to any temporary memory allocations
 // that need freed asynchronously when it completes
-struct protected_map {
+struct vk_staging_allocation_map {
 public:
-  using ValueType = std::pair<vk_alloc_info *, vk_alloc_info *>;
-  auto insert(uint64_t key, ValueType &val);
+  auto insert(uint64_t key, vk_staging_allocation &val);
 
-  ValueType get(uint64_t wait_value);
+  vk_staging_allocation get(uint64_t wait_value);
 
   void erase(uint64_t wait_value);
 
 private:
-  std::unordered_map<uint64_t, ValueType> _alloc_map;
+  std::unordered_map<uint64_t, vk_staging_allocation> _alloc_map;
   mutable std::mutex _mutex;
 };
 
@@ -91,14 +95,13 @@ private:
 
   void profile_if_enabled(operation &op, const dag_node_ptr &node);
 
-  std::pair<vk_alloc_info *, vk_alloc_info *>
-  setup_staging_buffers(vk_alloc_info *src_alloc_info,
-                        vk_alloc_info *dst_alloc_info, unsigned size,
-                        vk::DeviceAddress src_ptr);
+  vk_staging_allocation setup_staging_buffers(vk_alloc_info *src_alloc_info,
+                                              vk_alloc_info *dst_alloc_info,
+                                              unsigned size,
+                                              vk::DeviceAddress src_ptr);
 
-  void cleanup_staging_buffers(
-      std::pair<vk_alloc_info *, vk_alloc_info *> temp_allocs, unsigned size,
-      vk::DeviceAddress dst_ptr);
+  void cleanup_staging_buffers(vk_staging_allocation temp_allocs, unsigned size,
+                               vk::DeviceAddress dst_ptr);
 
   // Members for tracking backend device
   vk_hardware_manager *_hw_manager;
@@ -114,7 +117,7 @@ private:
   std::map<uint64_t, vk::CommandBuffer> _executing_cmd_bufs; // ordered map
 
   // Members for owned member objects for staging buffers
-  protected_map _staging_allocs;
+  vk_staging_allocation_map _staging_allocs;
 
   // Members for profiling
   std::optional<vk_async_profiling> _profiling;

@@ -25,24 +25,26 @@
 namespace hipsycl {
 namespace rt {
 
-auto protected_map::insert(uint64_t key, ValueType &val) {
+auto vk_staging_allocation_map::insert(uint64_t key,
+                                       vk_staging_allocation &val) {
   std::lock_guard<std::mutex> lock{_mutex};
   return _alloc_map.insert({key, val});
 }
 
-protected_map::ValueType protected_map::get(uint64_t wait_value) {
+vk_staging_allocation vk_staging_allocation_map::get(uint64_t wait_value) {
   std::lock_guard<std::mutex> lock{_mutex};
   return _alloc_map[wait_value];
 }
 
-void protected_map::erase(uint64_t wait_value) {
+void vk_staging_allocation_map::erase(uint64_t wait_value) {
+  std::lock_guard<std::mutex> lock{_mutex};
   assert(_alloc_map.count(wait_value));
-  ValueType &val = _alloc_map[wait_value];
-  if (val.first) {
-    delete val.first;
+  vk_staging_allocation &val = _alloc_map[wait_value];
+  if (val.src) {
+    delete val.src;
   }
-  if (val.second) {
-    delete val.second;
+  if (val.dst) {
+    delete val.dst;
   }
   _alloc_map.erase(wait_value);
 }
@@ -148,11 +150,11 @@ void vk_queue::profile_if_enabled(operation &op, const dag_node_ptr &node) {
   }
 }
 
-std::pair<vk_alloc_info *, vk_alloc_info *>
+vk_staging_allocation
 vk_queue::setup_staging_buffers(vk_alloc_info *src_alloc_info,
                                 vk_alloc_info *dst_alloc_info, unsigned size,
                                 vk::DeviceAddress src_ptr) {
-  std::pair<vk_alloc_info *, vk_alloc_info *> temp_allocs{nullptr, nullptr};
+  vk_staging_allocation temp_allocs{nullptr, nullptr};
 
   if (src_alloc_info->_type == vk_alloc_type::STAGING) {
     // We need to async copy host data into the new src buffer.
@@ -203,14 +205,14 @@ vk_queue::setup_staging_buffers(vk_alloc_info *src_alloc_info,
 
   // Track temporary buffers created in map
   if (src_alloc_info->_type == vk_alloc_type::STAGING) {
-    temp_allocs.first = src_alloc_info;
+    temp_allocs.src = src_alloc_info;
   }
 
   if (dst_alloc_info->_type == vk_alloc_type::STAGING) {
-    temp_allocs.second = dst_alloc_info;
+    temp_allocs.dst = dst_alloc_info;
   }
 
-  if (temp_allocs.first || temp_allocs.second) {
+  if (temp_allocs.src || temp_allocs.dst) {
     const uint64_t signal_value = _timeline_value + 1;
     _staging_allocs.insert(signal_value, temp_allocs);
   }
@@ -218,14 +220,14 @@ vk_queue::setup_staging_buffers(vk_alloc_info *src_alloc_info,
   return temp_allocs;
 }
 
-void vk_queue::cleanup_staging_buffers(
-    std::pair<vk_alloc_info *, vk_alloc_info *> temp_allocs, unsigned size,
-    vk::DeviceAddress dst_ptr) {
+void vk_queue::cleanup_staging_buffers(vk_staging_allocation temp_allocs,
+                                       unsigned size,
+                                       vk::DeviceAddress dst_ptr) {
   // Cleanup to be wrapped in async call, this is effectively an extra command
   // that follows a memcpy if we had to create a temporary allocation to
   // do the memcopy. It is required to free the allocations and copy back
   // the data in a temporary destination buffer to user pointer.
-  if (temp_allocs.first || temp_allocs.second) {
+  if (temp_allocs.src || temp_allocs.dst) {
     const uint64_t wait_value = _timeline_value;
     const uint64_t signal_value = ++_timeline_value;
 
@@ -257,16 +259,13 @@ void vk_queue::cleanup_staging_buffers(
             print_error(__acpp_here(), error_info{err_msg});
           }
 
-          auto temp_alloc_pair = _staging_allocs.get(wait_value);
+          auto [_, temp_dst_alloc] = _staging_allocs.get(wait_value);
 
-          // pair is <source operand, dest operand>,
-          vk_allocator *allocator = _dev_ctx->get_allocator();
-          if (auto dst_alloc = temp_alloc_pair.second;
-              dst_alloc != nullptr &&
-              dst_alloc->_type == vk_alloc_type::STAGING) {
-            void *vptr = dst_alloc->_dev_mem.mapMemory(0, size);
+          if (temp_dst_alloc != nullptr &&
+              temp_dst_alloc->_type == vk_alloc_type::STAGING) {
+            void *vptr = temp_dst_alloc->_dev_mem.mapMemory(0, size);
             std::memcpy(reinterpret_cast<void *>(dst_ptr), vptr, size);
-            dst_alloc->_dev_mem.unmapMemory();
+            temp_dst_alloc->_dev_mem.unmapMemory();
           }
 
           _staging_allocs.erase(wait_value);
@@ -331,12 +330,14 @@ result vk_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr &node) {
   if (dimension == 1) {
     size_t x_src_offset = src_offset[0];
     if (x_src_offset == 0 && (src_alloc_info->_type == vk_alloc_type::USER)) {
-      x_src_offset = src_ptr - src_alloc_info->_base_ptr;
+      assert(src_alloc_info->_base_ptr.has_value());
+      x_src_offset = src_ptr - src_alloc_info->_base_ptr.value();
     }
 
     size_t x_dst_offset = dest_offset[0];
     if (x_dst_offset == 0 && (dst_alloc_info->_type == vk_alloc_type::USER)) {
-      x_dst_offset = dst_ptr - dst_alloc_info->_base_ptr;
+      assert(dst_alloc_info->_base_ptr.has_value());
+      x_dst_offset = dst_ptr - dst_alloc_info->_base_ptr.value();
     }
     copy_regions.emplace_back(x_src_offset, x_dst_offset, size);
   } else {
@@ -602,6 +603,7 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &node) {
         error_info{
             "vk_queue: could not find allocation for ptr parameter to memset"});
   }
+  assert(ptr_alloc->_base_ptr.has_value());
 
   profile_if_enabled(op, node);
 
@@ -610,7 +612,7 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &node) {
                        << std::endl;
     vk::CommandBuffer cmd_buf = begin_command_buffer();
 
-    auto offset = ptr - ptr_alloc->_base_ptr;
+    auto offset = ptr - ptr_alloc->_base_ptr.value();
     cmd_buf.fillBuffer(ptr_alloc->_buffer, offset, size,
                        static_cast<uint32_t>(pattern));
     end_command_buffer(cmd_buf);
@@ -663,7 +665,7 @@ result vk_queue::submit_memset(memset_operation &op, const dag_node_ptr &node) {
     }
 
     char *vptr = (char *)ptr_alloc->_dev_mem.mapMemory(0, size);
-    auto offset = ptr - ptr_alloc->_base_ptr;
+    auto offset = ptr - ptr_alloc->_base_ptr.value();
     std::memset(vptr + offset, pattern, size);
     ptr_alloc->_dev_mem.unmapMemory();
 

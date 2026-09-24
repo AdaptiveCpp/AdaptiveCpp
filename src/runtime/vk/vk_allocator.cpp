@@ -186,13 +186,16 @@ vk_alloc_info *vk_allocator::find_user_alloc(vk::DeviceAddress ptr) {
   // Try to find quickly from base used as key to map
   if (_allocs.count(ptr)) {
     vk_alloc_info &alloc_info = _allocs.find(ptr)->second;
+    assert(alloc_info._type == vk_alloc_type::USER);
     return &alloc_info;
   }
 
   // Try to find ptr anywhere in range of allocate addresses
   for (auto &alloc : _allocs) {
     vk_alloc_info &alloc_info = alloc.second;
-    vk::DeviceAddress base = alloc_info._base_ptr;
+    assert(alloc_info._type == vk_alloc_type::USER);
+    assert(alloc_info._base_ptr.has_value());
+    vk::DeviceAddress base = alloc_info._base_ptr.value();
     vk::DeviceAddress end = base + alloc_info.bytes;
     if (ptr > base && ptr < end) {
       return &alloc_info;
@@ -247,8 +250,8 @@ vk_alloc_info *vk_allocator::staging_allocate(size_t size_bytes) {
                      << std::endl;
 
   return new vk_alloc_info{
-      vk_alloc_type::STAGING, 0,        size_bytes, std::move(buffer),
-      std::move(buffer_mem),  mem_flags};
+      vk_alloc_type::STAGING, std::nullopt,          size_bytes,
+      std::move(buffer),      std::move(buffer_mem), mem_flags};
 }
 
 void *vk_allocator::raw_allocate(size_t, size_t size_bytes,
@@ -325,7 +328,9 @@ result vk_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   // Slower path if pointer is at an offset
   for (const auto &alloc : _allocs) {
     const vk_alloc_info &alloc_info = alloc.second;
-    vk::DeviceAddress base = alloc_info._base_ptr;
+    assert(alloc_info._type == vk_alloc_type::USER);
+    assert(alloc_info._base_ptr.has_value());
+    vk::DeviceAddress base = alloc_info._base_ptr.value();
     vk::DeviceAddress end = base + alloc_info.bytes;
     if (dev_ptr >= base && dev_ptr < end) {
       out.dev = _dev;

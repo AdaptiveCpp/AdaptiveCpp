@@ -469,6 +469,15 @@ sycl::event merge(sycl::queue& q,
                   const std::vector<sycl::event>& deps = {});
 
 template <class ForwardIt>
+sycl::event shift_left(sycl::queue &q, ForwardIt first, ForwardIt last,
+                    typename std::iterator_traits<ForwardIt>::difference_type n,
+                    const std::vector<sycl::event> &deps = {});
+
+template <class ForwardIt>
+sycl::event shift_right(sycl::queue &q, ForwardIt first, ForwardIt last,
+                    typename std::iterator_traits<ForwardIt>::difference_type n,
+                    const std::vector<sycl::event> &deps = {});
+
 sycl::event min_element(sycl::queue &q,
                 util::allocation_group &scratch_allocations,
                 ForwardIt first, ForwardIt last,
@@ -497,7 +506,6 @@ sycl::event max_element(sycl::queue &q,
                 const std::vector<sycl::event> &deps= {});
 
 }
-
 
 ```
 

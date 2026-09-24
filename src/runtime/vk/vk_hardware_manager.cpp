@@ -714,7 +714,8 @@ vk_hardware_manager::vk_hardware_manager()
     auto device_name = phys_dev.getProperties().deviceName;
     if (device_matches(visibility_mask, backend_id::vk, device_index,
                        device_index, 0, device_name, {})) {
-      _devices.emplace_back(phys_dev, device_index, backend_features);
+      _devices.emplace_back(phys_dev, static_cast<int>(_devices.size()),
+                            backend_features);
     }
     device_index++;
   }

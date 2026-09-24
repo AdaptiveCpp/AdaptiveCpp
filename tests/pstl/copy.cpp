@@ -67,4 +67,29 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(par_medium_size, T, types) {
 }
 
 
+template<class Policy>
+void test_copy_from_counting_iterator(Policy&& pol, std::size_t problem_size) {
+  std::vector<int> dest_device(problem_size);
+  std::vector<int> dest_host(problem_size);
+
+  auto ret = std::copy(pol, counting_iterator<int>(0),
+                       counting_iterator<int>(static_cast<int>(problem_size)),
+                       dest_device.begin());
+  std::copy(counting_iterator<int>(0),
+           counting_iterator<int>(static_cast<int>(problem_size)),
+           dest_host.begin());
+
+  BOOST_CHECK(ret == dest_device.begin() + problem_size);
+  BOOST_CHECK(dest_device == dest_host);
+}
+
+BOOST_AUTO_TEST_CASE(par_unseq_counting_iterator_medium_size) {
+  test_copy_from_counting_iterator(std::execution::par_unseq, 1000);
+}
+
+BOOST_AUTO_TEST_CASE(par_counting_iterator_medium_size) {
+  test_copy_from_counting_iterator(std::execution::par, 1000);
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()

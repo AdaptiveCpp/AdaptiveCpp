@@ -204,6 +204,7 @@ result launch_kernel_from_library(
   }
 
   if (has_indirect_access && !allocator->get_residency_set()) {
+    // TODO: switch to MTL4 API for O(1) buffer bindings
     allocator->for_each_buffer([&](MTL::Buffer* buf) {
       encoder->useResource(buf, MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
     });
@@ -235,20 +236,7 @@ result launch_kernel_from_library(
 
   encoder->endEncoding();
 
-  command_buffer->addCompletedHandler([=](MTL::CommandBuffer* command_buffer) {
-    if (NS::Error* err = command_buffer->error()) {
-      std::string msg = "metal: Command buffer failed: ";
-      if (err->localizedDescription()) {
-        msg += err->localizedDescription()->utf8String();
-      }
-      register_error(make_error(__acpp_here(), error_info{msg}));
-    }
-
-    HIPSYCL_DEBUG_INFO << "metal: Kernel '" << kernel_name
-                      << "' executed successfully" << std::endl;
-  });
-
-  command_buffer->commit();
+  // Caller commits (via finish_batched_op()/flush()) so ops can share a buffer.
 
   return make_success();
 }
@@ -282,17 +270,7 @@ result memset_device(
   }
   blit_encoder->endEncoding();
 
-  command_buffer->addCompletedHandler([](MTL::CommandBuffer* command_buffer) {
-    if (NS::Error* err = command_buffer->error()) {
-      std::string msg = "metal_queue: Memset failed: ";
-      if (err->localizedDescription()) {
-        msg += err->localizedDescription()->utf8String();
-      }
-      register_error(make_error(__acpp_here(), error_info{msg}));
-    }
-  });
-
-  command_buffer->commit();
+  // Caller commits so this can join a shared open command buffer.
 
   return make_success();
 }
@@ -317,9 +295,9 @@ metal_inorder_queue::metal_inorder_queue(MTL::Device* device, metal_allocator* a
   _reflection_map = glue::jit::construct_default_reflection_map(hw_ctx);
 }
 
-MTL::CommandBuffer* metal_inorder_queue::new_command_buffer() {
+MTL::CommandBuffer*
+metal_inorder_queue::prepare_command_buffer(MTL::CommandBuffer* cmd_buf) {
   _allocator->commit_residency_set();
-  auto* cmd_buf = _command_queue->commandBuffer();
   if (auto prev = std::exchange(_pending_gpu_event, 0)) {
     cmd_buf->encodeWait(_shared_event, prev);
   }
@@ -333,9 +311,76 @@ MTL::CommandBuffer* metal_inorder_queue::new_command_buffer() {
       }
     });
     _profiling_setup.reset();
+    // Flush after this op so its GPU timestamps aren't shared with others.
+    _flush_after_current_op = true;
+  }
+  return cmd_buf;
+}
+
+MTL::CommandBuffer* metal_inorder_queue::get_open_command_buffer() {
+  if (_open_buffer) {
+    return _open_buffer;
   }
 
+  NS::SharedPtr<NS::AutoreleasePool> pool =
+    NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
+  auto* cmd_buf = prepare_command_buffer(_command_queue->commandBuffer());
+
+  _open_buffer = cmd_buf;
+  _open_buffer->retain();
+  _open_op_count = 0;
+
   return cmd_buf;
+}
+
+MTL::CommandBuffer* metal_inorder_queue::new_dedicated_command_buffer() {
+  // Relies on the caller's autorelease pool, like the rest of Metal-cpp.
+  auto* cmd_buf = prepare_command_buffer(_command_queue->commandBuffer());
+  // This buffer is committed directly, so no batched flush is needed
+  _flush_after_current_op = false;
+  return cmd_buf;
+}
+
+result metal_inorder_queue::flush() {
+  if (!_open_buffer) {
+    return make_success();
+  }
+
+  NS::SharedPtr<NS::AutoreleasePool> pool =
+    NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
+  MTL::CommandBuffer* cb = _open_buffer;
+  auto val = ++_event_counter;
+  cb->encodeSignalEvent(_shared_event, val);
+
+  cb->addCompletedHandler([](MTL::CommandBuffer* completed) {
+    if (NS::Error* err = completed->error()) {
+      std::string msg = "metal: Command buffer failed: ";
+      if (err->localizedDescription()) {
+        msg += err->localizedDescription()->utf8String();
+      }
+      register_error(make_error(__acpp_here(), error_info{msg}));
+    }
+  });
+
+  // Allocations may have changed while this command buffer was open. Make
+  // those residency-set updates visible before submitting the batched work.
+  _allocator->commit_residency_set();
+  cb->commit();
+  _last_submitted_event = val;
+
+  _open_buffer->release();
+  _open_buffer = nullptr;
+  _open_op_count = 0;
+
+  return make_success();
+}
+
+void metal_inorder_queue::finish_batched_op() {
+  ++_open_op_count;
+  if (_flush_after_current_op || _open_op_count >= max_ops_per_command_buffer) {
+    _flush_after_current_op = false;
+    flush();
+  }
 }
 
 void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& node) {
@@ -360,20 +405,44 @@ void metal_inorder_queue::profiling_setup(operation& op, const dag_node_ptr& nod
     op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(setup.finish_time);
   }
   if (setup.start_time || setup.finish_time) {
+    // Flush so the profiled operation starts on its own command buffer.
+    flush();
     _profiling_setup = std::move(setup);
   }
 }
 
+void metal_inorder_queue::host_profiling_setup(operation& op, const dag_node_ptr& node) {
+  if (!node) {
+    return;
+  }
+
+  uint64_t now = metal_now_ns();
+  auto& hints = node->get_execution_hints();
+  if (hints.has_hint<rt::hints::request_instrumentation_submission_timestamp>()) {
+    op.get_instrumentations().add_instrumentation<instrumentations::submission_timestamp>(
+      std::make_shared<metal_submission_timestamp>(now));
+  }
+  if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+    op.get_instrumentations().add_instrumentation<instrumentations::execution_start_timestamp>(
+      std::make_shared<metal_execution_start_timestamp>(now));
+  }
+  if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+    op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(
+      std::make_shared<metal_execution_finish_timestamp>(now));
+  }
+}
+
 std::shared_ptr<dag_node_event> metal_inorder_queue::insert_event() {
+  std::lock_guard<std::mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Inserting event into queue..." << std::endl;
 
-  auto val = ++_event_counter;
-  NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-  auto* cmd_buf = new_command_buffer();
-  cmd_buf->encodeSignalEvent(_shared_event, val);
-  cmd_buf->commit();
+  NS::SharedPtr<MTL::CommandBuffer> command_buffer =
+    NS::RetainPtr(get_open_command_buffer());
+  // Commit now: the event must be able to complete for waiters.
+  flush();
 
-  return std::make_shared<metal_node_event>(metal_event_handle{_shared_event, val});
+  return std::make_shared<metal_node_event>(
+    metal_event_handle{_shared_event, _last_submitted_event}, command_buffer.get());
 }
 
 std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_event() {
@@ -381,6 +450,7 @@ std::shared_ptr<dag_node_event> metal_inorder_queue::create_queue_completion_eve
 }
 
 result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_ptr& node) {
+  std::lock_guard<std::mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting memcpy..." << std::endl;
 
   assert(op.source().get_base_ptr());
@@ -435,8 +505,12 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
     if (prev_cpu_event == 0) {
       do_h2h_copy();
     } else {
-      // wait for the prior CPU async work (e.g. device->host copy) to complete
-      // before reading from src_ptr
+      // Wait for the prior CPU async work (e.g. device->host copy) to
+      // complete before reading from src_ptr. Flush first: the event chain
+      // that serializes against it only covers buffers created after this.
+      if (result r = flush(); !r.is_success()) {
+        return r;
+      }
       auto val_done = ++_event_counter;
       _shared_event->notifyListener(_event_listener, prev_cpu_event,
         [=](MTL::SharedEvent* evt, uint64_t) {
@@ -445,14 +519,26 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
         });
       _pending_gpu_event = val_done;
       _pending_cpu_event = val_done;
+      _last_submitted_event = val_done;
     }
     return make_success();
   }
 
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
+  // Host-involving copies need staging buffers and CPU-side completion
+  // handling, so they get their own dedicated, immediately-committed buffer.
+  const bool needs_staging = !src_is_device || !dst_is_device;
+  if (needs_staging) {
+    if (result r = flush(); !r.is_success()) {
+      return r;
+    }
+  }
+
   profiling_setup(op, node);
-  MTL::CommandBuffer* command_buffer = new_command_buffer();
+  MTL::CommandBuffer* command_buffer = needs_staging
+    ? new_dedicated_command_buffer()
+    : get_open_command_buffer();
   if (!command_buffer) {
     return make_error(__acpp_here(),
       error_info{"metal_queue: Failed to create command buffer for memcpy"});
@@ -613,19 +699,31 @@ result metal_inorder_queue::submit_memcpy(memcpy_operation& op, const dag_node_p
 
     _pending_gpu_event = val_done;
     _pending_cpu_event = val_done;
+    _last_submitted_event = val_done;
   } else {
     if (deferred_h2d_done_event != 0) {
       command_buffer->encodeSignalEvent(_shared_event, deferred_h2d_done_event);
       _pending_cpu_event = deferred_h2d_done_event;
     }
-    command_buffer->addCompletedHandler([](MTL::CommandBuffer* cb) {
-      if (NS::Error* err = cb->error()) {
-        std::string msg = "metal_queue: Memcpy failed: ";
-        if (err->localizedDescription()) msg += err->localizedDescription()->utf8String();
-        register_error(make_error(__acpp_here(), error_info{msg}));
+    if (needs_staging) {
+      auto val = deferred_h2d_done_event;
+      if (val == 0) {
+        val = ++_event_counter;
+        command_buffer->encodeSignalEvent(_shared_event, val);
       }
-    });
-    command_buffer->commit();
+      command_buffer->addCompletedHandler([](MTL::CommandBuffer* cb) {
+        if (NS::Error* err = cb->error()) {
+          std::string msg = "metal_queue: Memcpy failed: ";
+          if (err->localizedDescription()) msg += err->localizedDescription()->utf8String();
+          register_error(make_error(__acpp_here(), error_info{msg}));
+        }
+      });
+      command_buffer->commit();
+      _last_submitted_event = val;
+    } else {
+      // Device-to-device copy joined the open command buffer.
+      finish_batched_op();
+    }
   }
 
   return make_success();
@@ -639,30 +737,39 @@ result metal_inorder_queue::submit_kernel(kernel_operation& op, const dag_node_p
 
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
   auto *node_ptr = node.get();
+  if (op.get_launcher().is_custom_operation()) {
+    {
+      std::lock_guard<std::mutex> lock{_mutex};
+
+      // Custom operations may submit directly to the native queue. Commit pending
+      // work first and use host timestamps for work that we do not encode, so
+      // submission, start and end all report the submission time.
+      // TODO: report GPU time by bracketing invoke() with command buffers and
+      // using GPUEndTime of the one before and GPUStartTime of the one after.
+      host_profiling_setup(op, node);
+      if (result r = flush(); !r.is_success()) {
+        return r;
+      }
+    }
+    return op.get_launcher().invoke(backend_id::metal, this, cap, node_ptr);
+  }
+
+  std::lock_guard<std::mutex> lock{_mutex};
+  struct profiling_cleanup {
+    std::optional<metal_profiling_setup>& setup;
+    ~profiling_cleanup() { setup.reset(); }
+  } cleanup{_profiling_setup};
   profiling_setup(op, node);
   return op.get_launcher().invoke(backend_id::metal, this, cap, node_ptr);
 }
 
 result metal_inorder_queue::submit_prefetch(prefetch_operation& op, const dag_node_ptr& node) {
-  if (node) {
-    uint64_t now = metal_now_ns();
-    auto& hints = node->get_execution_hints();
-    if (hints.has_hint<rt::hints::request_instrumentation_submission_timestamp>())
-      op.get_instrumentations().add_instrumentation<instrumentations::submission_timestamp>(
-        std::make_shared<metal_submission_timestamp>(now));
-    if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
-      op.get_instrumentations().add_instrumentation<instrumentations::execution_start_timestamp>(
-        std::make_shared<metal_execution_start_timestamp>(now));
-    }
-    if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
-      op.get_instrumentations().add_instrumentation<instrumentations::execution_finish_timestamp>(
-        std::make_shared<metal_execution_finish_timestamp>(now));
-    }
-  }
+  host_profiling_setup(op, node);
   return make_success();
 }
 
 result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_ptr& node) {
+  std::lock_guard<std::mutex> lock{_mutex};
   HIPSYCL_DEBUG_INFO << "metal_queue: Submitting memset..." << std::endl;
 
   void* ptr = op.get_pointer();
@@ -672,14 +779,19 @@ result metal_inorder_queue::submit_memset(memset_operation& op, const dag_node_p
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
   profiling_setup(op, node);
-  MTL::CommandBuffer* command_buffer = new_command_buffer();
+  MTL::CommandBuffer* command_buffer = get_open_command_buffer();
   if (!command_buffer) {
     return make_error(__acpp_here(),
       error_info{"metal_queue: Failed to create command buffer for memset"});
   }
 
-  return memset_device(command_buffer, _allocator, ptr, pattern, num_bytes,
-                       _fence_chain_active ? _fence : nullptr);
+  result r = memset_device(command_buffer, _allocator, ptr, pattern, num_bytes,
+                           _fence_chain_active ? _fence : nullptr);
+  if (!r.is_success()) {
+    return r;
+  }
+  finish_batched_op();
+  return make_success();
 }
 
 result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
@@ -689,11 +801,15 @@ result metal_inorder_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   auto evt = node->get_event(); assert(evt);
   assert(dynamic_is<inorder_queue_event<metal_event_handle>>(evt.get()));
   inorder_queue_event<metal_event_handle>* metal_evt = cast<inorder_queue_event<metal_event_handle>>(evt.get());
+  // Lock after resolving the event to avoid cross-queue deadlocks
   auto handle = metal_evt->request_backend_event();
+  std::lock_guard<std::mutex> lock{_mutex};
   NS::SharedPtr<NS::AutoreleasePool> pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-  auto* cmd_buf = new_command_buffer();
+  // An event wait applies to commands encoded after it, including subsequent
+  // operations appended to this open command buffer.
+  auto* cmd_buf = get_open_command_buffer();
   cmd_buf->encodeWait(handle.event, handle.value);
-  cmd_buf->commit();
+  finish_batched_op();
 
   return make_success();
 }
@@ -710,8 +826,14 @@ result metal_inorder_queue::submit_external_wait_for(const dag_node_ptr& node) {
 
 result metal_inorder_queue::wait() {
   HIPSYCL_DEBUG_INFO << "metal_queue: Waiting for queue completion..." << std::endl;
-  insert_event()->wait();
-  _fence_chain_active = false;
+  auto evt = insert_event();
+  evt->wait();
+  std::lock_guard<std::mutex> lock{_mutex};
+  auto handle = static_cast<metal_node_event*>(evt.get())->request_backend_event();
+  // Another thread may have submitted work while the mutex was released.
+  if (!_open_buffer && _last_submitted_event == handle.value) {
+    _fence_chain_active = false;
+  }
   return make_success();
 }
 
@@ -719,12 +841,20 @@ device_id metal_inorder_queue::get_device() const {
   return _device_id;
 }
 void* metal_inorder_queue::get_native_type() const {
+  std::lock_guard<std::mutex> lock{_mutex};
+  // External code may commit its own buffers on this queue, so flush ours
+  // first to keep commit order correct.
+  const_cast<metal_inorder_queue*>(this)->flush();
   return static_cast<void*>(_command_queue);
 }
 
 result metal_inorder_queue::query_status(inorder_queue_status& status) {
-  auto current = _event_counter.load();
-  status = inorder_queue_status{_shared_event->signaledValue() >= current};
+  std::lock_guard<std::mutex> lock{_mutex};
+  if (result r = flush(); !r.is_success()) {
+    return r;
+  }
+  status = inorder_queue_status{
+    _shared_event->signaledValue() >= _last_submitted_event};
   return make_success();
 }
 
@@ -734,11 +864,21 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
   unsigned local_mem_size, void **args, std::size_t *arg_sizes,
   std::size_t num_args, const kernel_configuration &initial_config)
 {
+  std::lock_guard<std::mutex> lock{_mutex};
+  return submit_sscp_kernel_unlocked(
+    hcf_object, kernel_name, kernel_info, num_groups,
+    group_size, local_mem_size, args, arg_sizes, num_args, initial_config);
+}
+
+result metal_inorder_queue::submit_sscp_kernel_unlocked(hcf_object_id hcf_object,
+  std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+  const rt::range<3> &num_groups, const rt::range<3> &group_size,
+  unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+  std::size_t num_args, const kernel_configuration &initial_config)
+{
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
   HIPSYCL_DEBUG_INFO << "[Metal] submit_sscp_kernel_from_code_object() called for kernel: "
                      << kernel_name << std::endl;
-
-  common::spin_lock_guard lock{_sscp_submission_spin_lock};
 
   // Validate kernel info
   if (!kernel_info) {
@@ -876,8 +1016,8 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
       error_info{"metal_queue: Metal library is null"});
   }
 
-  return launch_kernel_from_library(
-    library, _device, new_command_buffer(), _allocator, kernel_name,
+  result launch_result = launch_kernel_from_library(
+    library, _device, get_open_command_buffer(), _allocator, kernel_name,
     num_groups, group_size, local_mem_size,
     _arg_mapper.get_mapped_args(),
     const_cast<std::size_t*>(_arg_mapper.get_mapped_arg_sizes()),
@@ -887,6 +1027,12 @@ result metal_inorder_queue::submit_sscp_kernel_from_code_object(hcf_object_id hc
     has_indirect_access,
     _fence_chain_active ? _fence : nullptr,
     wait_fence);
+
+  if (launch_result.is_success()) {
+    finish_batched_op();
+  }
+
+  return launch_result;
 
 #else
   return make_error(__acpp_here(),
@@ -918,7 +1064,7 @@ result metal_sscp_code_object_invoker::submit_kernel(
   const rt::hcf_kernel_info* kernel_info,
   const kernel_configuration& config)
 {
-  return _queue->submit_sscp_kernel_from_code_object(
+  return _queue->submit_sscp_kernel_unlocked(
     hcf_object, kernel_name, kernel_info,
     num_groups, group_size, local_mem_size,
     args, arg_sizes, num_args,

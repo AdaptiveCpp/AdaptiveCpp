@@ -16,13 +16,13 @@
 #include "../kernel_cache.hpp"
 #include "../queue_completion_event.hpp"
 
-#include "hipSYCL/common/spin_lock.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 
 #include "metal_allocator.hpp"
 #include "metal_event.hpp"
 
 #include <mach/mach_time.h>
+#include <mutex>
 
 namespace MTL {
 
@@ -156,8 +156,39 @@ public:
   virtual ~metal_inorder_queue();
 
 private:
-  MTL::CommandBuffer* new_command_buffer();
+  friend class metal_sscp_code_object_invoker;
+
+  // Encodes the wait on prior queue work and attaches pending profiling
+  // handlers; shared by get_open_command_buffer() and
+  // new_dedicated_command_buffer().
+  MTL::CommandBuffer* prepare_command_buffer(MTL::CommandBuffer* cmd_buf);
+
+  // Returns the open (uncommitted) command buffer, creating one if needed.
+  // Committed lazily by flush().
+  MTL::CommandBuffer* get_open_command_buffer();
+
+  // Bounds the number of ops per command buffer and flushes when profiling
+  // needs the buffer to end with exactly the profiled operation.
+  void finish_batched_op();
+
+  // A command buffer that is committed immediately instead of joining
+  // _open_buffer, for ops needing immediate CPU-side completion handling
+  // (e.g. host-staged copies).
+  MTL::CommandBuffer* new_dedicated_command_buffer();
+
+  // Commits the open command buffer, if any, with a completion signal.
+  // Subsequent buffers do not wait on this signal unless explicitly requested.
+  result flush();
+
   void profiling_setup(operation& op, const dag_node_ptr& node);
+  void host_profiling_setup(operation& op, const dag_node_ptr& node);
+
+  // The caller must hold _mutex.
+  result submit_sscp_kernel_unlocked(hcf_object_id hcf_object,
+    std::string_view kernel_name, const rt::hcf_kernel_info *kernel_info,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const kernel_configuration &config);
 
   MTL::Device* _device = nullptr;
   MTL::CommandQueue* _command_queue = nullptr;
@@ -167,8 +198,8 @@ private:
   // threads concurrently with submit_*() / insert_event().
   std::atomic<uint64_t> _event_counter{0};
 
-  // Only touched by submit_*() and insert_event(), which are serialized
-  // by external mutex, so no atomics needed.
+  // Protected by _mutex.
+  uint64_t _last_submitted_event{0};
   uint64_t _pending_cpu_event{0};
   uint64_t _pending_gpu_event{0};
 
@@ -176,6 +207,16 @@ private:
   // It is only used if a kernel with memory indirection was submitted
   MTL::Fence* _fence = nullptr;
   bool _fence_chain_active = false;
+
+  // Currently open command buffer that ops append encoders to; committed
+  // lazily by flush(). Retained manually rather than via NS::SharedPtr
+  // because this header must stay free of Foundation headers (see
+  // metal_hardware_manager.cpp, which defines the metal-cpp private impls).
+  MTL::CommandBuffer* _open_buffer = nullptr;
+  int _open_op_count{0};
+  bool _flush_after_current_op{false};
+
+  static constexpr int max_ops_per_command_buffer = 32;
 
   metal_allocator* _allocator = nullptr;
   device_id _device_id;
@@ -190,7 +231,7 @@ private:
 
   kernel_configuration _config;
 
-  common::spin_lock _sscp_submission_spin_lock;
+  mutable std::mutex _mutex;
 
   std::optional<metal_profiling_setup> _profiling_setup;
 };

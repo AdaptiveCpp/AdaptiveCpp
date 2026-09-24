@@ -178,17 +178,18 @@ own bugs that need addressed (which may turn out to be not device specific once 
 
 Devices known to be well supported by the backend include:
 
-| Driver Name  | Driver Version    | Device Type          | Status
-| ------------ | ----------------- | -------------------- | ----------------------------------------------------------------------------------------------- |
-| llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                                                                  |
-| RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                                                                  |
-| RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                                                                  |
-| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                           |
-| Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Issues with sub-groups                                                                          |
-| RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Issues with group functions tests & device stops being detected when running full sycl suite[1] |
-| MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled                                  |
-| Swiftshader  | Google 5.0.0      | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                                      |
-| V3D          | Mesa 25.0.7       | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                                      |
+| Driver Name  | Driver Version       | Device Type          | Status
+| ------------ | -------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| llvmpipe     | Mesa 25.0.7          | CPU                  | Well supported                                                                                              |
+| RADV Pheonix | Mesa 25.0.7          | AMD Integrated GPU   | Well supported                                                                                              |
+| RADV MI100   | Mesa 23.2.1          | AMD Discrete GPU     | Well Supported                                                                                              |
+| RADV MI210   | Mesa 23.2.1          | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                                       |
+| Arc MTL      | Mesa 25.0.7          | Intel Integrated GPU | Issues with sub-groups                                                                                      |
+| RTX 500      | NVIDIA 580.95.5.0    | NVIDIA Discrete GPU  | Issues with group functions tests & device stops being detected when running full sycl suite[1]             |
+| MoltenVK     | Khronos 1.4.1        | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2120) tests disabled |
+| Swiftshader  | Google 5.0.0         | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
+| V3D          | Mesa 25.0.7          | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
+| Kosmic Krisp | Vulkan-sdk-1.4.341.1 | Apple Integrated GPU | Similar level of support to MoltenVK but more prone to hanging on an error than failing cleanly             |
 
 Other devices are untested and support status is unknown.
 

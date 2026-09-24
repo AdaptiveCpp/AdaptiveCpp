@@ -321,6 +321,10 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
         expandAbs(II);
         II->eraseFromParent();
         Changed = true;
+      } else if (ID == llvm::Intrinsic::bswap) {
+        expandBswap(II);
+        II->eraseFromParent();
+        Changed = true;
       } else if (ID == llvm::Intrinsic::scmp || ID == llvm::Intrinsic::ucmp) {
         expandCmpIntrinsic(II);
         II->eraseFromParent();
@@ -366,6 +370,28 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
         Ty, -(1LL << (Ty->getBitWidth() - 1)));
     llvm::Value* IsMin = B.CreateICmpEQ(X, IntMin, "ismin");
     llvm::Value* Res = B.CreateSelect(IsMin, IntMin, Abs, "abs_safe");
+
+    II->replaceAllUsesWith(Res);
+  }
+
+  void expandBswap(llvm::IntrinsicInst* II) {
+    llvm::IRBuilder<> B(II);
+
+    llvm::Value* X = II->getArgOperand(0);
+    llvm::Type* Ty = X->getType();
+    unsigned NumBytes = Ty->getScalarSizeInBits() / 8;
+    llvm::Value* ByteMask = llvm::ConstantInt::get(Ty, 0xff);
+
+    llvm::Value* Res = nullptr;
+    for (unsigned I = 0; I < NumBytes; ++I) {
+      llvm::Value* Shifted = I == 0 ? X : B.CreateLShr(X, llvm::ConstantInt::get(Ty, I * 8));
+      llvm::Value* Byte = B.CreateAnd(Shifted, ByteMask, "byte");
+      unsigned Pos = (NumBytes - 1 - I) * 8;
+      llvm::Value* Part = Pos == 0
+        ? Byte
+        : B.CreateShl(Byte, llvm::ConstantInt::get(Ty, Pos), "part");
+      Res = Res ? B.CreateOr(Res, Part, "bswap") : Part;
+    }
 
     II->replaceAllUsesWith(Res);
   }

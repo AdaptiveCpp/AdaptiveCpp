@@ -17,6 +17,7 @@
 #include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
 #include "hipSYCL/compiler/sscp/DynamicFunctionSupport.hpp"
 #include "hipSYCL/compiler/sscp/StdAtomicRemapperPass.hpp"
+#include "hipSYCL/compiler/sscp/ExceptionToAssertionPass.hpp"
 #include "hipSYCL/compiler/sscp/DeviceAssertPass.hpp"
 #include "hipSYCL/compiler/sscp/HcfRegistrationPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
@@ -319,6 +320,9 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   // Remap atomics
   StdAtomicRemapperPass SAMP;
   SAMP.run(*DeviceModule, DeviceMAM);
+  // Exception to assertion pass (Stage 1)
+  ExceptionToAssertionPass ETAP;
+  ETAP.run(*DeviceModule, DeviceMAM);
   // Handle assert() in device code
   DeviceAssertPass DAP;
   DAP.run(*DeviceModule, DeviceMAM);

@@ -63,15 +63,15 @@
   TRACER_FUNCTION_VA_ARGS(type, arg2, arg3)
 
 #define INIT_FUNCTIONS(type, arg_type)                                         \
-  void ACPP_COMMON_EXPORT init_##type(arg_type);
+  void init_##type(arg_type);
 
 #ifndef _WIN32
-#define MYLIB_API
+#define ACPP_COMMON_IMPORT
 #else
 #ifdef MYLIB_EXPORTS
-#define MYLIB_API __declspec(dllexport)
+#define ACPP_COMMON_IMPORT
 #else
-#define MYLIB_API __declspec(dllimport)
+#define ACPP_COMMON_IMPORT __declspec(dllimport)
 #endif
 #endif
 

@@ -84,7 +84,6 @@ target_include_directories(acpp-rt
 set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "acpp-rt")
 if(WIN32)
   set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
-  target_link_options(acpp-rt PRIVATE -Wl,--export-all-symbols)
   target_compile_definitions(acpp-rt PRIVATE MYLIB_EXPORTS)
   if(ACPP_LLVM_COMPONENT AND MSVC)
     target_compile_options(acpp-rt PRIVATE /EHs)

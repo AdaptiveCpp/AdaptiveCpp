@@ -133,5 +133,5 @@ void tracer_funcs::clear_all() {
   ALL_TYPES(CLEAR);
 }
 
-ACPP_COMMON_EXPORT tracer_funcs tracer_state;
+tracer_funcs tracer_state;
 } // namespace tracer_utils

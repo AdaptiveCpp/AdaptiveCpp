@@ -57,10 +57,10 @@
 #define TRACER_FUNCTION_VA_ARGS(type, ...)                                     \
   tracer_utils::tracer_state.call_##type(std::forward_as_tuple(__VA_ARGS__));
 
-#define TRACER_FUNCTION1ARG(type) TRACER_FUNCTION_VA_ARGS(type)
-#define TRACER_FUNCTION2ARG(type, arg2) TRACER_FUNCTION_VA_ARGS(type, arg2)
-#define TRACER_FUNCTION3ARG(type, arg2, arg3)                                  \
-  TRACER_FUNCTION_VA_ARGS(type, arg2, arg3)
+#define ACPP_TRACER_FUNCTION1ARG(type) ACPP_TRACER_FUNCTION_VA_ARGS(type)
+#define ACPP_TRACER_FUNCTION2ARG(type, arg2) ACPP_TRACER_FUNCTION_VA_ARGS(type, arg2)
+#define ACPP_TRACER_FUNCTION3ARG(type, arg2, arg3)                                  \
+  ACPP_TRACER_FUNCTION_VA_ARGS(type, arg2, arg3)
 
 #define INIT_FUNCTIONS(type, arg_type)                                         \
   void init_##type(arg_type);

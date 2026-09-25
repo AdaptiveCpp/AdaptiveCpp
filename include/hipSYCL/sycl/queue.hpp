@@ -133,7 +133,7 @@ class queue : public detail::property_carrying_object
         : ctx{c}, handler{h}, allocation_cache{
                                   algorithms::util::allocation_type::device} {}
 
-    ~queue_impl(){TRACER_FUNCTION_VA_ARGS(queue_impl_destructor, this->node_group_id)}
+    ~queue_impl(){ACPP_TRACER_FUNCTION_VA_ARGS(queue_impl_destructor, this->node_group_id)}
 
     rt::runtime_keep_alive_token requires_runtime;
     detail::queue_submission_hooks_ptr hooks;
@@ -286,7 +286,7 @@ public:
 
     this->init();
 
-    TRACER_FUNCTION_VA_ARGS(queue_impl_constructor, this->AdaptiveCpp_hash_code(),
+    ACPP_TRACER_FUNCTION_VA_ARGS(queue_impl_constructor, this->AdaptiveCpp_hash_code(),
                             this->is_in_order())
 
   }
@@ -351,7 +351,7 @@ public:
 
   void wait() {
 
-    TRACER_FUNCTION1ARG(wait_queue_start);
+    ACPP_TRACER_FUNCTION1ARG(wait_queue_start);
 
     if(_impl->is_in_order) {
       if(_impl->needs_in_order_emulation) {
@@ -388,7 +388,7 @@ public:
       _impl->requires_runtime.get()->dag().wait(_impl->node_group_id);
     }
 
-    TRACER_FUNCTION2ARG(wait_queue_end, _impl->node_group_id)
+    ACPP_TRACER_FUNCTION2ARG(wait_queue_end, _impl->node_group_id)
   }
 
   void wait_and_throw() {
@@ -408,7 +408,7 @@ public:
   template <typename T>
   event submit(const property_list& prop_list, T cgf) {
 
-    TRACER_FUNCTION1ARG(submit_start)
+    ACPP_TRACER_FUNCTION1ARG(submit_start)
     std::lock_guard<std::mutex> lock{_impl->lock};
 
     rt::execution_hints hints = _impl->default_hints;
@@ -470,7 +470,7 @@ public:
 
     event return_event{node, _impl->handler};
 
-    TRACER_FUNCTION_VA_ARGS(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id);
+    ACPP_TRACER_FUNCTION_VA_ARGS(submit_end, return_event.AdaptiveCpp_hash_code(), _impl->node_group_id);
 
     return return_event;
   }
@@ -488,7 +488,7 @@ public:
                const property_list &prop_list = {}) {
 
 
-    TRACER_FUNCTION1ARG(submit_secondary_start);
+    ACPP_TRACER_FUNCTION1ARG(submit_secondary_start);
     try {
 
       size_t num_errors_begin =
@@ -517,7 +517,7 @@ public:
             });
       }
 
-        TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+        ACPP_TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
                                 _impl->node_group_id);
 
       if(!submission_failed) {
@@ -525,7 +525,7 @@ public:
       } else {
         
         event evt = secondaryQueue.submit(prop_list, cgf);
-        TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+        ACPP_TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
                                 _impl->node_group_id);
 
         return evt;
@@ -534,7 +534,7 @@ public:
 
       event evt = secondaryQueue.submit(prop_list, cgf);
 
-      TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
+      ACPP_TRACER_FUNCTION_VA_ARGS(submit_secondary_end, evt.AdaptiveCpp_hash_code(),
                               _impl->node_group_id);
 
       return evt;

@@ -34,15 +34,15 @@ jobs:
         cd SYCL_tracing-examples/build
         for lib in tracer_lib mem_leak print_dag memory_tally empty_lib checker_lib; do
           echo "=== running first_trial with lib${lib}.so ==="
-          SYCL_TOOL_LIBRARIES=./lib${lib}.so ./first_trial
+          ACPP_TOOL_LIBRARIES=./lib${lib}.so ./first_trial
         done
     - name: verify mem_leak output against the reference example
       run: |
         cd SYCL_tracing-examples/build
-        SYCL_TOOL_LIBRARIES=./libmem_leak.so ./first_trial > mem_leak_actual.txt
+        ACPP_TOOL_LIBRARIES=./libmem_leak.so ./first_trial > mem_leak_actual.txt
         diff <(grep -v "Running on device" ../examples/mem_leak_output.txt) <(grep -v "Running on device" mem_leak_actual.txt)
     - name: verify checker_lib output against the reference example
       run: |
         cd SYCL_tracing-examples/build
-        SYCL_TOOL_LIBRARIES=./libchecker_lib.so ./first_trial > checker_lib_actual.txt
+        ACPP_TOOL_LIBRARIES=./libchecker_lib.so ./first_trial > checker_lib_actual.txt
         diff <(grep -v "Running on device" ../examples/checker_lib_output.txt) <(grep -v "Running on device" checker_lib_actual.txt)

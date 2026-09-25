@@ -28,6 +28,26 @@ class vk_hardware_manager;
 class vk_hardware_context;
 struct vk_alloc_info;
 
+struct vk_staging_allocation {
+  vk_alloc_info *src;
+  vk_alloc_info *dst;
+};
+
+// Maps command signal value to any temporary memory allocations
+// that need freed asynchronously when it completes
+struct vk_staging_allocation_map {
+public:
+  auto insert(uint64_t key, vk_staging_allocation &val);
+
+  vk_staging_allocation get(uint64_t wait_value);
+
+  void erase(uint64_t wait_value);
+
+private:
+  std::unordered_map<uint64_t, vk_staging_allocation> _alloc_map;
+  mutable std::mutex _mutex;
+};
+
 class vk_queue : public inorder_queue {
 public:
   vk_queue(vk_hardware_manager *hw_manager, std::size_t device_index);
@@ -70,10 +90,18 @@ private:
 
   void submit_command_buffer(vk::CommandBuffer &cmd_buf);
 
-  std::pair<vk_alloc_info *, bool>
-  find_or_create_allocation(vk::DeviceAddress ptr, unsigned size);
+  vk_alloc_info *find_or_create_allocation(vk::DeviceAddress ptr,
+                                           unsigned size);
 
   void profile_if_enabled(operation &op, const dag_node_ptr &node);
+
+  vk_staging_allocation setup_staging_buffers(vk_alloc_info *src_alloc_info,
+                                              vk_alloc_info *dst_alloc_info,
+                                              unsigned size,
+                                              vk::DeviceAddress src_ptr);
+
+  void cleanup_staging_buffers(vk_staging_allocation temp_allocs, unsigned size,
+                               vk::DeviceAddress dst_ptr);
 
   // Members for tracking backend device
   vk_hardware_manager *_hw_manager;
@@ -88,27 +116,8 @@ private:
   std::vector<vk::CommandBuffer> _available_cmd_bufs;
   std::map<uint64_t, vk::CommandBuffer> _executing_cmd_bufs; // ordered map
 
-  // Maps command signal value to any temporary memory allocations
-  // that need freed asynchronously when it completes
-  struct protected_map {
-  public:
-    using ValueType = std::pair<vk_alloc_info *, vk_alloc_info *>;
-    auto insert(uint64_t key, ValueType &val) {
-      std::lock_guard<std::mutex> lock{_mutex};
-      return _alloc_map.insert({key, val});
-    }
-
-    ValueType get(uint64_t wait_value) {
-      std::lock_guard<std::mutex> lock{_mutex};
-      return _alloc_map[wait_value];
-    }
-
-    void erase(uint64_t wait_value) { _alloc_map.erase(wait_value); }
-
-  private:
-    std::unordered_map<uint64_t, ValueType> _alloc_map;
-    mutable std::mutex _mutex;
-  } _temp_allocs;
+  // Members for owned member objects for staging buffers
+  vk_staging_allocation_map _staging_allocs;
 
   // Members for profiling
   std::optional<vk_async_profiling> _profiling;

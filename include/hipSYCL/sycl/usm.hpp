@@ -75,16 +75,16 @@ inline void *malloc_device(size_t num_bytes, const device &dev,
                            const context &ctx,
                            const property_list &propList = {}) {
   
-  TRACER_FUNCTION1ARG(malloc_device_start);
+  ACPP_TRACER_FUNCTION1ARG(malloc_device_start);
   if (num_bytes == 0){
-    TRACER_FUNCTION2ARG(malloc_device_end, nullptr);
+    ACPP_TRACER_FUNCTION2ARG(malloc_device_end, nullptr);
     return nullptr;
   }
   rt::allocation_hints hints = create_hints_from_proplist(propList);
   auto rpointer = rt::allocate_device(detail::select_device_allocator(dev), 0, num_bytes, hints);
 
 
-  TRACER_FUNCTION2ARG(malloc_device_end, rpointer);
+  ACPP_TRACER_FUNCTION2ARG(malloc_device_end, rpointer);
 
    return rpointer;
 }
@@ -145,16 +145,16 @@ T *aligned_alloc_device(std::size_t alignment, std::size_t count,
 inline void *malloc_host(std::size_t num_bytes, const context &ctx,
                          const property_list &propList = {}) {
 
-  TRACER_FUNCTION1ARG(malloc_host_start)
+  ACPP_TRACER_FUNCTION1ARG(malloc_host_start)
   if (num_bytes == 0){
-    TRACER_FUNCTION2ARG(malloc_host_end, nullptr);
+    ACPP_TRACER_FUNCTION2ARG(malloc_host_end, nullptr);
     return nullptr;
   }
   rt::allocation_hints hints = create_hints_from_proplist(propList);
   auto return_pointer=rt::allocate_host(detail::select_usm_allocator(ctx), 0, num_bytes,
                            hints);
 
-  TRACER_FUNCTION2ARG(malloc_host_end, return_pointer); 
+  ACPP_TRACER_FUNCTION2ARG(malloc_host_end, return_pointer); 
   
   return return_pointer;
   
@@ -179,16 +179,16 @@ inline void *malloc_shared(std::size_t num_bytes, const device &dev,
                            const context &ctx,
                            const property_list &propList = {}) {
 
-  TRACER_FUNCTION1ARG(malloc_shared_start)
+  ACPP_TRACER_FUNCTION1ARG(malloc_shared_start)
   if (num_bytes == 0){
-    TRACER_FUNCTION2ARG(malloc_shared_end, nullptr);
+    ACPP_TRACER_FUNCTION2ARG(malloc_shared_end, nullptr);
     return nullptr;
   }
   rt::allocation_hints hints = create_hints_from_proplist(propList);
   auto return_pointer=rt::allocate_shared(detail::select_usm_allocator(ctx, dev), num_bytes,
                              hints);
 
-  TRACER_FUNCTION2ARG(malloc_shared_end, return_pointer);
+  ACPP_TRACER_FUNCTION2ARG(malloc_shared_end, return_pointer);
 
   return return_pointer;
 }
@@ -352,12 +352,12 @@ T *aligned_alloc(std::size_t alignment, std::size_t count, const sycl::queue &q,
 }
 
 inline void free(void *ptr, const sycl::context &ctx) {
-  TRACER_FUNCTION1ARG(free_start);
+  ACPP_TRACER_FUNCTION1ARG(free_start);
  
   if (ptr != nullptr)
     rt::deallocate(detail::select_usm_allocator(ctx), ptr);
  
-  TRACER_FUNCTION2ARG(free_end, ptr);
+  ACPP_TRACER_FUNCTION2ARG(free_end, ptr);
 
   return;
 }

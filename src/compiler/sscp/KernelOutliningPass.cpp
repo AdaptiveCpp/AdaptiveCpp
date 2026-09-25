@@ -412,9 +412,16 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
         }
       }
       if(Annotation.compare(SSCPKernelMarker) == 0) {
-        HIPSYCL_DEBUG_INFO << "Found SSCP kernel: " << F->getName() << "\n";
-        this->KernelNames.push_back(F->getName().str());
-        Kernels.insert(F->getName().str());
+        // Only functions that are actually defined in this translation unit
+        // become kernel entry points. A decorated declaration without a body
+        // (e.g. a free function kernel declared in a TU that only launches it,
+        // but is defined elsewhere) must not be emitted as a kernel here -
+        // doing so would register a body-less kernel in this TU's HCF object.
+        if(F->size() > 0) {
+          HIPSYCL_DEBUG_INFO << "Found SSCP kernel: " << F->getName() << "\n";
+          this->KernelNames.push_back(F->getName().str());
+          Kernels.insert(F->getName().str());
+        }
       }
 
       if(Annotation.compare(SSCPOutliningMarker) == 0) {

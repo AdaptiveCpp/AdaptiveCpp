@@ -5,8 +5,8 @@
 #include <tuple>
 #include <vector>
 
-#ifndef TRACER_UTILS_INTERNAL_H
-#define TRACER_UTILS_INTERNAL_H
+#ifndef ACPP_TRACER_UTILS_INTERNAL_H
+#define ACPP_TRACER_UTILS_INTERNAL_H
 
 namespace tracer_utils {
 

@@ -1,7 +1,7 @@
 #include <vector>
 
 #ifndef TRACER_MACROS_H
-#define TRACER_MACROS_H
+#define ACPP_TRACER_MACROS_H
 
 #define ALL_TYPES_NOSTATE_BEGIN(MACRO)                                         \
   MACRO(queue_impl_constructor, tracer_function_queue_impl_t);                 \

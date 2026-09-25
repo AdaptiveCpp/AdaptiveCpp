@@ -2,7 +2,7 @@
 ## Usage: 
 
 ### Registering Callbacks (User side)
-The user can start tracers by setting the environment variable `SYCL_TOOL_LIBRARY` to the paths to tooling libraries separated by a colon `:`. 
+The user can start tracers by setting the environment variable `ACPP_TOOL_LIBRARY` to the paths to tooling libraries separated by a colon `:`. 
 
 ### Implementation of Callbacks (Tooling side)
 A tracer can be implemented as a dynamically loaded library. (shared object `.so` on Linux, dynamic link library `.dll` on Windows and `.dylib` on macos). The implementer then has the option to define one or more of the supported callbacks. Furthermore, a function with the signature `void init_register()` must be defined. This function is called when the library is loaded and can be used to initialize the tracer. The loading utility assumes unmangled C function names, so the implementer must ensure that the `init_register`-function name is not mangled (e.g. by using `extern "C"` in a C++ declaration). Within the `init_register`-function the implementer can register the desired callbacks by calling the function

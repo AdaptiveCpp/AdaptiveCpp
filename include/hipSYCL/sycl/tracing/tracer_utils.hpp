@@ -3,8 +3,8 @@
 #include "hipSYCL/common/export.hpp"
 #include "tracer_macros.h"
 
-#ifndef TRACER_UTILS_H
-#define TRACER_UTILS_H
+#ifndef ACPP_TRACER_UTILS_H
+#define ACPP_TRACER_UTILS_H
 
 template <typename T> struct TD;
 

@@ -68,7 +68,7 @@ public:
 
   void wait() {
 
-    TRACER_FUNCTION1ARG(wait_event_start);
+    ACPP_TRACER_FUNCTION1ARG(wait_event_start);
 
     if (this->_node) {
       if (!this->_node->is_submitted())
@@ -78,7 +78,7 @@ public:
       this->_node->wait();
     }
 
-    TRACER_FUNCTION2ARG(wait_event_end, this->AdaptiveCpp_hash_code());
+    ACPP_TRACER_FUNCTION2ARG(wait_event_end, this->AdaptiveCpp_hash_code());
   }
 
   static void wait(const std::vector<event> &eventList)

@@ -54,7 +54,7 @@
 
 #define MEMBER_VECTOR(name, type) std::vector<type> name;
 
-#define TRACER_FUNCTION_VA_ARGS(type, ...)                                     \
+#define ACPP_TRACER_FUNCTION_VA_ARGS(type, ...)                                     \
   tracer_utils::tracer_state.call_##type(std::forward_as_tuple(__VA_ARGS__));
 
 #define ACPP_TRACER_FUNCTION1ARG(type) ACPP_TRACER_FUNCTION_VA_ARGS(type)

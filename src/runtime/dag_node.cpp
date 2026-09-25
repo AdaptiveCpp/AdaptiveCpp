@@ -37,11 +37,11 @@ dag_node::dag_node(const execution_hints &hints,
   for(const auto& req : requirements)
     _requirements.push_back(req);
 
-  TRACER_FUNCTION_VA_ARGS(dag_node_constructor, std::hash<void *>{}(this));
+  ACPP_TRACER_FUNCTION_VA_ARGS(dag_node_constructor, std::hash<void *>{}(this));
 }
 
 dag_node::~dag_node() {
- TRACER_FUNCTION_VA_ARGS(dag_node_destructor, std::hash<void *>{}(this));
+ ACPP_TRACER_FUNCTION_VA_ARGS(dag_node_destructor, std::hash<void *>{}(this));
 
 }
 

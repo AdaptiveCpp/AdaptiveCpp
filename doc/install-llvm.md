@@ -18,12 +18,12 @@ Install
 * libomp (including development headers)
 * lld
 
-For example, the required steps to install clang 21 on an Ubuntu system are:
+For example, the required steps to install clang 22 on an Ubuntu system are:
 ```
 wget https://apt.llvm.org/llvm.sh #Convenience script that sets up the repositories
 chmod +x llvm.sh
-./llvm.sh 21 #Set up repositories for clang 21
-apt install -y libclang-21-dev clang-tools-21 libomp-21-dev llvm-21-dev lld-21
+./llvm.sh 22 # Set up repositories for clang 22
+apt install -y libclang-22-dev clang-tools-22 libomp-22-dev llvm-22-dev lld-22
 ```
 
 #### Only if you wish to compile LLVM from source (not recommended)
@@ -34,10 +34,10 @@ It is generally not necessary to compile LLVM by yourself. However, if you wish 
 - Generate `libLLVM.so`: `-DLLVM_BUILD_LLVM_DYLIB=ON` (only required if the SSCP compilation flow is enabled when building AdaptiveCpp, which is true by default for supported versions of LLVM)
 - Enable the correct backends for your hardware: `nvptx` for NVIDIA GPUs and `amdgpu` for AMD GPUs.
 
-An example build of LLVM 21 from source might look like this:
+An example build of LLVM 22 from source might look like this:
 
 ```
-git clone https://github.com/llvm/llvm-project -b release/21.x
+git clone https://github.com/llvm/llvm-project -b release/22.x
 cd llvm-project
 mkdir -p build
 cd build
@@ -48,8 +48,8 @@ cmake -DCMAKE_C_COMPILER=`which gcc` \
       -DCMAKE_CXX_COMPILER=`which g++` \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
-      -DLLVM_ENABLE_PROJECTS="clang;lld;openmp" \
-      -DLLVM_ENABLE_RUNTIMES=compiler-rt \
+      -DLLVM_ENABLE_PROJECTS="clang;lld" \
+      -DLLVM_ENABLE_RUNTIMES="compiler-rt;openmp" \
       -DOPENMP_ENABLE_LIBOMPTARGET=OFF \
       -DLLVM_ENABLE_ASSERTIONS=OFF \
       -DLLVM_TARGETS_TO_BUILD="AMDGPU;NVPTX;X86" \
@@ -68,6 +68,8 @@ cmake -DCMAKE_C_COMPILER=`which gcc` \
 make install
 ```
 
+For older versions of LLVM, move `openmp` from `LLVM_ENABLE_RUNTIMES` to`LLVM_ENABLE_PROJECTS`.
+
 ## Pointing AdaptiveCpp to the right LLVM
 
 When invoking cmake, the AdaptiveCpp build infrastructure will attempt to find LLVM automatically (see below for how to invoke cmake).
@@ -79,9 +81,9 @@ If AdaptiveCpp does not automatically configure the build for the desired clang/
 Verify from the cmake that the selected `clang++` and include headers match the LLVM that you have requested. Example output:
 ```
 ...
--- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-20/cmake
--- Selecting clang: /usr/lib/llvm-20/bin/clang++
--- Using clang include directory: /usr/lib/llvm-20/lib/clang/20/include/..
+-- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-22/cmake
+-- Selecting clang: /usr/lib/llvm-22/bin/clang++
+-- Using clang include directory: /usr/lib/llvm-22/lib/clang/22/include/..
 ...
 ```
 

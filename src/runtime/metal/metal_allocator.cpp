@@ -18,6 +18,7 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 
+#include <cstring>
 #include <iostream>
 
 namespace hipsycl {
@@ -426,6 +427,36 @@ void metal_allocator::calibrate() {
     ^(void*, NS::UInteger) { });
   _delta = buffer->gpuAddress() - reinterpret_cast<uintptr_t>(buffer->contents());
   buffer->release();
+}
+
+void* metal_allocator::get_atomic64_lock_table() {
+  {
+    std::lock_guard<std::mutex> lock{_mutex};
+    if (_atomic64_lock_table) {
+      return _atomic64_lock_table;
+    }
+  }
+
+  void* table = raw_allocate_usm(atomic64_lock_table_size * sizeof(uint32_t));
+  if (!table) {
+    return nullptr;
+  }
+  std::memset(table, 0, atomic64_lock_table_size * sizeof(uint32_t));
+
+  void* existing = nullptr;
+  {
+    std::lock_guard<std::mutex> lock{_mutex};
+    if (!_atomic64_lock_table) {
+      _atomic64_lock_table = table;
+    } else {
+      existing = _atomic64_lock_table;
+    }
+  }
+  if (existing) {
+    raw_free(table);
+    return existing;
+  }
+  return table;
 }
 
 std::tuple<MTL::Buffer*, size_t, metal_allocator::usm_alloc_type> metal_allocator::get_usm_block(const void* ptr) const {

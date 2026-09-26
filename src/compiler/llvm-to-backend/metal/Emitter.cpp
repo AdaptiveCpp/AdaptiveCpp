@@ -440,61 +440,6 @@ void MetalEmitter::emitIntrinsicHelpers() {
   }
 )__";
 
-  os << R"__(
-struct i48u {
-  packed_ushort3 w;
-  i48u() : w(packed_ushort3(0,0,0)) {}
-  explicit i48u(packed_ushort3 ww) : w(ww) {}
-  explicit i48u(ushort x) : w(packed_ushort3(x, 0, 0)) {}
-  explicit i48u(uint x)
-  : w(packed_ushort3((ushort)(x & 0xffffu),
-                     (ushort)((x >> 16) & 0xffffu),
-                     0))
-  {}
-  explicit i48u(ulong x)
-  : w(packed_ushort3((ushort)(x & 0xfffful),
-                     (ushort)((x >> 16) & 0xfffful),
-                     (ushort)((x >> 32) & 0xfffful)))
-  {}
-
-  friend inline i48u operator|(i48u a, i48u b) {
-    return i48u(packed_ushort3((ushort)(a.w[0] | b.w[0]),
-                               (ushort)(a.w[1] | b.w[1]),
-                               (ushort)(a.w[2] | b.w[2])));
-  }
-
-  friend inline i48u operator<<(i48u a, uint bits) {
-    uint s = bits >> 4; // /16
-    if ((bits & 0xFu) != 0) {
-      ulong x = a.to_ulong();
-      x = (x << bits) & 0x0000FFFFFFFFFFFFul;
-      return i48u(x);
-    }
-    if (s == 0) return a;
-    if (s == 1) return i48u(packed_ushort3(0, a.w[0], a.w[1]));
-    if (s == 2) return i48u(packed_ushort3(0, 0, a.w[0]));
-    return i48u(); // >=48 => 0
-  }
-
-  friend inline i48u operator>>(i48u a, uint bits) {
-    uint s = bits >> 4; // /16
-    if ((bits & 0xFu) != 0) {
-      ulong x = a.to_ulong();
-      x = (x >> bits);
-      return i48u(x);
-    }
-    if (s == 0) return a;
-    if (s == 1) return i48u(packed_ushort3(a.w[1], a.w[2], 0));
-    if (s == 2) return i48u(packed_ushort3(a.w[2], 0, 0));
-    return i48u(); // >=48 => 0
-  }
-
-  inline ulong to_ulong() const {
-    return (ulong)w[0] | ((ulong)w[1] << 16) | ((ulong)w[2] << 32);
-  }
-};
-)__";
-
   os << "\n";
 }
 
@@ -925,14 +870,10 @@ bool MetalEmitter::emitCastInstruction(const CastInst* CI, const std::string& na
     CastEntry table[] = {
       // trunc i128 -> i32
       {"uint4", "uint",  "{src}.x"},
-      // truct i128 -> i48u
-      {"uint4", "i48u", "i48u(packed_ushort3({src}.x, {src}.y, {src}.z))"},
       // trunc i128 -> i64
       {"uint4", "ulong", "as_type<ulong>({src}.xy)"},
       // zext i32 -> i128
       {"uint",  "uint4", "uint4({src}, 0u, 0u, 0u)"},
-      // zext i48u -> i128
-      {"i48u",  "uint4", "uint4({src}.w[0], {src}.w[1], {src}.w[2], 0u)"},
       // zext i64 -> i128
       {"ulong", "uint4", "uint4(as_type<uint2>({src}), 0u, 0u)"},
     };
@@ -1507,8 +1448,6 @@ std::string MetalEmitter::mapType(const Type* T) {
       return typeCache[T] = "ushort";
     } else if (bitWidth == 32) {
       return typeCache[T] = "uint";
-    } else if (bitWidth == 48) {
-      return typeCache[T] = "i48u";
     } else if (bitWidth == 64) {
       return typeCache[T] = "ulong";
     } else if (bitWidth == 128) {

@@ -1,6 +1,5 @@
 // #pragma once
 
-#include "hipSYCL/common/export.hpp"
 #include "tracer_macros.h"
 
 #ifndef ACPP_TRACER_UTILS_H

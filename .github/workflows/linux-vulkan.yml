@@ -2,7 +2,7 @@ name: Linux Vulkan
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, 'feature/**' ]
   pull_request:
 
 permissions: read-all

@@ -2,7 +2,7 @@ name: AdaptiveCpp-LLVM
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, 'feature/**' ]
   pull_request:
   
 jobs:

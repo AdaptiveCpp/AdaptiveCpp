@@ -12,10 +12,11 @@
 #define HIPSYCL_SSCP_INTEGER_LEGALIZATION_PASS_HPP
 
 #include <llvm/IR/PassManager.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/ADT/DenseMap.h>
 
-namespace llvm {
-  class Value;
-} // namespace llvm
+#include <optional>
+#include <string>
 
 namespace hipsycl {
 namespace compiler {
@@ -24,12 +25,17 @@ class IntegerLegalizationPass
   : public llvm::PassInfoMixin<IntegerLegalizationPass> {
 public:
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM);
+  std::optional<std::string> getErrorMessage() const { return ErrorMessage; }
 
 private:
   llvm::Value* getPromoted(llvm::Value* V);
+  llvm::Value* promoteResult(llvm::IRBuilder<> &B, llvm::Value* V);
+  bool rebuildLegal(llvm::IRBuilder<> &B, llvm::Instruction* I);
+  llvm::PreservedAnalyses fail(llvm::Instruction* I);
 
   llvm::DenseMap<llvm::Value *, llvm::Value *> Promoted;
   llvm::Module* M = nullptr;
+  std::optional<std::string> ErrorMessage = std::nullopt;
 };
 
 } // namespace compiler

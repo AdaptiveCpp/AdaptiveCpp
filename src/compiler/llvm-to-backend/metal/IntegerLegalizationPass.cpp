@@ -82,6 +82,21 @@ namespace {
     }
     return B.CreateAShr(B.CreateShl(V, W - From), W - From);
   }
+
+  // -> {offset, bytes}
+  llvm::SmallVector<std::pair<unsigned, unsigned>, 4> splitChunks(unsigned S, llvm::Align A) {
+    llvm::SmallVector<std::pair<unsigned, unsigned>, 4> Chunks;
+    for (unsigned Off = 0; Off < S;) {
+      unsigned MaxA = llvm::commonAlignment(A, Off).value();
+      unsigned C = 8;
+      while (C > S - Off || C > MaxA) {
+        C /= 2;
+      }
+      Chunks.push_back({Off, C});
+      Off += C;
+    }
+    return Chunks;
+  }
 } // namespace
 
 llvm::PreservedAnalyses IntegerLegalizationPass::fail(llvm::Instruction* I) {
@@ -205,6 +220,21 @@ llvm::Value* IntegerLegalizationPass::promoteResult(llvm::IRBuilder<> &B, llvm::
       return nullptr;
     }
     return B.CreateAnd(B.CreateFreeze(Op), llvm::APInt::getLowBitsSet(W, N));
+  } else if (auto* LI = llvm::dyn_cast<llvm::LoadInst>(V)) {
+    if (!LI->isSimple()) {
+      return nullptr;
+    }
+    const auto& DL = M->getDataLayout();
+    unsigned S = DL.getTypeStoreSize(LI->getType());
+    llvm::Value* Ptr = LI->getPointerOperand();
+    llvm::Value* Acc = llvm::ConstantInt::get(ResultTy, 0);
+    for (auto [Off, C] : splitChunks(S, LI->getAlign())) {
+      auto* PieceTy = B.getIntNTy(C * 8);
+      auto* P = B.CreateConstInBoundsGEP1_64(B.getInt8Ty(), Ptr, Off);
+      auto* Piece = B.CreateAlignedLoad(PieceTy, P, llvm::commonAlignment(LI->getAlign(), Off));
+      Acc = B.CreateOr(Acc, B.CreateShl(B.CreateZExt(Piece, ResultTy), Off * 8));
+    }
+    return B.CreateAnd(Acc, llvm::APInt::getLowBitsSet(W, N));
   }
 
   return nullptr;
@@ -245,6 +275,23 @@ bool IntegerLegalizationPass::rebuildLegal(llvm::IRBuilder<> &B, llvm::Instructi
       I->replaceAllUsesWith(B.CreateICmp(pred, LHS, RHS));
       return true;
     }
+  } else if (auto* SI = llvm::dyn_cast<llvm::StoreInst>(I)) {
+    if (!SI->isSimple()) {
+      return false;
+    }
+    llvm::Value* Val = getPromoted(SI->getValueOperand());
+    if (!Val) {
+      return false;
+    }
+    const auto& DL = M->getDataLayout();
+    unsigned S = DL.getTypeStoreSize(SI->getValueOperand()->getType());
+    llvm::Value* Ptr = SI->getPointerOperand();
+    for (auto [Off, C] : splitChunks(S, SI->getAlign())) {
+      auto* Piece = B.CreateTrunc(B.CreateLShr(Val, Off * 8), B.getIntNTy(C * 8));
+      auto* P = B.CreateConstInBoundsGEP1_64(B.getInt8Ty(), Ptr, Off);
+      B.CreateAlignedStore(Piece, P, llvm::commonAlignment(SI->getAlign(), Off));
+    }
+    return true;
   }
   return false;
 }

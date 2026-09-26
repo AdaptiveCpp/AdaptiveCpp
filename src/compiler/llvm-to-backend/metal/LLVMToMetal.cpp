@@ -648,18 +648,22 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     MPM.addPass(std::move(ASIPass));
-    MPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
-    MPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
-    auto Result = MPM.run(FlavoredModule, MAM);
-    MAM.invalidate(FlavoredModule, Result);
+    MPM.run(FlavoredModule, MAM);
 
+
+    // Run after PromotePass to get SSA values and before pointer translation so new loads and stores are translated
     IntegerLegalizationPass ILP;
-    Result = ILP.run(FlavoredModule, MAM);
+    auto Result = ILP.run(FlavoredModule, MAM);
     if (ILP.getErrorMessage().has_value()) {
       errorMessage = ILP.getErrorMessage().value();
       return false;
     }
     MAM.invalidate(FlavoredModule, Result);
+
+    llvm::ModulePassManager PtrMPM;
+    PtrMPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
+    PtrMPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
+    PtrMPM.run(FlavoredModule, MAM);
 
     return true;
   });

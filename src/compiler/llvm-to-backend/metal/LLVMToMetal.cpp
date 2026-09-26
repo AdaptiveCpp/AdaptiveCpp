@@ -11,6 +11,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/metal/LLVMToMetal.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/metal/PointerTranslationAnnotationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/metal/PointerTranslationPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/metal/IntegerLegalizationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
@@ -610,6 +611,7 @@ bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) {
   AddressSpaceMap ASMap = getAddressSpaceMap();
 
+  std::string errorMessage = "LLVMToMetal: Failed to prepare module for Metal translation";
   auto ok = withPassBuilder([&](auto& PB, auto& LAM, auto& FAM, auto& CGAM, auto& MAM) {
     // Second ReplaceIntrinsics + link pass: the base class O3 pipeline (InstCombine etc.) may
     // have re-introduced LLVM intrinsics (llvm.minnum, llvm.maxnum, llvm.fmuladd) from the
@@ -642,17 +644,32 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     // so a loop gets more than one exit again. HLExtractorPass needs exactly one
     FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().setSimplifyCondBranch(false)));
     AddressSpaceInferencePass ASIPass{ASMap};
+
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     MPM.addPass(std::move(ASIPass));
-    MPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
-    MPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
     MPM.run(FlavoredModule, MAM);
+
+
+    // Run after PromotePass to get SSA values and before pointer translation so new loads and stores are translated
+    IntegerLegalizationPass ILP;
+    auto Result = ILP.run(FlavoredModule, MAM);
+    if (ILP.getErrorMessage().has_value()) {
+      errorMessage = ILP.getErrorMessage().value();
+      return false;
+    }
+    MAM.invalidate(FlavoredModule, Result);
+
+    llvm::ModulePassManager PtrMPM;
+    PtrMPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
+    PtrMPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
+    PtrMPM.run(FlavoredModule, MAM);
+
     return true;
   });
 
   if (!ok) {
-    registerError("LLVMToMetal: Failed to prepare module for Metal translation");
+    registerError(errorMessage);
     return false;
   }
 

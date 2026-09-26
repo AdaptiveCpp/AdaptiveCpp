@@ -71,7 +71,26 @@ namespace {
     }
     return false;
   }
+
+  llvm::Value * sextInReg(llvm::IRBuilder<> &B, llvm::Value *V, unsigned From) {
+    if (!V) {
+      return nullptr;
+    }
+    unsigned W = V->getType()->getIntegerBitWidth();
+    if (From == W) {
+      return V;
+    }
+    return B.CreateAShr(B.CreateShl(V, W - From), W - From);
+  }
 } // namespace
+
+llvm::PreservedAnalyses IntegerLegalizationPass::fail(llvm::Instruction* I) {
+  llvm::SmallString<256> Str;
+  llvm::raw_svector_ostream rso(Str);
+  I->print(rso);
+  ErrorMessage = "IntegerLegalizationPass: unsupported instruction: " + Str.str().str();
+  return llvm::PreservedAnalyses::all();
+}
 
 llvm::Value* IntegerLegalizationPass::getPromoted(llvm::Value *V) {
   auto it = Promoted.find(V);
@@ -93,6 +112,7 @@ llvm::Value* IntegerLegalizationPass::getPromoted(llvm::Value *V) {
 }
 
 llvm::Value* IntegerLegalizationPass::promoteResult(llvm::IRBuilder<> &B, llvm::Value* V) {
+  // isIllegalInt = true for this instruction
   unsigned N = V->getType()->getIntegerBitWidth(); // old width
   unsigned W = promoteWidth(N); // new width
   auto* ResultTy = llvm::IntegerType::get(M->getContext(), W);
@@ -104,10 +124,6 @@ llvm::Value* IntegerLegalizationPass::promoteResult(llvm::IRBuilder<> &B, llvm::
       return nullptr;
     }
     llvm::APInt Mask = llvm::APInt::getLowBitsSet(W, N);
-
-    auto sextInReg = [&](llvm::Value *V) {
-      return B.CreateAShr(B.CreateShl(V, W - N), W - N);
-    };
 
     llvm::Value *New = nullptr;
     switch (BI->getOpcode()) {
@@ -129,11 +145,11 @@ llvm::Value* IntegerLegalizationPass::promoteResult(llvm::IRBuilder<> &B, llvm::
 
       case llvm::Instruction::SDiv:
       case llvm::Instruction::SRem:
-        New = B.CreateAnd(B.CreateBinOp(BI->getOpcode(), sextInReg(LHS), sextInReg(RHS)), Mask);
+        New = B.CreateAnd(B.CreateBinOp(BI->getOpcode(), sextInReg(B, LHS, N), sextInReg(B, RHS, N)), Mask);
         break;
 
       case llvm::Instruction::AShr:
-        New = B.CreateAnd(B.CreateAShr(sextInReg(LHS), RHS), Mask);
+        New = B.CreateAnd(B.CreateAShr(sextInReg(B, LHS, N), RHS), Mask);
         break;
       default:
         // error
@@ -155,20 +171,54 @@ llvm::Value* IntegerLegalizationPass::promoteResult(llvm::IRBuilder<> &B, llvm::
     }
 
     return B.CreateAnd(Op, llvm::APInt::getLowBitsSet(W, N));
+  } else if (auto* ZExt = llvm::dyn_cast<llvm::ZExtInst>(V)) {
+    auto* Op = ZExt->getOperand(0);
+    Op = isIllegalInt(Op->getType()) ? getPromoted(Op) : Op;
+    if (!Op) {
+      return nullptr;
+    }
+    if (Op->getType()->getIntegerBitWidth() < W) {
+      return B.CreateZExt(Op, ResultTy);
+    }
+    return Op;
+  } else if (auto* SExt = llvm::dyn_cast<llvm::SExtInst>(V)) {
+    auto* Op = SExt->getOperand(0);
+    Op = isIllegalInt(Op->getType()) ? sextInReg(B, getPromoted(Op), SExt->getOperand(0)->getType()->getIntegerBitWidth()) : Op;
+    if (!Op) {
+      return nullptr;
+    }
+    if (Op->getType()->getIntegerBitWidth() < W) {
+      Op = B.CreateSExt(Op, ResultTy);
+    }
+    return B.CreateAnd(Op, llvm::APInt::getLowBitsSet(W, N));
   }
 
   return nullptr;
 }
 
-llvm::PreservedAnalyses IntegerLegalizationPass::fail(llvm::Instruction* I) {
-  llvm::SmallString<256> Str;
-  llvm::raw_svector_ostream rso(Str);
-  I->print(rso);
-  ErrorMessage = "Unsupported instruction: " + Str.str().str();
-  return llvm::PreservedAnalyses::all();
-}
-
 bool IntegerLegalizationPass::rebuildLegal(llvm::IRBuilder<> &B, llvm::Instruction* I) {
+  // isIllegalInt = false for this instruction, but at least one operand is illegal
+  if (auto* ZExt = llvm::dyn_cast<llvm::ZExtInst>(I)) {
+    auto* Op = getPromoted(ZExt->getOperand(0));
+    if (!Op) {
+      return false;
+    }
+    if (Op->getType()->getIntegerBitWidth() < ZExt->getType()->getIntegerBitWidth()) {
+      Op = B.CreateZExt(Op, ZExt->getType());
+    }
+    I->replaceAllUsesWith(Op);
+    return true;
+  } else if (auto* SExt = llvm::dyn_cast<llvm::SExtInst>(I)) {
+    auto* Op = sextInReg(B, getPromoted(SExt->getOperand(0)), SExt->getOperand(0)->getType()->getIntegerBitWidth());
+    if (!Op) {
+      return false;
+    }
+    if (Op->getType()->getIntegerBitWidth() < SExt->getType()->getIntegerBitWidth()) {
+      Op = B.CreateSExt(Op, SExt->getType());
+    }
+    I->replaceAllUsesWith(Op);
+    return true;
+  }
   return false;
 }
 

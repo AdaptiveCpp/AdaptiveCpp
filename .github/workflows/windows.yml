@@ -72,7 +72,7 @@ jobs:
 
          cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE/acpp_install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_87_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64
          ninja install
-
+         
     - name: Build CPU tests
       shell: powershell
       run: |

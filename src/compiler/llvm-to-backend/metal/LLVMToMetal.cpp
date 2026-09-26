@@ -645,19 +645,22 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().setSimplifyCondBranch(false)));
     AddressSpaceInferencePass ASIPass{ASMap};
 
-    IntegerLegalizationPass ILP;
-    ILP.run(FlavoredModule, MAM);
-    if (ILP.getErrorMessage().has_value()) {
-      errorMessage = ILP.getErrorMessage().value();
-      return false;
-    }
-
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     MPM.addPass(std::move(ASIPass));
     MPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
     MPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
-    MPM.run(FlavoredModule, MAM);
+    auto Result = MPM.run(FlavoredModule, MAM);
+    MAM.invalidate(FlavoredModule, Result);
+
+    IntegerLegalizationPass ILP;
+    Result = ILP.run(FlavoredModule, MAM);
+    if (ILP.getErrorMessage().has_value()) {
+      errorMessage = ILP.getErrorMessage().value();
+      return false;
+    }
+    MAM.invalidate(FlavoredModule, Result);
+
     return true;
   });
 

@@ -191,6 +191,20 @@ llvm::Value* IntegerLegalizationPass::promoteResult(llvm::IRBuilder<> &B, llvm::
       Op = B.CreateSExt(Op, ResultTy);
     }
     return B.CreateAnd(Op, llvm::APInt::getLowBitsSet(W, N));
+  } else if (auto* Select = llvm::dyn_cast<llvm::SelectInst>(V)) {
+    auto* Cond = Select->getCondition();
+    auto* TrueVal = getPromoted(Select->getTrueValue());
+    auto* FalseVal = getPromoted(Select->getFalseValue());
+    if (!TrueVal || !FalseVal) {
+      return nullptr;
+    }
+    return B.CreateSelect(Cond, TrueVal, FalseVal);
+  } else if (auto* Freeze = llvm::dyn_cast<llvm::FreezeInst>(V)) {
+    auto* Op = getPromoted(Freeze->getOperand(0));
+    if (!Op) {
+      return nullptr;
+    }
+    return B.CreateAnd(B.CreateFreeze(Op), llvm::APInt::getLowBitsSet(W, N));
   }
 
   return nullptr;
@@ -218,11 +232,25 @@ bool IntegerLegalizationPass::rebuildLegal(llvm::IRBuilder<> &B, llvm::Instructi
     }
     I->replaceAllUsesWith(Op);
     return true;
+  } else if (auto* Cmp = llvm::dyn_cast<llvm::ICmpInst>(I)) {
+    auto pred = Cmp->getPredicate();
+    if (pred == llvm::CmpInst::ICMP_SLT || pred == llvm::CmpInst::ICMP_SLE ||
+        pred == llvm::CmpInst::ICMP_SGT || pred == llvm::CmpInst::ICMP_SGE)
+    {
+      auto* LHS = sextInReg(B, getPromoted(Cmp->getOperand(0)), Cmp->getOperand(0)->getType()->getIntegerBitWidth());
+      auto* RHS = sextInReg(B, getPromoted(Cmp->getOperand(1)), Cmp->getOperand(1)->getType()->getIntegerBitWidth());
+      if (!LHS || !RHS) {
+        return false;
+      }
+      I->replaceAllUsesWith(B.CreateICmp(pred, LHS, RHS));
+      return true;
+    }
   }
   return false;
 }
 
 llvm::PreservedAnalyses IntegerLegalizationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+  bool Changed = false;
   this->M = &M;
 
   for (auto& F : M) {
@@ -235,6 +263,14 @@ llvm::PreservedAnalyses IntegerLegalizationPass::run(llvm::Module &M, llvm::Modu
     for (auto* BB : RPOT) {
       for (auto& I : *BB) {
         if (needLegalization(I)) {
+          if (isIllegalInt(I.getType()) && promoteWidth(I.getType()->getIntegerBitWidth()) == 0) {
+            return fail(&I);
+          }
+          for (const llvm::Value* U : I.operands()) {
+            if (isIllegalInt(U->getType()) && promoteWidth(U->getType()->getIntegerBitWidth()) == 0) {
+              return fail(&I);
+            }
+          }
           Worklist.push_back(&I);
         }
       }
@@ -243,6 +279,7 @@ llvm::PreservedAnalyses IntegerLegalizationPass::run(llvm::Module &M, llvm::Modu
       continue;
     }
 
+    Changed = true;
     Promoted.clear();
     llvm::SmallPtrSet<llvm::Instruction *, 16> Kept;
     llvm::SmallVector<std::pair<llvm::PHINode *, llvm::PHINode *>> PHIs; // old PHI -> new PHI
@@ -310,7 +347,7 @@ llvm::PreservedAnalyses IntegerLegalizationPass::run(llvm::Module &M, llvm::Modu
       }
     }
   }
-  return llvm::PreservedAnalyses::none();
+  return Changed ? llvm::PreservedAnalyses::none() : llvm::PreservedAnalyses::all();
 }
 
 } // namespace compiler

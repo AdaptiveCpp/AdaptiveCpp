@@ -39,7 +39,8 @@ enum class kernel_base_config_parameter : int {
   target_arch = 3,
   runtime_device = 4,
   runtime_context = 5,
-  single_kernel = 6
+  single_kernel = 6,
+  device_uid = 7
 };
 
 enum class kernel_build_option : int {

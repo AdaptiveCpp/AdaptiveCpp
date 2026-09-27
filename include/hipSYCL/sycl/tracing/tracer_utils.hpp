@@ -1,6 +1,7 @@
 // #pragma once
 
 #include "tracer_macros.h"
+#include <stddef.h>
 
 #ifndef ACPP_TRACER_UTILS_H
 #define ACPP_TRACER_UTILS_H

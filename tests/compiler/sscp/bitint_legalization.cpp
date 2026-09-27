@@ -47,29 +47,38 @@ struct Out {
   void put(i96 v) { put(static_cast<u128>(static_cast<u96>(v))); }
 };
 
+// Device allocations only: not every backend supports shared USM
 template <class F>
 bool run_case(sycl::queue &q, const Inputs &host_in, F f) {
-  Inputs *in = sycl::malloc_shared<Inputs>(1, q);
-  uint32_t *mem = sycl::malloc_shared<uint32_t>(NumMem, q);
-  uint64_t *out = sycl::malloc_shared<uint64_t>(NumOut, q);
+  Inputs *in = sycl::malloc_device<Inputs>(1, q);
+  uint32_t *mem = sycl::malloc_device<uint32_t>(NumMem, q);
+  uint64_t *out = sycl::malloc_device<uint64_t>(NumOut, q);
 
+  uint32_t host_mem[NumMem];
   uint32_t ref_mem[NumMem];
+  uint64_t host_out[NumOut] = {};
   uint64_t ref_out[NumOut] = {};
   for (int i = 0; i < NumMem; ++i)
-    mem[i] = ref_mem[i] = 0xA5A5A5A5u + i;
-  for (int i = 0; i < NumOut; ++i)
-    out[i] = 0;
-  *in = host_in;
+    host_mem[i] = ref_mem[i] = 0xA5A5A5A5u + i;
+
+  q.memcpy(in, &host_in, sizeof(Inputs));
+  q.memcpy(mem, host_mem, sizeof(host_mem));
+  q.memcpy(out, host_out, sizeof(host_out));
+  q.wait();
 
   q.parallel_for(sycl::range<1>{1}, [=](sycl::id<1>) {
     f(in, mem, out);
   }).wait();
 
+  q.memcpy(host_mem, mem, sizeof(host_mem));
+  q.memcpy(host_out, out, sizeof(host_out));
+  q.wait();
+
   Inputs ref_in = host_in;
   f(&ref_in, ref_mem, ref_out);
 
-  bool ok = std::memcmp(out, ref_out, sizeof(ref_out)) == 0 &&
-            std::memcmp(mem, ref_mem, sizeof(ref_mem)) == 0;
+  bool ok = std::memcmp(host_out, ref_out, sizeof(ref_out)) == 0 &&
+            std::memcmp(host_mem, ref_mem, sizeof(ref_mem)) == 0;
 
   sycl::free(in, q);
   sycl::free(mem, q);
@@ -89,18 +98,27 @@ inline bool vec3_equals(sycl::vec<uint32_t, 3> a, sycl::vec<uint32_t, 3> b) {
 bool test_vec3_equals(sycl::queue &q) {
   using u32_3 = sycl::vec<uint32_t, 3>;
   constexpr size_t n = 4;
-  u32_3 *a = sycl::malloc_shared<u32_3>(n, q);
-  u32_3 *b = sycl::malloc_shared<u32_3>(n, q);
-  uint8_t *r = sycl::malloc_shared<uint8_t>(n, q);
+  u32_3 *a = sycl::malloc_device<u32_3>(n, q);
+  u32_3 *b = sycl::malloc_device<u32_3>(n, q);
+  uint8_t *r = sycl::malloc_device<uint8_t>(n, q);
+  u32_3 host_a[n];
+  u32_3 host_b[n];
+  uint8_t host_r[n] = {};
   for (size_t i = 0; i < n; ++i) {
-    a[i] = u32_3{1u, 2u, static_cast<uint32_t>(i)};
-    b[i] = u32_3{1u, 2u, 3u};
+    host_a[i] = u32_3{1u, 2u, static_cast<uint32_t>(i)};
+    host_b[i] = u32_3{1u, 2u, 3u};
   }
+  q.memcpy(a, host_a, sizeof(host_a));
+  q.memcpy(b, host_b, sizeof(host_b));
+  q.wait();
+
   q.parallel_for(sycl::range<1>{n}, [=](sycl::item<1> it) {
     size_t i = it.get_linear_id();
     r[i] = vec3_equals(a[i], b[i]);
   }).wait();
-  bool ok = r[0] == 0 && r[1] == 0 && r[2] == 0 && r[3] == 1;
+
+  q.memcpy(host_r, r, sizeof(host_r)).wait();
+  bool ok = host_r[0] == 0 && host_r[1] == 0 && host_r[2] == 0 && host_r[3] == 1;
   sycl::free(a, q);
   sycl::free(b, q);
   sycl::free(r, q);

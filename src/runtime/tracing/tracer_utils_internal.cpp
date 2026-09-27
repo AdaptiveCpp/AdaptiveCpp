@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <list>
+#include <iostream>
 
 #include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/runtime/tracing/tracer_utils.hpp"

@@ -1,12 +1,10 @@
 #include <chrono>
 #include <cstdlib>
-#include <iostream>
 #include <list>
-#include <sstream>
 
 #include "hipSYCL/common/dylib_loader.hpp"
-#include "hipSYCL/sycl/tracing/tracer_utils.hpp"
-#include "hipSYCL/sycl/tracing/tracer_utils_internal.hpp"
+#include "hipSYCL/runtime/tracing/tracer_utils.hpp"
+#include "hipSYCL/runtime/tracing/tracer_utils_internal.hpp"
 
 #define EQUALIZE_HELPER(type)                                                  \
   if (this->type.size() == this->size - 1) {                                   \

@@ -15,27 +15,27 @@ Example of a simple tracer implementation:
 ```cpp 
 #include <iostream>
 #include "hipSYCL/sycl/tracer_utils.hpp"
-    
+
 struct MyTracerState {
-    ...
-    // Add any state information needed for the tracer
-    ...
+  ...
+  // Add any state information needed for the tracer
+  ...
 };
     
 extern "C" {
-    void my_submit_start_callback(void* state) {
-        (MyTracerState*)tracer_state = (MyTracerState*)state;
-        ...
-        // Do some stuff with tracer state pointer
-        ...
-        std::cout << "Submit started!" << std::endl;
-    }
+  void my_submit_start_callback(void* state) {
+    (MyTracerState*)tracer_state = (MyTracerState*)state;
+    ...
+    // Do some stuff with tracer state pointer
+    ...
+    std::cout << "Submit started!" << std::endl;
+  }
 
-    void init_register() {
-        MyTracerState* tracer_state = new MyTracerState();
-        init_state(tracer_state);
-        init_submit_start(my_submit_start_callback);
-    }
+  void init_register() {
+    MyTracerState* tracer_state = new MyTracerState();
+    init_state(tracer_state);
+    init_submit_start(my_submit_start_callback);
+  }
 }
 ```
 

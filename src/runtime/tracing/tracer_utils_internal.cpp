@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <list>
 #include <iostream>
+#include <sstream>
 
 #include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/runtime/tracing/tracer_utils.hpp"

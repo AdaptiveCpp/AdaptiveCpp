@@ -24,8 +24,8 @@
 #include "hipSYCL/runtime/instrumentation.hpp"
 #include <cstddef>
 
-#include "hipSYCL/sycl/tracing/tracer_utils.hpp"
-#include "hipSYCL/sycl/tracing/tracer_utils_internal.hpp"
+#include "hipSYCL/runtime/tracing/tracer_utils.hpp"
+#include "hipSYCL/runtime/tracing/tracer_utils_internal.hpp"
 
 namespace hipsycl {
 namespace sycl {

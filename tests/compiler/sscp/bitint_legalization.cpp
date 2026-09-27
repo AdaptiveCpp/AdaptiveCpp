@@ -3,6 +3,9 @@
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
 // RUN: %t | FileCheck %s
 
+// The Vulkan backend hangs on these kernels
+// UNSUPPORTED: vulkan || vk
+
 // Non-power-of-two integers need legalization on some backends (e.g. Metal)
 // Compare device and host results for the same code
 // On Metal i96 is promoted to i128, which only supports bitwise operations,

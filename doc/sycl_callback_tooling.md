@@ -85,6 +85,5 @@ The following callbacks are supported:
 
 If multiple tooling libraries are loaded, the order of initialization is the same as the order of the path list in the `ACPP_TOOL_LIBRARIES` environment variable. The order of finalization is the inverse order of initialization. 
 
-**Note**: In AdaptiveCpp, the SYCL runtime is a singleton by default associated with the existence of a sycl object (sycl:queue, sycl::event...), this association can be turned off by setting the environment variable 
-ACPP_PERSISTNET_RUNTIME to 1. (See [env_variables.md](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/doc/env_variables.md))
+**Note**: In AdaptiveCpp, the SYCL runtime is a singleton by default associated with the existence of a sycl object (sycl:queue, sycl::event...), this association can be turned off by setting the environment variable ACPP_PERSISTNET_RUNTIME to 1. (See [env_variables.md](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/doc/env_variables.md))
 

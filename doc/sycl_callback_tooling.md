@@ -83,8 +83,8 @@ The following callbacks are supported:
 | free_end                      | `void(void* state, void* ptr)`                         | end of a free operation|
 | finalize                      | `void(void* state)`                                    | shutdown of the SYCL runtime|
 
-If multiple tooling libraries are loaded, the order of initialization is the same as the order of the path list in the `SYCL_TOOL_LIBRARY` environment variable. The order of finalization is the inverse order of initialization. 
+If multiple tooling libraries are loaded, the order of initialization is the same as the order of the path list in the `ACPP_TOOL_LIBRARIES` environment variable. The order of finalization is the inverse order of initialization. 
 
-**Note**: In AdaptiveCpp, the SYCL runtime is a singleton associated with the existence of a sycl::queue, i.e. the runtime exists as long as there is at least one sycl::queue. 
-If no sycl::queue is created, the runtime is not initialized and thus the tooling library is not loaded. Furthermore, if there is a point in the program at which there is no sycl::queue, the runtime is finalized and the tracers are finalized as well. When a queue is created again, the runtime is reinitialized and so is the tracer.
+**Note**: In AdaptiveCpp, the SYCL runtime is a singleton by default associated with the existence of a sycl object (sycl:queue, sycl::event...), this association can be turned off by setting the environment variable 
+ACPP_PERSISTNET_RUNTIME to 1. (See [env_variables.md](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/doc/env_variables.md))
 

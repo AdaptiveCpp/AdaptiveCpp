@@ -299,7 +299,7 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
     InputStream.flush();
   }
 
-  std::string CLSPV = HIPSYCL_CLSPV_PATH;
+  std::string CLSPV = ACPP_CLSPV_PATH;
 
   llvm::SmallVector<std::string> Args{"-x=ir",
                                       "--physical-storage-buffers",

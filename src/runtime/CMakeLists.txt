@@ -252,9 +252,23 @@ if(WITH_VULKAN_BACKEND)
      vk/vk_profiling.cpp)
   target_include_directories(rt-backend-vk PRIVATE
                              ${HIPSYCL_SOURCE_DIR}/include
+                             ${ACPP_BINARY_ROOT}/include)
+  target_link_libraries(rt-backend-vk PRIVATE acpp-rt Vulkan::Vulkan)
+
+  # Android NDK doesn't have Vulkan SDK so we need to set those dependencies manually
+  if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    target_include_directories(rt-backend-vk PRIVATE
+                             ${HIPSYCL_SOURCE_DIR}/include
                              ${ACPP_BINARY_ROOT}/include/
-                             "${Vulkan_INCLUDE_DIR}")
-  target_link_libraries(rt-backend-vk PRIVATE acpp-rt Vulkan::Vulkan Vulkan::SPIRV-Tools)
+                             ${ACPP_VULKAN_HPP_PATH}
+                             ${ACPP_VULKAN_HPP_PATH}/Vulkan-Headers/include
+                             ${ACPP_SPIRV_HEADER_PATH}/include
+                         )
+    target_link_libraries(rt-backend-vk PRIVATE SPIRV-Tools-static)
+  else()
+    target_include_directories(rt-backend-vk PRIVATE "${Vulkan_INCLUDE_DIR}")
+    target_link_libraries(rt-backend-vk PRIVATE Vulkan::SPIRV-Tools)
+  endif()
 
   # Need portability subset beta extension for moltenvk
   target_compile_definitions(rt-backend-vk PRIVATE -DVK_ENABLE_BETA_EXTENSIONS)

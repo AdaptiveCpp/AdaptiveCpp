@@ -190,6 +190,7 @@ Devices known to be well supported by the backend include:
 | Swiftshader  | Google 5.0.0         | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
 | V3D          | Mesa 25.0.7          | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
 | Kosmic Krisp | Vulkan-sdk-1.4.341.1 | Apple Integrated GPU | Similar level of support to MoltenVK but more prone to hanging on an error than failing cleanly             |
+| Adreno 750   | Qualcomm 10ee450ed3  | Qualcomm iGPU        | Can run some kernels, driver fails to create Vulkan compute pipeline in many cases                          |
 
 Other devices are untested and support status is unknown.
 

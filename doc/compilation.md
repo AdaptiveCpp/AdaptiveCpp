@@ -64,6 +64,21 @@ AdaptiveCpp distinguishes multiple kinds of compilation models focused on intero
     2. `cuda-nvcxx` allows using AdaptiveCpp as a library for NVIDIA's nvc++ compiler, and can execute kernels on NVIDIA GPUs.   
 3. `omp.accelerated`: *Compiler-accelerated host pass*, where a regular C++ host pass is augmented with additional compiler transformations to increase performance of certain SYCL constructs when running on CPU.
 
+### Native kernel attributes in CUDA and HIP SMCP
+
+The Clang plugin can forward GNU attributes from a SYCL kernel to the generated native kernel. Spell the attribute name and its arguments using `annotate`, for example:
+
+```cpp
+q.parallel_for(sycl::nd_range<1>{{1024}, {128}},
+  [=](sycl::nd_item<1> item)
+      __attribute__((annotate("launch_bounds", 128))) {
+    // Kernel body
+  });
+```
+
+Unknown attribute names are silently ignored. This is specific to CUDA/HIP SMCP and has no effect in generic SSCP.
+Annotations on user kernels wrapped by reductions or scoped parallelism are not forwarded.
+
 ### Language extension guarantees
 
 AdaptiveCpp allows using backend-specific language extensions (e.g. CUDA/HIP C++) in the interoperability-focused compilation flows. The precise guarantees about the availability of these extensions are as follows:

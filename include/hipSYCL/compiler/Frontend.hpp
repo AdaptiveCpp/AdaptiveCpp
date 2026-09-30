@@ -15,6 +15,8 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <cassert>
+#include <functional>
+#include <utility>
 #include <regex>
 #include <sstream>
 
@@ -35,6 +37,7 @@
 #include "clang/AST/DeclGroup.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/MultiplexConsumer.h"
+#include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Lex/PreprocessorOptions.h"
 
@@ -60,7 +63,10 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
   public:
     using FunctionSet = std::unordered_set<clang::FunctionDecl*>;
 
-    explicit CompleteCallSet(clang::Decl* D)
+    explicit CompleteCallSet(
+        clang::Decl* D,
+        std::function<void(clang::CallExpr*)> OnCall = {})
+        : onCall{std::move(OnCall)}
     {
       TraverseDecl(D);
     }
@@ -73,6 +79,8 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
 
     bool VisitCallExpr(clang::CallExpr* CE)
     {
+      if(onCall)
+        onCall(CE);
       if(auto Callee = CE->getDirectCallee())
         TraverseDecl(Callee);
       return true;
@@ -131,6 +139,7 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
     const FunctionSet& getReachableDecls() const { return visitedDecls; }
 
   private:
+    std::function<void(clang::CallExpr*)> onCall;
     FunctionSet visitedDecls;
 };
 
@@ -322,8 +331,29 @@ public:
 
     for(auto F : UserKernels)
     {
+      const clang::Type* BodyType = nullptr;
+      auto BodyIt = KernelBodies.find(F);
+      if (BodyIt != KernelBodies.end())
+        BodyType = BodyIt->second;
+
+      clang::CXXMethodDecl* KernelBodyCallOperator = nullptr;
+
       // Mark all functions called by user kernels as host / device.
-      detail::CompleteCallSet CCS(F);
+      detail::CompleteCallSet CCS(F, [&](clang::CallExpr* Call) {
+        if(KernelBodyCallOperator || !BodyType)
+          return;
+        auto* OperatorCall = clang::dyn_cast<clang::CXXOperatorCallExpr>(Call);
+        if(!OperatorCall || OperatorCall->getOperator() != clang::OO_Call)
+          return;
+
+        // Inspect the invocation before descending into its body, where other
+        // overloads may be called. Strip the derived-to-base conversion so
+        // inherited call operators also match the submitted functor type.
+        auto* Object = OperatorCall->getArg(0)->IgnoreParenImpCasts();
+        if(Object->getType()->getCanonicalTypeUnqualified().getTypePtr() == BodyType)
+          KernelBodyCallOperator =
+              clang::dyn_cast_or_null<clang::CXXMethodDecl>(OperatorCall->getDirectCallee());
+      });
       for (auto&& RD : CCS.getReachableDecls())
       {
         HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: "
@@ -339,6 +369,48 @@ public:
 
       // Rename kernel according to kernel name tag and body
       nameKernel(F);
+
+      if(!KernelBodyCallOperator)
+        continue;
+
+      // GPU kernel attributes such as amdgpu_flat_work_group_size are rejected
+      // on the lambda's operator(). Allow spelling them as annotate attributes
+      // there, then apply them onto the generated kernel function.
+      auto& Ctx = Instance.getASTContext();
+      auto& Sema = Instance.getSema();
+      for(auto* A : KernelBodyCallOperator->specific_attrs<clang::AnnotateAttr>()) {
+        auto* AttrName = &Ctx.Idents.get(A->getAnnotation());
+        if (clang::AttributeCommonInfo::getParsedKind(
+                AttrName, nullptr, clang::AttributeCommonInfo::AS_GNU) ==
+            clang::AttributeCommonInfo::UnknownAttribute)
+          continue;
+
+        clang::ArgsVector Args;
+        for(auto* Arg : A->args())
+          Args.emplace_back(Arg);
+
+        clang::AttributeFactory Factory;
+        clang::ParsedAttributes Attrs{Factory};
+#if LLVM_VERSION_MAJOR >= 17
+        const auto AsGnu = clang::ParsedAttr::Form::GNU();
+#else
+        const auto AsGnu = clang::ParsedAttr::AS_GNU;
+#endif
+#if LLVM_VERSION_MAJOR >= 21
+        Attrs.addNew(AttrName, A->getRange(), clang::AttributeScopeInfo{},
+                     Args.data(), Args.size(), AsGnu);
+#else
+        Attrs.addNew(AttrName, A->getRange(),
+                     nullptr, clang::SourceLocation{},
+                     Args.data(), Args.size(), AsGnu);
+#endif
+        Sema.ProcessDeclAttributeList(Sema.TUScope, F, Attrs);
+
+        HIPSYCL_DEBUG_INFO
+            << "AST processing: Applying annotated attribute '"
+            << A->getAnnotation() << "' to kernel: "
+            << F->getQualifiedNameAsString() << "\n";
+      }
     }
 
     for(auto* Kernel : HierarchicalKernels){

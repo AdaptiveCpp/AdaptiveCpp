@@ -463,6 +463,18 @@ if (WITH_METAL_BACKEND)
     PATH_SUFFIXES include
   )
   if(NOT METAL_INCLUDE_DIR)
+    message(STATUS "Metal/Metal.hpp not found, fetching metal-cpp")
+    include(FetchContent)
+    FetchContent_Declare(metal-cpp
+      GIT_REPOSITORY https://github.com/apple/metal-cpp
+      GIT_TAG release/metal-cpp_macOS26_iOS26
+      GIT_SHALLOW ON
+    )
+    FetchContent_MakeAvailable(metal-cpp)
+    set(METAL_INCLUDE_DIR ${metal-cpp_SOURCE_DIR} CACHE PATH "metal-cpp headers" FORCE)
+  endif()
+
+  if(NOT METAL_INCLUDE_DIR)
     message(FATAL_ERROR "Could not find Metal/Metal.hpp. Please specify METAL_INCLUDE_DIR.")
   endif()
 

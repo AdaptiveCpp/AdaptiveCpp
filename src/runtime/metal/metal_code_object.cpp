@@ -11,6 +11,7 @@
 #include "hipSYCL/runtime/metal/metal_code_object.hpp"
 
 #include <Metal/Metal.hpp>
+#include <string_view>
 
 #undef nil
 
@@ -20,6 +21,30 @@ namespace hipsycl {
 namespace rt {
 
 namespace {
+
+bool parse_requires_atomic64_locks(const std::string& source) {
+  constexpr std::string_view prefix = "// capabilities:";
+  std::string_view first_line{source.data(), source.find('\n')};
+  if (first_line.substr(0, prefix.size()) != prefix) {
+    return false;
+  }
+
+  auto capabilities = first_line.substr(prefix.size());
+  while (!capabilities.empty()) {
+    const auto comma = capabilities.find(',');
+    auto capability = capabilities.substr(0, comma);
+    while (!capability.empty() && (capability.front() == ' ' || capability.front() == '\t'))
+      capability.remove_prefix(1);
+    while (!capability.empty() && (capability.back() == ' ' || capability.back() == '\t' || capability.back() == '\r'))
+      capability.remove_suffix(1);
+    if (capability == "atomic64")
+      return true;
+    if (comma == std::string_view::npos)
+      break;
+    capabilities.remove_prefix(comma + 1);
+  }
+  return false;
+}
 
 result build_metal_library_from_source(MTL::Library*& library,
                                        MTL::Device* device,
@@ -69,7 +94,8 @@ metal_sscp_executable_object::metal_sscp_executable_object(
     MTL::Device* device, const kernel_configuration &config)
     : _target_arch{target_arch}, _hcf{hcf_source}, _kernel_names{kernel_names},
       _id{config.generate_id()}, _device{device}, _library{nullptr},
-      _msl_source{metal_source} {
+      _msl_source{metal_source},
+      _requires_atomic64_locks{parse_requires_atomic64_locks(metal_source)} {
   _build_result = build(metal_source);
 }
 
@@ -115,6 +141,10 @@ metal_sscp_executable_object::supported_backend_kernel_names() const {
 
 MTL::Library* metal_sscp_executable_object::get_library() const {
   return _library;
+}
+
+bool metal_sscp_executable_object::requires_atomic64_locks() const {
+  return _requires_atomic64_locks;
 }
 
 MTL::Device* metal_sscp_executable_object::get_device() const {

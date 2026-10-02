@@ -239,6 +239,8 @@ set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build AdaptiveCpp support for AM
 set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build AdaptiveCpp support for OpenCL SPIR-V devices supporting USM")
 set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") # Default to OFF while experimental
 
+set(ACPP_TRACING OFF CACHE BOOL "Enable SYCL tracing hooks in acpp-rt")
+
 set(WITH_CPU_BACKEND true)
 
 if(WITH_VULKAN_BACKEND)
@@ -885,6 +887,7 @@ configure_file(
 
 install(DIRECTORY include/CL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/SYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.h")
 
 install(DIRECTORY include/hipSYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/hipSYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.h")
@@ -908,6 +911,7 @@ if(NOT WIN32)
 # Windows is case-insensitive, so don't copy to sycl/sycl.hpp as
 # we already have SYCL/sycl.hpp
 install(FILES include/SYCL/sycl.hpp DESTINATION include/AdaptiveCpp/sycl/)
+install(FILES include/SYCL/khr_sycl_tools.h DESTINATION include/AdaptiveCpp/sycl/)
 endif()
 install(PROGRAMS bin/acpp DESTINATION bin)
 install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)

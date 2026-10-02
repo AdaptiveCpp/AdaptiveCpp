@@ -1,0 +1,48 @@
+name: Tracing examples
+
+on: [push, pull_request]
+
+jobs:
+  test-tracing-examples:
+    if: github.repository_id == '140986400'
+    name: Tracing examples, NVIDIA, clang ${{ matrix.clang_version }}
+    runs-on: [self-hosted, gpu-nvidia]
+    strategy:
+      matrix:
+        clang_version: ['18']
+        cuda: ['11.0']
+    steps:
+    - uses: actions/checkout@v7
+    - name: clear JIT cache
+      run: |
+        rm -rf ~/.acpp
+    - name: build AdaptiveCpp with tracing enabled
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DACPP_TRACING=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
+        make -j16 install
+        cp /.singularity.d/libs/libcuda.* `pwd`/install/lib/
+    - name: build tracing examples
+      run: |
+        git clone https://github.com/jabruniessner/SYCL_tracing-examples.git
+        cd SYCL_tracing-examples
+        mkdir build && cd build
+        cmake .. -DCMAKE_CXX_COMPILER=${GITHUB_WORKSPACE}/build/install/bin/acpp -DUSE_BOOST_STACKTRACE=ON
+        make -j16
+    - name: run every tool library and check for crashes
+      run: |
+        cd SYCL_tracing-examples/build
+        for lib in tracer_lib mem_leak print_dag memory_tally empty_lib checker_lib; do
+          echo "=== running first_trial with lib${lib}.so ==="
+          ACPP_TOOL_LIBRARIES=./lib${lib}.so ./first_trial
+        done
+    - name: verify mem_leak output against the reference example
+      run: |
+        cd SYCL_tracing-examples/build
+        ACPP_TOOL_LIBRARIES=./libmem_leak.so ./first_trial > mem_leak_actual.txt
+        diff <(grep -v "Running on device" ../examples/mem_leak_output.txt) <(grep -v "Running on device" mem_leak_actual.txt)
+    - name: verify checker_lib output against the reference example
+      run: |
+        cd SYCL_tracing-examples/build
+        ACPP_TOOL_LIBRARIES=./libchecker_lib.so ./first_trial > checker_lib_actual.txt
+        diff <(grep -v "Running on device" ../examples/checker_lib_output.txt) <(grep -v "Running on device" checker_lib_actual.txt)

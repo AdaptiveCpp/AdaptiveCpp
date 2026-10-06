@@ -18,7 +18,6 @@
 #include <functional>
 #include <queue>
 
-
 namespace hipsycl {
 namespace rt {
 
@@ -43,6 +42,9 @@ public:
   /// execution in the worker thread.
   /// \param f The function to enqueue for execution
   void operator()(async_function f);
+
+  /// \return whether the calling thread is the worker.
+  bool is_in_worker_thread() const;
 
   /// \return The number of enqueued operations
   std::size_t queue_size() const;

@@ -500,33 +500,57 @@ template <class Op>
 inline constexpr __acpp_sscp_algorithm_op sscp_binary_operation_v =
     sscp_binary_operation<Op>::value;
 
-template<class T, __acpp_sscp_algorithm_op Sscp_op>
+template<class T, __acpp_sscp_algorithm_op Sscp_op, typename Enable = void>
 struct sscp_binary_operation_identity {};
 
-#define HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(SSCPOp, Identity)               \
-  template <class T> struct sscp_binary_operation_identity<T, SSCPOp> {        \
+template <class T>
+inline constexpr bool is_sscp_floating_point_v =
+    std::is_floating_point_v<T> || std::is_same_v<T, __acpp_f16> ||
+    std::is_same_v<T, sycl::half>;
+
+#define HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(SSCPOp, Identity, enable)       \
+  template <class T>                                                           \
+  struct sscp_binary_operation_identity<T, SSCPOp, std::enable_if_t<enable>> { \
     static auto get() { return Identity; }                                     \
   };                                                                           \
   template <class T, int N>                                                    \
-  struct sscp_binary_operation_identity<vec<T, N>, SSCPOp> {                   \
+  struct sscp_binary_operation_identity<vec<T, N>, SSCPOp,                     \
+                                        std::enable_if_t<enable>> {            \
     static auto get() { return vec<T, N>{Identity}; }                          \
   };                                                                           \
   template <class T, int N>                                                    \
-  struct sscp_binary_operation_identity<marray<T, N>, SSCPOp> {                \
+  struct sscp_binary_operation_identity<marray<T, N>, SSCPOp,                  \
+                                        std::enable_if_t<enable>> {            \
     static auto get() { return marray<T, N>{Identity}; }                       \
   };
 
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::plus, T{0})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::multiply, T{1})
-// TODO This is not really correct for floating point - those should use infinity. But then, what about
-// compilation with -ffast-math?
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min, T{std::numeric_limits<T>::max()})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max, T{std::numeric_limits<T>::min()})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_and, ~T{0})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_or, T{0})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_xor, T{0})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::logical_and, T{1})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::logical_or, T{0})
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::plus, T{},
+                                       true)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::multiply, T{1},
+                                       true)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min,
+                                       T{std::numeric_limits<T>::max()},
+                                       !is_sscp_floating_point_v<T>)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max,
+                                       T{std::numeric_limits<T>::min()},
+                                       !is_sscp_floating_point_v<T>)
+// Use static cast so that we can also intialize half, without having numeric_limits overloaded
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min,
+                                       static_cast<T>(std::numeric_limits<float>::infinity()),
+                                       is_sscp_floating_point_v<T>)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max,
+                                       static_cast<T>(-std::numeric_limits<float>::infinity()),
+                                       is_sscp_floating_point_v<T>)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_and, ~T{},
+                                       true)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_or, T{},
+                                       true)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_xor, T{},
+                                       true)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::logical_and,
+                                       T{true}, true)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::logical_or,
+                                       T{false}, true)
 // ---- subgroup
 template <
     typename T, typename BinaryOperation,

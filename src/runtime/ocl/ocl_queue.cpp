@@ -175,6 +175,8 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
   }
 
   _reflection_map = glue::jit::construct_default_reflection_map(dev_ctx);
+  _reflection_map["spirv_has_native_float_atomics"] =
+      dev_ctx->has_cl_ext_float_atomics_extension() ? 1 : 0;
 }
 
 ocl_queue::~ocl_queue() {}
@@ -523,6 +525,8 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       compilation_flow::sscp);
   _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
+  _config.append_base_configuration(
+      kernel_base_config_parameter::device_uid, hw_ctx->get_device_uid());
   
   for(const auto& flag : kernel_info->get_compilation_flags())
     _config.set_build_flag(flag);

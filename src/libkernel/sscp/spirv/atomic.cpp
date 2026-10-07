@@ -11,6 +11,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/atomic.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/spirv/spirv_common.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 
 template<class T>
 __spirv_global T* to_global(T* ptr) { return (__spirv_global T*)ptr; }
@@ -143,6 +144,74 @@ get_atomic_memory_semantics(__acpp_sscp_memory_order order) {
   } else {                                                                     \
     command(ptr);                                                              \
   }
+
+// ****************** float atomics without native support ******************
+
+__attribute__((always_inline)) bool has_native_float_atomics() {
+  if (__acpp_sscp_jit_reflect_knows_spirv_has_native_float_atomics())
+    return __acpp_sscp_jit_reflect_spirv_has_native_float_atomics();
+  return true;
+}
+
+template <class T> struct float_bits;
+template <> struct float_bits<__acpp_f32> { using type = __acpp_int32; };
+template <> struct float_bits<__acpp_f64> { using type = __acpp_int64; };
+
+#define SPIRV_DECLARE_FLOAT_BITS_CAST(AS, T)                                   \
+  __attribute__((always_inline)) AS float_bits<T>::type *float_bits_cast(      \
+      AS T *ptr) {                                                             \
+    return (AS float_bits<T>::type *)ptr;                                      \
+  }
+
+SPIRV_DECLARE_ATOMICS_FOR_FLOAT(SPIRV_DECLARE_FLOAT_BITS_CAST)
+
+__attribute__((always_inline)) __acpp_sscp_memory_order
+get_compare_exchange_failure_order(__acpp_sscp_memory_order order) {
+  if (order == __acpp_sscp_memory_order::release)
+    return __acpp_sscp_memory_order::relaxed;
+  if (order == __acpp_sscp_memory_order::acq_rel)
+    return __acpp_sscp_memory_order::acquire;
+  return order;
+}
+
+template <class IntPtr, class T, class Op>
+__attribute__((always_inline)) T
+float_atomic_compare_exchange_loop(IntPtr ptr, __acpp_sscp_memory_order order,
+                                   __acpp_sscp_memory_scope scope, T x, Op op) {
+  using int_type = typename float_bits<T>::type;
+  auto spirv_scope = get_spirv_scope(scope);
+  auto success = get_atomic_memory_semantics(order);
+  auto failure =
+      get_atomic_memory_semantics(get_compare_exchange_failure_order(order));
+
+  int_type old = __spirv_AtomicLoad(ptr, spirv_scope, failure);
+  for (;;) {
+    T old_value = __builtin_bit_cast(T, old);
+    int_type desired = __builtin_bit_cast(int_type, op(old_value, x));
+    int_type prev = __spirv_AtomicCompareExchange(ptr, spirv_scope, success,
+                                                  failure, desired, old);
+    if (prev == old)
+      return old_value;
+    old = prev;
+  }
+}
+
+__attribute__((always_inline)) __acpp_f32
+float_min(__acpp_f32 a, __acpp_f32 b) {
+  return __builtin_fminf(a, b);
+}
+__attribute__((always_inline)) __acpp_f64
+float_min(__acpp_f64 a, __acpp_f64 b) {
+  return __builtin_fmin(a, b);
+}
+__attribute__((always_inline)) __acpp_f32
+float_max(__acpp_f32 a, __acpp_f32 b) {
+  return __builtin_fmaxf(a, b);
+}
+__attribute__((always_inline)) __acpp_f64
+float_max(__acpp_f64 a, __acpp_f64 b) {
+  return __builtin_fmax(a, b);
+}
 
 // ********************** atomic store ***************************
 
@@ -424,8 +493,12 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_xor_i64(
   return __spirv_AtomicIAdd(ptr, get_spirv_scope(scope),                        \
                            get_atomic_memory_semantics(order), x);
 #define RETURN_ATOMIC_FADD(ptr)                                                \
-  return __spirv_AtomicFAddEXT(ptr, get_spirv_scope(scope),                    \
-                               get_atomic_memory_semantics(order), x);
+  if (has_native_float_atomics())                                              \
+    return __spirv_AtomicFAddEXT(ptr, get_spirv_scope(scope),                  \
+                                 get_atomic_memory_semantics(order), x);       \
+  return float_atomic_compare_exchange_loop(                                   \
+      float_bits_cast(ptr), order, scope, x,                                   \
+      [](auto a, auto b) { return a + b; });
 
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_add_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
@@ -500,8 +573,12 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
   return __spirv_AtomicISub(ptr, get_spirv_scope(scope),                       \
                            get_atomic_memory_semantics(order), x);
 #define RETURN_ATOMIC_FSUB(ptr)                                                \
-  return __spirv_AtomicFAddEXT(ptr, get_spirv_scope(scope),                    \
-                               get_atomic_memory_semantics(order), -x);
+  if (has_native_float_atomics())                                              \
+    return __spirv_AtomicFAddEXT(ptr, get_spirv_scope(scope),                  \
+                                 get_atomic_memory_semantics(order), -x);      \
+  return float_atomic_compare_exchange_loop(                                   \
+      float_bits_cast(ptr), order, scope, x,                                   \
+      [](auto a, auto b) { return a - b; });
 
 
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_sub_i8(
@@ -583,8 +660,12 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_sub_f64(
                             get_atomic_memory_semantics(order), x);
 
 #define RETURN_ATOMIC_FMIN(ptr)                                                \
-  return __spirv_AtomicFMinEXT(ptr, get_spirv_scope(scope),                    \
-                               get_atomic_memory_semantics(order), x);
+  if (has_native_float_atomics())                                              \
+    return __spirv_AtomicFMinEXT(ptr, get_spirv_scope(scope),                  \
+                                 get_atomic_memory_semantics(order), x);       \
+  return float_atomic_compare_exchange_loop(                                   \
+      float_bits_cast(ptr), order, scope, x,                                   \
+      [](auto a, auto b) { return float_min(a, b); });
 
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_min_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
@@ -665,8 +746,12 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
                             get_atomic_memory_semantics(order), x);
 
 #define RETURN_ATOMIC_FMAX(ptr)                                                \
-  return __spirv_AtomicFMaxEXT(ptr, get_spirv_scope(scope),                    \
-                               get_atomic_memory_semantics(order), x);
+  if (has_native_float_atomics())                                              \
+    return __spirv_AtomicFMaxEXT(ptr, get_spirv_scope(scope),                  \
+                                 get_atomic_memory_semantics(order), x);       \
+  return float_atomic_compare_exchange_loop(                                   \
+      float_bits_cast(ptr), order, scope, x,                                   \
+      [](auto a, auto b) { return float_max(a, b); });
 
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_max_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,

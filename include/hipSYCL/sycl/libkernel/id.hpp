@@ -167,9 +167,9 @@ public:
                                     const T &rhs) {                            \
     id<Dimensions> result;                                                     \
     /* loop peel to help uniformity analysis */ \
-    result._data[0] = static_cast<T>(lhs._data[0] op rhs);                                                                           \
+    result._data[0] = static_cast<std::size_t>(lhs._data[0] op rhs);           \
     for (std::size_t i = 1; i < Dimensions; ++i)                               \
-      result._data[i] = static_cast<T>(lhs._data[i] op rhs);                   \
+      result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs);         \
     return result;                                                             \
   }                                                                            \
   /* Dedicated overload for range to avoid operator ambiguity due to */        \

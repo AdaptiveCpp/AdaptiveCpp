@@ -13,6 +13,9 @@
 
 #include "builtin_config.hpp"
 
+#include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
+
+#include <stddef.h>
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_local_id_x();
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_local_id_y();
@@ -108,6 +111,8 @@ T __acpp_sscp_typed_get_global_linear_id() {
 }
 
 
+size_t __spirv_BuiltInLocalInvocationIndex();
+
 template<int Dim, class T>
 T __acpp_sscp_typed_get_local_linear_id() {
 
@@ -117,7 +122,7 @@ T __acpp_sscp_typed_get_local_linear_id() {
   // but this is a safe approach for now.
   if (__acpp_sscp_jit_reflect_compiler_backend() == hipsycl::sycl::AdaptiveCpp_jit::compiler_backend::spirv)
     if (__acpp_sscp_jit_reflect_runtime_backend_is_opencl() && __acpp_sscp_jit_reflect_target_is_cpu())
-      return _Z38__spirv_BuiltInLocalInvocationIndex();
+      return __spirv_BuiltInLocalInvocationIndex();
 
   if constexpr(Dim == 1) {
     return (T)__acpp_sscp_get_local_id_x();

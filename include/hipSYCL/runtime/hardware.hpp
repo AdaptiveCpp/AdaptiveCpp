@@ -40,6 +40,7 @@ enum class device_support_aspect {
   fp64,
   atomic64,
   free_memory,
+  opencl_khr_subgroup_extended_types,
 };
 
 enum class device_uint_property {

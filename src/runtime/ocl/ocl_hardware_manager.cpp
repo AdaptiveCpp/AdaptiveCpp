@@ -182,6 +182,7 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
     _has_intel_extension_profile = true;
   std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
   _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
+  _has_cl_khr_subgroup_extended_types = (extensions.find("cl_khr_subgroup_extended_types") != std::string::npos);
 }
 
 bool ocl_hardware_context::is_cpu() const {
@@ -295,6 +296,9 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::free_memory:
     return false;
+    break;
+  case device_support_aspect::opencl_khr_subgroup_extended_types:
+    return _has_cl_khr_subgroup_extended_types;
     break;
   }
   assert(false && "Unknown device aspect");

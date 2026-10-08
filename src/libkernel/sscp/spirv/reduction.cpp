@@ -11,6 +11,45 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/detail/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/reduction.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/spirv/spirv_common.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
+
+template <typename dataT>
+dataT __spirv_GroupFAdd(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value);
+
+template <typename dataT>
+dataT __spirv_GroupFMin(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value);
+
+template <typename dataT>
+dataT __spirv_GroupFMax(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value);
+
+template <typename dataT>
+dataT __spirv_GroupIAdd(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value);
+
+// TODO: Figure out if logical integer reductions can be lowered legally to utilize something
+// like: OpGroupLogicalAndKHR
+// TODO: Implement signed/unsigned integer min/max with SPIR-V builtins:
+/* template <typename dataT>
+dataT __spirv_GroupSMin(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value);
+
+template <typename dataT>
+dataT __spirv_GroupSMax(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value);
+
+template <typename dataT>
+dataT __spirv_GroupUMin(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value);
+
+template <typename dataT>
+dataT __spirv_GroupUMax(__spv::ScopeFlag scope, __spv::GroupOperation gOp, dataT value); */
+
+// According to OpenCL SPIR-V environment specification, cl_khr_subgroup_extended_types
+// should enable OpGroupIAdd, OpGroupFAdd, OpGroupSMin, OpGroupUMin, OpGroupFMin, OpGroupSMax,
+// OpGroupUMax and OpGroupFMax. We can prefer these in some of the reductions (plus, min, and max).
+#define ACPP_USE_SPIRV_BUILTIN()                                                                   \
+  (__acpp_sscp_jit_reflect_compiler_backend() ==                                                   \
+   hipsycl::sycl::AdaptiveCpp_jit::compiler_backend::spirv &&                                      \
+   __acpp_sscp_jit_reflect_runtime_backend_is_opencl() &&                                          \
+   __acpp_sscp_jit_reflect_target_is_cpu() &&                                                      \
+   __acpp_sscp_jit_reflect_opencl_backend_supports_subgroup_extended_types())
 
 #define ACPP_SUBGROUP_FLOAT_REDUCTION(type)                                                        \
   HIPSYCL_SSCP_CONVERGENT_BUILTIN                                                                  \
@@ -18,13 +57,28 @@
                                                     __acpp_##type x) {                             \
     switch (op) {                                                                                  \
     case __acpp_sscp_algorithm_op::plus:                                                           \
-      return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::plus>(x);               \
+      if(ACPP_USE_SPIRV_BUILTIN()) {                                                               \
+        return __spirv_GroupFAdd(__spv::ScopeFlag::Subgroup,                                       \
+                                 __spv::GroupOperation::GroupOperationReduce, x);                  \
+      } else {                                                                                     \
+        return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::plus>(x);             \
+      }                                                                                            \
     case __acpp_sscp_algorithm_op::multiply:                                                       \
       return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::multiply>(x);           \
     case __acpp_sscp_algorithm_op::min:                                                            \
-      return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::min>(x);                \
+      if(ACPP_USE_SPIRV_BUILTIN()) {                                                               \
+        return __spirv_GroupFMin(__spv::ScopeFlag::Subgroup,                                       \
+                                 __spv::GroupOperation::GroupOperationReduce, x);                  \
+      } else {                                                                                     \
+        return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::min>(x);              \
+      }                                                                                            \
     case __acpp_sscp_algorithm_op::max:                                                            \
-      return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::max>(x);                \
+      if(ACPP_USE_SPIRV_BUILTIN()) {                                                               \
+        return __spirv_GroupFMax(__spv::ScopeFlag::Subgroup,                                       \
+                                 __spv::GroupOperation::GroupOperationReduce, x);                  \
+      } else {                                                                                     \
+        return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::max>(x);              \
+      }                                                                                            \
     default:                                                                                       \
       return __acpp_##type{};                                                                      \
     }                                                                                              \
@@ -40,7 +94,12 @@ ACPP_SUBGROUP_FLOAT_REDUCTION(f64)
                                                          __acpp_##type x) {                        \
     switch (op) {                                                                                  \
     case __acpp_sscp_algorithm_op::plus:                                                           \
-      return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::plus>(x);               \
+      if(ACPP_USE_SPIRV_BUILTIN()) {                                                               \
+        return __spirv_GroupIAdd(__spv::ScopeFlag::Subgroup,                                       \
+                                 __spv::GroupOperation::GroupOperationReduce, x);                  \
+      } else {                                                                                     \
+        return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::plus>(x);             \
+      }                                                                                            \
     case __acpp_sscp_algorithm_op::multiply:                                                       \
       return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::multiply>(x);           \
     case __acpp_sscp_algorithm_op::min:                                                            \

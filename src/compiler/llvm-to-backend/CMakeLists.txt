@@ -302,10 +302,44 @@ if(WITH_SSCP_COMPILER)
     endif()
     message(STATUS "llvm-to-host: Using llc compilation flag to target native CPU: ${HOST_LLC_CPU_FLAG}")
 
+    if(WIN32)
+      add_library(acpp-sscp-host-c-runtime-obj OBJECT host/WindowsHostCRuntime.cpp)
+      target_compile_options(acpp-sscp-host-c-runtime-obj PRIVATE /Zl)
+      set(ACPP_HOST_C_RUNTIME_LIBRARY "${LLVM_LIBRARY_OUTPUT_INTDIR}/acpp-sscp-host-c-runtime.lib")
+      set(ACPP_LLVM_DLLTOOL "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-dlltool${CMAKE_EXECUTABLE_SUFFIX}")
+      set(ACPP_LLVM_AR "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-ar${CMAKE_EXECUTABLE_SUFFIX}")
+
+      add_custom_command(OUTPUT "${ACPP_HOST_C_RUNTIME_LIBRARY}"
+        COMMAND
+          "${ACPP_LLVM_DLLTOOL}"
+          -d "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCRuntime.def"
+          -l "${ACPP_HOST_C_RUNTIME_LIBRARY}"
+          -m i386:x86-64
+        COMMAND
+          "${ACPP_LLVM_AR}"
+          rcs
+          "${ACPP_HOST_C_RUNTIME_LIBRARY}"
+          $<TARGET_OBJECTS:acpp-sscp-host-c-runtime-obj>
+        DEPENDS
+          llvm-dlltool
+          llvm-ar
+          acpp-sscp-host-c-runtime-obj
+          "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCRuntime.def"
+        VERBATIM
+      )
+
+      add_custom_target(acpp-sscp-host-c-runtime DEPENDS "${ACPP_HOST_C_RUNTIME_LIBRARY}")
+      install(FILES "${ACPP_HOST_C_RUNTIME_LIBRARY}" DESTINATION lib)
+    endif()
+
     add_hipsycl_llvm_backend(
       BACKEND host
       LIBRARY host/LLVMToHost.cpp host/HostKernelWrapperPass.cpp host/StaticLocalMemoryPass.cpp
       TOOL host/LLVMToHostTool.cpp)
+
+    if(WIN32)
+      add_dependencies(llvm-to-host acpp-sscp-host-c-runtime)
+    endif()
 
     target_compile_definitions(llvm-to-host PRIVATE
       -DACPP_LLC_HOST_CPU_FLAG="${HOST_LLC_CPU_FLAG}"

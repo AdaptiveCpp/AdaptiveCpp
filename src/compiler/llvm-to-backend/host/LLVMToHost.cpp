@@ -56,6 +56,10 @@
 #include <system_error>
 #include <vector>
 
+#ifdef _WIN32
+#include <llvm/Support/Path.h>
+#endif
+
 #ifdef __APPLE__
 
 #include <sys/sysctl.h>
@@ -373,12 +377,19 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     "-lSystem", // needed to prevent error 'missing LC_LOAD_DYLIB (must link with at least libSystem.dylib'
                                                     };
 #elif defined(_WIN32)
+  llvm::SmallString<256> runtime_lib_path{LLDPath};
+  llvm::sys::path::remove_filename(runtime_lib_path);
+  llvm::sys::path::append(runtime_lib_path, "..", "lib", "acpp-sscp-host-c-runtime.lib");
+  llvm::sys::path::remove_dots(runtime_lib_path, true);
   std::string LldOutputFlag = "/out:"+OutputFileName.str();
+  std::string runtime_lib = runtime_lib_path.str().str();
+
   llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
                                                     "/dll",
                                                     "/noimplib",
-                                                    "/defaultlib:libcmt",
-                                                    "/defaultlib:oldnames",
+                                                    "/noentry",
+                                                    "/nodefaultlib",
+                                                    runtime_lib,
                                                     LldOutputFlag,
                                                     LlcOutputFileName
                                                     };

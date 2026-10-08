@@ -1,0 +1,56 @@
+LIBRARY ucrtbase.dll
+
+EXPORTS
+    sin
+    sinf
+    cos
+    cosf
+    tan
+    tanf
+
+    asin
+    asinf
+    acos
+    acosf
+    atan
+    atanf
+    atan2
+    atan2f
+
+    sqrt
+    sqrtf
+    exp
+    expf
+    exp2
+    exp2f
+    log
+    logf
+    log2
+    log2f
+    log10
+    log10f
+    pow
+    powf
+
+    floor
+    floorf
+    ceil
+    ceilf
+    round
+    roundf
+    trunc
+    truncf
+
+    fabs
+    fabsf
+    fmin
+    fminf
+    fmax
+    fmaxf
+    fmod
+    fmodf
+
+    copysign
+    copysignf
+    fma
+    fmaf

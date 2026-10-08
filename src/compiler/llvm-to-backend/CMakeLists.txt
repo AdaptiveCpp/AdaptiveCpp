@@ -305,14 +305,33 @@ if(WITH_SSCP_COMPILER)
     if(WIN32)
       add_library(acpp-sscp-host-c-runtime-obj OBJECT host/WindowsHostCRuntime.cpp)
       target_compile_options(acpp-sscp-host-c-runtime-obj PRIVATE /Zl)
+      set(ACPP_HOST_C_RUNTIME_DEF "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntime.def")
       set(ACPP_HOST_C_RUNTIME_LIBRARY "${LLVM_LIBRARY_OUTPUT_INTDIR}/acpp-sscp-host-c-runtime.lib")
+      set(ACPP_LLVM_READOBJ "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-readobj${CMAKE_EXECUTABLE_SUFFIX}")
       set(ACPP_LLVM_DLLTOOL "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-dlltool${CMAKE_EXECUTABLE_SUFFIX}")
       set(ACPP_LLVM_AR "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-ar${CMAKE_EXECUTABLE_SUFFIX}")
+
+      file(TO_CMAKE_PATH "$ENV{SystemRoot}/System32/ucrtbase.dll" ACPP_UCRT_DLL)
+
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_C_RUNTIME_DEF}"
+        COMMAND
+          "${CMAKE_COMMAND}"
+          "-DLLVM_READOBJ=${ACPP_LLVM_READOBJ}"
+          "-DUCRT_DLL=${ACPP_UCRT_DLL}"
+          "-DOUTPUT_DEF=${ACPP_HOST_C_RUNTIME_DEF}"
+          -P "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeDef.cmake"
+        DEPENDS
+          llvm-readobj
+          "${ACPP_UCRT_DLL}"
+          "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeDef.cmake"
+        VERBATIM
+      )
 
       add_custom_command(OUTPUT "${ACPP_HOST_C_RUNTIME_LIBRARY}"
         COMMAND
           "${ACPP_LLVM_DLLTOOL}"
-          -d "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCRuntime.def"
+          -d "${ACPP_HOST_C_RUNTIME_DEF}"
           -l "${ACPP_HOST_C_RUNTIME_LIBRARY}"
           -m i386:x86-64
         COMMAND
@@ -324,7 +343,7 @@ if(WITH_SSCP_COMPILER)
           llvm-dlltool
           llvm-ar
           acpp-sscp-host-c-runtime-obj
-          "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCRuntime.def"
+          "${ACPP_HOST_C_RUNTIME_DEF}"
         VERBATIM
       )
 

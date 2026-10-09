@@ -438,61 +438,18 @@ void MetalEmitter::emitIntrinsicHelpers() {
   inline int __as_signed(bool value) {
     return value ? -1 : 0;
   }
-)__";
 
-  os << R"__(
-struct i48u {
-  packed_ushort3 w;
-  i48u() : w(packed_ushort3(0,0,0)) {}
-  explicit i48u(packed_ushort3 ww) : w(ww) {}
-  explicit i48u(ushort x) : w(packed_ushort3(x, 0, 0)) {}
-  explicit i48u(uint x)
-  : w(packed_ushort3((ushort)(x & 0xffffu),
-                     (ushort)((x >> 16) & 0xffffu),
-                     0))
-  {}
-  explicit i48u(ulong x)
-  : w(packed_ushort3((ushort)(x & 0xfffful),
-                     (ushort)((x >> 16) & 0xfffful),
-                     (ushort)((x >> 32) & 0xfffful)))
-  {}
-
-  friend inline i48u operator|(i48u a, i48u b) {
-    return i48u(packed_ushort3((ushort)(a.w[0] | b.w[0]),
-                               (ushort)(a.w[1] | b.w[1]),
-                               (ushort)(a.w[2] | b.w[2])));
+  inline bool __u128_lt(uint4 a, uint4 b) {
+    if (a.w != b.w) return a.w < b.w;
+    if (a.z != b.z) return a.z < b.z;
+    if (a.y != b.y) return a.y < b.y;
+    return a.x < b.x;
   }
 
-  friend inline i48u operator<<(i48u a, uint bits) {
-    uint s = bits >> 4; // /16
-    if ((bits & 0xFu) != 0) {
-      ulong x = a.to_ulong();
-      x = (x << bits) & 0x0000FFFFFFFFFFFFul;
-      return i48u(x);
-    }
-    if (s == 0) return a;
-    if (s == 1) return i48u(packed_ushort3(0, a.w[0], a.w[1]));
-    if (s == 2) return i48u(packed_ushort3(0, 0, a.w[0]));
-    return i48u(); // >=48 => 0
+  inline bool __i128_lt(uint4 a, uint4 b) {
+    if (a.w != b.w) return as_type<int>(a.w) < as_type<int>(b.w);
+    return __u128_lt(a, b);
   }
-
-  friend inline i48u operator>>(i48u a, uint bits) {
-    uint s = bits >> 4; // /16
-    if ((bits & 0xFu) != 0) {
-      ulong x = a.to_ulong();
-      x = (x >> bits);
-      return i48u(x);
-    }
-    if (s == 0) return a;
-    if (s == 1) return i48u(packed_ushort3(a.w[1], a.w[2], 0));
-    if (s == 2) return i48u(packed_ushort3(a.w[2], 0, 0));
-    return i48u(); // >=48 => 0
-  }
-
-  inline ulong to_ulong() const {
-    return (ulong)w[0] | ((ulong)w[1] << 16) | ((ulong)w[2] << 32);
-  }
-};
 )__";
 
   os << "\n";
@@ -925,14 +882,12 @@ bool MetalEmitter::emitCastInstruction(const CastInst* CI, const std::string& na
     CastEntry table[] = {
       // trunc i128 -> i32
       {"uint4", "uint",  "{src}.x"},
-      // truct i128 -> i48u
-      {"uint4", "i48u", "i48u(packed_ushort3({src}.x, {src}.y, {src}.z))"},
       // trunc i128 -> i64
       {"uint4", "ulong", "as_type<ulong>({src}.xy)"},
+      // zext i8 -> i128
+      {"uchar", "uint4", "uint4((uint){src}, 0u, 0u, 0u)"},
       // zext i32 -> i128
       {"uint",  "uint4", "uint4({src}, 0u, 0u, 0u)"},
-      // zext i48u -> i128
-      {"i48u",  "uint4", "uint4({src}.w[0], {src}.w[1], {src}.w[2], 0u)"},
       // zext i64 -> i128
       {"ulong", "uint4", "uint4(as_type<uint2>({src}), 0u, 0u)"},
     };
@@ -1055,7 +1010,9 @@ void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::strin
         auto _x = lhs + ".x";
         auto _y = lhs + ".y";
         auto _z = lhs + ".z";
-        if (shiftAmount == 32) {
+        if (shiftAmount == 0) {
+          os << indent(level) << name << " = " << lhs << "; //" << instToString(*BO) << "\n";
+        } else if (shiftAmount == 32) {
           os << indent(level) << name << " = uint4(0," << _x << "," << _y << "," << _z << "); //" << instToString(*BO) << "\n";
         } else if (shiftAmount == 64) {
           os << indent(level) << name << " = uint4(0,0," << _x << "," << _y << "); //" << instToString(*BO) << "\n";
@@ -1074,7 +1031,9 @@ void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::strin
         auto _z = lhs + ".z";
         auto _w = lhs + ".w";
         auto sign = "as_type<uint>(__as_signed(" + lhs + ".w) >> 31)";
-        if (shiftAmount == 32) {
+        if (shiftAmount == 0) {
+          os << indent(level) << name << " = " << lhs << "; // " << instToString(*BO) << "\n";
+        } else if (shiftAmount == 32) {
           os << indent(level) << name << " = uint4(" << _y << "," << _z << "," << _w << "," << sign << "); // " << instToString(*BO) << "\n";
         } else if (shiftAmount == 64) {
           os << indent(level) << name << " = uint4(" << _z << "," << _w << "," << sign << "," << sign << "); // " << instToString(*BO) << "\n";
@@ -1094,7 +1053,9 @@ void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::strin
         auto _y = lhs + ".y";
         auto _z = lhs + ".z";
         auto _w = lhs + ".w";
-        if (shiftAmount == 32) {
+        if (shiftAmount == 0) {
+          os << indent(level) << name << " = " << lhs << "; // " << instToString(*BO) << "\n";
+        } else if (shiftAmount == 32) {
           os << indent(level) << name << " = uint4(" << _y << "," << _z << "," << _w << ",0); // " << instToString(*BO) << "\n";
         } else if (shiftAmount == 64) {
           os << indent(level) << name << " = uint4(" << _z << "," << _w << ",0,0); // " << instToString(*BO) << "\n";
@@ -1136,6 +1097,19 @@ void MetalEmitter::emitICmpInstruction(const ICmpInst* IC, const std::string& na
   auto resultType = mapType(IC->getType());
 
   const bool isWide = isWideInteger(IC->getOperand(0)->getType());
+
+  if (isWide && !IC->isEquality()) {
+    // a > b == b < a, a <= b == !(b < a), a >= b == !(a < b)
+    const auto pred = IC->getPredicate();
+    const bool swap = pred == ICmpInst::ICMP_UGT || pred == ICmpInst::ICMP_SGT ||
+                      pred == ICmpInst::ICMP_ULE || pred == ICmpInst::ICMP_SLE;
+    const bool negate = pred == ICmpInst::ICMP_UGE || pred == ICmpInst::ICMP_SGE ||
+                        pred == ICmpInst::ICMP_ULE || pred == ICmpInst::ICMP_SLE;
+    os << indent(level) << name << " = " << (negate ? "!" : "")
+       << (IC->isSigned() ? "__i128_lt(" : "__u128_lt(")
+       << (swap ? rhs : lhs) << ", " << (swap ? lhs : rhs) << ");\n";
+    return;
+  }
 
   switch (IC->getPredicate()) {
     case ICmpInst::ICMP_EQ:
@@ -1507,8 +1481,6 @@ std::string MetalEmitter::mapType(const Type* T) {
       return typeCache[T] = "ushort";
     } else if (bitWidth == 32) {
       return typeCache[T] = "uint";
-    } else if (bitWidth == 48) {
-      return typeCache[T] = "i48u";
     } else if (bitWidth == 64) {
       return typeCache[T] = "ulong";
     } else if (bitWidth == 128) {

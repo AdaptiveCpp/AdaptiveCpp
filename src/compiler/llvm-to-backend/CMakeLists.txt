@@ -303,10 +303,14 @@ if(WITH_SSCP_COMPILER)
     message(STATUS "llvm-to-host: Using llc compilation flag to target native CPU: ${HOST_LLC_CPU_FLAG}")
 
     if(WIN32)
-      add_library(acpp-sscp-host-c-runtime-obj OBJECT host/WindowsHostCRuntime.cpp)
-      target_compile_options(acpp-sscp-host-c-runtime-obj PRIVATE /Zl)
-      set(ACPP_HOST_C_RUNTIME_DEF "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntime.def")
-      set(ACPP_HOST_C_RUNTIME_LIBRARY "${LLVM_LIBRARY_OUTPUT_INTDIR}/acpp-sscp-host-c-runtime.lib")
+      add_library(acpp-sscp-host-c-runtime-import-obj OBJECT host/WindowsHostCRuntime.cpp)
+      target_compile_options(acpp-sscp-host-c-runtime-import-obj PRIVATE /Zl)
+
+      set(ACPP_HOST_C_RUNTIME_DEF "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntimeImport.def")
+      set(ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntimeImport.lib")
+      set(ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCompilerRuntimeImport.lib")
+      set(ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY "${LLVM_LIBRARY_OUTPUT_INTDIR}/hipSYCL/llvm-to-backend")
+      set(ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY "${ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY}/acpp-sscp-host-c-runtime-import.lib")
       set(ACPP_LLVM_READOBJ "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-readobj${CMAKE_EXECUTABLE_SUFFIX}")
       set(ACPP_LLVM_DLLTOOL "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-dlltool${CMAKE_EXECUTABLE_SUFFIX}")
       set(ACPP_LLVM_AR "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-ar${CMAKE_EXECUTABLE_SUFFIX}")
@@ -320,35 +324,69 @@ if(WITH_SSCP_COMPILER)
           "-DLLVM_READOBJ=${ACPP_LLVM_READOBJ}"
           "-DUCRT_DLL=${ACPP_UCRT_DLL}"
           "-DOUTPUT_DEF=${ACPP_HOST_C_RUNTIME_DEF}"
-          -P "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeDef.cmake"
+          -P "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeImportDef.cmake"
         DEPENDS
           llvm-readobj
           "${ACPP_UCRT_DLL}"
-          "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeDef.cmake"
+          "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeImportDef.cmake"
         VERBATIM
       )
 
-      add_custom_command(OUTPUT "${ACPP_HOST_C_RUNTIME_LIBRARY}"
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
         COMMAND
           "${ACPP_LLVM_DLLTOOL}"
           -d "${ACPP_HOST_C_RUNTIME_DEF}"
-          -l "${ACPP_HOST_C_RUNTIME_LIBRARY}"
+          -l "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
           -m i386:x86-64
-        COMMAND
-          "${ACPP_LLVM_AR}"
-          rcs
-          "${ACPP_HOST_C_RUNTIME_LIBRARY}"
-          $<TARGET_OBJECTS:acpp-sscp-host-c-runtime-obj>
         DEPENDS
           llvm-dlltool
-          llvm-ar
-          acpp-sscp-host-c-runtime-obj
           "${ACPP_HOST_C_RUNTIME_DEF}"
         VERBATIM
       )
 
-      add_custom_target(acpp-sscp-host-c-runtime DEPENDS "${ACPP_HOST_C_RUNTIME_LIBRARY}")
-      install(FILES "${ACPP_HOST_C_RUNTIME_LIBRARY}" DESTINATION lib)
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+        COMMAND
+          "${ACPP_LLVM_DLLTOOL}"
+          -d "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCompilerRuntimeImport.def"
+          -l "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+          -m i386:x86-64
+        DEPENDS
+          llvm-dlltool
+          "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCompilerRuntimeImport.def"
+        VERBATIM
+      )
+
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+        COMMAND
+          "${CMAKE_COMMAND}" -E make_directory
+          "${ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY}"
+        COMMAND
+          "${CMAKE_COMMAND}" -E rm -f
+          "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+        COMMAND
+          "${ACPP_LLVM_AR}"
+          qcL
+          "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+          "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
+          "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+        COMMAND
+          "${ACPP_LLVM_AR}"
+          rcs
+          "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+          $<TARGET_OBJECTS:acpp-sscp-host-c-runtime-import-obj>
+        DEPENDS
+          llvm-ar
+          acpp-sscp-host-c-runtime-import-obj
+          "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
+          "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+        VERBATIM
+      )
+
+      add_custom_target(acpp-sscp-host-c-runtime-import DEPENDS "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}")
+      install(FILES "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}" DESTINATION "lib/hipSYCL/llvm-to-backend")
     endif()
 
     add_hipsycl_llvm_backend(
@@ -357,7 +395,7 @@ if(WITH_SSCP_COMPILER)
       TOOL host/LLVMToHostTool.cpp)
 
     if(WIN32)
-      add_dependencies(llvm-to-host acpp-sscp-host-c-runtime)
+      add_dependencies(llvm-to-host acpp-sscp-host-c-runtime-import)
     endif()
 
     target_compile_definitions(llvm-to-host PRIVATE

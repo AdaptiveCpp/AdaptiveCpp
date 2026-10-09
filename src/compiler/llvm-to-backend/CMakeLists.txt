@@ -380,6 +380,7 @@ if(WITH_SSCP_COMPILER)
         DEPENDS
           llvm-ar
           acpp-sscp-host-c-runtime-import-obj
+          $<TARGET_OBJECTS:acpp-sscp-host-c-runtime-import-obj>
           "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
           "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
         VERBATIM

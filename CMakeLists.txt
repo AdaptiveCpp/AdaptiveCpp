@@ -785,6 +785,7 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
+\"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/acpp-sscp-host-c-runtime-import.lib\" : \"/hipSYCL/llvm-to-backend/\",
   \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
   \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
   \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",

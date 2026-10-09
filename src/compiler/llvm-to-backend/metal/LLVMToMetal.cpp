@@ -38,6 +38,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Program.h>
 
+#include <llvm/Analysis/ScalarEvolution.h>
 
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar/EarlyCSE.h>

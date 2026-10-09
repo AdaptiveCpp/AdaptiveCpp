@@ -117,6 +117,7 @@ result launch_kernel_from_library(
   const rt::hcf_kernel_info* kernel_info,
   const std::optional<std::vector<int>>& retained_indices,
   bool has_indirect_access,
+  bool requires_atomic64_locks,
   MTL::Fence* fence,
   bool wait_fence)
 {
@@ -163,6 +164,19 @@ result launch_kernel_from_library(
                       error_info{"metal: Failed to create command buffer"});
   }
 
+  MTL::Buffer* lock_buffer = nullptr;
+  size_t lock_offset = 0;
+  if (requires_atomic64_locks) {
+    auto* lock_table = allocator->get_atomic64_lock_table();
+    auto [buffer, offset, _] = allocator->get_usm_block(lock_table);
+    lock_buffer = buffer;
+    lock_offset = offset;
+    if (!lock_buffer) {
+      return make_error(__acpp_here(),
+                        error_info{"metal: Failed to allocate 64-bit atomic lock table"});
+    }
+  }
+
   auto* encoder = command_buffer->computeCommandEncoder();
   if (!encoder) {
     return make_error(__acpp_here(),
@@ -190,11 +204,14 @@ result launch_kernel_from_library(
 
   encoder->setThreadgroupMemoryLength(align_up(local_mem_size, 16), 0);
 
-  // buffer(0) = dynamic local memory size, buffer(1) = gpu-to-host addr delta for pointer translation
-  const NS::UInteger buf_offset = 2;
+  // Runtime buffers: 0 = local size, 1 = address delta, 2 = atomic64 locks.
+  const NS::UInteger buf_offset = 3;
   encoder->setBytes(&user_local_mem_size, sizeof(uint32_t), 0);
   int64_t addr_delta = static_cast<int64_t>(allocator->get_delta());
   encoder->setBytes(&addr_delta, sizeof(int64_t), 1);
+  if (lock_buffer) {
+    encoder->setBuffer(lock_buffer, lock_offset, 2);
+  }
   std::vector<NS::SharedPtr<MTL::Buffer>> buffers_out;
   if (!arg_buffer_used) {
     encode_arguments(encoder, device, allocator, args, arg_sizes, num_args, is_pointer_arg, buf_offset);
@@ -1025,6 +1042,7 @@ result metal_inorder_queue::submit_sscp_kernel_unlocked(hcf_object_id hcf_object
     kernel_info,
     retained_indices,
     has_indirect_access,
+    metal_obj->requires_atomic64_locks(),
     _fence_chain_active ? _fence : nullptr,
     wait_fence);
 

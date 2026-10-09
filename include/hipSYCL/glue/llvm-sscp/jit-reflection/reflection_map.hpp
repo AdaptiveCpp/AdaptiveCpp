@@ -33,6 +33,11 @@ inline reflection_map construct_default_reflection_map(rt::hardware_context* ctx
   rmap["target_is_cpu"] = ctx->is_cpu() ? 1 : 0;
 
   rmap["runtime_backend"] = ctx->get_property(rt::device_uint_property::backend_id);
+  rmap["runtime_backend_is_opencl"] = ctx->get_property(
+      rt::device_uint_property::backend_id) == static_cast<std::size_t>(
+        rt::backend_id::ocl) ? 1 : 0;
+  rmap["opencl_backend_supports_subgroup_extended_types"] = ctx->has(
+      rt::device_support_aspect::opencl_khr_subgroup_extended_types) ? 1 : 0;
   // compiler_backend is set by the LLVMToBackend infrastructure.
   return rmap;
 }

@@ -123,6 +123,9 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::free_memory:
     return false;
     break;
+  case device_support_aspect::opencl_khr_subgroup_extended_types:
+    return false;
+    break;
   }
   assert(false && "Unknown device aspect");
   return false;

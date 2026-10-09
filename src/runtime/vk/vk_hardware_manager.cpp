@@ -330,6 +330,9 @@ bool vk_hardware_context::has(device_support_aspect aspect) const {
     return false;
   case device_support_aspect::free_memory:
     return false;
+  case device_support_aspect::opencl_khr_subgroup_extended_types:
+    return false;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();

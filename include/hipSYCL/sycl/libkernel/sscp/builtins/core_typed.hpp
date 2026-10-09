@@ -13,6 +13,9 @@
 
 #include "builtin_config.hpp"
 
+#include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
+
+#include <stddef.h>
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_local_id_x();
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_local_id_y();
@@ -75,7 +78,7 @@ T __acpp_sscp_typed_get_global_linear_id() {
     T lid_y = (T)__acpp_sscp_get_local_id_y();
     T ngroups_x = (T)__acpp_sscp_get_num_groups_x();
 
-    T id_x = gid_x * lsize_x + lid_x; 
+    T id_x = gid_x * lsize_x + lid_x;
     T id_y = gid_y * lsize_y + lid_y;
 
     T global_size_x = lsize_x * ngroups_x;
@@ -93,7 +96,7 @@ T __acpp_sscp_typed_get_global_linear_id() {
     T lid_z = (T)__acpp_sscp_get_local_id_z();
     T ngroups_x = (T)__acpp_sscp_get_num_groups_x();
     T ngroups_y = (T)__acpp_sscp_get_num_groups_y();
-    
+
     T id_x = gid_x * lsize_x + lid_x;
     T id_y = gid_y * lsize_y + lid_y;
     T id_z = gid_z * lsize_z + lid_z;
@@ -108,8 +111,19 @@ T __acpp_sscp_typed_get_global_linear_id() {
 }
 
 
+size_t __spirv_BuiltInLocalInvocationIndex();
+
 template<int Dim, class T>
 T __acpp_sscp_typed_get_local_linear_id() {
+
+  // In case of SPIR-V backend with OpenCL CPU target, use SPIR-V builtin.
+  // At least PoCL has subgroup-related optimizations that benefit
+  // from this. This could be relaxed to apply to GPU and L0 as well,
+  // but this is a safe approach for now.
+  if (__acpp_sscp_jit_reflect_compiler_backend() == hipsycl::sycl::AdaptiveCpp_jit::compiler_backend::spirv)
+    if (__acpp_sscp_jit_reflect_runtime_backend_is_opencl() && __acpp_sscp_jit_reflect_target_is_cpu())
+      return __spirv_BuiltInLocalInvocationIndex();
+
   if constexpr(Dim == 1) {
     return (T)__acpp_sscp_get_local_id_x();
   } else if constexpr(Dim == 2) {

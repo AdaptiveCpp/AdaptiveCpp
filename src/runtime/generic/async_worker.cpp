@@ -13,6 +13,7 @@
 
 #include <cassert>
 #include <mutex>
+#include <thread>
 
 namespace hipsycl {
 namespace rt {
@@ -116,6 +117,10 @@ void worker_thread::operator()(worker_thread::async_function f)
 
   lock.unlock();
   _condition_wait.notify_all();
+}
+
+bool worker_thread::is_in_worker_thread() const {
+  return _worker_thread.get_id() == std::this_thread::get_id();
 }
 
 std::size_t worker_thread::queue_size() const

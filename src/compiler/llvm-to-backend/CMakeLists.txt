@@ -338,7 +338,6 @@ if(WITH_SSCP_COMPILER)
           "${ACPP_LLVM_DLLTOOL}"
           -d "${ACPP_HOST_C_RUNTIME_DEF}"
           -l "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
-          -m i386:x86-64
         DEPENDS
           llvm-dlltool
           "${ACPP_HOST_C_RUNTIME_DEF}"
@@ -351,7 +350,6 @@ if(WITH_SSCP_COMPILER)
           "${ACPP_LLVM_DLLTOOL}"
           -d "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCompilerRuntimeImport.def"
           -l "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
-          -m i386:x86-64
         DEPENDS
           llvm-dlltool
           "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCompilerRuntimeImport.def"

@@ -13,6 +13,7 @@ jobs:
     outputs:
       docker_matrix: ${{ steps.matrix-output.outputs.json }}
     strategy:
+      fail-fast: false
       matrix:
         clang: [15, 16, 17, 18, 19, 20]
         os: [ubuntu-22.04]

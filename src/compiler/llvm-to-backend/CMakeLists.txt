@@ -217,14 +217,15 @@ if(WITH_SSCP_COMPILER)
       INSTALL_COMMAND ""
     )
 
-    add_custom_target(InstallLLVMSpirvTranslator
-      COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv --target install
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
-    )
-
-    #install(TARGETS InstallLLVMSpirvTranslator)
+    install(CODE "set(ACPP_LLVMSPIRV_BINARY_DIR \"${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv\")")
+    install(CODE "set(ACPP_LLVMSPIRV_RELATIVE_INSTALLDIR \"${LLVMSPIRV_RELATIVE_INSTALLDIR}\")")
     install(CODE [[
-      execute_process(COMMAND "${CMAKE_COMMAND}" --build . --target InstallLLVMSpirvTranslator)
+      execute_process(
+        COMMAND "${CMAKE_COMMAND}"
+          --install "${ACPP_LLVMSPIRV_BINARY_DIR}"
+          --prefix "${CMAKE_INSTALL_PREFIX}/${ACPP_LLVMSPIRV_RELATIVE_INSTALLDIR}"
+        RESULT_VARIABLE _llvmspirv_install_result
+      )
     ]])
 
     add_dependencies(llvm-to-spirv LLVMSpirvTranslator)

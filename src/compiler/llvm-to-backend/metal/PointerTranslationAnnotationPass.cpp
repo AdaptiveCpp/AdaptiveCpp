@@ -209,6 +209,12 @@ llvm::PreservedAnalyses PointerTranslationAnnotationPass::run(Module &M, ModuleA
           if (!tracesToGlobal(LI->getPointerOperand(), GlobalAS, TaintedAllocas)) {
             continue;
           }
+          // TODO: translate ptrtoint/inttoptr between host and GPU addresses.
+          // For now, leave loads used only by ptrtoint in host form.
+          // Atomic64 uses this value to select a lock.
+          if (llvm::all_of(LI->users(), [](User *U) { return isa<PtrToIntInst>(U); })) {
+            continue;
+          }
 
           LI->setMetadata(MetalPtrLoadNeedsTranslationMD, EmptyMD);
           ++LoadsAnnotated;

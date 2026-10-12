@@ -240,6 +240,7 @@ uint3 __acpp_sscp_metal_local_size [[threads_per_threadgroup]];
 threadgroup void * constant __acpp_sscp_metal_dynamic_local_memory [[threadgroup(0)]];
 constant uint& constant __acpp_sscp_metal_dynamic_local_memory_size [[buffer(0)]];
 constant long& constant __acpp_sscp_metal_gpu_to_host_addr_diff [[buffer(1)]];
+device uint* constant __acpp_sscp_metal_atomic64_lock_base [[buffer(2)]];
 
 )__";
 
@@ -531,7 +532,7 @@ bool MetalEmitter::emitSignature(Function& F) {
   os << returnType << " " << F.getName().str() << " (";
 
   bool first = true;
-  int bufIdx = 2; // index=0 is reserved for dynamic local memory size, index=1 for host-to-device address difference, so start from 2
+  int bufIdx = 3; // 0: local memory size, 1: address delta, 2: atomic64 locks
   if (useArgStruct) {
     first = false;
     os << "device " << inputStructName << "& __args [[buffer(" << bufIdx++ << ")]]";

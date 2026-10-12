@@ -190,11 +190,12 @@ result launch_kernel_from_library(
 
   encoder->setThreadgroupMemoryLength(align_up(local_mem_size, 16), 0);
 
-  // buffer(0) = dynamic local memory size, buffer(1) = gpu-to-host addr delta for pointer translation
-  const NS::UInteger buf_offset = 2;
+  // Runtime buffers: 0 = local size, 1 = address delta, 2 = atomic64 locks.
+  const NS::UInteger buf_offset = 3;
   encoder->setBytes(&user_local_mem_size, sizeof(uint32_t), 0);
   int64_t addr_delta = static_cast<int64_t>(allocator->get_delta());
   encoder->setBytes(&addr_delta, sizeof(int64_t), 1);
+  encoder->setBuffer(allocator->get_atomic64_lock_buffer(), 0, 2);
   std::vector<NS::SharedPtr<MTL::Buffer>> buffers_out;
   if (!arg_buffer_used) {
     encode_arguments(encoder, device, allocator, args, arg_sizes, num_args, is_pointer_arg, buf_offset);

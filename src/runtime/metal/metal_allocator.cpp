@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/runtime/metal/metal_allocator.hpp"
+#include "hipSYCL/runtime/metal/metal_atomic64.hpp"
 
 #include "hipSYCL/common/debug.hpp"
 
@@ -18,6 +19,7 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 
+#include <cstring>
 #include <iostream>
 
 namespace hipsycl {
@@ -202,9 +204,13 @@ metal_allocator::metal_allocator(MTL::Device* device, const device_id &id)
   }
 
   calibrate();
+
+  _atomic64_lock_buffer = _device->newBuffer(metal_atomic64_lock_table_size * sizeof(uint32_t), MTL::ResourceStorageModeShared);
+  std::memset(_atomic64_lock_buffer->contents(), 0, _atomic64_lock_buffer->length());
 }
 
 metal_allocator::~metal_allocator() {
+  _atomic64_lock_buffer->release();
   for (auto& [ptr, block] : _ptr_to_block) {
     if (block.buffer) {
       block.buffer->release();

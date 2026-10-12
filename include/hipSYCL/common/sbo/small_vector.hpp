@@ -84,7 +84,7 @@ namespace sbo{
         using vectorT = std::vector<T, small_buffer_vector_allocator<T, N>>;
         //default initialize with the small buffer size
         constexpr small_vector() noexcept { vectorT::reserve(N); }
-        small_vector(const small_vector&) = default;
+        small_vector(const small_vector& other) : small_vector() { vectorT::assign(other.begin(), other.end()); }
         small_vector& operator=(const small_vector&) = default;
         small_vector(small_vector&& other) noexcept(std::is_nothrow_move_constructible_v<T>) {
             if (other.size() <= N)
@@ -103,9 +103,11 @@ namespace sbo{
         template<class InputIt>
         small_vector(InputIt first, InputIt last) : small_vector()   { vectorT::insert(vectorT::begin(), first, last); }
         small_vector(std::initializer_list<T> init) : small_vector() { vectorT::insert(vectorT::begin(), init); }
-        friend void swap(small_vector& a, small_vector& b) noexcept {
-            using std::swap;
-            swap(static_cast<vectorT&>(a), static_cast<vectorT&>(b));
+        void swap(small_vector& other) noexcept(std::is_nothrow_move_constructible_v<T>) {
+            small_vector tmp(std::move(*this));
+            *this = std::move(other);
+            other = std::move(tmp);
         }
+        friend void swap(small_vector& a, small_vector& b) noexcept(std::is_nothrow_move_constructible_v<T>) { a.swap(b); }
     };
 }

@@ -113,7 +113,6 @@ private:
 
   std::ostringstream os;
   std::optional<std::string> errorMsg;
-  bool usesAtomic64Locks = false;
 };
 
 } // namespace compiler

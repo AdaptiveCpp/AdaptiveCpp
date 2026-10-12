@@ -13,6 +13,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
+#include "hipSYCL/runtime/metal/metal_atomic64.hpp"
 
 #include "helpers.hpp"
 
@@ -538,13 +539,10 @@ HIPSYCL_SSCP_BUILTIN u32* __acpp_sscp_metal_symbol_atomic64_lock_base(const char
 
 namespace {
 
-// Must match metal_allocator::atomic64_lock_table_size
-constexpr u64 atomic64_lock_table_size = 16384;
-
 inline u32* atomic64_lock_for(const void* ptr) {
   u32* base = __acpp_sscp_metal_symbol_atomic64_lock_base("__acpp_sscp_metal_atomic64_lock_base");
   u64 address = (u64)ptr;
-  u64 hash = ((address >> 3) ^ (address >> 17)) & (atomic64_lock_table_size - 1);
+  u64 hash = ((address >> 3) ^ (address >> 17)) & (hipsycl::rt::metal_atomic64_lock_table_size - 1);
   return base + hash;
 }
 

@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/runtime/metal/metal_allocator.hpp"
+#include "hipSYCL/runtime/metal/metal_atomic64.hpp"
 
 #include "hipSYCL/common/debug.hpp"
 
@@ -203,9 +204,13 @@ metal_allocator::metal_allocator(MTL::Device* device, const device_id &id)
   }
 
   calibrate();
+
+  _atomic64_lock_buffer = _device->newBuffer(metal_atomic64_lock_table_size * sizeof(uint32_t), MTL::ResourceStorageModeShared);
+  std::memset(_atomic64_lock_buffer->contents(), 0, _atomic64_lock_buffer->length());
 }
 
 metal_allocator::~metal_allocator() {
+  _atomic64_lock_buffer->release();
   for (auto& [ptr, block] : _ptr_to_block) {
     if (block.buffer) {
       block.buffer->release();
@@ -427,36 +432,6 @@ void metal_allocator::calibrate() {
     ^(void*, NS::UInteger) { });
   _delta = buffer->gpuAddress() - reinterpret_cast<uintptr_t>(buffer->contents());
   buffer->release();
-}
-
-void* metal_allocator::get_atomic64_lock_table() {
-  {
-    std::lock_guard<std::mutex> lock{_mutex};
-    if (_atomic64_lock_table) {
-      return _atomic64_lock_table;
-    }
-  }
-
-  void* table = raw_allocate_usm(atomic64_lock_table_size * sizeof(uint32_t));
-  if (!table) {
-    return nullptr;
-  }
-  std::memset(table, 0, atomic64_lock_table_size * sizeof(uint32_t));
-
-  void* existing = nullptr;
-  {
-    std::lock_guard<std::mutex> lock{_mutex};
-    if (!_atomic64_lock_table) {
-      _atomic64_lock_table = table;
-    } else {
-      existing = _atomic64_lock_table;
-    }
-  }
-  if (existing) {
-    raw_free(table);
-    return existing;
-  }
-  return table;
 }
 
 std::tuple<MTL::Buffer*, size_t, metal_allocator::usm_alloc_type> metal_allocator::get_usm_block(const void* ptr) const {

@@ -268,7 +268,7 @@ device uint* constant __acpp_sscp_metal_atomic64_lock_base [[buffer(2)]];
     return false;
   }
 
-  out = std::string{"// capabilities:"} + (usesAtomic64Locks ? " atomic64" : "") + "\n" + os.str();
+  out = os.str();
   return true;
 }
 
@@ -1845,9 +1845,6 @@ bool MetalEmitter::emitMetalInlineCall(const llvm::CallInst* CI, const std::stri
   }
 
   if (is_symbol) {
-    if (ctx->name == "__acpp_sscp_metal_symbol_atomic64_lock_base") {
-      usesAtomic64Locks = true;
-    }
     if (!CI->getType()->isVoidTy()) {
       os << indent(level) << name << " = " << *funcName << ";\n";
     } else {

@@ -29,3 +29,9 @@ AdaptiveCpp follows a regular release schedule with 4-month cadence:
 In the last week prior to release, no new features should be added and focus should be on bug fixes.
 In the last two weeks prior to release, new features should only be added for components of the stack that are still under heavy development (e.g. the SSCP compiler or stdpar support).
    
+# AI-assisted contributions
+
+Using AI assistants for contributions is fine if you take responsibility for the code in question, i.e. you understand it fully, have reviewed it, and are willing to work with maintainers to address any feedback in your pull request.
+Please do **not** include AI tools in your commit history. Every commit should be wholly owned by humans.
+
+Furthermore, by contributing AI-assisted or AI-generated code to this repository,  you additionally assert that you have exercised sufficient review, judgement and creative direction over such tools such that the resulting material can reasonably be considered your original creation. You are not aware of any third-party license, intellectual property claim or other restriction arising from any AI usage that is associated with any part of your contribution.

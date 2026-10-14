@@ -11,6 +11,7 @@
 #ifndef HIPSYCL_CONTEXT_HPP
 #define HIPSYCL_CONTEXT_HPP
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -249,6 +250,61 @@ HIPSYCL_SPECIALIZE_GET_INFO(context, platform)
 
 HIPSYCL_SPECIALIZE_GET_INFO(context, devices)
 { return get_devices(); }
+
+HIPSYCL_SPECIALIZE_GET_INFO(context, atomic_memory_order_capabilities) {
+  const auto devices = get_devices();
+  const std::vector<memory_order> canonical{
+    memory_order::relaxed,
+    memory_order::acquire,
+    memory_order::release,
+    memory_order::acq_rel,
+    memory_order::seq_cst
+  };
+
+  std::vector<memory_order> result;
+  for(const auto order : canonical) {
+    bool supported_by_all = true;
+    for(const auto& dev : devices) {
+      const auto capabilities =
+          dev.get_info<info::device::atomic_memory_order_capabilities>();
+      if(std::find(capabilities.begin(), capabilities.end(), order) ==
+         capabilities.end()) {
+        supported_by_all = false;
+        break;
+      }
+    }
+    if(supported_by_all)
+      result.push_back(order);
+  }
+  return result;
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(context, atomic_memory_scope_capabilities) {
+  const auto devices = get_devices();
+  const std::vector<memory_scope> canonical{
+    memory_scope::sub_group,
+    memory_scope::work_group,
+    memory_scope::device,
+    memory_scope::system
+  };
+
+  std::vector<memory_scope> result;
+  for(const auto scope : canonical) {
+    bool supported_by_all = true;
+    for(const auto& dev : devices) {
+      const auto capabilities =
+          dev.get_info<info::device::atomic_memory_scope_capabilities>();
+      if(std::find(capabilities.begin(), capabilities.end(), scope) ==
+         capabilities.end()) {
+        supported_by_all = false;
+        break;
+      }
+    }
+    if(supported_by_all)
+      result.push_back(scope);
+  }
+  return result;
+}
 
 namespace detail {
 

@@ -12,6 +12,7 @@
 #define HIPSYCL_HARDWARE_HPP
 
 #include <string>
+#include <vector>
 
 #include "device_id.hpp"
 
@@ -113,6 +114,21 @@ enum class device_uint_list_property {
   sub_group_sizes
 };
 
+enum class atomic_memory_order_capability {
+  relaxed,
+  acquire,
+  release,
+  acq_rel,
+  seq_cst
+};
+
+enum class atomic_memory_scope_capability {
+  sub_group,
+  work_group,
+  device,
+  system
+};
+
 class hardware_context
 {
 public:
@@ -135,6 +151,22 @@ public:
 
   virtual std::vector<std::size_t>
   get_property(device_uint_list_property prop) const = 0;
+
+  // SYCL 2020 requires relaxed atomic ordering on every device and at least
+  // sub-group and work-group atomic scopes. Backends override these queries
+  // when their lowering supports stronger orders and wider scopes.
+  virtual std::vector<atomic_memory_order_capability>
+  get_atomic_memory_order_capabilities() const {
+    return {atomic_memory_order_capability::relaxed};
+  }
+
+  virtual std::vector<atomic_memory_scope_capability>
+  get_atomic_memory_scope_capabilities() const {
+    return {
+      atomic_memory_scope_capability::sub_group,
+      atomic_memory_scope_capability::work_group
+    };
+  }
 
   virtual std::string get_driver_version() const = 0;
   virtual std::string get_profile() const = 0;

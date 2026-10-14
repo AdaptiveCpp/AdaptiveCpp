@@ -176,6 +176,7 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
 
   _reflection_map = glue::jit::construct_default_reflection_map(dev_ctx);
   _reflection_map["target_has_ocl_subgroup_extended_types"] = dev_ctx->has_cl_khr_subgroup_extended_types_extension();
+  _reflection_map["ocl_platform_is_intel"] = dev_ctx->has_intel_extension_profile();
 }
 
 ocl_queue::~ocl_queue() {}
@@ -524,6 +525,15 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       compilation_flow::sscp);
   _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
+  // The SPIR-V backend uses JIT reflection to lower some builtins
+  // differently depending on the target's capabilities.
+  // Therefore, we must not reuse the same SPIR-V binary across different
+  // devices. Include device/driver specific information on kernel hashing.
+  _config.append_base_configuration(
+      kernel_base_config_parameter::device_identifier,
+      hw_ctx->get_driver_version() +
+      hw_ctx->get_vendor_name() +
+      hw_ctx->get_device_name());
 
   for(const auto& flag : kernel_info->get_compilation_flags())
     _config.set_build_flag(flag);

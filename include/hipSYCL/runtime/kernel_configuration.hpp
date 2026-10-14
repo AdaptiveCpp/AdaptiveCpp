@@ -39,7 +39,8 @@ enum class kernel_base_config_parameter : int {
   target_arch = 3,
   runtime_device = 4,
   runtime_context = 5,
-  single_kernel = 6
+  single_kernel = 6,
+  device_identifier = 7
 };
 
 enum class kernel_build_option : int {
@@ -216,7 +217,7 @@ public:
                           &flags, sizeof(flags));
       }
     }
-    
+
     for(const auto& entry : _known_alignments) {
       uint64_t numeric_option_id = static_cast<uint64_t>(entry.first) | (1ull << 37);
       uint64_t config_id = entry.second;
@@ -254,7 +255,7 @@ public:
   std::size_t get_num_kernel_param_indices() const {
     return _kernel_param_flags.size();
   }
-  
+
   const auto& known_alignments() const {
     return _known_alignments;
   }

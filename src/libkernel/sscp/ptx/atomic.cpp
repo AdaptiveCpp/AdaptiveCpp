@@ -433,10 +433,54 @@ void mem_fence(__acpp_sscp_memory_scope fence_scope) {
     __nvvm_membar_sys();
   } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
     __nvvm_membar_gl();
-  } else if(fence_scope == hipsycl::sycl::memory_scope::work_group) {
+  } else {
+    // Atomic operations do not accept work-item scope. Using a CTA fence for
+    // sub-group scope is conservative and therefore valid.
     __nvvm_membar_cta();
   }
 }
+
+void atomic_rmw_pre_fence(__acpp_sscp_memory_order order,
+                          __acpp_sscp_memory_scope scope) {
+  if(order == __acpp_sscp_memory_order::release ||
+     order == __acpp_sscp_memory_order::acq_rel ||
+     order == __acpp_sscp_memory_order::seq_cst)
+    mem_fence(scope);
+}
+
+void atomic_rmw_post_fence(__acpp_sscp_memory_order order,
+                           __acpp_sscp_memory_scope scope) {
+  if(order == __acpp_sscp_memory_order::acquire ||
+     order == __acpp_sscp_memory_order::acq_rel ||
+     order == __acpp_sscp_memory_order::seq_cst)
+    mem_fence(scope);
+}
+
+__acpp_sscp_memory_order
+load_order_for_rmw(__acpp_sscp_memory_order order) {
+  if(order == __acpp_sscp_memory_order::release)
+    return __acpp_sscp_memory_order::relaxed;
+  if(order == __acpp_sscp_memory_order::acq_rel)
+    return __acpp_sscp_memory_order::acquire;
+  return order;
+}
+
+__acpp_sscp_memory_order
+failure_order_for_rmw(__acpp_sscp_memory_order order) {
+  if(order == __acpp_sscp_memory_order::release)
+    return __acpp_sscp_memory_order::relaxed;
+  if(order == __acpp_sscp_memory_order::acq_rel)
+    return __acpp_sscp_memory_order::acquire;
+  return order;
+}
+
+#define ACPP_PTX_ORDERED_RMW_RETURN(expr)                                     \
+  do {                                                                         \
+    atomic_rmw_pre_fence(order, scope);                                        \
+    const auto __acpp_result = (expr);                                         \
+    atomic_rmw_post_fence(order, scope);                                       \
+    return __acpp_result;                                                      \
+  } while(false)
 
 
 template<class T>
@@ -473,40 +517,87 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     if(scope == __acpp_sscp_memory_scope::system) {
       if(order == __acpp_sscp_memory_order::relaxed) {
         asm volatile("st.relaxed.sys.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
+                     :
+                     : "l"(ptr), "r"(x)
+                     : "memory");
         return;
       } else if(order == __acpp_sscp_memory_order::release) {
         asm volatile("st.release.sys.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
+                     :
+                     : "l"(ptr), "r"(x)
+                     : "memory");
         return;
       }
     } else if(scope == __acpp_sscp_memory_scope::device) {
       if(order == __acpp_sscp_memory_order::relaxed) {
         asm volatile("st.relaxed.gpu.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
+                     :
+                     : "l"(ptr), "r"(x)
+                     : "memory");
         return;
       } else if(order == __acpp_sscp_memory_order::release) {
         asm volatile("st.release.gpu.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
+                     :
+                     : "l"(ptr), "r"(x)
+                     : "memory");
         return;
       }
     }
   }
-  memfenced_store(ptr, x, scope);
+
+  atomic_rmw_pre_fence(order, scope);
+  if(scope == __acpp_sscp_memory_scope::system)
+    (void)__iAtomicExch_system(ptr, x);
+  else if(scope == __acpp_sscp_memory_scope::device)
+    (void)__iAtomicExch(ptr, x);
+  else
+    (void)__iAtomicExch_block(ptr, x);
+  atomic_rmw_post_fence(order, scope);
 }
 
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
-  memfenced_store(ptr, x, scope);
+  if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    if(scope == __acpp_sscp_memory_scope::system) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        asm volatile("st.relaxed.sys.s64 [%0], %1;"
+                     :
+                     : "l"(ptr), "l"(x)
+                     : "memory");
+        return;
+      } else if(order == __acpp_sscp_memory_order::release) {
+        asm volatile("st.release.sys.s64 [%0], %1;"
+                     :
+                     : "l"(ptr), "l"(x)
+                     : "memory");
+        return;
+      }
+    } else if(scope == __acpp_sscp_memory_scope::device) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        asm volatile("st.relaxed.gpu.s64 [%0], %1;"
+                     :
+                     : "l"(ptr), "l"(x)
+                     : "memory");
+        return;
+      } else if(order == __acpp_sscp_memory_order::release) {
+        asm volatile("st.release.gpu.s64 [%0], %1;"
+                     :
+                     : "l"(ptr), "l"(x)
+                     : "memory");
+        return;
+      }
+    }
+  }
+
+  atomic_rmw_pre_fence(order, scope);
+  if(scope == __acpp_sscp_memory_scope::system)
+    (void)__llAtomicExch_system(ptr, x);
+  else if(scope == __acpp_sscp_memory_scope::device)
+    (void)__llAtomicExch(ptr, x);
+  else
+    (void)__llAtomicExch_block(ptr, x);
+  atomic_rmw_post_fence(order, scope);
 }
 
 
@@ -527,49 +618,101 @@ HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_load_i16(
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr) {
-
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
     if(scope == __acpp_sscp_memory_scope::system) {
       if(order == __acpp_sscp_memory_order::relaxed) {
         __acpp_int32 result;
         asm volatile("ld.relaxed.sys.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
+                     : "=r"(result)
+                     : "l"(ptr)
+                     : "memory");
         return result;
       } else if(order == __acpp_sscp_memory_order::acquire) {
         __acpp_int32 result;
         asm volatile("ld.acquire.sys.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
+                     : "=r"(result)
+                     : "l"(ptr)
+                     : "memory");
         return result;
       }
     } else if(scope == __acpp_sscp_memory_scope::device) {
       if(order == __acpp_sscp_memory_order::relaxed) {
         __acpp_int32 result;
         asm volatile("ld.relaxed.gpu.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
+                     : "=r"(result)
+                     : "l"(ptr)
+                     : "memory");
         return result;
       } else if(order == __acpp_sscp_memory_order::acquire) {
         __acpp_int32 result;
         asm volatile("ld.acquire.gpu.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
+                     : "=r"(result)
+                     : "l"(ptr)
+                     : "memory");
         return result;
-      } 
+      }
     }
   }
-  return memfenced_load(ptr, scope);
+
+  __acpp_int32 result;
+  if(scope == __acpp_sscp_memory_scope::system)
+    result = __iAtomicCAS_system(ptr, 0, 0);
+  else if(scope == __acpp_sscp_memory_scope::device)
+    result = __iAtomicCAS(ptr, 0, 0);
+  else
+    result = __iAtomicCAS_block(ptr, 0, 0);
+  atomic_rmw_post_fence(order, scope);
+  return result;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_load_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr) {
-  return memfenced_load(ptr, scope);
+  if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    if(scope == __acpp_sscp_memory_scope::system) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        __acpp_int64 result;
+        asm volatile("ld.relaxed.sys.u64 %0,[%1];"
+                     : "=l"(result)
+                     : "l"(ptr)
+                     : "memory");
+        return result;
+      } else if(order == __acpp_sscp_memory_order::acquire) {
+        __acpp_int64 result;
+        asm volatile("ld.acquire.sys.u64 %0,[%1];"
+                     : "=l"(result)
+                     : "l"(ptr)
+                     : "memory");
+        return result;
+      }
+    } else if(scope == __acpp_sscp_memory_scope::device) {
+      if(order == __acpp_sscp_memory_order::relaxed) {
+        __acpp_int64 result;
+        asm volatile("ld.relaxed.gpu.u64 %0,[%1];"
+                     : "=l"(result)
+                     : "l"(ptr)
+                     : "memory");
+        return result;
+      } else if(order == __acpp_sscp_memory_order::acquire) {
+        __acpp_int64 result;
+        asm volatile("ld.acquire.gpu.u64 %0,[%1];"
+                     : "=l"(result)
+                     : "l"(ptr)
+                     : "memory");
+        return result;
+      }
+    }
+  }
+
+  __acpp_int64 result;
+  if(scope == __acpp_sscp_memory_scope::system)
+    result = __llAtomicCAS_system(ptr, 0, 0);
+  else if(scope == __acpp_sscp_memory_scope::device)
+    result = __llAtomicCAS(ptr, 0, 0);
+  else
+    result = __llAtomicCAS_block(ptr, 0, 0);
+  atomic_rmw_post_fence(order, scope);
+  return result;
 }
 
 // for internal use only, not part of the public API
@@ -615,11 +758,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_exchange_i32(
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr,
     __acpp_int32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicExch_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicExch_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicExch(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicExch(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicExch_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicExch_block(ptr, x));
   }
 }
 
@@ -628,11 +771,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_exchange_i64(
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr,
     __acpp_int64 x) {
    if (scope == __acpp_sscp_memory_scope::system) {
-    return __llAtomicExch_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicExch_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __llAtomicExch(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicExch(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __llAtomicExch_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicExch_block(ptr, x));
   }
 }
 
@@ -698,46 +841,38 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int32 *ptr, __acpp_int32 *expected, __acpp_int32 desired) {
+  atomic_rmw_pre_fence(success, scope);
 
-  __acpp_int32 old = *expected;
-  if (scope == __acpp_sscp_memory_scope::system) {
-    if (success == __acpp_sscp_memory_order::acquire &&
-        failure == __acpp_sscp_memory_order::acquire) {
-      __acpp_int32 compare = *expected;
-      __acpp_int32 result;
-      // Documentation says u32/s32 types should be allowed,
-      // but driver currently does not accept this. So use b32
-      // instead.
-      asm volatile("atom.acquire.sys.cas.b32 %0,[%1],%2,%3;"
-                   : "=r"(result)
-                   : "l"(ptr), "r"(compare), "r"(desired)
-                   : "memory");
-      *expected = result;
-    } else {
-      *expected = __iAtomicCAS_system(ptr, *expected, desired);
-    }
-  } else if (scope == __acpp_sscp_memory_scope::device) {
+  const __acpp_int32 old = *expected;
+  if(scope == __acpp_sscp_memory_scope::system)
+    *expected = __iAtomicCAS_system(ptr, *expected, desired);
+  else if(scope == __acpp_sscp_memory_scope::device)
     *expected = __iAtomicCAS(ptr, *expected, desired);
-  } else /* work group, sub group or work item */ {
+  else
     *expected = __iAtomicCAS_block(ptr, *expected, desired);
-  }
-  return old == *expected;
+
+  const bool succeeded = old == *expected;
+  atomic_rmw_post_fence(succeeded ? success : failure, scope);
+  return succeeded;
 }
 
 HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int64 *ptr, __acpp_int64 *expected, __acpp_int64 desired) {
+  atomic_rmw_pre_fence(success, scope);
 
-  __acpp_int64 old = *expected;
-  if (scope == __acpp_sscp_memory_scope::system) {
+  const __acpp_int64 old = *expected;
+  if(scope == __acpp_sscp_memory_scope::system)
     *expected = __llAtomicCAS_system(ptr, *expected, desired);
-  } else if (scope == __acpp_sscp_memory_scope::device) {
+  else if(scope == __acpp_sscp_memory_scope::device)
     *expected = __llAtomicCAS(ptr, *expected, desired);
-  } else /* work group, sub group or work item */ {
+  else
     *expected = __llAtomicCAS_block(ptr, *expected, desired);
-  }
-  return old == *expected;
+
+  const bool succeeded = old == *expected;
+  atomic_rmw_post_fence(succeeded ? success : failure, scope);
+  return succeeded;
 }
 
 
@@ -789,11 +924,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_and_i32(
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
 
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicAnd_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAnd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicAnd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAnd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicAnd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAnd_block(ptr, x));
   }
 }
 
@@ -802,11 +937,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_and_i64(
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
 
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __llAtomicAnd_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAnd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __llAtomicAnd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAnd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __llAtomicAnd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAnd_block(ptr, x));
   }
 }
 
@@ -832,11 +967,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_or_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicOr_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicOr_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicOr(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicOr(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicOr_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicOr_block(ptr, x));
   }
 }
 
@@ -844,11 +979,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_or_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __llAtomicOr_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicOr_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __llAtomicOr(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicOr(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __llAtomicOr_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicOr_block(ptr, x));
   }
 }
 
@@ -874,11 +1009,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_xor_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicXor_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicXor_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicXor(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicXor(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicXor_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicXor_block(ptr, x));
   }
 }
 
@@ -886,11 +1021,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_xor_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __llAtomicXor_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicXor_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __llAtomicXor(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicXor(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __llAtomicXor_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicXor_block(ptr, x));
   }
 }
 
@@ -926,11 +1061,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_add_i32(
       return result;
     }
     else  
-      return __iAtomicAdd_system(ptr, x);
+      ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAdd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicAdd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAdd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicAdd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAdd_block(ptr, x));
   }
 }
 
@@ -938,11 +1073,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_add_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __llAtomicAdd_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAdd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __llAtomicAdd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAdd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __llAtomicAdd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAdd_block(ptr, x));
   }
 }
 
@@ -975,11 +1110,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_add_u32(
       return result;
     }
     else  
-      return __uAtomicAdd_system(ptr, x);
+      ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicAdd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __uAtomicAdd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicAdd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __uAtomicAdd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicAdd_block(ptr, x));
   }
 }
 
@@ -987,11 +1122,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_add_u64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint64 *ptr, __acpp_uint64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __ullAtomicAdd_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicAdd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __ullAtomicAdd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicAdd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __ullAtomicAdd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicAdd_block(ptr, x));
   }
 }
 
@@ -999,11 +1134,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_add_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __fAtomicAdd_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__fAtomicAdd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __fAtomicAdd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__fAtomicAdd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __fAtomicAdd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__fAtomicAdd_block(ptr, x));
   }
 }
 
@@ -1011,11 +1146,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __dAtomicAdd_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__dAtomicAdd_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __dAtomicAdd(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__dAtomicAdd(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __dAtomicAdd_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__dAtomicAdd_block(ptr, x));
   }
 }
 
@@ -1041,11 +1176,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_sub_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicAdd_system(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAdd_system(ptr, -x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicAdd(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAdd(ptr, -x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicAdd_block(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicAdd_block(ptr, -x));
   }
 }
 
@@ -1053,11 +1188,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_sub_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __llAtomicAdd_system(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAdd_system(ptr, -x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __llAtomicAdd(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAdd(ptr, -x));
   } else /* work group, sub group or work item */ {
-    return __llAtomicAdd_block(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__llAtomicAdd_block(ptr, -x));
   }
 }
 
@@ -1081,11 +1216,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_sub_u32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint32 *ptr, __acpp_uint32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __uAtomicAdd_system(ptr, (__acpp_uint32)-(int)x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicAdd_system(ptr, (__acpp_uint32)-(int)x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __uAtomicAdd(ptr, (__acpp_uint32)-(int)x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicAdd(ptr, (__acpp_uint32)-(int)x));
   } else /* work group, sub group or work item */ {
-    return __uAtomicAdd_block(ptr, (__acpp_uint32)-(int)x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicAdd_block(ptr, (__acpp_uint32)-(int)x));
   }
 }
 
@@ -1093,11 +1228,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_sub_u64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint64 *ptr, __acpp_uint64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __ullAtomicAdd_system(ptr, (__acpp_uint64)-(__acpp_int64)x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicAdd_system(ptr, (__acpp_uint64)-(__acpp_int64)x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __ullAtomicAdd(ptr, (__acpp_uint64)-(__acpp_int64)x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicAdd(ptr, (__acpp_uint64)-(__acpp_int64)x));
   } else /* work group, sub group or work item */ {
-    return __ullAtomicAdd_block(ptr, (__acpp_uint64)-(__acpp_int64)x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicAdd_block(ptr, (__acpp_uint64)-(__acpp_int64)x));
   }
 }
 
@@ -1105,11 +1240,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_sub_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __fAtomicAdd_system(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__fAtomicAdd_system(ptr, -x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __fAtomicAdd(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__fAtomicAdd(ptr, -x));
   } else /* work group, sub group or work item */ {
-    return __fAtomicAdd_block(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__fAtomicAdd_block(ptr, -x));
   }
 }
 
@@ -1117,11 +1252,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_sub_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __dAtomicAdd_system(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__dAtomicAdd_system(ptr, -x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __dAtomicAdd(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__dAtomicAdd(ptr, -x));
   } else /* work group, sub group or work item */ {
-    return __dAtomicAdd_block(ptr, -x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__dAtomicAdd_block(ptr, -x));
   }
 }
 
@@ -1147,11 +1282,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_min_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicMin_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicMin_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicMin(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicMin(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicMin_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicMin_block(ptr, x));
   }
 }
 
@@ -1159,11 +1294,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_min_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __illAtomicMin_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__illAtomicMin_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __illAtomicMin(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__illAtomicMin(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __illAtomicMin_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__illAtomicMin_block(ptr, x));
   }
 }
 
@@ -1187,11 +1322,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_min_u32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint32 *ptr, __acpp_uint32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __uAtomicMin_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicMin_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __uAtomicMin(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicMin(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __uAtomicMin_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicMin_block(ptr, x));
   }
 }
 
@@ -1199,11 +1334,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_min_u64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint64 *ptr, __acpp_uint64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __ullAtomicMin_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicMin_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __ullAtomicMin(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicMin(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __ullAtomicMin_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicMin_block(ptr, x));
   }
 }
 
@@ -1211,12 +1346,12 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
 
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
+  __acpp_f32 old = atomic_load_f32(as, load_order_for_rmw(order), scope, ptr);
 
   do {
     if (old < x)
       return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f32(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
   return x;
 }
 
@@ -1224,12 +1359,12 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
+  __acpp_f64 old = atomic_load_f64(as, load_order_for_rmw(order), scope, ptr);
   
   do {
     if (old < x)
       return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f64(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
   return x;
 }
 
@@ -1255,11 +1390,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_max_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __iAtomicMax_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicMax_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __iAtomicMax(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicMax(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __iAtomicMax_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__iAtomicMax_block(ptr, x));
   }
 }
 
@@ -1267,11 +1402,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_max_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __illAtomicMax_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__illAtomicMax_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __illAtomicMax(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__illAtomicMax(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __illAtomicMax_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__illAtomicMax_block(ptr, x));
   }
 }
 
@@ -1295,11 +1430,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_max_u32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint32 *ptr, __acpp_uint32 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __uAtomicMax_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicMax_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __uAtomicMax(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicMax(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __uAtomicMax_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__uAtomicMax_block(ptr, x));
   }
 }
 
@@ -1307,11 +1442,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_max_u64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint64 *ptr, __acpp_uint64 x) {
   if (scope == __acpp_sscp_memory_scope::system) {
-    return __ullAtomicMax_system(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicMax_system(ptr, x));
   } else if (scope == __acpp_sscp_memory_scope::device) {
-    return __ullAtomicMax(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicMax(ptr, x));
   } else /* work group, sub group or work item */ {
-    return __ullAtomicMax_block(ptr, x);
+    ACPP_PTX_ORDERED_RMW_RETURN(__ullAtomicMax_block(ptr, x));
   }
 }
 
@@ -1319,12 +1454,12 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
   
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
+  __acpp_f32 old = atomic_load_f32(as, load_order_for_rmw(order), scope, ptr);
   
   do {
     if (old > x)
       return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f32(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
   return x;
 }
 
@@ -1332,13 +1467,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
+  __acpp_f64 old = atomic_load_f64(as, load_order_for_rmw(order), scope, ptr);
   
   do {
     if (old > x)
       return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f64(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
   return x;
 }
 
-
+#undef ACPP_PTX_ORDERED_RMW_RETURN

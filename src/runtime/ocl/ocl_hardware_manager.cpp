@@ -301,6 +301,30 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
   std::terminate();
 }
 
+std::vector<atomic_memory_order_capability>
+ocl_hardware_context::get_atomic_memory_order_capabilities() const {
+  return {
+    atomic_memory_order_capability::relaxed,
+    atomic_memory_order_capability::acquire,
+    atomic_memory_order_capability::release,
+    atomic_memory_order_capability::acq_rel
+  };
+}
+
+std::vector<atomic_memory_scope_capability>
+ocl_hardware_context::get_atomic_memory_scope_capabilities() const {
+  std::vector<atomic_memory_scope_capability> result{
+    atomic_memory_scope_capability::sub_group,
+    atomic_memory_scope_capability::work_group,
+    atomic_memory_scope_capability::device
+  };
+
+  if(has(device_support_aspect::usm_atomic_shared_allocations))
+    result.push_back(atomic_memory_scope_capability::system);
+
+  return result;
+}
+
 std::size_t ocl_hardware_context::get_property(device_uint_property prop) const {
   switch (prop) {
   case device_uint_property::max_compute_units:

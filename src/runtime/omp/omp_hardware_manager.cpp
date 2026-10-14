@@ -128,6 +128,27 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
   return false;
 }
 
+std::vector<atomic_memory_order_capability>
+omp_hardware_context::get_atomic_memory_order_capabilities() const {
+  return {
+    atomic_memory_order_capability::relaxed,
+    atomic_memory_order_capability::acquire,
+    atomic_memory_order_capability::release,
+    atomic_memory_order_capability::acq_rel,
+    atomic_memory_order_capability::seq_cst
+  };
+}
+
+std::vector<atomic_memory_scope_capability>
+omp_hardware_context::get_atomic_memory_scope_capabilities() const {
+  return {
+    atomic_memory_scope_capability::sub_group,
+    atomic_memory_scope_capability::work_group,
+    atomic_memory_scope_capability::device,
+    atomic_memory_scope_capability::system
+  };
+}
+
 std::size_t
 omp_hardware_context::get_property(device_uint_property prop) const {
 

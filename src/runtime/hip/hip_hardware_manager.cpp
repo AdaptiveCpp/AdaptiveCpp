@@ -264,8 +264,15 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
     return true;
     break;
   case device_support_aspect::usm_atomic_shared_allocations:
-    // TODO actually query this
-    return false;
+#if defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
+    return true;
+#else
+    // AdaptiveCpp shared USM on HIP is backed by hipMallocManaged().
+    // concurrentManagedAccess is the runtime capability that establishes
+    // coherent simultaneous host/device access to that managed allocation.
+    return _properties->managedMemory != 0 &&
+           _properties->concurrentManagedAccess != 0;
+#endif
     break;
   case device_support_aspect::usm_system_allocations:
     return false;
@@ -295,6 +302,30 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   }
   assert(false && "Unknown device aspect");
   std::terminate();
+}
+
+std::vector<atomic_memory_order_capability>
+hip_hardware_context::get_atomic_memory_order_capabilities() const {
+  return {
+    atomic_memory_order_capability::relaxed,
+    atomic_memory_order_capability::acquire,
+    atomic_memory_order_capability::release,
+    atomic_memory_order_capability::acq_rel
+  };
+}
+
+std::vector<atomic_memory_scope_capability>
+hip_hardware_context::get_atomic_memory_scope_capabilities() const {
+  std::vector<atomic_memory_scope_capability> result{
+    atomic_memory_scope_capability::sub_group,
+    atomic_memory_scope_capability::work_group,
+    atomic_memory_scope_capability::device
+  };
+
+  if(has(device_support_aspect::usm_atomic_shared_allocations))
+    result.push_back(atomic_memory_scope_capability::system);
+
+  return result;
 }
 
 std::size_t

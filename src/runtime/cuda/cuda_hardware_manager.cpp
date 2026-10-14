@@ -229,10 +229,22 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::usm_shared_allocations:
     return true;
     break;
-  case device_support_aspect::usm_atomic_shared_allocations:
-    // TODO actually query this
-    return false;
-    break;
+  case device_support_aspect::usm_atomic_shared_allocations: {
+    const int compute_capability =
+        _properties->major * 10 + _properties->minor;
+
+    // CUDA system-scope atomics require CC 6.0+. On Tegra they require
+    // CC 7.2+. AdaptiveCpp shared USM on CUDA is cudaMallocManaged(), and
+    // concurrentManagedAccess is the CUDA capability that makes managed memory
+    // coherently accessible by host and device at the same time.
+    if(compute_capability < 60)
+      return false;
+    if(_properties->integrated && compute_capability < 72)
+      return false;
+
+    return _properties->managedMemory != 0 &&
+           _properties->concurrentManagedAccess != 0;
+  }
   case device_support_aspect::usm_system_allocations:
     return false;
     break;
@@ -261,6 +273,30 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   }
   assert(false && "Unknown device aspect");
   std::terminate();
+}
+
+std::vector<atomic_memory_order_capability>
+cuda_hardware_context::get_atomic_memory_order_capabilities() const {
+  return {
+    atomic_memory_order_capability::relaxed,
+    atomic_memory_order_capability::acquire,
+    atomic_memory_order_capability::release,
+    atomic_memory_order_capability::acq_rel
+  };
+}
+
+std::vector<atomic_memory_scope_capability>
+cuda_hardware_context::get_atomic_memory_scope_capabilities() const {
+  std::vector<atomic_memory_scope_capability> result{
+    atomic_memory_scope_capability::sub_group,
+    atomic_memory_scope_capability::work_group,
+    atomic_memory_scope_capability::device
+  };
+
+  if(has(device_support_aspect::usm_atomic_shared_allocations))
+    result.push_back(atomic_memory_scope_capability::system);
+
+  return result;
 }
 
 std::size_t

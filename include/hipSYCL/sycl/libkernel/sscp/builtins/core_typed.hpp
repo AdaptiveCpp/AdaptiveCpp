@@ -112,13 +112,23 @@ T __acpp_sscp_typed_get_global_linear_id() {
 
 size_t __spirv_BuiltInLocalInvocationIndex();
 
+extern "C" bool __acpp_sscp_jit_reflect_knows_ocl_platform_is_intel();
+extern "C" bool __acpp_sscp_jit_reflect_ocl_platform_is_intel();
+
 template<int Dim, class T>
 T __acpp_sscp_typed_get_local_linear_id() {
 
-  // In case of SPIR-V backend, lower to high-level builtin.
-  // This should be supported on all SPIR-V runtime backends.
-  if (__acpp_sscp_jit_reflect_compiler_backend() == hipsycl::sycl::AdaptiveCpp_jit::compiler_backend::spirv)
-    return __spirv_BuiltInLocalInvocationIndex();
+
+  // Lowering to __spirv_BuiltInLocalInvocationIndex should work on most
+  // backends, but for example Intel CPU OpenCL fails (GPU OpenCL does not).
+  // To play safe, lower to __spirv_BuiltInLocalInvocationIndex only on
+  // non-Intel OpenCL.
+  // At least PoCL has subgroup-related optimizations that benefit
+  // from this. Other backends probably lower this in a same way
+  // that AdaptiveCpp does.
+  if(__acpp_sscp_jit_reflect_knows_ocl_platform_is_intel())
+    if(!__acpp_sscp_jit_reflect_ocl_platform_is_intel())
+      return __spirv_BuiltInLocalInvocationIndex();
 
   if constexpr(Dim == 1) {
     return (T)__acpp_sscp_get_local_id_x();

@@ -206,7 +206,7 @@ std::string ocl_hardware_context::get_device_name() const {
 }
 
 std::string ocl_hardware_context::get_vendor_name() const {
-  return info_query<CL_DEVICE_NAME, std::string>(_dev);
+  return info_query<CL_DEVICE_VENDOR, std::string>(_dev);
 }
 
 std::string ocl_hardware_context::get_device_arch() const {

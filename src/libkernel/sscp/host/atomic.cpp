@@ -448,7 +448,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
   do{
     if (old < x) return old;
   } while (!__acpp_sscp_cmp_exch_strong_i32(as, order, order, scope, (__acpp_int32*)ptr, (__acpp_int32*)&old, *(__acpp_int32*)&x));
-  return x;
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
@@ -459,7 +459,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
   do{
     if (old < x) return old;
   } while (!__acpp_sscp_cmp_exch_strong_i64(as, order, order, scope, (__acpp_int64*)ptr, (__acpp_int64*)&old, *(__acpp_int64*)&x));
-  return x;
+  return old;
 }
 
 
@@ -519,7 +519,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
   do{
     if (old > x) return old;
   } while (!__acpp_sscp_cmp_exch_strong_i32(as, order, order, scope, (__acpp_int32*)ptr, (__acpp_int32*)&old, *(__acpp_int32*)&x));
-  return x;
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
@@ -530,6 +530,5 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
   do{
     if (old > x) return old;
   } while (!__acpp_sscp_cmp_exch_strong_i64(as, order, order, scope, (__acpp_int64*)ptr, (__acpp_int64*)&old, *(__acpp_int64*)&x));
-  return x;
+  return old;
 }
-

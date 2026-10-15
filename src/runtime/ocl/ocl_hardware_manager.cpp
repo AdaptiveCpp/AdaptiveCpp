@@ -319,7 +319,11 @@ ocl_hardware_context::get_atomic_memory_scope_capabilities() const {
     atomic_memory_scope_capability::device
   };
 
-  if(has(device_support_aspect::usm_atomic_shared_allocations))
+  // OpenCL 3.0 reports scope support independently of the USM provider.
+  cl_device_atomic_capabilities capabilities = 0;
+  if(clGetDeviceInfo(_dev.get(), CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES,
+                     sizeof(capabilities), &capabilities, nullptr) == CL_SUCCESS &&
+     (capabilities & CL_DEVICE_ATOMIC_SCOPE_ALL_DEVICES) != 0)
     result.push_back(atomic_memory_scope_capability::system);
 
   return result;

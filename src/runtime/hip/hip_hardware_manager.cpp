@@ -256,10 +256,23 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::usm_host_allocations:
     return true;
     break;
-  case device_support_aspect::usm_atomic_host_allocations:
-    // TODO actually query this
-    return false;
-    break;
+  case device_support_aspect::usm_atomic_host_allocations: {
+#if defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
+    return true;
+#else
+#if defined(HIPSYCL_RT_HIP_TARGET_CUDA)
+    const int compute_capability =
+        _properties->major * 10 + _properties->minor;
+    if(compute_capability < 60 ||
+       (_properties->integrated && compute_capability < 72))
+      return false;
+#endif
+    int supported = 0;
+    return hipDeviceGetAttribute(&supported,
+               hipDeviceAttributeHostNativeAtomicSupported, _dev) == hipSuccess &&
+           supported != 0;
+#endif
+  }
   case device_support_aspect::usm_shared_allocations:
     return true;
     break;
@@ -322,7 +335,13 @@ hip_hardware_context::get_atomic_memory_scope_capabilities() const {
     atomic_memory_scope_capability::device
   };
 
-  if(has(device_support_aspect::usm_atomic_shared_allocations))
+  // ROCm and hipCPU implement system scope independently of USM kind.
+#if defined(HIPSYCL_RT_HIP_TARGET_CUDA)
+  const int compute_capability =
+      _properties->major * 10 + _properties->minor;
+  if(compute_capability >= 60 &&
+     (!_properties->integrated || compute_capability >= 72))
+#endif
     result.push_back(atomic_memory_scope_capability::system);
 
   return result;

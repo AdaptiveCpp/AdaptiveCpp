@@ -1349,9 +1349,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
   __acpp_f32 old = atomic_load_f32(as, load_order_for_rmw(order), scope, ptr);
 
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f32(as, order, failure_order_for_rmw(order), scope, ptr, &old, old < x ? old : x));
   return old;
 }
 
@@ -1362,9 +1360,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
   __acpp_f64 old = atomic_load_f64(as, load_order_for_rmw(order), scope, ptr);
   
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f64(as, order, failure_order_for_rmw(order), scope, ptr, &old, old < x ? old : x));
   return old;
 }
 
@@ -1457,9 +1453,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
   __acpp_f32 old = atomic_load_f32(as, load_order_for_rmw(order), scope, ptr);
   
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f32(as, order, failure_order_for_rmw(order), scope, ptr, &old, old > x ? old : x));
   return old;
 }
 
@@ -1470,9 +1464,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
   __acpp_f64 old = atomic_load_f64(as, load_order_for_rmw(order), scope, ptr);
   
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, failure_order_for_rmw(order), scope, ptr, &old, x));
+  } while (!cmp_exch_strong_f64(as, order, failure_order_for_rmw(order), scope, ptr, &old, old > x ? old : x));
   return old;
 }
 

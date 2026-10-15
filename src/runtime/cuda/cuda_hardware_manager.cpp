@@ -222,10 +222,17 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::usm_host_allocations:
     return true;
     break;
-  case device_support_aspect::usm_atomic_host_allocations:
-    // TODO actually query this
-    return false;
-    break;
+  case device_support_aspect::usm_atomic_host_allocations: {
+    const unsigned compute_capability = get_compute_capability();
+    if(compute_capability < 60 ||
+       (_properties->integrated && compute_capability < 72))
+      return false;
+
+    int supported = 0;
+    return cudaDeviceGetAttribute(&supported,
+               cudaDevAttrHostNativeAtomicSupported, _dev) == cudaSuccess &&
+           supported != 0;
+  }
   case device_support_aspect::usm_shared_allocations:
     return true;
     break;
@@ -293,7 +300,10 @@ cuda_hardware_context::get_atomic_memory_scope_capabilities() const {
     atomic_memory_scope_capability::device
   };
 
-  if(has(device_support_aspect::usm_atomic_shared_allocations))
+  // Scope support is independent of which allocation permits host access.
+  const unsigned compute_capability = get_compute_capability();
+  if(compute_capability >= 60 &&
+     (!_properties->integrated || compute_capability >= 72))
     result.push_back(atomic_memory_scope_capability::system);
 
   return result;

@@ -687,10 +687,8 @@ __acpp_atomic_fetch_min(float *addr, float x, memory_order order,
                            memory_scope scope) noexcept {
   float old = __acpp_atomic_load<S>(addr, load_order_for_rmw(order), scope);
   do {
-    if (old < x)
-      return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, failure_order_for_rmw(order), scope));
+      addr, old, old < x ? old : x, order, failure_order_for_rmw(order), scope));
   return old;
 }
 
@@ -700,10 +698,8 @@ __acpp_atomic_fetch_min(double *addr, double x, memory_order order,
                            memory_scope scope) noexcept {
   double old = __acpp_atomic_load<S>(addr, load_order_for_rmw(order), scope);
   do {
-    if (old < x)
-      return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, failure_order_for_rmw(order), scope));
+      addr, old, old < x ? old : x, order, failure_order_for_rmw(order), scope));
   return old;
 }
 
@@ -734,10 +730,8 @@ __acpp_atomic_fetch_max(float *addr, float x, memory_order order,
                            memory_scope scope) noexcept {
   float old = __acpp_atomic_load<S>(addr, load_order_for_rmw(order), scope);
   do {
-    if (old > x)
-      return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, failure_order_for_rmw(order), scope));
+      addr, old, old > x ? old : x, order, failure_order_for_rmw(order), scope));
   return old;
 }
 
@@ -747,10 +741,8 @@ __acpp_atomic_fetch_max(double *addr, double x, memory_order order,
                            memory_scope scope) noexcept {
   double old = __acpp_atomic_load<S>(addr, load_order_for_rmw(order), scope);
   do {
-    if (old > x)
-      return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, failure_order_for_rmw(order), scope));
+      addr, old, old > x ? old : x, order, failure_order_for_rmw(order), scope));
   return old;
 }
 

@@ -268,10 +268,18 @@ bool ze_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::usm_host_allocations:
     return true;
     break;
-  case device_support_aspect::usm_atomic_host_allocations:
-    // TODO actually query this
-    return false;
-    break;
+  case device_support_aspect::usm_atomic_host_allocations: {
+    ze_device_memory_access_properties_t access_props{};
+    access_props.stype = ZE_STRUCTURE_TYPE_DEVICE_MEMORY_ACCESS_PROPERTIES;
+    access_props.pNext = nullptr;
+
+    if(zeDeviceGetMemoryAccessProperties(_device, &access_props) !=
+       ZE_RESULT_SUCCESS)
+      return false;
+
+    return (access_props.hostAllocCapabilities &
+            ZE_MEMORY_ACCESS_CAP_FLAG_CONCURRENT_ATOMIC) != 0;
+  }
   case device_support_aspect::usm_shared_allocations:
     return true;
     break;
@@ -335,7 +343,16 @@ ze_hardware_context::get_atomic_memory_scope_capabilities() const {
     atomic_memory_scope_capability::device
   };
 
-  if(has(device_support_aspect::usm_atomic_shared_allocations))
+  ze_device_memory_access_properties_t access_props{};
+  access_props.stype = ZE_STRUCTURE_TYPE_DEVICE_MEMORY_ACCESS_PROPERTIES;
+  if(zeDeviceGetMemoryAccessProperties(_device, &access_props) ==
+     ZE_RESULT_SUCCESS &&
+     ((access_props.hostAllocCapabilities |
+       access_props.deviceAllocCapabilities |
+       access_props.sharedSingleDeviceAllocCapabilities |
+       access_props.sharedCrossDeviceAllocCapabilities |
+       access_props.sharedSystemAllocCapabilities) &
+      ZE_MEMORY_ACCESS_CAP_FLAG_CONCURRENT_ATOMIC) != 0)
     result.push_back(atomic_memory_scope_capability::system);
 
   return result;

@@ -97,9 +97,9 @@ public:
   virtual bool has_usm_atomic_host_allocations() const override {
     if(!_is_available)
       return false;
-    return (info_query<CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL, cl_bitfield>(
+    return (info_query<CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL, cl_bitfield>(
                _dev) &
-           CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL) != 0;
+           CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL) != 0;
   }
 
   virtual bool has_usm_shared_allocations() const override {
@@ -113,7 +113,7 @@ public:
       return false;
     return info_query<CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
                       cl_bitfield>(_dev) &
-           CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL;
+           CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL;
   }
 
   virtual bool has_usm_system_allocations() const override {
@@ -407,7 +407,8 @@ public:
     }
     
     void* ptr = clSVMAlloc(_ctx.get(),
-                      CL_MEM_SVM_FINE_GRAIN_BUFFER | CL_DEVICE_SVM_ATOMICS,
+                      CL_MEM_SVM_FINE_GRAIN_BUFFER |
+                          (_has_atomics ? CL_MEM_SVM_ATOMICS : 0),
                       size, static_cast<cl_uint>(alignment));
     if(ptr)
       err = CL_SUCCESS;

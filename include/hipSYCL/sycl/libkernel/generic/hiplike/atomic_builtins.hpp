@@ -691,7 +691,7 @@ __acpp_atomic_fetch_min(float *addr, float x, memory_order order,
       return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
       addr, old, x, order, failure_order_for_rmw(order), scope));
-  return x;
+  return old;
 }
 
 template <access::address_space S>
@@ -704,7 +704,7 @@ __acpp_atomic_fetch_min(double *addr, double x, memory_order order,
       return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
       addr, old, x, order, failure_order_for_rmw(order), scope));
-  return x;
+  return old;
 }
 
 // *********************** atomic max ****************************
@@ -738,7 +738,7 @@ __acpp_atomic_fetch_max(float *addr, float x, memory_order order,
       return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
       addr, old, x, order, failure_order_for_rmw(order), scope));
-  return x;
+  return old;
 }
 
 template <access::address_space S>
@@ -751,7 +751,7 @@ __acpp_atomic_fetch_max(double *addr, double x, memory_order order,
       return old;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
       addr, old, x, order, failure_order_for_rmw(order), scope));
-  return x;
+  return old;
 }
 
 HIPSYCL_BUILTIN void

@@ -24,7 +24,7 @@ if(NOT ACPP_DEBUG_LEVEL)
   else()
     set(ACPP_DEBUG_LEVEL 2 CACHE STRING
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
-      FORCE)
+    FORCE)
   endif()
 endif()
 
@@ -58,7 +58,7 @@ endif()
 if (APPLE)
   if (NOT DEFINED OpenMP_ROOT AND NOT DEFINED OMP_ROOT)
     execute_process(COMMAND brew list libomp
-    COMMAND grep libomp.a 
+    COMMAND grep libomp.a
     COMMAND sed -E "s/\\/lib\\/.*//"
     OUTPUT_VARIABLE DefaultOMP_ROOT
     OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -83,6 +83,7 @@ add_executable(sycl_tests
   sycl/smoke/task_graph.cpp
   sycl/accessor.cpp
   sycl/atomic.cpp
+  sycl/atomic_capabilities.cpp
   sycl/buffer.cpp
   sycl/explicit_copy.cpp
   sycl/extensions.cpp
@@ -105,7 +106,7 @@ add_executable(sycl_tests
   sycl/reference_semantics.cpp
   sycl/relational.cpp
   sycl/sub_group.cpp
-  sycl/sycl_test_suite.cpp 
+  sycl/sycl_test_suite.cpp
   sycl/usm.cpp
   sycl/vec.cpp
   sycl/queue.cpp
@@ -128,12 +129,12 @@ endif()
 
 add_sycl_to_target(TARGET sycl_tests)
 
-add_executable(rt_tests 
-  runtime/runtime_test_suite.cpp 
+add_executable(rt_tests
+  runtime/runtime_test_suite.cpp
   runtime/dag_builder.cpp
   runtime/data.cpp)
 
-target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
+  target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${OpenMP_CXX_INCLUDE_DIRS})
 target_link_libraries(rt_tests PRIVATE Threads::Threads)
 add_sycl_to_target(TARGET rt_tests)
 
@@ -141,7 +142,7 @@ add_sycl_to_target(TARGET rt_tests)
 # because --acpp-stdpar is not compatible with all --acpp-targets
 # values. Enabling them in all cases would break some existing test flows.
 if(WITH_PSTL_TESTS)
-  add_executable(pstl_tests 
+  add_executable(pstl_tests
     pstl/pstl_test_suite.cpp
     pstl/std_math.cpp
     pstl/std_atomic.cpp
@@ -195,7 +196,7 @@ if(WITH_PSTL_TESTS)
     pstl/allocation_map.cpp
     pstl/free_space_map.cpp)
 
-  target_compile_options(pstl_tests PRIVATE --acpp-stdpar --acpp-stdpar-unconditional-offload)
+    target_compile_options(pstl_tests PRIVATE --acpp-stdpar --acpp-stdpar-unconditional-offload)
   # pstl tests cannot run with global memory allocation hijacking, because apparently
   # the boost test headers allocate memory that is then transferred to libboost_unit_tests
   # which then cannot free it anymore. We we need to selectively enable it only for the actual test code.
@@ -207,7 +208,7 @@ endif()
 
 # PCUDA only works with --acpp-targets=generic, so it needs to be optional
 if(WITH_PCUDA_TESTS)
-  add_executable(pcuda_tests 
+  add_executable(pcuda_tests
     pcuda/pcuda_test_suite.cpp
     pcuda/device_query.cpp
     pcuda/memory.cpp

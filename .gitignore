@@ -52,8 +52,3 @@ build*/
 
 # clangd cache
 .cache
-
-#SuperNova
-install
-install-windows
-changes.md

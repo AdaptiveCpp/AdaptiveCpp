@@ -13,6 +13,7 @@
 
 #include "info.hpp"
 #include "../types.hpp"
+#include "../libkernel/memory.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -26,6 +27,10 @@ namespace context {
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(platform, sycl::platform);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(devices, std::vector<sycl::device>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(atomic_memory_order_capabilities,
+                                 std::vector<memory_order>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(atomic_memory_scope_capabilities,
+                                 std::vector<memory_scope>);
 };
 
 }

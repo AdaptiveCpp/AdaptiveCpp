@@ -45,7 +45,7 @@ void *hip_allocator::raw_allocate_optimized_host(size_t min_alignment,
   void *ptr;
   hip_device_manager::get().activate_device(_dev);
 
-  hipError_t err = hipHostMalloc(&ptr, bytes, hipHostMallocDefault);
+  hipError_t err = hipHostMalloc(&ptr, bytes, hipHostMallocMapped);
 
   if (err != hipSuccess) {
     register_error(__acpp_here(),

@@ -256,16 +256,36 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::usm_host_allocations:
     return true;
     break;
-  case device_support_aspect::usm_atomic_host_allocations:
-    // TODO actually query this
-    return false;
-    break;
+  case device_support_aspect::usm_atomic_host_allocations: {
+#if defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
+    return true;
+#else
+#if defined(HIPSYCL_RT_HIP_TARGET_CUDA)
+    const int compute_capability =
+        _properties->major * 10 + _properties->minor;
+    if(compute_capability < 60 ||
+       (_properties->integrated && compute_capability < 72))
+      return false;
+#endif
+    int supported = 0;
+    return hipDeviceGetAttribute(&supported,
+               hipDeviceAttributeHostNativeAtomicSupported, _dev) == hipSuccess &&
+           supported != 0;
+#endif
+  }
   case device_support_aspect::usm_shared_allocations:
     return true;
     break;
   case device_support_aspect::usm_atomic_shared_allocations:
-    // TODO actually query this
-    return false;
+#if defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
+    return true;
+#else
+    // AdaptiveCpp shared USM on HIP is backed by hipMallocManaged().
+    // concurrentManagedAccess is the runtime capability that establishes
+    // coherent simultaneous host/device access to that managed allocation.
+    return _properties->managedMemory != 0 &&
+           _properties->concurrentManagedAccess != 0;
+#endif
     break;
   case device_support_aspect::usm_system_allocations:
     return false;
@@ -295,6 +315,36 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   }
   assert(false && "Unknown device aspect");
   std::terminate();
+}
+
+std::vector<atomic_memory_order_capability>
+hip_hardware_context::get_atomic_memory_order_capabilities() const {
+  return {
+    atomic_memory_order_capability::relaxed,
+    atomic_memory_order_capability::acquire,
+    atomic_memory_order_capability::release,
+    atomic_memory_order_capability::acq_rel
+  };
+}
+
+std::vector<atomic_memory_scope_capability>
+hip_hardware_context::get_atomic_memory_scope_capabilities() const {
+  std::vector<atomic_memory_scope_capability> result{
+    atomic_memory_scope_capability::sub_group,
+    atomic_memory_scope_capability::work_group,
+    atomic_memory_scope_capability::device
+  };
+
+  // ROCm and hipCPU implement system scope independently of USM kind.
+#if defined(HIPSYCL_RT_HIP_TARGET_CUDA)
+  const int compute_capability =
+      _properties->major * 10 + _properties->minor;
+  if(compute_capability >= 60 &&
+     (!_properties->integrated || compute_capability >= 72))
+#endif
+    result.push_back(atomic_memory_scope_capability::system);
+
+  return result;
 }
 
 std::size_t

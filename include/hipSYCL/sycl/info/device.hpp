@@ -16,6 +16,7 @@
 #include "hipSYCL/sycl/aspect.hpp"
 #include "info.hpp"
 #include "../types.hpp"
+#include "../libkernel/memory.hpp"
 #include "../aspect.hpp"
 
 namespace hipsycl {
@@ -144,6 +145,10 @@ namespace device {
 
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(error_correction_support, bool);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(host_unified_memory, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(atomic_memory_order_capabilities,
+                                 std::vector<memory_order>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(atomic_memory_scope_capabilities,
+                                 std::vector<memory_scope>);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(profiling_timer_resolution, size_t);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(is_endian_little, bool);
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(is_available, bool);

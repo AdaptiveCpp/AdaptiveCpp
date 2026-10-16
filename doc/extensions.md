@@ -105,7 +105,7 @@ struct target_is_gpu;
 /// fetch_min and fetch_max instructions. Only known on the SPIR-V compiler backend when
 /// the runtime backend provides it (currently only OpenCL provides it from cl_ext_float_atomics).
 /// Return type: bool
-struct spirv_has_native_float_atomics;
+struct target_has_spirv_native_float_atomics;
 
 /// Returns the AdaptiveCpp runtime backend that is managing the execution of this kernel.
 /// Return type: int (sycl::backend cast to int)

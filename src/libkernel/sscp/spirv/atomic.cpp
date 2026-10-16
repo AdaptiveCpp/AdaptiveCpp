@@ -148,8 +148,8 @@ get_atomic_memory_semantics(__acpp_sscp_memory_order order) {
 // ****************** float atomics without native support ******************
 
 __attribute__((always_inline)) bool has_native_float_atomics() {
-  if (__acpp_sscp_jit_reflect_knows_spirv_has_native_float_atomics())
-    return __acpp_sscp_jit_reflect_spirv_has_native_float_atomics();
+  if (__acpp_sscp_jit_reflect_knows_target_has_spirv_native_float_atomics())
+    return __acpp_sscp_jit_reflect_target_has_spirv_native_float_atomics();
   return true;
 }
 

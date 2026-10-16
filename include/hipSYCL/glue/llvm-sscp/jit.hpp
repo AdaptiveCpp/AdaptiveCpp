@@ -23,6 +23,7 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "jit-reflection/reflection_map.hpp"
 #include <cstddef>
+#include <numeric>
 #include <vector>
 #include <atomic>
 #include <fstream>
@@ -74,6 +75,40 @@ public:
     }
 
     _mapping_result = true;
+  }
+
+  /// Copy the viewed buffer to \param buffer. \param args contains pointers
+  /// to locations within \param buffer that denote where the individual
+  /// arguments reside.
+  /// TODO: This function currently assumes that alignment equals argument size.
+  /// Since SSCP always passes in scalar kernel arguments, this is probably
+  /// going to be fine for all practical cases. Nevertheless, it would be
+  /// cleaner if the compiler placed that information into the HCF so that we
+  /// can access it in hcf_kernel_info.
+  void copy_mapped_buffer(std::vector<void*>& args, std::vector<char>& buffer) {
+    // assume alignment == size. Generally correct, since we only have scalar
+    // kernel arguments.
+    std::size_t max_align =
+        *std::max_element(_mapped_sizes.begin(), _mapped_sizes.end());
+    // This is pessimizing a little, could improve in the future.
+    std::size_t total_size = max_align * (_mapped_sizes.size() + 1);
+
+    buffer.resize(total_size);
+    args.resize(_mapped_data.size());
+
+    std::size_t current_offset = 0;
+    for(std::size_t i = 0; i < _mapped_data.size(); ++i) {
+      // enforce alignment assuming size == alignment
+      auto current_ptr = reinterpret_cast<uintptr_t>(&buffer[current_offset]);
+      auto alignment = _mapped_sizes[i];
+      auto next_ptr = ((current_ptr + alignment - 1) / alignment) * alignment;
+      current_offset += next_ptr-current_ptr;
+
+      std::memcpy(&buffer[current_offset], _mapped_data[i],
+                  _mapped_sizes[i]);
+      args[i] = &buffer[current_offset];
+      current_offset += _mapped_sizes[i];
+    }
   }
 
   bool mapping_available() const {

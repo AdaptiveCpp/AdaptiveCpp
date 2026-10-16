@@ -11,7 +11,9 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/atomic.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/spirv/spirv_common.hpp"
-#include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
+
+extern "C" bool __acpp_sscp_jit_reflect_knows_target_has_spirv_native_float_atomics();
+extern "C" bool __acpp_sscp_jit_reflect_target_has_spirv_native_float_atomics();
 
 template<class T>
 __spirv_global T* to_global(T* ptr) { return (__spirv_global T*)ptr; }

@@ -15,6 +15,7 @@ jobs:
     outputs:
       docker_matrix: ${{ steps.matrix-output.outputs.json }}
     strategy:
+      fail-fast: false
       matrix:
         clang: ['17']
         cuda_or_rocm: ['cuda', 'rocm']

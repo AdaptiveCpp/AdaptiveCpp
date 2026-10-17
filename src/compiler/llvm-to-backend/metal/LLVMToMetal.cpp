@@ -653,6 +653,11 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     MPM.addPass(std::move(ASIPass));
     MPM.run(FlavoredModule, MAM);
 
+    if (!localErrorMessage.empty()) {
+      errorMessage = localErrorMessage;
+      return false;
+    }
+
     llvm::ModulePassManager PtrMPM;
     PtrMPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
     PtrMPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));

@@ -42,7 +42,7 @@ namespace {
         return W;
       }
     }
-    llvm_unreachable();
+    llvm_unreachable("Integer width exceeds the supported maximum");
     return 0;
   }
 

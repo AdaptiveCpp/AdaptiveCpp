@@ -1295,10 +1295,14 @@ def filter_cmd_args(command, verbose = False):
     "-I", "-D", "-W", "-std=","-pedantic-errors"
   ]
 
-  # you can cheat the handling of -I<include> & -I <include> by treating
-  # enable_next first with "-I " as matcher then the other with "-I" matcher
+  # -I and -D can each be given either glued to their value ("-Iinclude",
+  # "-DFOO=1") or as two separate arguments ("-I", "include" / "-D",
+  # "FOO=1"); only the latter form needs the next argument kept as well.
   whitelist_enable_next = [
-    "-isystem", "-o", "-c", "-I "
+    "-isystem", "-o", "-c"
+  ]
+  whitelist_enable_next_exact = [
+    "-I", "-D"
   ]
 
   add_next_arg = True # to add clang call
@@ -1313,6 +1317,11 @@ def filter_cmd_args(command, verbose = False):
         new_cmd.append(arg)
         add_next_arg = True
         continue
+
+    if arg in whitelist_enable_next_exact:
+      new_cmd.append(arg)
+      add_next_arg = True
+      continue
 
     for w in whitelist:
       if arg.startswith(w):

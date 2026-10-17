@@ -328,6 +328,36 @@ int executeAndWait(
 }
 #endif
 
+#ifdef _WIN32
+std::string getHostCRuntimeImportLibraryPath() {
+  static std::string runtime_lib_path;
+  if(!runtime_lib_path.empty())
+    return runtime_lib_path;
+  const auto lib_dir = common::filesystem::get_lib_directory();
+  std::vector<std::string> candidates;
+  candidates.emplace_back(lib_dir);
+  candidates.emplace_back(common::filesystem::join_path(
+      lib_dir, std::vector<std::string>{"..", "bin"}));
+  candidates.emplace_back(common::filesystem::join_path(
+      lib_dir, std::vector<std::string>{"..", "lib"}));
+  for(const auto& candidate_root : candidates) {
+    std::string candidate = common::filesystem::join_path(
+        candidate_root,
+        std::vector<std::string>{
+          "hipSYCL",
+          "llvm-to-backend",
+          "acpp-sscp-host-c-runtime-import.lib"
+        });
+
+    if(common::filesystem::exists(candidate)) {
+      runtime_lib_path = candidate;
+      return runtime_lib_path;
+    }
+  }
+
+  return {};
+}
+#endif
 
 } // namespace compiler
 } // namespace hipsycl

@@ -24,17 +24,14 @@ using u96 = unsigned _BitInt(96);
 using u128 = unsigned __int128;
 using i128 = __int128;
 
-constexpr int NumOut = 32;
-constexpr int NumMem = 8;
-
 struct Inputs {
-  u96 a;       // uses the upper 32 bits
-  u96 b;       // small, nonzero
-  i96 n;       // negative
-  i96 m;       // positive
-  int32_t s32; // negative
-  i48 s48;     // negative
-  u48 z48;     // uses the upper bits
+  u96 u96Large;
+  u96 u96Small;
+  i96 i96Neg;
+  i96 i96Pos;
+  int32_t i32Neg;
+  i48 i48Neg;
+  u48 u48Pos;
   int cond;
   int trip;
 };
@@ -53,6 +50,9 @@ struct Out {
 // Device allocations only: not every backend supports shared USM
 template <class F>
 bool run_case(sycl::queue &q, const Inputs &host_in, F f) {
+  constexpr int NumOut = 32;
+  constexpr int NumMem = 8;
+
   Inputs *in = sycl::malloc_device<Inputs>(1, q);
   uint32_t *mem = sycl::malloc_device<uint32_t>(NumMem, q);
   uint64_t *out = sycl::malloc_device<uint64_t>(NumOut, q);
@@ -132,13 +132,13 @@ int main() {
   sycl::queue q = get_queue();
 
   Inputs in{};
-  in.a = (static_cast<u96>(0xF1234567u) << 64) | 0x89ABCDEF01234567ull;
-  in.b = 7;
-  in.n = -(static_cast<i96>(0x1234567u) << 64) - 12345;
-  in.m = 5;
-  in.s32 = -42;
-  in.s48 = -1000000;
-  in.z48 = static_cast<u48>(0xFEDCBA987654ull);
+  in.u96Large = (static_cast<u96>(0xF1234567u) << 64) | 0x89ABCDEF01234567ull;
+  in.u96Small = 7;
+  in.i96Neg = -(static_cast<i96>(0x1234567u) << 64) - 12345;
+  in.i96Pos = 5;
+  in.i32Neg = -42;
+  in.i48Neg = -1000000;
+  in.u48Pos = static_cast<u48>(0xFEDCBA987654ull);
   in.cond = 1;
   in.trip = 10;
 
@@ -148,7 +148,7 @@ int main() {
   // CHECK: bitwise: 1
   std::cout << "bitwise: " << run_case(q, in, [](const Inputs *in, uint32_t *, uint64_t *o) {
     Out out{o};
-    u96 x = in->a, y = in->b;
+    u96 x = in->u96Large, y = in->u96Small;
     out.put(x & y);
     out.put(x | y);
     out.put(x ^ y);
@@ -158,8 +158,8 @@ int main() {
   // CHECK: shift: 1
   std::cout << "shift: " << run_case(q, in, [](const Inputs *in, uint32_t *, uint64_t *o) {
     Out out{o};
-    u96 x = in->a;
-    i96 n = in->n;
+    u96 x = in->u96Large;
+    i96 n = in->i96Neg;
     out.put(x << 32);
     out.put(x << 64);
     out.put(x >> 32);
@@ -170,15 +170,15 @@ int main() {
 
   // CHECK: compare: 1
   std::cout << "compare: " << run_case(q, in, [](const Inputs *in, uint32_t *, uint64_t *o) {
-    i96 x = in->n, y = in->m;
+    i96 x = in->i96Neg, y = in->i96Pos;
     o[0] = x < y;
     o[1] = x >= y;
     o[2] = x > y;
     o[3] = x <= y;
     o[4] = static_cast<u96>(x) < static_cast<u96>(y);
     o[5] = static_cast<u96>(x) >= static_cast<u96>(y);
-    o[6] = in->a > in->b;
-    o[7] = in->a <= in->b;
+    o[6] = in->u96Large > in->u96Small;
+    o[7] = in->u96Large <= in->u96Small;
     o[8] = x == y;
     o[9] = x != y;
   }) << std::endl;
@@ -186,19 +186,19 @@ int main() {
   // CHECK: extend: 1
   std::cout << "extend: " << run_case(q, in, [](const Inputs *in, uint32_t *, uint64_t *o) {
     Out out{o};
-    out.put(static_cast<i96>(in->s32));                   // sext i32 -> i96
-    out.put(static_cast<u128>(static_cast<i128>(in->n))); // sext i96 -> i128
-    out.put(static_cast<u128>(in->a));                    // zext i96 -> i128
-    out.put(static_cast<i96>(in->s48));                   // sext i48 -> i96
-    out.put(static_cast<u96>(in->z48));                   // zext i48 -> i96
-    o[out.k++] = static_cast<uint64_t>(static_cast<int64_t>(in->s48)); // sext i48 -> i64
-    o[out.k++] = static_cast<uint64_t>(static_cast<i48>(in->n));       // trunc i96 -> i48
+    out.put(static_cast<i96>(in->i32Neg));                   // sext i32 -> i96
+    out.put(static_cast<u128>(static_cast<i128>(in->i96Neg))); // sext i96 -> i128
+    out.put(static_cast<u128>(in->u96Large));                    // zext i96 -> i128
+    out.put(static_cast<i96>(in->i48Neg));                   // sext i48 -> i96
+    out.put(static_cast<u96>(in->u48Pos));                   // zext i48 -> i96
+    o[out.k++] = static_cast<uint64_t>(static_cast<int64_t>(in->i48Neg)); // sext i48 -> i64
+    o[out.k++] = static_cast<uint64_t>(static_cast<i48>(in->i96Neg));       // trunc i96 -> i48
   }) << std::endl;
 
   // CHECK: select: 1
   std::cout << "select: " << run_case(q, in, [](const Inputs *in, uint32_t *, uint64_t *o) {
     Out out{o};
-    i96 x = in->n ^ in->m, y = in->n | in->m;
+    i96 x = in->i96Neg ^ in->i96Pos, y = in->i96Neg | in->i96Pos;
     out.put(in->cond ? x : y);
     out.put(!in->cond ? x : y);
   }) << std::endl;
@@ -206,7 +206,7 @@ int main() {
   // CHECK: loop: 1
   std::cout << "loop: " << run_case(q, in, [](const Inputs *in, uint32_t *, uint64_t *o) {
     Out out{o};
-    u96 acc = in->a;
+    u96 acc = in->u96Large;
     for (int i = 0; i < in->trip; ++i) {
       acc = (acc << 32) ^ (acc >> 64) ^ static_cast<u96>(i);
     }
@@ -218,7 +218,7 @@ int main() {
   std::cout << "load_store_i96: " << run_case(q, in, [](const Inputs *in, uint32_t *mem, uint64_t *o) {
     u96 x = 0;
     __builtin_memcpy(&x, mem, 12);
-    x = ~x ^ in->b;
+    x = ~x ^ in->u96Small;
     __builtin_memcpy(mem, &x, 12);
     Out{o}.put(x);
   }) << std::endl;
@@ -228,7 +228,7 @@ int main() {
   std::cout << "load_store_i48: " << run_case(q, in, [](const Inputs *in, uint32_t *mem, uint64_t *o) {
     u48 x = 0;
     __builtin_memcpy(&x, mem, 6);
-    x = x * 3 + in->z48;
+    x = x * 3 + in->u48Pos;
     __builtin_memcpy(mem, &x, 6);
     o[0] = static_cast<uint64_t>(x);
   }) << std::endl;

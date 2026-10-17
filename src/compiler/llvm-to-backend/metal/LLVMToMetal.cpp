@@ -643,22 +643,15 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     // Since LLVM 22 this pass removes the Flow blocks that StructurizeCFG creates,
     // so a loop gets more than one exit again. HLExtractorPass needs exactly one
     FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().setSimplifyCondBranch(false)));
+    std::string localErrorMessage;
+    // Run after PromotePass to get SSA values and before pointer translation so new loads and stores are translated
+    FPM.addPass(IntegerLegalizationPass(localErrorMessage));
     AddressSpaceInferencePass ASIPass{ASMap};
 
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     MPM.addPass(std::move(ASIPass));
     MPM.run(FlavoredModule, MAM);
-
-
-    // Run after PromotePass to get SSA values and before pointer translation so new loads and stores are translated
-    IntegerLegalizationPass ILP;
-    auto Result = ILP.run(FlavoredModule, MAM);
-    if (ILP.getErrorMessage().has_value()) {
-      errorMessage = ILP.getErrorMessage().value();
-      return false;
-    }
-    MAM.invalidate(FlavoredModule, Result);
 
     llvm::ModulePassManager PtrMPM;
     PtrMPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));

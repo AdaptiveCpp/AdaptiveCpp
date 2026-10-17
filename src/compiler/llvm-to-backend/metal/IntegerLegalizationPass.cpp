@@ -42,7 +42,8 @@ namespace {
         return W;
       }
     }
-    return 0; // unreachable
+    llvm_unreachable();
+    return 0;
   }
 
   bool needLegalization(const llvm::Instruction& I) {
@@ -296,105 +297,103 @@ bool IntegerLegalizationPass::rebuildLegal(llvm::IRBuilder<> &B, llvm::Instructi
   return false;
 }
 
-llvm::PreservedAnalyses IntegerLegalizationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-  bool Changed = false;
-  this->M = &M;
+llvm::PreservedAnalyses IntegerLegalizationPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
+  if (F.isDeclaration()) {
+    return llvm::PreservedAnalyses::all();
+  }
 
-  for (auto& F : M) {
-    if (F.isDeclaration()) {
-      continue;
-    }
-    llvm::SmallVector<llvm::Instruction *> Worklist;
-    llvm::ReversePostOrderTraversal<llvm::Function *> RPOT(&F);
+  M = F.getParent();
 
-    for (auto* BB : RPOT) {
-      for (auto& I : *BB) {
-        if (needLegalization(I)) {
-          if (isIllegalInt(I.getType()) && promoteWidth(I.getType()->getIntegerBitWidth()) == 0) {
+  llvm::SmallVector<llvm::Instruction *> Worklist;
+  llvm::ReversePostOrderTraversal<llvm::Function *> RPOT(&F);
+
+  for (auto* BB : RPOT) {
+    for (auto& I : *BB) {
+      if (needLegalization(I)) {
+        if (isIllegalInt(I.getType()) && promoteWidth(I.getType()->getIntegerBitWidth()) == 0) {
+          return fail(&I);
+        }
+        for (const llvm::Value* U : I.operands()) {
+          if (isIllegalInt(U->getType()) && promoteWidth(U->getType()->getIntegerBitWidth()) == 0) {
             return fail(&I);
           }
-          for (const llvm::Value* U : I.operands()) {
-            if (isIllegalInt(U->getType()) && promoteWidth(U->getType()->getIntegerBitWidth()) == 0) {
-              return fail(&I);
-            }
-          }
-          Worklist.push_back(&I);
         }
-      }
-    }
-    if (Worklist.empty()) {
-      continue;
-    }
-
-    Changed = true;
-    Promoted.clear();
-    llvm::SmallPtrSet<llvm::Instruction *, 16> Kept;
-    llvm::SmallVector<std::pair<llvm::PHINode *, llvm::PHINode *>> PHIs; // old PHI -> new PHI
-    llvm::IRBuilder<> B(F.getContext());
-
-    for (auto* I : Worklist) {
-      B.SetInsertPoint(I);
-
-      if (auto *P = llvm::dyn_cast<llvm::PHINode>(I)) {
-        unsigned N = I->getType()->getIntegerBitWidth();
-        unsigned W = promoteWidth(N);
-        auto *NewP = llvm::PHINode::Create(llvm::IntegerType::get(M.getContext(), W), P->getNumIncomingValues(), "", P->getIterator());
-        NewP->takeName(P);
-        Promoted[P] = NewP;
-        PHIs.push_back({P, NewP});
-        continue;
-      }
-
-      auto* ResultTy = I->getType();
-      if (isIllegalInt(ResultTy)) {
-        auto* New = promoteResult(B, I);
-        if (!New) {
-          return fail(I);
-        }
-        Promoted[I] = New;
-      } else if (canPromoteOperandsInPlace(*I)) {
-        // rebuild with promoted operands
-        for (unsigned i = 0; i < I->getNumOperands(); ++i) {
-          auto* Op = I->getOperand(i);
-          if (isIllegalInt(Op->getType())) {
-            auto* NewOp = getPromoted(Op);
-            if (!NewOp) {
-              return fail(I);
-            }
-            I->setOperand(i, NewOp);
-          }
-        }
-        Kept.insert(I);
-      } else if (!rebuildLegal(B, I)) {
-        return fail(I);
-      }
-    }
-
-    for (auto [Old, New] : PHIs) {
-      for (unsigned i = 0; i < Old->getNumIncomingValues(); ++i) {
-        auto *Incoming = Old->getIncomingValue(i);
-        if (isIllegalInt(Incoming->getType())) {
-          Incoming = getPromoted(Incoming);
-        }
-        if (!Incoming) {
-          return fail(Old);
-        }
-        New->addIncoming(Incoming, Old->getIncomingBlock(i));
-      }
-    }
-
-    for (llvm::Instruction *I : Worklist) {
-      if (Kept.find(I) == Kept.end()) {
-        I->dropAllReferences();
-      }
-    }
-    for (llvm::Instruction *I : Worklist) {
-      if (Kept.find(I) == Kept.end()) {
-        I->eraseFromParent();
+        Worklist.push_back(&I);
       }
     }
   }
-  return Changed ? llvm::PreservedAnalyses::none() : llvm::PreservedAnalyses::all();
+  if (Worklist.empty()) {
+    return llvm::PreservedAnalyses::all();
+  }
+
+  Promoted.clear();
+  llvm::SmallPtrSet<llvm::Instruction *, 16> Kept;
+  llvm::SmallVector<std::pair<llvm::PHINode *, llvm::PHINode *>> PHIs; // old PHI -> new PHI
+  llvm::IRBuilder<> B(F.getContext());
+
+  for (auto* I : Worklist) {
+    B.SetInsertPoint(I);
+
+    if (auto *P = llvm::dyn_cast<llvm::PHINode>(I)) {
+      unsigned N = I->getType()->getIntegerBitWidth();
+      unsigned W = promoteWidth(N);
+      auto *NewP = llvm::PHINode::Create(llvm::IntegerType::get(M->getContext(), W), P->getNumIncomingValues(), "", P->getIterator());
+      NewP->takeName(P);
+      Promoted[P] = NewP;
+      PHIs.push_back({P, NewP});
+      continue;
+    }
+
+    auto* ResultTy = I->getType();
+    if (isIllegalInt(ResultTy)) {
+      auto* New = promoteResult(B, I);
+      if (!New) {
+        return fail(I);
+      }
+      Promoted[I] = New;
+    } else if (canPromoteOperandsInPlace(*I)) {
+      // rebuild with promoted operands
+      for (unsigned i = 0; i < I->getNumOperands(); ++i) {
+        auto* Op = I->getOperand(i);
+        if (isIllegalInt(Op->getType())) {
+          auto* NewOp = getPromoted(Op);
+          if (!NewOp) {
+            return fail(I);
+          }
+          I->setOperand(i, NewOp);
+        }
+      }
+      Kept.insert(I);
+    } else if (!rebuildLegal(B, I)) {
+      return fail(I);
+    }
+  }
+
+  for (auto [Old, New] : PHIs) {
+    for (unsigned i = 0; i < Old->getNumIncomingValues(); ++i) {
+      auto *Incoming = Old->getIncomingValue(i);
+      if (isIllegalInt(Incoming->getType())) {
+        Incoming = getPromoted(Incoming);
+      }
+      if (!Incoming) {
+        return fail(Old);
+      }
+      New->addIncoming(Incoming, Old->getIncomingBlock(i));
+    }
+  }
+
+  for (llvm::Instruction *I : Worklist) {
+    if (Kept.find(I) == Kept.end()) {
+      I->dropAllReferences();
+    }
+  }
+  for (llvm::Instruction *I : Worklist) {
+    if (Kept.find(I) == Kept.end()) {
+      I->eraseFromParent();
+    }
+  }
+
+  return llvm::PreservedAnalyses::none();
 }
 
 } // namespace compiler

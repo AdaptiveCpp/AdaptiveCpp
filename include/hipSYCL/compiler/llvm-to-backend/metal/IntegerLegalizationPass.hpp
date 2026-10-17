@@ -24,8 +24,8 @@ namespace compiler {
 class IntegerLegalizationPass
   : public llvm::PassInfoMixin<IntegerLegalizationPass> {
 public:
-  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM);
-  std::optional<std::string> getErrorMessage() const { return ErrorMessage; }
+  IntegerLegalizationPass(std::string& errorMessage): ErrorMessage(errorMessage) { }
+  llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM);
 
 private:
   llvm::Value* getPromoted(llvm::Value* V);
@@ -35,7 +35,7 @@ private:
 
   llvm::DenseMap<llvm::Value *, llvm::Value *> Promoted;
   llvm::Module* M = nullptr;
-  std::optional<std::string> ErrorMessage = std::nullopt;
+  std::string& ErrorMessage;
 };
 
 } // namespace compiler

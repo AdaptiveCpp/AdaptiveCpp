@@ -304,7 +304,7 @@ T __acpp_leader_reduce(Group g, T *first, T *last,
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 ACPP_KERNEL_TARGET
-T __acpp_leader_reduce(Group g, T *first, T *last, V init, 
+T __acpp_leader_reduce(Group g, V *first, V *last, T init, 
                           BinaryOperation binary_op) {
   auto result = __acpp_leader_reduce(g, first, last, binary_op);
 

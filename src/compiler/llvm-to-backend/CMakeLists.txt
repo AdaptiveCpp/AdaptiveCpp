@@ -197,6 +197,7 @@ if(WITH_SSCP_COMPILER)
     endif()
     set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/${LLVMSPIRV_EXECUTABLE_NAME})
 
+    set(LLVMSPIRV_STAGING_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv-install)
     ExternalProject_Add(LLVMSpirvTranslator
       GIT_REPOSITORY https://github.com/AdaptiveCpp/SPIRV-LLVM-Translator
       GIT_TAG origin/${LLVMSPIRV_BRANCH}
@@ -211,21 +212,14 @@ if(WITH_SSCP_COMPILER)
       CMAKE_CACHE_ARGS
         -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
         -DLLVM_DIR:PATH=${LLVM_DIR}
-        -DCMAKE_INSTALL_PREFIX:PATH=${LLVMSPIRV_INSTALLDIR}
+        -DCMAKE_INSTALL_PREFIX:PATH=${LLVMSPIRV_STAGING_DIR}
         -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}
       BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${ACPP_SUBPROJECT_PARALLEL_JOBS}
-      INSTALL_COMMAND ""
     )
 
-    add_custom_target(InstallLLVMSpirvTranslator
-      COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv --target install
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
-    )
-
-    #install(TARGETS InstallLLVMSpirvTranslator)
-    install(CODE [[
-      execute_process(COMMAND "${CMAKE_COMMAND}" --build . --target InstallLLVMSpirvTranslator)
-    ]])
+    install(DIRECTORY ${LLVMSPIRV_STAGING_DIR}/
+            DESTINATION ${LLVMSPIRV_RELATIVE_INSTALLDIR}
+            USE_SOURCE_PERMISSIONS)
 
     add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
     target_compile_definitions(llvm-to-spirv PRIVATE

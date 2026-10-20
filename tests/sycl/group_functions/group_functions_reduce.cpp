@@ -498,6 +498,54 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_xor, T, test_types) {
   }
 }
 
+template <typename T, typename BinaryOperation>
+void test_joint_reduce_min_max() {
+  SKIP_IF_MOLTENVK(sycl::device{})
+  if constexpr (std::is_same_v<T, float>) {
+    sycl::queue q;
+
+    constexpr size_t group_size = 128;
+    constexpr size_t N = group_size;
+
+    std::vector<T> host_in(N);
+    T *dev_in = sycl::malloc_device<T>(N, q);
+    T *dev_out = sycl::malloc_device<T>(N, q);
+
+    auto run_and_check = [&](T expected) {
+      std::vector<T> host_out(N);
+      q.copy(host_in.data(), dev_in, N).wait();
+      q.parallel_for(sycl::nd_range<1>{{group_size}, {group_size}},
+                     [=](sycl::nd_item<1> it) {
+                       auto idx = it.get_global_linear_id();
+                       auto reduce_value = dev_in[idx];
+                       auto reduce_result = sycl::reduce_over_group(
+                           it.get_group(), reduce_value, BinaryOperation{});
+                       dev_out[idx] = reduce_result;
+                     })
+          .wait_and_throw();
+      q.copy(dev_out, host_out.data(), N).wait();
+      for (int i = 0; i < N; ++i) {
+        BOOST_TEST(host_out[i] == expected);
+      }
+    };
+
+    std::fill(host_in.begin(), host_in.end(), 2.6f);
+    run_and_check(std::accumulate(host_in.begin() , host_in.end(),
+                                  host_in[0], BinaryOperation{}));
+
+    sycl::free(dev_in, q);
+    sycl::free(dev_out, q);
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr_min, T, test_types) {
+  test_joint_reduce_min_max<T, sycl::minimum<T>>();
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr_max, T, test_types) {
+  test_joint_reduce_min_max<T, sycl::maximum<T>>();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif

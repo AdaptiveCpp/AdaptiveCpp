@@ -101,11 +101,16 @@ struct target_is_cpu;
 /// Return type: bool
 struct target_is_gpu;
 
-/// Returns whether the SPIR-V consumer accepts native floating point atomic fetch_add, 
-/// fetch_min and fetch_max instructions. Only known on the SPIR-V compiler backend when
-/// the runtime backend provides it (currently only OpenCL provides it from cl_ext_float_atomics).
+/// Returns whether the SPIR-V consumer accepts native fp32 atomic fetch_add,
+/// fetch_min and fetch_max instructions in global and local memory. Only known on
+/// the SPIR-V compiler backend when the runtime backend provides it (currently only
+/// OpenCL provides it from the cl_ext_float_atomics).
 /// Return type: bool
-struct target_has_spirv_native_float_atomics;
+struct target_has_spirv_native_fp32_atomics;
+
+/// Same as target_has_spirv_native_fp32_atomics for fp64 atomics.
+/// Return type: bool
+struct target_has_spirv_native_fp64_atomics;
 
 /// Returns the AdaptiveCpp runtime backend that is managing the execution of this kernel.
 /// Return type: int (sycl::backend cast to int)

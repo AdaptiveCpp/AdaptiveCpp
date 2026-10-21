@@ -12,8 +12,10 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/spirv/spirv_common.hpp"
 
-extern "C" bool __acpp_sscp_jit_reflect_knows_target_has_spirv_native_float_atomics();
-extern "C" bool __acpp_sscp_jit_reflect_target_has_spirv_native_float_atomics();
+extern "C" bool __acpp_sscp_jit_reflect_knows_target_has_spirv_native_fp32_atomics();
+extern "C" bool __acpp_sscp_jit_reflect_target_has_spirv_native_fp32_atomics();
+extern "C" bool __acpp_sscp_jit_reflect_knows_target_has_spirv_native_fp64_atomics();
+extern "C" bool __acpp_sscp_jit_reflect_target_has_spirv_native_fp64_atomics();
 
 template<class T>
 __spirv_global T* to_global(T* ptr) { return (__spirv_global T*)ptr; }
@@ -149,9 +151,15 @@ get_atomic_memory_semantics(__acpp_sscp_memory_order order) {
 
 // ****************** float atomics without native support ******************
 
-__attribute__((always_inline)) bool has_native_float_atomics() {
-  if (__acpp_sscp_jit_reflect_knows_target_has_spirv_native_float_atomics())
-    return __acpp_sscp_jit_reflect_target_has_spirv_native_float_atomics();
+__attribute__((always_inline)) bool has_native_float_atomics(__acpp_f32) {
+  if (__acpp_sscp_jit_reflect_knows_target_has_spirv_native_fp32_atomics())
+    return __acpp_sscp_jit_reflect_target_has_spirv_native_fp32_atomics();
+  return true;
+}
+
+__attribute__((always_inline)) bool has_native_float_atomics(__acpp_f64) {
+  if (__acpp_sscp_jit_reflect_knows_target_has_spirv_native_fp64_atomics())
+    return __acpp_sscp_jit_reflect_target_has_spirv_native_fp64_atomics();
   return true;
 }
 
@@ -495,7 +503,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_xor_i64(
   return __spirv_AtomicIAdd(ptr, get_spirv_scope(scope),                        \
                            get_atomic_memory_semantics(order), x);
 #define RETURN_ATOMIC_FADD(ptr)                                                \
-  if (has_native_float_atomics())                                              \
+  if (has_native_float_atomics(x))                                             \
     return __spirv_AtomicFAddEXT(ptr, get_spirv_scope(scope),                  \
                                  get_atomic_memory_semantics(order), x);       \
   return float_atomic_compare_exchange_loop(                                   \
@@ -575,7 +583,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
   return __spirv_AtomicISub(ptr, get_spirv_scope(scope),                       \
                            get_atomic_memory_semantics(order), x);
 #define RETURN_ATOMIC_FSUB(ptr)                                                \
-  if (has_native_float_atomics())                                              \
+  if (has_native_float_atomics(x))                                             \
     return __spirv_AtomicFAddEXT(ptr, get_spirv_scope(scope),                  \
                                  get_atomic_memory_semantics(order), -x);      \
   return float_atomic_compare_exchange_loop(                                   \
@@ -662,7 +670,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_sub_f64(
                             get_atomic_memory_semantics(order), x);
 
 #define RETURN_ATOMIC_FMIN(ptr)                                                \
-  if (has_native_float_atomics())                                              \
+  if (has_native_float_atomics(x))                                             \
     return __spirv_AtomicFMinEXT(ptr, get_spirv_scope(scope),                  \
                                  get_atomic_memory_semantics(order), x);       \
   return float_atomic_compare_exchange_loop(                                   \
@@ -748,7 +756,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
                             get_atomic_memory_semantics(order), x);
 
 #define RETURN_ATOMIC_FMAX(ptr)                                                \
-  if (has_native_float_atomics())                                              \
+  if (has_native_float_atomics(x))                                             \
     return __spirv_AtomicFMaxEXT(ptr, get_spirv_scope(scope),                  \
                                  get_atomic_memory_semantics(order), x);       \
   return float_atomic_compare_exchange_loop(                                   \

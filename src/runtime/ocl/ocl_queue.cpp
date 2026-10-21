@@ -175,8 +175,10 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
   }
 
   _reflection_map = glue::jit::construct_default_reflection_map(dev_ctx);
-  _reflection_map["target_has_spirv_native_float_atomics"] =
-      dev_ctx->has_cl_ext_float_atomics_extension() ? 1 : 0;
+  _reflection_map["target_has_spirv_native_fp32_atomics"] =
+      dev_ctx->has_native_fp32_atomics() ? 1 : 0;
+  _reflection_map["target_has_spirv_native_fp64_atomics"] =
+      dev_ctx->has_native_fp64_atomics() ? 1 : 0;
 }
 
 ocl_queue::~ocl_queue() {}

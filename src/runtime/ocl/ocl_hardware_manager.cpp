@@ -175,7 +175,8 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
                                            const cl::Context &ctx, int dev_id,
                                            int platform_id)
     : _dev_id{dev_id}, _platform_id{platform_id}, _ctx{ctx}, _dev{dev},
-      _alloc{}, _has_intel_extension_profile{false} {
+      _alloc{}, _has_intel_extension_profile{false},
+      _has_native_fp32_atomics{false}, _has_native_fp64_atomics{false} {
   std::string platform_name =
       platform_info_query<CL_PLATFORM_NAME, std::string>(_dev);
 
@@ -183,7 +184,27 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
     _has_intel_extension_profile = true;
   std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
   _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
-  _has_cl_ext_float_atomics_extension = (extensions.find("cl_ext_float_atomics") != std::string::npos);
+#ifdef CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT
+  if(extensions.find("cl_ext_float_atomics") != std::string::npos) {
+    // Only rely on native float atomics when all of cl_ext_float_atomics
+    // capability bitmask is available for the type.
+    // TODO: Expose the individual capability bits (per operation and address
+    // space) so that partial support can still use the native instructions.
+    constexpr cl_device_fp_atomic_capabilities_ext required_caps =
+        CL_DEVICE_GLOBAL_FP_ATOMIC_LOAD_STORE_EXT |
+        CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT | CL_DEVICE_GLOBAL_FP_ATOMIC_MIN_MAX_EXT |
+        CL_DEVICE_LOCAL_FP_ATOMIC_LOAD_STORE_EXT |
+        CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT | CL_DEVICE_LOCAL_FP_ATOMIC_MIN_MAX_EXT;
+    auto has_all_caps = [&](cl_device_info param) {
+      cl_device_fp_atomic_capabilities_ext caps = 0;
+      if(dev.getInfo(param, &caps) != CL_SUCCESS)
+        return false;
+      return (caps & required_caps) == required_caps;
+    };
+    _has_native_fp32_atomics = has_all_caps(CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT);
+    _has_native_fp64_atomics = has_all_caps(CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT);
+  }
+#endif
 
   common::stable_running_hash uid_hash;
   // add PCI bus info to the hash if defined
@@ -238,8 +259,12 @@ bool ocl_hardware_context::has_cl_khr_priority_hints_extension() const {
   return _has_cl_khr_priority_hints_extension;
 }
 
-bool ocl_hardware_context::has_cl_ext_float_atomics_extension() const {
-  return _has_cl_ext_float_atomics_extension;
+bool ocl_hardware_context::has_native_fp32_atomics() const {
+  return _has_native_fp32_atomics;
+}
+
+bool ocl_hardware_context::has_native_fp64_atomics() const {
+  return _has_native_fp64_atomics;
 }
 
 uint64_t ocl_hardware_context::get_device_uid() const {

@@ -18,6 +18,7 @@
 #include "../detail/mem_fence.hpp"
 #include "../functional.hpp"
 #include "../group.hpp"
+#include "../group_traits.hpp"
 #include "../id.hpp"
 #include "../sub_group.hpp"
 #include "../vec.hpp"
@@ -294,8 +295,9 @@ T __acpp_leader_reduce(Group g, T *first, T *last,
   }
 
   if (g.leader()) {
+    result = *first;
 #pragma omp simd
-    for (T *i = first; i < last; ++i)
+    for (T *i = first + 1; i < last; ++i)
       result = binary_op(result, *i);
   }
   return result;
@@ -304,7 +306,7 @@ T __acpp_leader_reduce(Group g, T *first, T *last,
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 ACPP_KERNEL_TARGET
-T __acpp_leader_reduce(Group g, V *first, V *last, T init, 
+T __acpp_leader_reduce(Group g, T *first, T *last, V init, 
                           BinaryOperation binary_op) {
   auto result = __acpp_leader_reduce(g, first, last, binary_op);
 

@@ -311,6 +311,9 @@ if(WITH_SSCP_COMPILER)
       set(ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCompilerRuntimeImport.lib")
       set(ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY "${LLVM_LIBRARY_OUTPUT_INTDIR}/hipSYCL/llvm-to-backend")
       set(ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY "${ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY}/acpp-sscp-host-c-runtime-import.lib")
+
+      # These paths and build dependencies assume that AdaptiveCpp is built as part of LLVM.
+      # Building AdaptiveCpp as a Clang plugin may require locating the tools in an existing LLVM installation instead.
       set(ACPP_LLVM_READOBJ "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-readobj${CMAKE_EXECUTABLE_SUFFIX}")
       set(ACPP_LLVM_DLLTOOL "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-dlltool${CMAKE_EXECUTABLE_SUFFIX}")
       set(ACPP_LLVM_AR "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-ar${CMAKE_EXECUTABLE_SUFFIX}")

@@ -309,7 +309,7 @@ if(WITH_SSCP_COMPILER)
       set(ACPP_HOST_C_RUNTIME_DEF "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntimeImport.def")
       set(ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntimeImport.lib")
       set(ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCompilerRuntimeImport.lib")
-      set(ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY "${LLVM_LIBRARY_OUTPUT_INTDIR}/hipSYCL/llvm-to-backend")
+      set(ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY "${LLVM_LIBRARY_OUTPUT_INTDIR}/hipSYCL")
       set(ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY "${ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY}/acpp-sscp-host-c-runtime-import.lib")
 
       # These paths and build dependencies assume that AdaptiveCpp is built as part of LLVM.
@@ -388,7 +388,7 @@ if(WITH_SSCP_COMPILER)
       )
 
       add_custom_target(acpp-sscp-host-c-runtime-import DEPENDS "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}")
-      install(FILES "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}" DESTINATION "lib/hipSYCL/llvm-to-backend")
+      install(FILES "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}" DESTINATION "lib/hipSYCL")
     endif()
 
     add_hipsycl_llvm_backend(

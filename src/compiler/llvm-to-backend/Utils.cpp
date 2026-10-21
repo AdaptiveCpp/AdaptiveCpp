@@ -345,7 +345,6 @@ std::string getHostCRuntimeImportLibraryPath() {
         candidate_root,
         std::vector<std::string>{
           "hipSYCL",
-          "llvm-to-backend",
           "acpp-sscp-host-c-runtime-import.lib"
         });
 

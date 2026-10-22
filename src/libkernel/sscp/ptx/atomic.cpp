@@ -419,6 +419,69 @@ unsigned long long __ullAtomicXor_system(unsigned long long *__p,
   return __nvvm_atom_sys_xor_gen_ll((long long *)__p, __v);
 }
 
+namespace PTXAtomicDetail 
+{
+  using OrderSSCP = __acpp_sscp_memory_order;
+  using ScopeSSCP  = __acpp_sscp_memory_scope;
+
+  inline void constexpr check_address_space(__acpp_sscp_address_space space)
+  {
+    if (
+      space != __acpp_sscp_address_space::global_space &&
+      space != __acpp_sscp_address_space::local_space &&
+      space != __acpp_sscp_address_space::generic_space
+    ) 
+    {
+      __builtin_unreachable();
+    }
+  }
+
+  inline void sc_fence(ScopeSSCP scope)
+  {
+    if (scope == ScopeSSCP::system) 
+    {
+      asm volatile("fence.sc.sys;" ::: "memory");
+    }
+    else if (scope == ScopeSSCP::device) 
+    {
+      asm volatile("fence.sc.gpu;" ::: "memory");
+    }
+    else 
+    {
+      asm volatile("fence.sc.cta;" ::: "memory");
+    }
+  }
+
+  #define ACPP_PTX_LOAD(NAME, SEM, TYPE, BITS, REG)           \
+  inline TYPE NAME(TYPE* ptr, ScopeSSCP scope)                \
+  {                                                           \
+    TYPE result;                                              \
+    if (scope == ScopeSSCP::system)                           \
+    {                                                         \
+      asm volatile(                                           \
+        "ld." SEM ".sys.u" BITS "%0, [%1];" :                 \
+        "=" REG (result) : "l" (ptr) : "memory"               \
+      )                                                       \
+    }                                                         \
+    else if (scope == ScopeSSCP::device)                      \
+    {                                                         \
+      asm volatile(                                           \
+        "ld." SEM ".gpu.u" BITS "%0, [%1];" :                 \
+        "=" REG (result) : "l" (ptr) : "memory"               \
+      )                                                       \
+    }                                                         \
+    else                                                      \
+    {                                                         \
+      asm volatile(                                           \
+        "ld." SEM ".cta.u" BITS "%0, [%1];" :                 \
+        "=" REG (result) : "l" (ptr) : "memory"               \
+      )                                                       \
+    }                                                         \
+    return result;                                            \
+  }
+
+}
+
 
 
 // ********************** atomic store ***************************

@@ -425,7 +425,7 @@ namespace PTXAtomicDetail
   using OrderSSCP = __acpp_sscp_memory_order;
   using ScopeSSCP  = __acpp_sscp_memory_scope;
 
-  constexpr inline void assume_supports_address_space(__acpp_sscp_address_space space)
+  inline void assume_supports_address_space(__acpp_sscp_address_space space)
   {
     if (
       space != __acpp_sscp_address_space::global_space &&
@@ -437,7 +437,7 @@ namespace PTXAtomicDetail
     }
   }
 
-  inline void fence_seq_cast(ScopeSSCP scope)
+  inline void fence_seq_cst(ScopeSSCP scope)
   {
     if (scope == ScopeSSCP::system) 
     {
@@ -583,7 +583,7 @@ namespace PTXAtomicDetail
       case OrderSSCP::acquire:
         return acquire_load(ptr, scope);
       case OrderSSCP::seq_cst:
-        fence_seq_cast(scope);
+        fence_seq_cst(scope);
         return acquire_load(ptr, scope);
       default:
         __builtin_unreachable();
@@ -602,7 +602,7 @@ namespace PTXAtomicDetail
         release_store(ptr, value, scope);
         return;
       case OrderSSCP::seq_cst:
-        fence_seq_cast(scope);
+        fence_seq_cst(scope);
         release_store(ptr, value, scope);
         return;
       default:
@@ -657,7 +657,7 @@ namespace PTXAtomicDetail
         observed = acq_rel_cas(ptr, compare, desired, scope);
         break;
       case OrderSSCP::seq_cst:
-        fence_seq_cast(scope);
+        fence_seq_cst(scope);
         observed =  acq_rel_cas(ptr, compare,  desired, scope);
         break;
       default:
@@ -1426,8 +1426,8 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
   __acpp_f32 desired = x;
   do {
     desired = old < x ? old : x;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, desired));
-  return x;
+  } while (!cmp_exch_strong_f32(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
@@ -1438,8 +1438,8 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
   __acpp_f64 desired = x;
   do {
     desired = old < x ? old : x;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, desired));
-  return x;
+  } while (!cmp_exch_strong_f64(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 
@@ -1528,24 +1528,24 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
   
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
+  __acpp_f32 old = atomic_load_f32(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
   __acpp_f32 desired = x;
   do {
     desired = old > x ? old : x;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, desired));
-  return x;
+  } while (!cmp_exch_strong_f32(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
+  __acpp_f64 old = atomic_load_f64(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
   __acpp_f64 desired = x;
   do {
     desired = old > x ? old : x;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, desired));
-  return x;
+  } while (!cmp_exch_strong_f64(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 

@@ -424,7 +424,7 @@ namespace PTXAtomicDetail
   using OrderSSCP = __acpp_sscp_memory_order;
   using ScopeSSCP  = __acpp_sscp_memory_scope;
 
-  inline void constexpr check_address_space(__acpp_sscp_address_space space)
+  inline void constexpr assume_supports_address_space(__acpp_sscp_address_space space)
   {
     if (
       space != __acpp_sscp_address_space::global_space &&
@@ -461,24 +461,105 @@ namespace PTXAtomicDetail
       asm volatile(                                           \
         "ld." SEM ".sys.u" BITS "%0, [%1];" :                 \
         "=" REG (result) : "l" (ptr) : "memory"               \
-      )                                                       \
+      );                                                      \
     }                                                         \
     else if (scope == ScopeSSCP::device)                      \
     {                                                         \
       asm volatile(                                           \
         "ld." SEM ".gpu.u" BITS "%0, [%1];" :                 \
         "=" REG (result) : "l" (ptr) : "memory"               \
-      )                                                       \
+      );                                                      \
     }                                                         \
     else                                                      \
     {                                                         \
       asm volatile(                                           \
         "ld." SEM ".cta.u" BITS "%0, [%1];" :                 \
         "=" REG (result) : "l" (ptr) : "memory"               \
-      )                                                       \
+      );                                                      \
     }                                                         \
     return result;                                            \
   }
+  ACPP_PTX_LOAD(relaxed_load, "relaxed", __acpp_int32, "32", "r")
+  ACPP_PTX_LOAD(relaxed_load, "relaxed", __acpp_int64, "64", "l")
+  ACPP_PTX_LOAD(acquire_load, "acquire", __acpp_int32, "32", "r")
+  ACPP_PTX_LOAD(acquire_load, "acquire", __acpp_int64, "64", "l")
+  #undef ACPP_PTX_LOAD
+
+  #define ACPP_PTX_STORE(NAME, SEM, TYPE, BITS, REG)          \
+  inline void NAME(TYPE* ptr, TYPE value, ScopeSSCP scope)    \
+  {                                                           \
+    if (scope == ScopeSSCP::system)                           \
+    {                                                         \
+      asm volatile(                                           \
+        "st." SEM ".sys.u" BITS "[%0], %1;" ::                \
+        "l" (ptr), REG(value) : "memory"                      \
+      );                                                      \
+    }                                                         \
+    else if (scope == ScopeSSCP::device)                      \
+    {                                                         \
+      asm volatile(                                           \
+        "st." SEM ".gpu.u" BITS "[%0], %1;" ::                \
+        "l" (ptr), REG(value) : "memory"                      \
+      );                                                      \
+    }                                                         \
+    else                                                      \
+    {                                                         \
+      asm volatile(                                           \
+        "st." SEM ".cta.u" BITS "[%0], %1;" ::                \
+        "l" (ptr), REG(value) : "memory"                      \
+      );                                                      \
+    }                                                         \
+  }
+  ACPP_PTX_STORE(relaxed_store, "relaxed", __acpp_int32, "32", "r")
+  ACPP_PTX_STORE(relaxed_store, "relaxed", __acpp_int64, "64", "l")
+  ACPP_PTX_STORE(release_store, "release", __acpp_int32, "32", "r")
+  ACPP_PTX_STORE(release_store, "release", __acpp_int64, "64", "l")
+  #undef ACPP_PTX_STORE
+
+
+  #define ACPP_PTX_CAS(NAME, SEM, TYPE, BITS, REG)                              \
+  inline TYPE NAME(TYPE* ptr, TYPE compare, TYPE desired, ScopeSSCP scope)      \
+  {                                                                             \
+    TYPE result;                                                                \
+    if (scope == ScopeSSCP::system)                                             \
+    {                                                                           \
+      asm volatile(                                                             \
+        "atom." SEM ".sys.cas.b" BITS "%0, [%1], %2, %3;" :                     \
+        "=" REG(result) :                                                       \
+        "l"(ptr), REG(compare), REG(desired) : "memory"                         \
+      );                                                                        \
+    }                                                                           \
+    else if (scope == ScopeSSCP::device)                                        \
+    {                                                                           \
+      asm volatile(                                                             \
+        "atom." SEM ".gpu.cas.b" BITS "%0, [%1], %2, %3;" :                     \
+        "=" REG(result) :                                                       \
+        "l"(ptr), REG(compare), REG(desired) : "memory"                         \
+      );                                                                        \
+    }                                                                           \
+    else                                                                        \
+    {                                                                           \
+      asm volatile(                                                             \
+        "atom." SEM ".cta.cas.b" BITS "%0, [%1], %2, %3;" :                     \
+        "=" REG(result) :                                                       \
+        "l"(ptr), REG(compare), REG(desired) : "memory"                         \
+      );                                                                        \
+    }                                                                           \
+    return result;                                                              \
+  }
+
+  ACPP_PTX_CAS(relaxed_cas, "relaxed", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(relaxed_cas, "relaxed", __acpp_int64, "64", "l")
+  ACPP_PTX_CAS(acquire_cas, "acquire", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(acquire_cas, "acquire", __acpp_int64, "64", "l")
+  ACPP_PTX_CAS(release_cas, "release", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(release_cas, "release", __acpp_int64, "64", "l")
+  ACPP_PTX_CAS(acq_rel_cas, "acq_rel", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(acq_rel_cas, "acq_rel", __acpp_int64, "64", "l")
+  #undef ACPP_PTX_CAS
+
+  
+
 
 }
 

@@ -77,8 +77,8 @@ std::string get_lib_directory() {
   }
   
 #endif
-  if(paths.empty() || !fs::is_directory(paths.back())) {
-    return join_path(HIPSYCL_INSTALL_PREFIX, "lib");
+  if(paths.empty()) {
+    return "";
   }
   return paths.back().string();
 }

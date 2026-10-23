@@ -123,6 +123,9 @@ public:
     } else if(asp == aspect::usm_shared_allocations) {
       return get_rt_device()->has(
           rt::device_support_aspect::usm_shared_allocations);
+    } else if(asp == aspect::usm_atomic_shared_allocations) {
+      return get_rt_device()->has(
+          rt::device_support_aspect::usm_atomic_shared_allocations);
     } else if(asp == aspect::usm_system_allocations) {
       return get_rt_device()->has(
           rt::device_support_aspect::usm_system_allocations);

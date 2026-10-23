@@ -372,8 +372,11 @@ using shuffle_test_types =
     boost::mp11::mp_push_back<test_types, detail::trivially_copyable_16_byte_type,
                               detail::trivially_copyable_12_byte_type>;
 
+// Use an anonymous namespace to force internal linkage
+namespace {
 template<int N, int M, typename T>
 class test_kernel;
+} // unnamed namespace
 
 template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
          typename ValidationFunction>

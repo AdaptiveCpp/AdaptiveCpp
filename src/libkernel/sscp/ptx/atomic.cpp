@@ -421,10 +421,11 @@ unsigned long long __ullAtomicXor_system(unsigned long long *__p,
 
 namespace PTXAtomicDetail 
 {
-  //CONCERNS FOR REVIEWER :: is use of __builtin_unreachable() -> safe ? in this namespace functions ?
   using OrderSSCP = __acpp_sscp_memory_order;
   using ScopeSSCP  = __acpp_sscp_memory_scope;
 
+
+  // https://docs.nvidia.com/cuda/ptx-writers-guide-to-interoperability/atomic-abi.html
   inline void assume_supports_address_space(__acpp_sscp_address_space space)
   {
     if (
@@ -433,7 +434,7 @@ namespace PTXAtomicDetail
       space != __acpp_sscp_address_space::generic_space
     ) 
     {
-      __builtin_unreachable();
+      __builtin_unreachable(); // illegal
     }
   }
 
@@ -1421,7 +1422,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_min_u64(
 HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
-
+  // Even an unchanged numerical result must complete a successful CAS.
   __acpp_f32 old = atomic_load_f32(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
   __acpp_f32 desired = x;
   do {
@@ -1433,7 +1434,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
-  
+  // Even an unchanged numerical result must complete a successful CAS.
   __acpp_f64 old = atomic_load_f64(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
   __acpp_f64 desired = x;
   do {

@@ -424,7 +424,7 @@ namespace PTXAtomicDetail
   using OrderSSCP = __acpp_sscp_memory_order;
   using ScopeSSCP  = __acpp_sscp_memory_scope;
 
-  inline void constexpr assume_supports_address_space(__acpp_sscp_address_space space)
+  constexpr inline void assume_supports_address_space(__acpp_sscp_address_space space)
   {
     if (
       space != __acpp_sscp_address_space::global_space &&
@@ -452,6 +452,8 @@ namespace PTXAtomicDetail
     }
   }
 
+  //MEANING -> SEM = SEMENTIC(PTX memory-ordering semantic)
+  //MEANING -> REG = REGISTER
   #define ACPP_PTX_LOAD(NAME, SEM, TYPE, BITS, REG)           \
   inline TYPE NAME(TYPE* ptr, ScopeSSCP scope)                \
   {                                                           \
@@ -459,22 +461,28 @@ namespace PTXAtomicDetail
     if (scope == ScopeSSCP::system)                           \
     {                                                         \
       asm volatile(                                           \
-        "ld." SEM ".sys.u" BITS "%0, [%1];" :                 \
-        "=" REG (result) : "l" (ptr) : "memory"               \
+        "ld." SEM ".sys.u" BITS " %0, [%1];" :                \
+        "=" REG (result) :                                    \
+        "l" (ptr) :                                           \
+        "memory"                                              \
       );                                                      \
     }                                                         \
     else if (scope == ScopeSSCP::device)                      \
     {                                                         \
       asm volatile(                                           \
-        "ld." SEM ".gpu.u" BITS "%0, [%1];" :                 \
-        "=" REG (result) : "l" (ptr) : "memory"               \
+        "ld." SEM ".gpu.u" BITS " %0, [%1];" :                \
+        "=" REG (result) :                                    \
+        "l" (ptr) :                                           \
+        "memory"                                              \
       );                                                      \
     }                                                         \
     else                                                      \
     {                                                         \
       asm volatile(                                           \
-        "ld." SEM ".cta.u" BITS "%0, [%1];" :                 \
-        "=" REG (result) : "l" (ptr) : "memory"               \
+        "ld." SEM ".cta.u" BITS " %0, [%1];" :                \
+        "=" REG (result) :                                    \
+        "l" (ptr) :                                           \
+        "memory"                                              \
       );                                                      \
     }                                                         \
     return result;                                            \
@@ -491,22 +499,25 @@ namespace PTXAtomicDetail
     if (scope == ScopeSSCP::system)                           \
     {                                                         \
       asm volatile(                                           \
-        "st." SEM ".sys.u" BITS "[%0], %1;" ::                \
-        "l" (ptr), REG(value) : "memory"                      \
+        "st." SEM ".sys.u" BITS " [%0], %1;" ::               \
+        "l" (ptr), REG(value) :                               \
+        "memory"                                              \
       );                                                      \
     }                                                         \
     else if (scope == ScopeSSCP::device)                      \
     {                                                         \
       asm volatile(                                           \
-        "st." SEM ".gpu.u" BITS "[%0], %1;" ::                \
-        "l" (ptr), REG(value) : "memory"                      \
+        "st." SEM ".gpu.u" BITS " [%0], %1;" ::               \
+        "l" (ptr), REG(value) :                               \
+        "memory"                                              \
       );                                                      \
     }                                                         \
     else                                                      \
     {                                                         \
       asm volatile(                                           \
-        "st." SEM ".cta.u" BITS "[%0], %1;" ::                \
-        "l" (ptr), REG(value) : "memory"                      \
+        "st." SEM ".cta.u" BITS " [%0], %1;" ::               \
+        "l" (ptr), REG(value) :                               \
+        "memory"                                              \
       );                                                      \
     }                                                         \
   }
@@ -524,25 +535,28 @@ namespace PTXAtomicDetail
     if (scope == ScopeSSCP::system)                                             \
     {                                                                           \
       asm volatile(                                                             \
-        "atom." SEM ".sys.cas.b" BITS "%0, [%1], %2, %3;" :                     \
+        "atom." SEM ".sys.cas.b" BITS " %0, [%1], %2, %3;" :                    \
         "=" REG(result) :                                                       \
-        "l"(ptr), REG(compare), REG(desired) : "memory"                         \
+        "l"(ptr), REG(compare), REG(desired) :                                  \
+        "memory"                                                                \
       );                                                                        \
     }                                                                           \
     else if (scope == ScopeSSCP::device)                                        \
     {                                                                           \
       asm volatile(                                                             \
-        "atom." SEM ".gpu.cas.b" BITS "%0, [%1], %2, %3;" :                     \
+        "atom." SEM ".gpu.cas.b" BITS " %0, [%1], %2, %3;" :                    \
         "=" REG(result) :                                                       \
-        "l"(ptr), REG(compare), REG(desired) : "memory"                         \
+        "l"(ptr), REG(compare), REG(desired) :                                  \
+        "memory"                                                                \
       );                                                                        \
     }                                                                           \
     else                                                                        \
     {                                                                           \
       asm volatile(                                                             \
-        "atom." SEM ".cta.cas.b" BITS "%0, [%1], %2, %3;" :                     \
+        "atom." SEM ".cta.cas.b" BITS " %0, [%1], %2, %3;" :                    \
         "=" REG(result) :                                                       \
-        "l"(ptr), REG(compare), REG(desired) : "memory"                         \
+        "l"(ptr), REG(compare), REG(desired) :                                  \
+        "memory"                                                                \
       );                                                                        \
     }                                                                           \
     return result;                                                              \
@@ -558,7 +572,8 @@ namespace PTXAtomicDetail
   ACPP_PTX_CAS(acq_rel_cas, "acq_rel", __acpp_int64, "64", "l")
   #undef ACPP_PTX_CAS
 
-  
+  template<class T>
+  inline void store(T* ptr, OrderSSCP order, ScopeSSCP scope);
 
 
 }

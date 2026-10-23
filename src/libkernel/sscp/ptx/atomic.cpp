@@ -669,8 +669,6 @@ namespace PTXAtomicDetail
   }
 }
 
-
-
 // ********************** atomic store ***************************
 
 // Unlike the CUDA compilation flow, the __atomic_store and __atomic_load builtin
@@ -1424,12 +1422,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
 
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
-
+  __acpp_f32 old = atomic_load_f32(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f32 desired = x;
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
+    desired = old < x ? old : x;
+  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, desired));
   return x;
 }
 
@@ -1437,12 +1434,11 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+  __acpp_f64 old = atomic_load_f64(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f64 desired = x;
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
+    desired = old < x ? old : x;
+  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, desired));
   return x;
 }
 
@@ -1533,11 +1529,10 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
   
   __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
-  
+  __acpp_f32 desired = x;
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
+    desired = old > x ? old : x;
+  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, desired));
   return x;
 }
 
@@ -1546,11 +1541,10 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   
   __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+  __acpp_f64 desired = x;
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
+    desired = old > x ? old : x;
+  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, desired));
   return x;
 }
 

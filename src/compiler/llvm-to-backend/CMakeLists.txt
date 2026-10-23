@@ -28,6 +28,10 @@ function(create_llvm_based_library)
       ${sources})
   endif()
 
+  set_target_properties(${target} PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON)
+
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})

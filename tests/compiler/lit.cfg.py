@@ -11,6 +11,7 @@ config.test_source_root = os.path.dirname(__file__)
 config.test_exec_root = os.path.join(config.my_obj_root)
 
 config.substitutions.append(('%acpp', config.acpp_compiler))
+config.substitutions.append(('%hcfi', "{}/sscp/hcfinspect.sh".format(config.test_source_root)))
 
 system = platform.system().lower()
 if system == 'darwin':

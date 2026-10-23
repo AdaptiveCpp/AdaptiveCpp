@@ -421,6 +421,7 @@ unsigned long long __ullAtomicXor_system(unsigned long long *__p,
 
 namespace PTXAtomicDetail 
 {
+  //CONCERNS FOR REVIEWER :: is use of __builtin_unreachable() -> safe ? in this namespace functions ?
   using OrderSSCP = __acpp_sscp_memory_order;
   using ScopeSSCP  = __acpp_sscp_memory_scope;
 
@@ -573,9 +574,79 @@ namespace PTXAtomicDetail
   #undef ACPP_PTX_CAS
 
   template<class T>
-  inline void store(T* ptr, OrderSSCP order, ScopeSSCP scope);
+  inline void store(T* ptr, T value, OrderSSCP order, ScopeSSCP scope)
+  {
+    switch (order) 
+    {
+      case OrderSSCP::relaxed:
+        relaxed_store(ptr, value, scope);
+      case OrderSSCP::release:
+        release_store(ptr, value, scope);
+      case OrderSSCP::seq_cst:
+        sc_fence(scope);
+        release_store(ptr, value, scope);
+        return;
+      default:
+        __builtin_unreachable();
+    }
+  }
 
+  inline OrderSSCP cas_order(OrderSSCP success, OrderSSCP failure)
+  {
+    if (failure == OrderSSCP::release || failure == OrderSSCP::acq_rel) 
+    {
+      __builtin_unreachable();
+    }
 
+    if (success == OrderSSCP::seq_cst || failure == OrderSSCP::seq_cst) 
+    {
+      return OrderSSCP::seq_cst;
+    }
+
+    const bool acquire = success == OrderSSCP::acquire ||
+      success == OrderSSCP::acq_rel || failure == OrderSSCP::acquire;
+    
+    const bool relese = success == OrderSSCP::release || success == OrderSSCP::acq_rel;
+
+    return acquire ?
+      (relese ? OrderSSCP::acq_rel : OrderSSCP::acquire) :
+      (relese ? OrderSSCP::release : OrderSSCP::relaxed);
+  }
+
+  template<class T>
+  inline bool compare_exchange(
+    T* ptr, T* expected, T desired, 
+    OrderSSCP success, OrderSSCP failure, ScopeSSCP scope
+  )
+  {
+    const T compare = *expected;
+    T observed;
+
+    switch (cas_order(success, failure)) 
+    {
+      case OrderSSCP::relaxed:
+        observed = relaxed_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::acquire:
+        observed = acquire_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::release:
+        observed = release_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::acq_rel:
+        observed = acq_rel_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::seq_cst:
+        sc_fence(scope);
+        observed =  acq_rel_cas(ptr, compare,  desired, scope);
+        break;
+      default:
+        __builtin_unreachable();
+    }
+
+    *expected = observed;
+    return observed == compare;
+  }
 }
 
 

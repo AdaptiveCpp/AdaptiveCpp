@@ -539,36 +539,82 @@ namespace PTXPremitiveTests
       static constexpr size_t SP_COUNT = 2;
       int errors[SP_COUNT] = {};
       {
-          sycl::buffer<int> result{errors, sycl::range<1>{SP_COUNT}};
-          queue.submit([&](sycl::handler& hndl)
-          {
-              sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl};
-              auto out = result.get_access<sycl::access::mode::write>(hndl);
+        sycl::buffer<int> result{errors, sycl::range<1>{SP_COUNT}};
+        queue.submit([&](sycl::handler& hndl)
+        {
+          sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl};
+          auto out = result.get_access<sycl::access::mode::write>(hndl);
 
-              hndl.parallel_for(
-                  sycl::nd_range<1>
-                  {
-                      sycl::range<1>{32},
-                      sycl::range<1>{32}
-                  },
-                  [=](sycl::nd_item<1> item)
-                  {
-                      if(item.get_local_linear_id() == 0)
-                      {
-                          out[0] = exercise<T, Scope::work_group, Space::local_space>(&data[0]);
-                          out[1] = exercise<T, Scope::sub_group, Space::generic_space>(&data[0]);
-                      }
-                  }
-              );
-          });
-
-          queue.wait_and_throw();
+          hndl.parallel_for(
+            sycl::nd_range<1>{sycl::range<1>{32}, sycl::range<1>{32}},
+            [=](sycl::nd_item<1> item)
+            {
+              if(item.get_local_linear_id() == 0)
+              {
+                out[0] = exercise<T, Scope::work_group, Space::local_space>(&data[0]);
+                out[1] = exercise<T, Scope::sub_group, Space::generic_space>(&data[0]);
+              }
+            }
+          );
+        });
+        queue.wait_and_throw();
       }
 
       BOOST_CHECK_EQUAL(errors[0], 0);
       BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
+  template<class T>
+  void contention(sycl::queue& queue)
+  {
+    static constexpr size_t WORKERS = 256;
+    static constexpr size_t MAX_TRIES = 4096;
+    T value = 0;
+    int errors[WORKERS] = {};
+    {
+      sycl::buffer<T> data{&value, sycl::range<1>{1}};
+      sycl::buffer<int> result{errors, sycl::range<1>{WORKERS}};
+
+      queue.submit(
+        [&](sycl::handler& hndl)
+        {
+          auto storage = data.template get_access<sycl::access::mode::read_write>(hndl);
+          auto out = result.get_access<sycl::access::mode::write>(hndl);
+          hndl.parallel_for(
+            sycl::nd_range<1>{sycl::range<1>{WORKERS}, sycl::range<1>{32}},
+            [=](sycl::nd_item<1> item)
+            {
+              sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
+
+              int failures = 0;
+              for (int i; i < 8; i++) 
+              {
+                T expected = atom.load(Order::relaxed);
+
+                bool done = false;
+                for (int r = 0; r < MAX_TRIES && !done; r++) 
+                {
+                  T prior = expected;
+                  done = atom.compare_exchange_strong(expected, T(prior + 1), Order::acq_rel, Order::acquire);
+                  failures += !done && expected <= prior;
+                }
+                failures += !done;
+              }
+              out[item.get_global_linear_id()] = failures;
+            }
+          );
+
+        }
+      );
+      queue.wait_and_throw();
+    }
+    
+    BOOST_CHECK_EQUAL(value, T(WORKERS * 8));
+    for (int e : errors)
+    {
+      BOOST_CHECK_EQUAL(errors, 0);
+    }
+  }
 
 }
 

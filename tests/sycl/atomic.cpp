@@ -509,29 +509,66 @@ namespace PTXPremitiveTests
   template<class T, Scope SC>
   void global_matrix(sycl::queue queue)
   {
-    static constexpr size_t SP_COUNT = 2;
+      static constexpr size_t SP_COUNT = 2;
+      sycl::buffer<T> storage{sycl::range<1>{1}};
+      int errors[SP_COUNT] = {};
+      {
+          sycl::buffer<int> result{errors, sycl::range<1>{SP_COUNT}};
+          queue.submit([&](sycl::handler& hndl)
+          {
+              auto data = storage.template
+                  get_access<sycl::access::mode::read_write>(hndl);
 
-    sycl::buffer<T> storage {sycl::range<1>{1}};
-    int errors[SP_COUNT] = {};
-    {
-      sycl::buffer<int> result{errors, sycl::range<1>(SP_COUNT)};
-    
-      queue.submit(
-        [&](sycl::handler& hndl)
-        {
-          auto data = storage.template get_access<sycl::access::mode::read_write>(hndl);
-          auto out = result.get_access<sycl::access::mode::write>(hndl);
-          hndl.single_task([=](){
-            out[0] = exercise<T, SC, Space::global_space>(&data[0]);
-            out[1] = exercise<T, SC, Space::generic_space>(&data[1]);
+              auto out = result.get_access<sycl::access::mode::write>(hndl);
+
+              hndl.single_task([=]()
+              {
+                  out[0] = exercise<T, SC, Space::global_space>(&data[0]);
+                  out[1] = exercise<T, SC, Space::generic_space>(&data[0]);
+              });
           });
-        }
-      );
-      queue.wait_and_throw();
-    }
-  BOOST_CHECK_EQUAL(errors[0], 0);
-  BOOST_CHECK_EQUAL(errors[1], 0);
+          queue.wait_and_throw();
+      }
+      BOOST_CHECK_EQUAL(errors[0], 0);
+      BOOST_CHECK_EQUAL(errors[1], 0);
   }
+
+  template<class T>
+  void local_matrix(sycl::queue queue)
+  {
+      static constexpr size_t SP_COUNT = 2;
+      int errors[SP_COUNT] = {};
+      {
+          sycl::buffer<int> result{errors, sycl::range<1>{SP_COUNT}};
+          queue.submit([&](sycl::handler& hndl)
+          {
+              sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl};
+              auto out = result.get_access<sycl::access::mode::write>(hndl);
+
+              hndl.parallel_for(
+                  sycl::nd_range<1>
+                  {
+                      sycl::range<1>{32},
+                      sycl::range<1>{32}
+                  },
+                  [=](sycl::nd_item<1> item)
+                  {
+                      if(item.get_local_linear_id() == 0)
+                      {
+                          out[0] = exercise<T, Scope::work_group, Space::local_space>(&data[0]);
+                          out[1] = exercise<T, Scope::sub_group, Space::generic_space>(&data[0]);
+                      }
+                  }
+              );
+          });
+
+          queue.wait_and_throw();
+      }
+
+      BOOST_CHECK_EQUAL(errors[0], 0);
+      BOOST_CHECK_EQUAL(errors[1], 0);
+  }
+
 
 }
 

@@ -419,7 +419,256 @@ unsigned long long __ullAtomicXor_system(unsigned long long *__p,
   return __nvvm_atom_sys_xor_gen_ll((long long *)__p, __v);
 }
 
+namespace PTXAtomicDetail 
+{
+  using OrderSSCP = __acpp_sscp_memory_order;
+  using ScopeSSCP  = __acpp_sscp_memory_scope;
 
+
+  // https://docs.nvidia.com/cuda/ptx-writers-guide-to-interoperability/atomic-abi.html
+  inline void assume_supports_address_space(__acpp_sscp_address_space space)
+  {
+    if (
+      space != __acpp_sscp_address_space::global_space &&
+      space != __acpp_sscp_address_space::local_space &&
+      space != __acpp_sscp_address_space::generic_space
+    ) 
+    {
+      __builtin_unreachable(); // illegal
+    }
+  }
+
+  inline void fence_seq_cst(ScopeSSCP scope)
+  {
+    if (scope == ScopeSSCP::system) 
+    {
+      asm volatile("fence.sc.sys;" ::: "memory");
+    }
+    else if (scope == ScopeSSCP::device) 
+    {
+      asm volatile("fence.sc.gpu;" ::: "memory");
+    }
+    else 
+    {
+      asm volatile("fence.sc.cta;" ::: "memory");
+    }
+  }
+
+  //MEANING -> SEM = SEMENTIC(PTX memory-ordering semantic)
+  //MEANING -> REG = REGISTER
+  #define ACPP_PTX_LOAD(NAME, SEM, TYPE, BITS, REG)           \
+  inline TYPE NAME(TYPE* ptr, ScopeSSCP scope)                \
+  {                                                           \
+    TYPE result;                                              \
+    if (scope == ScopeSSCP::system)                           \
+    {                                                         \
+      asm volatile(                                           \
+        "ld." SEM ".sys.u" BITS " %0, [%1];" :                \
+        "=" REG (result) :                                    \
+        "l" (ptr) :                                           \
+        "memory"                                              \
+      );                                                      \
+    }                                                         \
+    else if (scope == ScopeSSCP::device)                      \
+    {                                                         \
+      asm volatile(                                           \
+        "ld." SEM ".gpu.u" BITS " %0, [%1];" :                \
+        "=" REG (result) :                                    \
+        "l" (ptr) :                                           \
+        "memory"                                              \
+      );                                                      \
+    }                                                         \
+    else                                                      \
+    {                                                         \
+      asm volatile(                                           \
+        "ld." SEM ".cta.u" BITS " %0, [%1];" :                \
+        "=" REG (result) :                                    \
+        "l" (ptr) :                                           \
+        "memory"                                              \
+      );                                                      \
+    }                                                         \
+    return result;                                            \
+  }
+  ACPP_PTX_LOAD(relaxed_load, "relaxed", __acpp_int32, "32", "r")
+  ACPP_PTX_LOAD(relaxed_load, "relaxed", __acpp_int64, "64", "l")
+  ACPP_PTX_LOAD(acquire_load, "acquire", __acpp_int32, "32", "r")
+  ACPP_PTX_LOAD(acquire_load, "acquire", __acpp_int64, "64", "l")
+  #undef ACPP_PTX_LOAD
+
+  #define ACPP_PTX_STORE(NAME, SEM, TYPE, BITS, REG)          \
+  inline void NAME(TYPE* ptr, TYPE value, ScopeSSCP scope)    \
+  {                                                           \
+    if (scope == ScopeSSCP::system)                           \
+    {                                                         \
+      asm volatile(                                           \
+        "st." SEM ".sys.u" BITS " [%0], %1;" ::               \
+        "l" (ptr), REG(value) :                               \
+        "memory"                                              \
+      );                                                      \
+    }                                                         \
+    else if (scope == ScopeSSCP::device)                      \
+    {                                                         \
+      asm volatile(                                           \
+        "st." SEM ".gpu.u" BITS " [%0], %1;" ::               \
+        "l" (ptr), REG(value) :                               \
+        "memory"                                              \
+      );                                                      \
+    }                                                         \
+    else                                                      \
+    {                                                         \
+      asm volatile(                                           \
+        "st." SEM ".cta.u" BITS " [%0], %1;" ::               \
+        "l" (ptr), REG(value) :                               \
+        "memory"                                              \
+      );                                                      \
+    }                                                         \
+  }
+  ACPP_PTX_STORE(relaxed_store, "relaxed", __acpp_int32, "32", "r")
+  ACPP_PTX_STORE(relaxed_store, "relaxed", __acpp_int64, "64", "l")
+  ACPP_PTX_STORE(release_store, "release", __acpp_int32, "32", "r")
+  ACPP_PTX_STORE(release_store, "release", __acpp_int64, "64", "l")
+  #undef ACPP_PTX_STORE
+
+
+  #define ACPP_PTX_CAS(NAME, SEM, TYPE, BITS, REG)                              \
+  inline TYPE NAME(TYPE* ptr, TYPE compare, TYPE desired, ScopeSSCP scope)      \
+  {                                                                             \
+    TYPE result;                                                                \
+    if (scope == ScopeSSCP::system)                                             \
+    {                                                                           \
+      asm volatile(                                                             \
+        "atom." SEM ".sys.cas.b" BITS " %0, [%1], %2, %3;" :                    \
+        "=" REG(result) :                                                       \
+        "l"(ptr), REG(compare), REG(desired) :                                  \
+        "memory"                                                                \
+      );                                                                        \
+    }                                                                           \
+    else if (scope == ScopeSSCP::device)                                        \
+    {                                                                           \
+      asm volatile(                                                             \
+        "atom." SEM ".gpu.cas.b" BITS " %0, [%1], %2, %3;" :                    \
+        "=" REG(result) :                                                       \
+        "l"(ptr), REG(compare), REG(desired) :                                  \
+        "memory"                                                                \
+      );                                                                        \
+    }                                                                           \
+    else                                                                        \
+    {                                                                           \
+      asm volatile(                                                             \
+        "atom." SEM ".cta.cas.b" BITS " %0, [%1], %2, %3;" :                    \
+        "=" REG(result) :                                                       \
+        "l"(ptr), REG(compare), REG(desired) :                                  \
+        "memory"                                                                \
+      );                                                                        \
+    }                                                                           \
+    return result;                                                              \
+  }
+
+  ACPP_PTX_CAS(relaxed_cas, "relaxed", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(relaxed_cas, "relaxed", __acpp_int64, "64", "l")
+  ACPP_PTX_CAS(acquire_cas, "acquire", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(acquire_cas, "acquire", __acpp_int64, "64", "l")
+  ACPP_PTX_CAS(release_cas, "release", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(release_cas, "release", __acpp_int64, "64", "l")
+  ACPP_PTX_CAS(acq_rel_cas, "acq_rel", __acpp_int32, "32", "r")
+  ACPP_PTX_CAS(acq_rel_cas, "acq_rel", __acpp_int64, "64", "l")
+  #undef ACPP_PTX_CAS
+
+  template<class T>
+  inline T load(T* ptr, OrderSSCP order, ScopeSSCP scope)
+  {
+    switch (order) 
+    {
+      case OrderSSCP::relaxed:
+        return relaxed_load(ptr, scope);
+      case OrderSSCP::acquire:
+        return acquire_load(ptr, scope);
+      case OrderSSCP::seq_cst:
+        fence_seq_cst(scope);
+        return acquire_load(ptr, scope);
+      default:
+        __builtin_unreachable();
+    }
+  }
+
+  template<class T>
+  inline void store(T* ptr, T value, OrderSSCP order, ScopeSSCP scope)
+  {
+    switch (order) 
+    {
+      case OrderSSCP::relaxed:
+        relaxed_store(ptr, value, scope);
+        return;
+      case OrderSSCP::release:
+        release_store(ptr, value, scope);
+        return;
+      case OrderSSCP::seq_cst:
+        fence_seq_cst(scope);
+        release_store(ptr, value, scope);
+        return;
+      default:
+        __builtin_unreachable();
+    }
+  }
+
+  //PTX has one order CAS semantic
+  inline OrderSSCP cas_singular_converter(OrderSSCP success, OrderSSCP failure)
+  {
+    if (failure == OrderSSCP::release || failure == OrderSSCP::acq_rel) 
+    {
+      __builtin_unreachable();
+    }
+
+    if (success == OrderSSCP::seq_cst || failure == OrderSSCP::seq_cst) 
+    {
+      return OrderSSCP::seq_cst;
+    }
+
+    const bool acquire = success == OrderSSCP::acquire ||
+      success == OrderSSCP::acq_rel || failure == OrderSSCP::acquire;
+    
+    const bool release = success == OrderSSCP::release || success == OrderSSCP::acq_rel;
+
+    return acquire ?
+      (release ? OrderSSCP::acq_rel : OrderSSCP::acquire) :
+      (release ? OrderSSCP::release : OrderSSCP::relaxed);
+  }
+
+  template<class T>
+  inline bool compare_exchange(
+    T* ptr, T* expected, T desired, 
+    OrderSSCP success, OrderSSCP failure, ScopeSSCP scope
+  )
+  {
+    const T compare = *expected;
+    T observed;
+
+    switch (cas_singular_converter(success, failure)) 
+    {
+      case OrderSSCP::relaxed:
+        observed = relaxed_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::acquire:
+        observed = acquire_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::release:
+        observed = release_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::acq_rel:
+        observed = acq_rel_cas(ptr, compare, desired, scope);
+        break;
+      case OrderSSCP::seq_cst:
+        fence_seq_cst(scope);
+        observed =  acq_rel_cas(ptr, compare,  desired, scope);
+        break;
+      default:
+        __builtin_unreachable();
+    }
+
+    *expected = observed;
+    return observed == compare;
+  }
+}
 
 // ********************** atomic store ***************************
 
@@ -470,35 +719,9 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    if(scope == __acpp_sscp_memory_scope::system) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        asm volatile("st.relaxed.sys.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      } else if(order == __acpp_sscp_memory_order::release) {
-        asm volatile("st.release.sys.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      }
-    } else if(scope == __acpp_sscp_memory_scope::device) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        asm volatile("st.relaxed.gpu.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      } else if(order == __acpp_sscp_memory_order::release) {
-        asm volatile("st.release.gpu.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      }
-    }
+    PTXAtomicDetail::assume_supports_address_space(as);
+    PTXAtomicDetail::store(ptr, x, order, scope);
+    return;    
   }
   memfenced_store(ptr, x, scope);
 }
@@ -506,6 +729,11 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
+  if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    PTXAtomicDetail::assume_supports_address_space(as);
+    PTXAtomicDetail::store(ptr, x, order, scope);
+    return;    
+  }
   memfenced_store(ptr, x, scope);
 }
 
@@ -527,41 +755,9 @@ HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_load_i16(
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr) {
-
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    if(scope == __acpp_sscp_memory_scope::system) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        __acpp_int32 result;
-        asm volatile("ld.relaxed.sys.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      } else if(order == __acpp_sscp_memory_order::acquire) {
-        __acpp_int32 result;
-        asm volatile("ld.acquire.sys.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      }
-    } else if(scope == __acpp_sscp_memory_scope::device) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        __acpp_int32 result;
-        asm volatile("ld.relaxed.gpu.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      } else if(order == __acpp_sscp_memory_order::acquire) {
-        __acpp_int32 result;
-        asm volatile("ld.acquire.gpu.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      } 
-    }
+    PTXAtomicDetail::assume_supports_address_space(as);
+    return PTXAtomicDetail::load(ptr, order, scope);
   }
   return memfenced_load(ptr, scope);
 }
@@ -569,6 +765,10 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
 HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_load_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr) {
+  if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    PTXAtomicDetail::assume_supports_address_space(as);
+    return PTXAtomicDetail::load(ptr, order, scope);
+  }
   return memfenced_load(ptr, scope);
 }
 
@@ -698,7 +898,13 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int32 *ptr, __acpp_int32 *expected, __acpp_int32 desired) {
-
+  //new path
+  if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
+  {
+    PTXAtomicDetail::assume_supports_address_space(as);
+    return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
+  }
+  // lagacy path
   __acpp_int32 old = *expected;
   if (scope == __acpp_sscp_memory_scope::system) {
     if (success == __acpp_sscp_memory_order::acquire &&
@@ -728,7 +934,13 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int64 *ptr, __acpp_int64 *expected, __acpp_int64 desired) {
-
+  //new path
+  if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
+  {
+    PTXAtomicDetail::assume_supports_address_space(as);
+    return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
+  }
+  // lagacy path
   __acpp_int64 old = *expected;
   if (scope == __acpp_sscp_memory_scope::system) {
     *expected = __llAtomicCAS_system(ptr, *expected, desired);
@@ -1210,27 +1422,25 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_min_u64(
 HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
-
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
-
+  // Even an unchanged numerical result must complete a successful CAS.
+  __acpp_f32 old = atomic_load_f32(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f32 desired = x;
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old < x ? old : x;
+  } while (!cmp_exch_strong_f32(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
-  
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+  // Even an unchanged numerical result must complete a successful CAS.
+  __acpp_f64 old = atomic_load_f64(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f64 desired = x;
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old < x ? old : x;
+  } while (!cmp_exch_strong_f64(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 
@@ -1319,26 +1529,24 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
   
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
-  
+  __acpp_f32 old = atomic_load_f32(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f32 desired = x;
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old > x ? old : x;
+  } while (!cmp_exch_strong_f32(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+  __acpp_f64 old = atomic_load_f64(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f64 desired = x;
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old > x ? old : x;
+  } while (!cmp_exch_strong_f64(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 

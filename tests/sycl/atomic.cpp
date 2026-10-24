@@ -427,13 +427,6 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
 #endif
 
 // Host-only regression for CAS-emulated floating-point fetch_min/fetch_max.
-// Check compiler capabilities rather than maintaining a GPU backend denylist.
-// Even a runtime OpenMP check would still compile kernels for GPU targets.
-// This intentionally excludes generic/SSCP as well as CUDA, HIP, Vulkan,
-// Level Zero, OpenCL, Metal and any other device-capable compiler flow.
-#if ACPP_LIBKERNEL_IS_DEVICE_PASS_HOST && \
-    !ACPP_LIBKERNEL_COMPILER_SUPPORTS_DEVICE
-
   template <class T>
   void check_floating_fetch_min_max(sycl::queue& queue, sycl::memory_order order) 
   {
@@ -458,6 +451,7 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
     BOOST_REQUIRE(device_values != nullptr);
 
     queue.memcpy(device_values, values, sizeof(values)).wait_and_throw();
+    __acpp_if_target_host(
     queue.single_task([=](){
       sycl::atomic_ref<
         T, 
@@ -472,6 +466,7 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
       atomic_this.fetch_min(InvalidMinValue, order);
       atomic_this.fetch_max(InvalidMaxValue, order);
     }).wait_and_throw();
+    );
 
     queue.memcpy(values, device_values, sizeof(values)).wait_and_throw();
     sycl::free(device_values, queue);
@@ -513,6 +508,5 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
       }
     }
   }
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()

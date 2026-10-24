@@ -454,6 +454,19 @@ namespace PTXPremitiveTests
     static constexpr T InvalidExpected = static_cast<T>(18);
     static constexpr T SecondDesired = static_cast<T>(16);
 
+    static constexpr  OrderPair TestPairs[] =
+    {
+      {Order::relaxed, Order::relaxed},
+      {Order::acquire, Order::relaxed}, 
+      {Order::acquire, Order::acquire},
+      {Order::release, Order::relaxed},
+      {Order::acq_rel, Order::relaxed}, 
+      {Order::acq_rel, Order::acquire},
+      {Order::seq_cst, Order::relaxed}, 
+      {Order::seq_cst, Order::acquire},
+      {Order::seq_cst, Order::seq_cst}
+    }; 
+
     sycl::atomic_ref<T, Order::relaxed, SC, SP> atom{*ptr};
     int errors = 0;
 
@@ -469,34 +482,57 @@ namespace PTXPremitiveTests
       }
     }
 
-    const OrderPair pairs[] =
-    {
-      {Order::relaxed, Order::relaxed},
-      {Order::acquire, Order::relaxed}, 
-      {Order::acquire, Order::acquire},
-      {Order::release, Order::relaxed},
-      {Order::acq_rel, Order::relaxed}, 
-      {Order::acq_rel, Order::acquire},
-      {Order::seq_cst, Order::relaxed}, 
-      {Order::seq_cst, Order::acquire},
-      {Order::seq_cst, Order::seq_cst}
-    }; 
-
-    for (OrderPair pr : pairs) 
+    for (OrderPair pr : TestPairs) 
     {
       atom.store(FirstStoreVal, Order::relaxed); // stored 18
       T expected = InvalidExpected;
+
       errors += atom.compare_exchange_strong(expected, SecondDesired, pr.Success, pr.Failure); // cmpx cant success because we are expecting 19 and value is 18
       errors += expected != FirstStoreVal; // returned expected should be our stored value 19
-      errors += atom.load(Order::relaxed) != FirstStoreVal; // load should show the same
+
+      expected = atom.load(Order::relaxed);
+
+      errors += expected != FirstStoreVal; // load should show the same
+      errors += !atom.compare_exchange_strong(expected, SecondDesired, pr.Success, pr.Failure); // now a valid CMPX
+      errors += expected != FirstStoreVal;
+      errors += atom.load(Order::relaxed) != SecondDesired; // value should be 16 now
 
       expected = InvalidExpected;
-      errors += atom.compare_exchange_weak(expected, SecondDesired, pr.Success, pr.Failure); //Under the hood failure uses strong 
-      errors += expected != FirstStoreVal; // same test as before
+
+      errors += atom.compare_exchange_weak(expected, SecondDesired, pr.Success, pr.Failure); //Under the hood failure uses strong and it should fail because expected is 16
+      errors += expected != SecondDesired; // returned expected should be 16
 
     }
     return errors;
   } 
+
+  template<class T, Scope SC>
+  void global_matrix(sycl::queue queue)
+  {
+    static constexpr size_t SP_COUNT = 2;
+
+    sycl::buffer<T> storage {sycl::range<1>{1}};
+    int errors[SP_COUNT] = {};
+    {
+      sycl::buffer<int> result{errors, sycl::range<1>(SP_COUNT)};
+    
+      queue.submit(
+        [&](sycl::handler& hndl)
+        {
+          auto data = storage.template get_access<sycl::access::mode::read_write>(hndl);
+          auto out = result.get_access<sycl::access::mode::write>(hndl);
+          hndl.single_task([=](){
+            out[0] = exercise<T, SC, Space::global_space>(&data[0]);
+            out[1] = exercise<T, SC, Space::generic_space>(&data[1]);
+          });
+        }
+      );
+      queue.wait_and_throw();
+    }
+  BOOST_CHECK_EQUAL(errors[0], 0);
+  BOOST_CHECK_EQUAL(errors[1], 0);
+  }
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()

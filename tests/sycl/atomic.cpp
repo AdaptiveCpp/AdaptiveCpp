@@ -13,6 +13,9 @@
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
+#include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
+#endif
 
 BOOST_FIXTURE_TEST_SUITE(atomic_tests, reset_device_fixture)
 

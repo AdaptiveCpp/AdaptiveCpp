@@ -429,4 +429,74 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
 }
 #endif
 
+////---
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
+
+#endif
+////---
+
+namespace PTXPremitiveTests 
+{
+  using Order = sycl::memory_order;
+  using Scope = sycl::memory_scope;
+  using Space = sycl::access::address_space;
+
+  struct OrderPair
+  {
+    Order Success;
+    Order Failure;
+  };
+
+  template<class T, Scope SC, Space SP>
+  int exercise(T* ptr)
+  {
+    static constexpr T FirstStoreVal = static_cast<T>(19);
+    static constexpr T InvalidExpected = static_cast<T>(18);
+    static constexpr T SecondDesired = static_cast<T>(16);
+
+    sycl::atomic_ref<T, Order::relaxed, SC, SP> atom{*ptr};
+    int errors = 0;
+
+    const Order loads[] = {Order::relaxed, Order::acquire, Order::seq_cst};
+    const Order stores[] = {Order::relaxed, Order::release, Order::seq_cst};
+
+    for (Order st : stores) 
+    {
+      atom.store(FirstStoreVal, st);
+      for (Order ld : loads) 
+      {
+        errors += atom.load(ld) != FirstStoreVal;
+      }
+    }
+
+    const OrderPair pairs[] =
+    {
+      {Order::relaxed, Order::relaxed},
+      {Order::acquire, Order::relaxed}, 
+      {Order::acquire, Order::acquire},
+      {Order::release, Order::relaxed},
+      {Order::acq_rel, Order::relaxed}, 
+      {Order::acq_rel, Order::acquire},
+      {Order::seq_cst, Order::relaxed}, 
+      {Order::seq_cst, Order::acquire},
+      {Order::seq_cst, Order::seq_cst}
+    }; 
+
+    for (OrderPair pr : pairs) 
+    {
+      atom.store(FirstStoreVal, Order::relaxed); // stored 18
+      T expected = InvalidExpected;
+      errors += atom.compare_exchange_strong(expected, SecondDesired, pr.Success, pr.Failure); // cmpx cant success because we are expecting 19 and value is 18
+      errors += expected != FirstStoreVal; // returned expected should be our stored value 19
+      errors += atom.load(Order::relaxed) != FirstStoreVal; // load should show the same
+
+      expected = InvalidExpected;
+      errors += atom.compare_exchange_weak(expected, SecondDesired, pr.Success, pr.Failure); //Under the hood failure uses strong 
+      errors += expected != FirstStoreVal; // same test as before
+
+    }
+    return errors;
+  } 
+}
+
 BOOST_AUTO_TEST_SUITE_END()

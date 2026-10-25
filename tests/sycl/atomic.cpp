@@ -437,6 +437,11 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
 
 namespace PTXPremitiveTests 
 {
+  static constexpr size_t WORK_ITEMS = 256;
+  static constexpr size_t ITEMS_PER_GROUP = 32;
+  static constexpr size_t WORK_GROUPS = 8;
+  static constexpr size_t PER_TEST_ADDRESS_SPACE_COUNT = 2;
+
   using Order = sycl::memory_order;
   using Scope = sycl::memory_scope;
   using Space = sycl::access::address_space;
@@ -453,7 +458,6 @@ namespace PTXPremitiveTests
     static constexpr T FirstStoreVal = static_cast<T>(19);
     static constexpr T InvalidExpected = static_cast<T>(18);
     static constexpr T SecondDesired = static_cast<T>(16);
-
     static constexpr  OrderPair TestPairs[] =
     {
       {Order::relaxed, Order::relaxed},
@@ -509,11 +513,10 @@ namespace PTXPremitiveTests
   template<class T, Scope SC>
   void global_matrix(sycl::queue queue)
   {
-      static constexpr size_t SP_COUNT = 2;
       sycl::buffer<T> storage{sycl::range<1>{1}};
-      int errors[SP_COUNT] = {};
+      int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
       {
-          sycl::buffer<int> result{errors, sycl::range<1>{SP_COUNT}};
+          sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
           queue.submit([&](sycl::handler& hndl)
           {
               auto data = storage.template
@@ -534,19 +537,18 @@ namespace PTXPremitiveTests
   }
 
   template<class T>
-  void local_matrix(sycl::queue queue)
+  void local_matrix(sycl::queue& queue)
   {
-      static constexpr size_t SP_COUNT = 2;
-      int errors[SP_COUNT] = {};
+      int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
       {
-        sycl::buffer<int> result{errors, sycl::range<1>{SP_COUNT}};
+        sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
         queue.submit([&](sycl::handler& hndl)
         {
-          sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl};
+          sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl}; //one element
           auto out = result.get_access<sycl::access::mode::write>(hndl);
 
           hndl.parallel_for(
-            sycl::nd_range<1>{sycl::range<1>{32}, sycl::range<1>{32}},
+            sycl::nd_range<1>{sycl::range<1>{ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
             [=](sycl::nd_item<1> item)
             {
               if(item.get_local_linear_id() == 0)
@@ -567,13 +569,13 @@ namespace PTXPremitiveTests
   template<class T>
   void contention(sycl::queue& queue)
   {
-    static constexpr size_t WORKERS = 256;
     static constexpr size_t MAX_TRIES = 4096;
+
     T value = 0;
-    int errors[WORKERS] = {};
+    int errors[WORK_ITEMS] = {};
     {
       sycl::buffer<T> data{&value, sycl::range<1>{1}};
-      sycl::buffer<int> result{errors, sycl::range<1>{WORKERS}};
+      sycl::buffer<int> result{errors, sycl::range<1>{WORK_ITEMS}};
 
       queue.submit(
         [&](sycl::handler& hndl)
@@ -581,13 +583,13 @@ namespace PTXPremitiveTests
           auto storage = data.template get_access<sycl::access::mode::read_write>(hndl);
           auto out = result.get_access<sycl::access::mode::write>(hndl);
           hndl.parallel_for(
-            sycl::nd_range<1>{sycl::range<1>{WORKERS}, sycl::range<1>{32}},
+            sycl::nd_range<1>{sycl::range<1>{WORK_ITEMS}, sycl::range<1>{ITEMS_PER_GROUP}},
             [=](sycl::nd_item<1> item)
             {
               sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
 
               int failures = 0;
-              for (int i; i < 8; i++) 
+              for (int i = 0; i < WORK_GROUPS; i++) 
               {
                 T expected = atom.load(Order::relaxed);
 
@@ -596,7 +598,7 @@ namespace PTXPremitiveTests
                 {
                   T prior = expected;
                   done = atom.compare_exchange_strong(expected, T(prior + 1), Order::acq_rel, Order::acquire);
-                  failures += !done && expected <= prior;
+                  failures += !done && expected <= prior; //suspicious failed CAS
                 }
                 failures += !done;
               }
@@ -609,12 +611,15 @@ namespace PTXPremitiveTests
       queue.wait_and_throw();
     }
     
-    BOOST_CHECK_EQUAL(value, T(WORKERS * 8));
+    BOOST_CHECK_EQUAL(value, T(WORK_ITEMS * ITEMS_PER_GROUP));
     for (int e : errors)
     {
-      BOOST_CHECK_EQUAL(errors, 0);
+      BOOST_CHECK_EQUAL(e, 0);
     }
   }
+
+  template<class T>
+  void publication(sycl::queue& queue);
 
 }
 

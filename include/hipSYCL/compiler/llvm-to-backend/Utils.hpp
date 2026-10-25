@@ -420,6 +420,8 @@ inline void replaceLLVMIntrinsicsWithAcppBuiltins(
       if(!Replacement) {
         Replacement = llvm::Function::Create(F->getFunctionType(),
                                              llvm::GlobalValue::ExternalLinkage, RM[1], M);
+      }
+      if(F->getFunctionType() == Replacement->getFunctionType()) {
         F->replaceAllUsesWith(Replacement);
       }
     }

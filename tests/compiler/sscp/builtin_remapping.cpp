@@ -24,7 +24,7 @@ template<class T>
 void test() {
   sycl::queue q = get_queue();
 
-  int num_functions = 20;
+  int num_functions = 21;
 
   T init = static_cast<T>(0.75);
 
@@ -58,6 +58,9 @@ void test() {
     data[18] = std::atan2(data[18], T(0.5));
     // sycl::tan declares the builtin that replaces llvm.tan from std::tan
     data[19] = sycl::tan(data[19]);
+    // llvm.modf returns both parts; their sum must give back the argument
+    T integral_part;
+    data[20] = std::modf(data[20] * T(3), &integral_part) + integral_part;
   }).wait();
 
   std::vector<T> host(num_functions, T(0));
@@ -103,6 +106,8 @@ void test() {
   std::cout << check_with_tolerance(host[18], std::atan2(init, T(0.5))) << std::endl;
   // CHECK: 1
   std::cout << check_with_tolerance(host[19], std::tan(init)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[20], init * T(3)) << std::endl;
 
   sycl::free(data, q);
 }

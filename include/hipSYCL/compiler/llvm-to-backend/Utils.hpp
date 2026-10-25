@@ -26,6 +26,7 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/User.h>
 #include <llvm/IR/Argument.h>
@@ -472,6 +473,47 @@ inline void replaceLLVMIntrinsicsWithAcppBuiltins(llvm::Module& M) {
   };
 
   replaceLLVMIntrinsicsWithAcppBuiltins<IntrinsicReplacementMap.size()>(M, IntrinsicReplacementMap);
+}
+
+// llvm.modf returns {fractional part, integral part}, and some backends
+// cannot select it. The acpp builtins return the fractional part and
+// store the integral part through a pointer.
+inline void replaceLLVMModfWithAcppBuiltins(llvm::Module& M) {
+  using IntrinsicMapping = std::array<const char*, 2>;
+  static constexpr std::array ModfReplacementMap = {
+    IntrinsicMapping{"llvm.modf.f32", "__acpp_sscp_modf_f32"},
+    IntrinsicMapping{"llvm.modf.f64", "__acpp_sscp_modf_f64"}
+  };
+
+  for(auto& RM : ModfReplacementMap) {
+    llvm::Function* F = M.getFunction(RM[0]);
+    if(!F) {
+      continue;
+    }
+    llvm::Type* FloatTy = F->getFunctionType()->getParamType(0);
+    llvm::PointerType* PtrTy = llvm::PointerType::getUnqual(M.getContext());
+    llvm::FunctionCallee Replacement = M.getOrInsertFunction(RM[1], FloatTy, FloatTy, PtrTy);
+
+    for(llvm::User* U : llvm::make_early_inc_range(F->users())) {
+      auto* CI = llvm::dyn_cast<llvm::CallInst>(U);
+      if(!CI) {
+        continue;
+      }
+      llvm::BasicBlock& Entry = CI->getFunction()->getEntryBlock();
+      llvm::IRBuilder<> Builder{&Entry, Entry.getFirstInsertionPt()};
+      llvm::Value* IntPart = Builder.CreateAlloca(FloatTy);
+
+      Builder.SetInsertPoint(CI);
+      llvm::Value* FracPart = Builder.CreateCall(
+          Replacement, {CI->getArgOperand(0), Builder.CreateAddrSpaceCast(IntPart, PtrTy)});
+      llvm::Value* Result = llvm::PoisonValue::get(CI->getType());
+      Result = Builder.CreateInsertValue(Result, FracPart, 0);
+      Result = Builder.CreateInsertValue(Result, Builder.CreateLoad(FloatTy, IntPart), 1);
+
+      CI->replaceAllUsesWith(Result);
+      CI->eraseFromParent();
+    }
+  }
 }
 
 }

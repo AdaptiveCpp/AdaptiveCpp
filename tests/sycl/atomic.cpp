@@ -435,12 +435,13 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
 #endif
 ////---
 
-namespace PTXPremitiveTests 
+namespace SSCPAtomicRMWPremitiveTests 
 {
   static constexpr size_t WORK_ITEMS = 256;
   static constexpr size_t ITEMS_PER_GROUP = 32;
   static constexpr size_t INCREMENT_PER_ITEM = 8;
   static_assert(WORK_ITEMS % ITEMS_PER_GROUP == 0, "total; items are not modulo of per item increment");
+  static constexpr size_t PAIRS = 128;
 
   static constexpr size_t PER_TEST_ADDRESS_SPACE_COUNT = 2;
 
@@ -628,7 +629,6 @@ namespace PTXPremitiveTests
     static constexpr int PUBLICATION_OBSERVED_CORRECT_READ = 1;
     static constexpr int PUBLICATION_OBSERVED_INCORRECT_READ = -1;
     //info
-    static constexpr size_t PAIRS = 128;
     static constexpr int RANDOM_VAL = 123611;
     static constexpr size_t PUBLICATION_POOL_LIMIT = WORK_ITEMS * ITEMS_PER_GROUP;
     static constexpr size_t PUBLICATION_ROUNDS = 8;
@@ -714,6 +714,68 @@ namespace PTXPremitiveTests
   }
 
 
+  template<class T, bool FailedCAS>
+  void sequential_consistancy(sycl::queue& queue)
+  {
+    static constexpr T FLAG_READ_VALID = static_cast<T>(1);
+    static constexpr T INVALID_OBSERVED = static_cast<T>(2);
+
+    T* values[PAIRS * 2] = {};
+    int observations[PAIRS * 2] = {};
+    {
+      sycl::buffer<T> data{values, sycl::range<1>{PAIRS * 2}};
+      sycl::buffer<int> result{observations, sycl::range<1>{PAIRS * 2}};
+      queue.submit(
+        [&](sycl::handler hndl)
+        {
+          auto storage = data.template get_access<sycl::access::mode::read_write>(hndl);
+          auto out = result.get_access<sycl::access::mode::write>(hndl);
+          hndl.parallel_for(
+            sycl::nd_range<1>{sycl::range<1>{PAIRS * 64}, sycl::range<1>{ITEMS_PER_GROUP}},
+            [=](sycl::nd_item<1> item)
+            {
+              if (item.get_local_linear_id() != 0) return;
+              const auto self = item.get_local_linear_id();
+              const auto other = self ^ 1;
+
+              sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> own_st{storage[self]};
+              sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> peer{storage[other]};
+
+              own_st.store(FLAG_READ_VALID, Order::seq_cst);
+              T observed;
+              if constexpr (FailedCAS)
+              {
+                observed = INVALID_OBSERVED;
+                peer.compare_exchange_strong(observed, T{3}, Order::seq_cst, Order::seq_cst);
+              }
+              else 
+              {
+                observed = peer.load(Order::seq_cst);
+              }
+              out[self] = static_cast<int>(observed);
+            }
+          );
+          //
+        }
+      );
+      //
+      queue.wait_and_throw();
+    }
+    for (size_t p = 0; p < PAIRS; p++) 
+    {
+      BOOST_CHECK_MESSAGE(
+        observations[2 * p] != 0 || observations[2 * p + 1] != 0, 
+        "seq_cst store buffering forbidden outcome"
+      );
+    }
+  }
+
+  namespace floating_rmw_tests 
+  {
+    
+  }
+
+
   namespace CudaPTXTestSpace 
   {
     inline bool select_cuda(sycl::queue& queue)
@@ -795,6 +857,38 @@ namespace PTXPremitiveTests
       local_matrix<T, Scope::system>(queue);
     }
 
+    //TEST 02 
+    BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_publication, T, IntTypes)
+    {
+      sycl::queue queue;
+      if (!select_cuda(queue)) return;
+      if constexpr (sizeof(T) == sizeof(uint64_t))
+      {
+        BOOST_REQUIRE_MESSAGE(
+          queue.get_device().has(sycl::aspect::atomic64),
+          "64 bit atomic operation required by the device"
+        );
+      }
+      publication<T, false>(queue);
+      publication<T, true>(queue);
+    }
+
+    //TEST - 03
+    BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_seq_cst_check, T, IntTypes)
+    {
+      sycl::queue queue;
+      if (!select_cuda(queue)) return;
+      if constexpr (sizeof(T) == sizeof(uint64_t))
+      {
+        BOOST_REQUIRE_MESSAGE(
+          queue.get_device().has(sycl::aspect::atomic64),
+          "64 bit atomic operation required by the device"
+        );
+      }
+
+      sequential_consistancy<T, false>(queue);
+      sequential_consistancy<T, true>(queue);
+    }
     
   }
 

@@ -439,9 +439,11 @@ namespace PTXPremitiveTests
 {
   static constexpr size_t WORK_ITEMS = 256;
   static constexpr size_t ITEMS_PER_GROUP = 32;
-  static constexpr size_t WORK_GROUPS = 8;
+  static constexpr size_t INCREMENT_PER_ITEM = 8;
+  static_assert(WORK_ITEMS % ITEMS_PER_GROUP == 0, "total; items are not modulo of per item increment");
+
+  static constexpr size_t WORK_GROUPS = WORK_ITEMS / ITEMS_PER_GROUP;
   static constexpr size_t PER_TEST_ADDRESS_SPACE_COUNT = 2;
-  static constexpr size_t MAX_TRIES = 8192;
 
   using Order = sycl::memory_order;
   using Scope = sycl::memory_scope;
@@ -514,62 +516,63 @@ namespace PTXPremitiveTests
   template<class T, Scope SC>
   void global_matrix(sycl::queue queue)
   {
-      sycl::buffer<T> storage{sycl::range<1>{1}};
-      int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
-      {
-          sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
-          queue.submit([&](sycl::handler& hndl)
-          {
-              auto data = storage.template
-                  get_access<sycl::access::mode::read_write>(hndl);
+    sycl::buffer<T> storage{sycl::range<1>{1}};
+    int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
+    {
+        sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
+        queue.submit([&](sycl::handler& hndl)
+        {
+            auto data = storage.template
+                get_access<sycl::access::mode::read_write>(hndl);
 
-              auto out = result.get_access<sycl::access::mode::write>(hndl);
+            auto out = result.get_access<sycl::access::mode::write>(hndl);
 
-              hndl.single_task([=]()
-              {
-                  out[0] = exercise<T, SC, Space::global_space>(&data[0]);
-                  out[1] = exercise<T, SC, Space::generic_space>(&data[0]);
-              });
-          });
-          queue.wait_and_throw();
-      }
-      BOOST_CHECK_EQUAL(errors[0], 0);
-      BOOST_CHECK_EQUAL(errors[1], 0);
+            hndl.single_task([=]()
+            {
+                out[0] = exercise<T, SC, Space::global_space>(&data[0]);
+                out[1] = exercise<T, SC, Space::generic_space>(&data[0]);
+            });
+        });
+        queue.wait_and_throw();
+    }
+    BOOST_CHECK_EQUAL(errors[0], 0);
+    BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
   template<class T>
   void local_matrix(sycl::queue& queue)
   {
-      int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
+    int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
+    {
+      sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
+      queue.submit([&](sycl::handler& hndl)
       {
-        sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
-        queue.submit([&](sycl::handler& hndl)
-        {
-          sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl}; //one element
-          auto out = result.get_access<sycl::access::mode::write>(hndl);
+        sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl}; //one element
+        auto out = result.get_access<sycl::access::mode::write>(hndl);
 
-          hndl.parallel_for(
-            sycl::nd_range<1>{sycl::range<1>{ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
-            [=](sycl::nd_item<1> item)
+        hndl.parallel_for(
+          sycl::nd_range<1>{sycl::range<1>{ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
+          [=](sycl::nd_item<1> item)
+          {
+            if(item.get_local_linear_id() == 0)
             {
-              if(item.get_local_linear_id() == 0)
-              {
-                out[0] = exercise<T, Scope::work_group, Space::local_space>(&data[0]);
-                out[1] = exercise<T, Scope::sub_group, Space::generic_space>(&data[0]);
-              }
+              out[0] = exercise<T, Scope::work_group, Space::local_space>(&data[0]);
+              out[1] = exercise<T, Scope::sub_group, Space::generic_space>(&data[0]);
             }
-          );
-        });
-        queue.wait_and_throw();
-      }
+          }
+        );
+      });
+      queue.wait_and_throw();
+    }
 
-      BOOST_CHECK_EQUAL(errors[0], 0);
-      BOOST_CHECK_EQUAL(errors[1], 0);
+    BOOST_CHECK_EQUAL(errors[0], 0);
+    BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
   template<class T>
   void contention(sycl::queue& queue)
   {
+    static constexpr size_t CAS_RETRY_LIMIT = 4096;
     T value = 0;
     int errors[WORK_ITEMS] = {};
     {
@@ -588,12 +591,12 @@ namespace PTXPremitiveTests
               sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
 
               int failures = 0;
-              for (int i = 0; i < WORK_GROUPS; i++) 
+              for (int i = 0; i < INCREMENT_PER_ITEM; i++) 
               {
                 T expected = atom.load(Order::relaxed);
 
                 bool done = false;
-                for (int r = 0; r < MAX_TRIES && !done; r++) 
+                for (int r = 0; r < CAS_RETRY_LIMIT && !done; r++) 
                 {
                   T prior = expected;
                   done = atom.compare_exchange_strong(expected, T(prior + 1), Order::acq_rel, Order::acquire);
@@ -610,7 +613,7 @@ namespace PTXPremitiveTests
       queue.wait_and_throw();
     }
     
-    BOOST_CHECK_EQUAL(value, T(WORK_ITEMS * WORK_GROUPS));
+    BOOST_CHECK_EQUAL(value, T(WORK_ITEMS * INCREMENT_PER_ITEM));
     for (int e : errors)
     {
       BOOST_CHECK_EQUAL(e, 0);
@@ -620,9 +623,20 @@ namespace PTXPremitiveTests
   template<class T, bool FailedCAS>
   void publication(sycl::queue& queue)
   {
+    //observation enums
+    static constexpr int DIDNT_OBSERVED = 0;
+    static constexpr int PUBLICATION_OBSERVED_CORRECT_READ = 1;
+    static constexpr int PUBLICATION_OBSERVED_INCORRECT_READ = -1;
+    //info
     static constexpr size_t PAIRS = 128;
     static constexpr int RANDOM_VAL = 123611;
-    int observ = 0;
+    static constexpr size_t PUBLICATION_POOL_LIMIT = WORK_ITEMS * ITEMS_PER_GROUP;
+    //flags
+    static constexpr T FLAG_START = static_cast<T>(0);
+    static constexpr T FLAG_READ_VALID = static_cast<T>(1);
+    static constexpr T INVALID_OBSERVED = static_cast<T>(2);
+
+    int observ = DIDNT_OBSERVED;
     for (int r = 0; r < WORK_GROUPS ; r++) 
     {
       T flags[PAIRS] = {};
@@ -641,11 +655,11 @@ namespace PTXPremitiveTests
             auto out = o_buf.get_access<sycl::access::mode::read_write>(hndl);
 
             hndl.parallel_for(
-              sycl::nd_range<1>{sycl::range<1>{PAIRS * 64}, sycl::range<1>{ITEMS_PER_GROUP}},
+              sycl::nd_range<1>{sycl::range<1>{PAIRS * 2 * ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
               [=](sycl::nd_item<1> item)
               {
-                if (item.get_global_linear_id() != 0) return;
-                const auto group = item.get_global_linear_id();
+                if (item.get_local_linear_id() != 0) return;
+                const auto group = item.get_group_linear_id();
                 const auto pair = group / 2;
                 const bool producer = (group % 2) == (r % 2);
                 sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{flag[pair]};
@@ -653,29 +667,30 @@ namespace PTXPremitiveTests
                 if (producer) 
                 {
                   data[pair] = RANDOM_VAL;
-                  atom.store(T{1}, Order::release);
+                  atom.store(FLAG_READ_VALID, Order::release);
                 }
                 else 
                 {
-                  T observed = T{0};
+                  T observed = FLAG_START;
 
-                  for (int atmp = 0; atmp < MAX_TRIES; atmp++) 
+                  for (int atmp = 0; atmp < PUBLICATION_POOL_LIMIT; atmp++) 
                   {
                     if constexpr (FailedCAS)
                     {
-                      observed = T{2};
-                      atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire);
+                      observed = INVALID_OBSERVED;
+                      atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire); // invalid cmpx
                     }
                     else 
                     {
                       observed = atom.load(Order::acquire);
                     }
 
-                    if (observed == T{1}) break;
+                    if (observed == FLAG_READ_VALID) break;
                   }
-                  if (observed == T{1}) 
+                  if (observed == FLAG_READ_VALID) 
                   {
-                    out[pair] = data[pair] == RANDOM_VAL ? 1 : -1;
+                    out[pair] = data[pair] == RANDOM_VAL ?
+                      PUBLICATION_OBSERVED_CORRECT_READ : PUBLICATION_OBSERVED_INCORRECT_READ;
                   }
                 }
               }
@@ -688,12 +703,12 @@ namespace PTXPremitiveTests
 
       for (int r : outcome) 
       {
-        BOOST_CHECK_MESSAGE(r != -1, "publication observed stale payload");
-        observ += r == 1;
+        BOOST_CHECK_MESSAGE(r != PUBLICATION_OBSERVED_INCORRECT_READ, "publication observed stale payload");
+        observ += r == PUBLICATION_OBSERVED_CORRECT_READ;
       }
 
     }
-    BOOST_REQUIRE_MESSAGE(observ > 0,"Inconclusive scheduling: no publication observed; rerun this test");
+    BOOST_REQUIRE_MESSAGE(observ > DIDNT_OBSERVED,"Inconclusive scheduling: no publication observed; rerun this test");
     BOOST_TEST_MESSAGE("PTX publication observations: " << observ);
   }
 

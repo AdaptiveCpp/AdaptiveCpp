@@ -1,14 +1,14 @@
 
 // RUN: %acpp %s -o %t --acpp-targets=generic
-// RUN: %t | FileCheck %s
+// RUN: %t | FileCheck %s --implicit-check-not='{{^0$}}'
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
-// RUN: %t | FileCheck %s
+// RUN: %t | FileCheck %s --implicit-check-not='{{^0$}}'
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3 -fno-math-errno
-// RUN: %t | FileCheck %s
+// RUN: %t | FileCheck %s --implicit-check-not='{{^0$}}'
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3 -ffast-math
-// RUN: %t | FileCheck %s
+// RUN: %t | FileCheck %s --implicit-check-not='{{^0$}}'
 // RUN: %acpp %s -o %t --acpp-targets=generic -g
-// RUN: %t | FileCheck %s
+// RUN: %t | FileCheck %s --implicit-check-not='{{^0$}}'
 
 #include <iostream>
 #include <cmath>

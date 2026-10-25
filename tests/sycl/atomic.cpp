@@ -442,12 +442,12 @@ namespace PTXPremitiveTests
   static constexpr size_t INCREMENT_PER_ITEM = 8;
   static_assert(WORK_ITEMS % ITEMS_PER_GROUP == 0, "total; items are not modulo of per item increment");
 
-  static constexpr size_t WORK_GROUPS = WORK_ITEMS / ITEMS_PER_GROUP;
   static constexpr size_t PER_TEST_ADDRESS_SPACE_COUNT = 2;
 
   using Order = sycl::memory_order;
   using Scope = sycl::memory_scope;
   using Space = sycl::access::address_space;
+  using IntTypes = boost::mp11::mp_list<unsigned int, long long>;
 
   struct OrderPair
   {
@@ -491,10 +491,10 @@ namespace PTXPremitiveTests
 
     for (OrderPair pr : TestPairs) 
     {
-      atom.store(FirstStoreVal, Order::relaxed); // stored 18
+      atom.store(FirstStoreVal, Order::relaxed); // stored 19
       T expected = InvalidExpected;
 
-      errors += atom.compare_exchange_strong(expected, SecondDesired, pr.Success, pr.Failure); // cmpx cant success because we are expecting 19 and value is 18
+      errors += atom.compare_exchange_strong(expected, SecondDesired, pr.Success, pr.Failure); // CAS fails: expected is 18, but atomic contains 19.
       errors += expected != FirstStoreVal; // returned expected should be our stored value 19
 
       expected = atom.load(Order::relaxed);
@@ -506,7 +506,7 @@ namespace PTXPremitiveTests
 
       expected = InvalidExpected;
 
-      errors += atom.compare_exchange_weak(expected, SecondDesired, pr.Success, pr.Failure); //Under the hood failure uses strong and it should fail because expected is 16
+      errors += atom.compare_exchange_weak(expected, SecondDesired, pr.Success, pr.Failure); //Under the hood cas_weak may be implimentation of strong Weak CAS must fail because expected != atomic value.
       errors += expected != SecondDesired; // returned expected should be 16
 
     }
@@ -514,7 +514,7 @@ namespace PTXPremitiveTests
   } 
 
   template<class T, Scope SC>
-  void global_matrix(sycl::queue queue)
+  void global_matrix(sycl::queue& queue)
   {
     sycl::buffer<T> storage{sycl::range<1>{1}};
     int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
@@ -631,13 +631,14 @@ namespace PTXPremitiveTests
     static constexpr size_t PAIRS = 128;
     static constexpr int RANDOM_VAL = 123611;
     static constexpr size_t PUBLICATION_POOL_LIMIT = WORK_ITEMS * ITEMS_PER_GROUP;
+    static constexpr size_t PUBLICATION_ROUNDS = 8;
     //flags
     static constexpr T FLAG_START = static_cast<T>(0);
     static constexpr T FLAG_READ_VALID = static_cast<T>(1);
     static constexpr T INVALID_OBSERVED = static_cast<T>(2);
 
     int observ = DIDNT_OBSERVED;
-    for (int r = 0; r < WORK_GROUPS ; r++) 
+    for (int r = 0; r < PUBLICATION_ROUNDS ; r++) 
     {
       T flags[PAIRS] = {};
       int payload[PAIRS] = {};
@@ -713,7 +714,90 @@ namespace PTXPremitiveTests
   }
 
 
-  inline bool select_cuda(sycl::queue& queue);
+  namespace CudaPTXTestSpace 
+  {
+    inline bool select_cuda(sycl::queue& queue)
+    {
+      const bool cuda = queue.get_device().get_backend() == sycl::backend::cuda;
+      const char* ENV_NAME = "PTX_ATOMIC_CUDA_ORDER";
+
+      if (std::getenv(ENV_NAME)) 
+      {
+        BOOST_REQUIRE_MESSAGE(cuda, "PTX atomic order validation requires an actual CUDA device");
+      }
+      if (!cuda) 
+      {
+        BOOST_TEST_MESSAGE("PTX-specific runtime test skipped: selected device is not CUDA");
+        return false;
+      }
+
+      int target[2] = {};
+      {
+        sycl::buffer<int> prob{target, sycl::range<1>{2}};
+        queue.submit(
+          [&](sycl::handler& hndl)
+          {
+            auto out = prob.get_access<sycl::access::mode::write>(hndl);
+            hndl.single_task([&](){
+              __acpp_if_target_sscp(
+                out[0] = __acpp_sscp_jit_reflect_target_arch();
+                out[1] = static_cast<int>(__acpp_sscp_jit_reflect_compiler_backend());
+              );
+            });
+            //
+          }
+        );
+        //
+        queue.wait_and_throw();
+      }
+      BOOST_REQUIRE_MESSAGE(
+        target[1] == static_cast<int>(sycl::AdaptiveCpp_jit::compiler_backend::ptx),
+        "SSCP PTX PATH REQUIRED"
+      );
+
+      if (std::getenv(ENV_NAME)) 
+      {
+        BOOST_REQUIRE_MESSAGE(target[0] >= 70, "cuda validation requirs SM70+");
+      }
+
+      if (target[0] < 70) 
+      {
+        BOOST_TEST_MESSAGE("PTX tests skipped: pre-SM70 legacy path is still undefined :(");
+        return false;
+      }
+
+      BOOST_TEST_MESSAGE(
+        "Executing SSCP PTX tests on " <<
+        queue.get_device().get_info<sycl::info::device::name>() << 
+        " SM " << target[0]
+      );
+      return true;
+    }
+
+    // TEST 01 -PTX
+    BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_premitive_matrix, T, IntTypes)
+    {
+      sycl::queue queue;
+      if (!select_cuda(queue)) return;
+      if constexpr (sizeof(T) == sizeof(uint64_t))
+      {
+        BOOST_REQUIRE_MESSAGE(
+          queue.get_device().has(sycl::aspect::atomic64),
+          "64 bit atomic operation required by the device"
+        );
+      }
+
+      global_matrix<T, Scope::sub_group>(queue);
+      global_matrix<T, Scope::work_group>(queue);
+      global_matrix<T, Scope::device>(queue);
+      global_matrix<T, Scope::system>(queue); // This dosent test CPU <-> GPU sync
+
+      local_matrix<T, Scope::system>(queue);
+    }
+
+    
+  }
+
 
 }
 

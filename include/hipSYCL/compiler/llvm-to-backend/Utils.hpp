@@ -516,6 +516,35 @@ inline void replaceLLVMModfWithAcppBuiltins(llvm::Module& M) {
   }
 }
 
+// Some backends lower frem inexactly (clang emits frem for std::fmod
+// with -fno-math-errno). Replace scalar frem with the acpp fmod builtins.
+inline void replaceFRemWithAcppBuiltins(llvm::Module& M) {
+  llvm::SmallVector<llvm::BinaryOperator*, 8> FRems;
+  for(auto& F : M) {
+    for(auto& BB : F) {
+      for(auto& I : BB) {
+        if(auto* BO = llvm::dyn_cast<llvm::BinaryOperator>(&I)) {
+          if(BO->getOpcode() == llvm::Instruction::FRem &&
+             (BO->getType()->isFloatTy() || BO->getType()->isDoubleTy())) {
+            FRems.push_back(BO);
+          }
+        }
+      }
+    }
+  }
+
+  for(auto* BO : FRems) {
+    llvm::Type* FloatTy = BO->getType();
+    const char* Name = FloatTy->isFloatTy() ? "__acpp_sscp_fmod_f32" : "__acpp_sscp_fmod_f64";
+    llvm::FunctionCallee Replacement = M.getOrInsertFunction(Name, FloatTy, FloatTy, FloatTy);
+
+    llvm::IRBuilder<> Builder{BO};
+    llvm::Value* Result = Builder.CreateCall(Replacement, {BO->getOperand(0), BO->getOperand(1)});
+    BO->replaceAllUsesWith(Result);
+    BO->eraseFromParent();
+  }
+}
+
 }
 }
 

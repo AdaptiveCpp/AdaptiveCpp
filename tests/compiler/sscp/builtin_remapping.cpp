@@ -24,7 +24,7 @@ template<class T>
 void test() {
   sycl::queue q = get_queue();
 
-  int num_functions = 21;
+  int num_functions = 22;
 
   T init = static_cast<T>(0.75);
 
@@ -61,6 +61,8 @@ void test() {
     // llvm.modf returns both parts; their sum must give back the argument
     T integral_part;
     data[20] = std::modf(data[20] * T(3), &integral_part) + integral_part;
+    // becomes frem with -fno-math-errno; 1.5 / 0.1 is just below 15
+    data[21] = std::fmod(data[21] * T(2), T(0.1));
   }).wait();
 
   std::vector<T> host(num_functions, T(0));
@@ -108,6 +110,8 @@ void test() {
   std::cout << check_with_tolerance(host[19], std::tan(init)) << std::endl;
   // CHECK: 1
   std::cout << check_with_tolerance(host[20], init * T(3)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[21], std::fmod(init * T(2), T(0.1))) << std::endl;
 
   sycl::free(data, q);
 }

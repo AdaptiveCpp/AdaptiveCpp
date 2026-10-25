@@ -22,7 +22,7 @@ template<class T>
 void test() {
   sycl::queue q = get_queue();
 
-  int num_functions = 10;
+  int num_functions = 15;
 
   T init = static_cast<T>(0.75);
 
@@ -44,6 +44,12 @@ void test() {
     data[7] = std::exp2(data[7]);
     data[8] = std::log(data[8]);
     data[9] = std::asin(data[9]);
+    // float builtins with an 'f' in the base name (erff, fdimf, ...)
+    data[10] = std::erf(data[10]);
+    data[11] = std::erfc(data[11]);
+    data[12] = std::fdim(data[12], T(0.5));
+    data[13] = std::fmod(data[13], T(0.5));
+    data[14] = std::nextafter(data[14], T(1));
   }).wait();
 
   std::vector<T> host(num_functions, T(0));
@@ -69,6 +75,16 @@ void test() {
   std::cout << check_with_tolerance(host[8], std::log(init)) << std::endl;
   // CHECK: 1
   std::cout << check_with_tolerance(host[9], std::asin(init)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[10], std::erf(init)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[11], std::erfc(init)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[12], std::fdim(init, T(0.5))) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[13], std::fmod(init, T(0.5))) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[14], std::nextafter(init, T(1))) << std::endl;
 
   sycl::free(data, q);
 }

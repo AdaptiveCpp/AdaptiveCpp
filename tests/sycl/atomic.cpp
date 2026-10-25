@@ -461,15 +461,13 @@ namespace AtomicOrderScopeTests
   template<class T>
   bool supports_type(const sycl::device& device)
   {
-    static constexpr size_t SIZE_OF_T = sizeof(T);
-
-    if (SIZE_OF_T > sizeof(uint64_t)) 
+    if (sizeof(T) > sizeof(uint64_t)) 
     {
       BOOST_TEST_MESSAGE("Skipping : arbeterary sized atomics are not possible");
       return false;
     }
 
-    if constexpr (SIZE_OF_T == sizeof(uint64_t)) 
+    if constexpr (sizeof(T) == sizeof(uint64_t)) 
     {
       if (!device.has(sycl::aspect::atomic64)) 
       {
@@ -654,7 +652,8 @@ namespace AtomicOrderScopeTests
     }
   }
 
-  template<class T, bool FailedCAS>
+  // Later based on demand we can convert publication into a actual class
+  template<class T, bool FailedCAS, bool FetchMinMax = false>
   void publication(sycl::queue& queue)
   {
     //observation enums
@@ -674,6 +673,16 @@ namespace AtomicOrderScopeTests
     for (int r = 0; r < PUBLICATION_ROUNDS ; r++) 
     {
       T flags[PAIRS] = {};
+
+      //when we want to test FetchMinMax we pre defined to INVALID_OBSERVED so that fetch_min is valid later
+      if constexpr (FetchMinMax)
+      {
+        for (T& f : flags) 
+        {
+          f = INVALID_OBSERVED;
+        }
+      }
+
       int payload[PAIRS] = {};
       int outcome[PAIRS] = {};
       {
@@ -689,30 +698,49 @@ namespace AtomicOrderScopeTests
             auto out = o_buf.get_access<sycl::access::mode::read_write>(hndl);
 
             hndl.parallel_for(
-              sycl::nd_range<1>{sycl::range<1>{PAIRS * 2 * ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
+              sycl::nd_range<1>{sycl::range<1>{PAIRS * GROUPS_PER_PAIR * ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
               [=](sycl::nd_item<1> item)
               {
                 if (item.get_local_linear_id() != 0) return;
                 const auto group = item.get_group_linear_id();
-                const auto pair = group / 2;
-                const bool producer = (group % 2) == (r % 2);
+                const auto pair = group / GROUPS_PER_PAIR;
+                const bool producer = (group % GROUPS_PER_PAIR) == (r % GROUPS_PER_PAIR);
                 sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{flag[pair]};
 
                 if (producer) 
                 {
                   data[pair] = RANDOM_VAL;
-                  atom.store(FLAG_READ_VALID, Order::release);
+
+                  //now if FetchMinMax is enabled we fetch_min is valid due to earlier predefination
+                  if (FetchMinMax) 
+                  {
+                    atom.fetch_min(FLAG_READ_VALID, Order::release);
+                  }
+                  else 
+                  {
+                    atom.store(FLAG_READ_VALID, Order::release);
+                  }
                 }
                 else 
                 {
                   T observed = FLAG_START;
-
+                  T fetch_confirmation = 3;
                   for (int atmp = 0; atmp < PUBLICATION_POOL_LIMIT; atmp++) 
                   {
+                    if constexpr (FailedCAS && FetchMinMax) 
+                    {
+                      observed = INVALID_OBSERVED;
+                      atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire); // invalid cmpx
+                      atom.fetch_max(FLAG_READ_VALID, Order::acquire); // leaves the value unchanged
+                    }
                     if constexpr (FailedCAS)
                     {
                       observed = INVALID_OBSERVED;
                       atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire); // invalid cmpx
+                    }
+                    else if constexpr (FetchMinMax) 
+                    {
+                      observed = atom.fetch_max(FLAG_READ_VALID, Order::acquire); // leaves the value unchanged
                     }
                     else 
                     {
@@ -806,6 +834,7 @@ namespace AtomicOrderScopeTests
     }
   }
 
+  //PR-#2280 check_floating_fetch_min_max(host) can be removed eventually by this
   template<class T>
   void fetch_min_max_check(sycl::queue& queue)
   {

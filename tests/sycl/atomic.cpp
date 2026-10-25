@@ -441,6 +441,7 @@ namespace PTXPremitiveTests
   static constexpr size_t ITEMS_PER_GROUP = 32;
   static constexpr size_t WORK_GROUPS = 8;
   static constexpr size_t PER_TEST_ADDRESS_SPACE_COUNT = 2;
+  static constexpr size_t MAX_TRIES = 8192;
 
   using Order = sycl::memory_order;
   using Scope = sycl::memory_scope;
@@ -569,8 +570,6 @@ namespace PTXPremitiveTests
   template<class T>
   void contention(sycl::queue& queue)
   {
-    static constexpr size_t MAX_TRIES = 4096;
-
     T value = 0;
     int errors[WORK_ITEMS] = {};
     {
@@ -611,15 +610,95 @@ namespace PTXPremitiveTests
       queue.wait_and_throw();
     }
     
-    BOOST_CHECK_EQUAL(value, T(WORK_ITEMS * ITEMS_PER_GROUP));
+    BOOST_CHECK_EQUAL(value, T(WORK_ITEMS * WORK_GROUPS));
     for (int e : errors)
     {
       BOOST_CHECK_EQUAL(e, 0);
     }
   }
 
-  template<class T>
-  void publication(sycl::queue& queue);
+  template<class T, bool FailedCAS>
+  void publication(sycl::queue& queue)
+  {
+    static constexpr size_t PAIRS = 128;
+    static constexpr int RANDOM_VAL = 123611;
+    int observ = 0;
+    for (int r = 0; r < WORK_GROUPS ; r++) 
+    {
+      T flags[PAIRS] = {};
+      int payload[PAIRS] = {};
+      int outcome[PAIRS] = {};
+      {
+        sycl::buffer<T> f_buf{flags, sycl::range<1>{PAIRS}};
+        sycl::buffer<int> p_buf{payload, sycl::range<1>{PAIRS}};
+        sycl::buffer<int> o_buf{outcome, sycl::range<1>{PAIRS}};
+
+        queue.submit(
+          [&](sycl::handler& hndl)
+          {
+            auto flag = f_buf.template get_access<sycl::access::mode::read_write>(hndl);
+            auto data = p_buf.get_access<sycl::access::mode::read_write>(hndl);
+            auto out = o_buf.get_access<sycl::access::mode::read_write>(hndl);
+
+            hndl.parallel_for(
+              sycl::nd_range<1>{sycl::range<1>{PAIRS * 64}, sycl::range<1>{ITEMS_PER_GROUP}},
+              [=](sycl::nd_item<1> item)
+              {
+                if (item.get_global_linear_id() != 0) return;
+                const auto group = item.get_global_linear_id();
+                const auto pair = group / 2;
+                const bool producer = (group % 2) == (r % 2);
+                sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{flag[pair]};
+
+                if (producer) 
+                {
+                  data[pair] = RANDOM_VAL;
+                  atom.store(T{1}, Order::release);
+                }
+                else 
+                {
+                  T observed = T{0};
+
+                  for (int atmp = 0; atmp < MAX_TRIES; atmp++) 
+                  {
+                    if constexpr (FailedCAS)
+                    {
+                      observed = T{2};
+                      atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire);
+                    }
+                    else 
+                    {
+                      observed = atom.load(Order::acquire);
+                    }
+
+                    if (observed == T{1}) break;
+                  }
+                  if (observed == T{1}) 
+                  {
+                    out[pair] = data[pair] == RANDOM_VAL ? 1 : -1;
+                  }
+                }
+              }
+            );
+            //
+          }
+        );
+        queue.wait_and_throw();
+      }
+
+      for (int r : outcome) 
+      {
+        BOOST_CHECK_MESSAGE(r != -1, "publication observed stale payload");
+        observ += r == 1;
+      }
+
+    }
+    BOOST_REQUIRE_MESSAGE(observ > 0,"Inconclusive scheduling: no publication observed; rerun this test");
+    BOOST_TEST_MESSAGE("PTX publication observations: " << observ);
+  }
+
+
+  inline bool select_cuda(sycl::queue& queue);
 
 }
 

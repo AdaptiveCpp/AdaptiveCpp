@@ -435,7 +435,7 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
 #endif
 ////---
 
-namespace SSCPAtomicRMWPremitiveTests 
+namespace AtomicOrderScopeTests 
 {
   static constexpr size_t WORK_ITEMS = 256;
   static constexpr size_t ITEMS_PER_GROUP = 32;
@@ -443,18 +443,51 @@ namespace SSCPAtomicRMWPremitiveTests
   static_assert(WORK_ITEMS % ITEMS_PER_GROUP == 0, "total; items are not modulo of per item increment");
   static constexpr size_t PAIRS = 128;
 
+  static constexpr size_t GROUPS_PER_PAIR = 2;
   static constexpr size_t PER_TEST_ADDRESS_SPACE_COUNT = 2;
 
   using Order = sycl::memory_order;
   using Scope = sycl::memory_scope;
   using Space = sycl::access::address_space;
   using IntTypes = boost::mp11::mp_list<unsigned int, long long>;
+  using FloatTypes = boost::mp11::mp_list<float, double>;
 
   struct OrderPair
   {
     Order Success;
     Order Failure;
   };
+
+  template<class T>
+  bool supports_type(const sycl::device& device)
+  {
+    static constexpr size_t SIZE_OF_T = sizeof(T);
+
+    if (SIZE_OF_T > sizeof(uint64_t)) 
+    {
+      BOOST_TEST_MESSAGE("Skipping : arbeterary sized atomics are not possible");
+      return false;
+    }
+
+    if constexpr (SIZE_OF_T == sizeof(uint64_t)) 
+    {
+      if (!device.has(sycl::aspect::atomic64)) 
+      {
+        BOOST_TEST_MESSAGE("Skipping 64-bit atomic test: atomic64 unavailable");
+        return false;
+      }
+    }
+
+    if constexpr (std::is_same_v<T, double>)
+    {
+      if (!device.has(sycl::aspect::fp64)) 
+      {
+        BOOST_TEST_MESSAGE("Skipping double atomic test: fp64 unavailable");
+        return false;
+      }
+    }
+    return true;
+  }
 
   template<class T, Scope SC, Space SP>
   int exercise(T* ptr)
@@ -720,18 +753,21 @@ namespace SSCPAtomicRMWPremitiveTests
     static constexpr T FLAG_READ_VALID = static_cast<T>(1);
     static constexpr T INVALID_OBSERVED = static_cast<T>(2);
 
-    T values[PAIRS * 2] = {};
-    int observations[PAIRS * 2] = {};
+    T values[PAIRS * GROUPS_PER_PAIR] = {};
+    int observations[PAIRS * GROUPS_PER_PAIR] = {};
     {
-      sycl::buffer<T> data{values, sycl::range<1>{PAIRS * 2}};
-      sycl::buffer<int> result{observations, sycl::range<1>{PAIRS * 2}};
+      sycl::buffer<T> data{values, sycl::range<1>{PAIRS * GROUPS_PER_PAIR}};
+      sycl::buffer<int> result{observations, sycl::range<1>{PAIRS * GROUPS_PER_PAIR}};
       queue.submit(
         [&](sycl::handler hndl)
         {
           auto storage = data.template get_access<sycl::access::mode::read_write>(hndl);
           auto out = result.get_access<sycl::access::mode::write>(hndl);
           hndl.parallel_for(
-            sycl::nd_range<1>{sycl::range<1>{PAIRS * 64}, sycl::range<1>{ITEMS_PER_GROUP}},
+            sycl::nd_range<1>{
+              sycl::range<1>{PAIRS * GROUPS_PER_PAIR * ITEMS_PER_GROUP}, 
+              sycl::range<1>{ITEMS_PER_GROUP}
+            },
             [=](sycl::nd_item<1> item)
             {
               if (item.get_local_linear_id() != 0) return;
@@ -764,67 +800,59 @@ namespace SSCPAtomicRMWPremitiveTests
     for (size_t p = 0; p < PAIRS; p++) 
     {
       BOOST_CHECK_MESSAGE(
-        observations[2 * p] != 0 || observations[2 * p + 1] != 0, 
+        observations[GROUPS_PER_PAIR * p] != 0 || observations[GROUPS_PER_PAIR * p + 1] != 0, 
         "seq_cst store buffering forbidden outcome"
       );
     }
   }
 
-  namespace floating_rmw_tests 
+  template<class T>
+  void fetch_min_max_check(sycl::queue& queue)
   {
-    using FloatTypes = boost::mp11::mp_list<float, double>;
+    static constexpr T FIRST_VAL = static_cast<T>(10);
+    static constexpr T VALID_FETCH_MIN_VAL = static_cast<T>(5);
+    static constexpr T VALID_FETCH_MAX_VAL = static_cast<T>(15);
 
-    template<class T>
-    void values(sycl::queue& queue)
+    T init = 0;
+    int errors = 0;
     {
-      static constexpr T FIRST_VAL = static_cast<T>(10);
-      static constexpr T VALID_FETCH_MIN_VAL = static_cast<T>(5);
-      static constexpr T VALID_FETCH_MAX_VAL = static_cast<T>(15);
+      sycl::buffer<T> data{&init, sycl::range<1>{1}};
+      sycl::buffer<int> result{&errors, sycl::range<1>{1}};
+      queue.submit(
+        [&](sycl::handler& hndl)
+        {
+          auto storage = data.template get_access<sycl:: access::mode::read_write>(hndl);
+          auto out = result.get_access<sycl::access::mode::write>(hndl);
+          hndl.single_task([=](){
+            sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
+            const Order order_list [] = {
+              Order::relaxed, Order::acquire, Order::release, 
+              Order::acq_rel, Order::seq_cst
+            };
 
-      T init = 0;
-      int errors = 0;
-      {
-        sycl::buffer<T> data{&init, sycl::range<1>{1}};
-        sycl::buffer<int> result{&errors, sycl::range<1>{1}};
-        queue.submit(
-          [&](sycl::handler& hndl)
-          {
-            auto storage = data.template get_access<sycl:: access::mode::read_write>(hndl);
-            auto out = result.get_access<sycl::access::mode::write>(hndl);
-            hndl.single_task([=](){
-              sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
-              const Order order_list [] = {
-                Order::relaxed, Order::acquire, Order::release, 
-                Order::acq_rel, Order::seq_cst
-              };
-
-              int count = 0;
-              for (Order order : order_list) 
-              {
-                atom.store(FIRST_VAL, Order::relaxed);
-                count += atom.fetch_min(VALID_FETCH_MIN_VAL, order) != FIRST_VAL; //after valid fetch_min returns previous val
-                count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // should return the fatch_min val 
-                count += atom.fetch_min((VALID_FETCH_MIN_VAL + 2), order) != VALID_FETCH_MIN_VAL; //operation itself dosent modify the result (VALID_FETCH_MIN_VAL + 2)> VALID_FETCH_MIN_VAL
-                count += atom.load(Order::relaxed) == VALID_FETCH_MIN_VAL; // still unchanged
-                count += atom.fetch_max((VALID_FETCH_MIN_VAL - 2), order) != VALID_FETCH_MIN_VAL; //still fetch_max dosent modify 
-                count += atom.fetch_max(VALID_FETCH_MAX_VAL, order) != VALID_FETCH_MIN_VAL;
-                count += atom.fetch_min(FIRST_VAL, order) != VALID_FETCH_MAX_VAL; // now it returns previous fetch_max val and stors FIRST_VAL 
-                count += atom.load(Order::relaxed) != FIRST_VAL;
-              }
-              out[0] = count;
-            });
-            //
-          }
-        );
-        //
-        queue.wait_and_throw();
-      }
-      BOOST_CHECK_EQUAL(errors, 0);
+            int count = 0;
+            for (Order order : order_list) 
+            {
+              atom.store(FIRST_VAL, Order::relaxed);
+              count += atom.fetch_min(VALID_FETCH_MIN_VAL, order) != FIRST_VAL; //after valid fetch_min returns previous val
+              count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // should return the fatch_min val 
+              count += atom.fetch_min((VALID_FETCH_MIN_VAL + 2), order) != VALID_FETCH_MIN_VAL; //operation itself dosent modify the result (VALID_FETCH_MIN_VAL + 2)> VALID_FETCH_MIN_VAL
+              count += atom.load(Order::relaxed) == VALID_FETCH_MIN_VAL; // still unchanged
+              count += atom.fetch_max((VALID_FETCH_MIN_VAL - 2), order) != VALID_FETCH_MIN_VAL; //still fetch_max dosent modify 
+              count += atom.fetch_max(VALID_FETCH_MAX_VAL, order) != VALID_FETCH_MIN_VAL;
+              count += atom.fetch_min(FIRST_VAL, order) != VALID_FETCH_MAX_VAL; // now it returns previous fetch_max val and stors FIRST_VAL 
+              count += atom.load(Order::relaxed) != FIRST_VAL;
+            }
+            out[0] = count;
+          });
+          //
+        }
+      );
+      //
+      queue.wait_and_throw();
     }
-
-
+    BOOST_CHECK_EQUAL(errors, 0);
   }
-
 
   namespace CudaPTXTestSpace 
   {

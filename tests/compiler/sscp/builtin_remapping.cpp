@@ -3,6 +3,8 @@
 // RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
 // RUN: %t | FileCheck %s
+// RUN: %acpp %s -o %t --acpp-targets=generic -O3 -fno-math-errno
+// RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3 -ffast-math
 // RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -g
@@ -22,7 +24,7 @@ template<class T>
 void test() {
   sycl::queue q = get_queue();
 
-  int num_functions = 15;
+  int num_functions = 19;
 
   T init = static_cast<T>(0.75);
 
@@ -50,6 +52,10 @@ void test() {
     data[12] = std::fdim(data[12], T(0.5));
     data[13] = std::fmod(data[13], T(0.5));
     data[14] = std::nextafter(data[14], T(1));
+    data[15] = std::sinh(data[15]);
+    data[16] = std::cosh(data[16]);
+    data[17] = std::tanh(data[17]);
+    data[18] = std::atan2(data[18], T(0.5));
   }).wait();
 
   std::vector<T> host(num_functions, T(0));
@@ -85,6 +91,14 @@ void test() {
   std::cout << check_with_tolerance(host[13], std::fmod(init, T(0.5))) << std::endl;
   // CHECK: 1
   std::cout << check_with_tolerance(host[14], std::nextafter(init, T(1))) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[15], std::sinh(init)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[16], std::cosh(init)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[17], std::tanh(init)) << std::endl;
+  // CHECK: 1
+  std::cout << check_with_tolerance(host[18], std::atan2(init, T(0.5))) << std::endl;
 
   sycl::free(data, q);
 }

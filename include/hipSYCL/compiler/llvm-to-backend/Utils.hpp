@@ -457,7 +457,16 @@ inline void replaceLLVMIntrinsicsWithAcppBuiltins(llvm::Module& M) {
     IntrinsicMapping{"llvm.acos.f64", "__acpp_sscp_acos_f64"},
     // atan at least with LLVM 20 needs remapping
     IntrinsicMapping{"llvm.atan.f32", "__acpp_sscp_atan_f32"},
-    IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"}
+    IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"},
+    // sinh, cosh, tanh and atan2 not fine in LLVM 21
+    IntrinsicMapping{"llvm.sinh.f32", "__acpp_sscp_sinh_f32"},
+    IntrinsicMapping{"llvm.sinh.f64", "__acpp_sscp_sinh_f64"},
+    IntrinsicMapping{"llvm.cosh.f32", "__acpp_sscp_cosh_f32"},
+    IntrinsicMapping{"llvm.cosh.f64", "__acpp_sscp_cosh_f64"},
+    IntrinsicMapping{"llvm.tanh.f32", "__acpp_sscp_tanh_f32"},
+    IntrinsicMapping{"llvm.tanh.f64", "__acpp_sscp_tanh_f64"},
+    IntrinsicMapping{"llvm.atan2.f32", "__acpp_sscp_atan2_f32"},
+    IntrinsicMapping{"llvm.atan2.f64", "__acpp_sscp_atan2_f64"}
   };
 
   replaceLLVMIntrinsicsWithAcppBuiltins<IntrinsicReplacementMap.size()>(M, IntrinsicReplacementMap);

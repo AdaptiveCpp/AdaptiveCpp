@@ -439,18 +439,13 @@ namespace AtomicOrderScopeTests
 
   static constexpr size_t GROUPS_PER_PAIR = 2;
   static constexpr size_t PER_TEST_ADDRESS_SPACE_COUNT = 2;
+  static const sycl::range<1> ONE_ELEMENT = sycl::range<1>{1};
 
   using Order = sycl::memory_order;
   using Scope = sycl::memory_scope;
   using Space = sycl::access::address_space;
   using IntTypes = boost::mp11::mp_list<unsigned int, long long>;
   using FloatTypes = boost::mp11::mp_list<float, double>;
-
-  struct OrderPair
-  {
-    Order Success;
-    Order Failure;
-  };
 
   template<class T>
   bool supports_type(const sycl::device& device)
@@ -482,11 +477,17 @@ namespace AtomicOrderScopeTests
   }
 
   template<class T, Scope SC, Space SP>
-  int exercise(T* ptr)
+  int exercise_atomic_rmw(T* ptr)
   {
     static constexpr T FirstStoreVal = static_cast<T>(19);
     static constexpr T InvalidExpected = static_cast<T>(18);
     static constexpr T SecondDesired = static_cast<T>(16);
+
+    struct OrderPair
+    {
+      Order Success;
+      Order Failure;
+    };
     static constexpr  OrderPair TestPairs[] =
     {
       {Order::relaxed, Order::relaxed},
@@ -520,7 +521,7 @@ namespace AtomicOrderScopeTests
       atom.store(FirstStoreVal, Order::relaxed); // stored 19
       T expected = InvalidExpected;
 
-      errors += atom.compare_exchange_strong(expected, SecondDesired, pr.Success, pr.Failure); // CAS fails: expected is 18, but atomic contains 19.
+      errors += atom.compare_exchange_strong(expected, SecondDesired, pr.Success, pr.Failure); // CAS fails: expected is 18, but atomic contains 19 and should update the expected for sync
       errors += expected != FirstStoreVal; // returned expected should be our stored value 19
 
       expected = atom.load(Order::relaxed);
@@ -539,24 +540,25 @@ namespace AtomicOrderScopeTests
     return errors;
   } 
 
-  template<class T, Scope SC>
+  /// @brief NO Contension; Just verify single load, store, CAS - 2 calls 
+  ///
+  /// i) global_space , ii) generic_space calls same memory (stress compiler)
+  template<class T, Scope SCOPE>
   void global_matrix(sycl::queue& queue)
   {
-    sycl::buffer<T> storage{sycl::range<1>{1}};
+    sycl::buffer<T> storage{ONE_ELEMENT}; // one element storage on host
     int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
     {
         sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
         queue.submit([&](sycl::handler& hndl)
         {
-            auto data = storage.template
-                get_access<sycl::access::mode::read_write>(hndl);
-
+            auto data = storage.template get_access<sycl::access::mode::read_write>(hndl);
             auto out = result.get_access<sycl::access::mode::write>(hndl);
 
             hndl.single_task([=]()
             {
-                out[0] = exercise<T, SC, Space::global_space>(&data[0]); //GLOBAL MEORY
-                out[1] = exercise<T, SC, Space::generic_space>(&data[0]);
+                out[0] = exercise_atomic_rmw<T, SCOPE, Space::global_space>(&data[0]);
+                out[1] = exercise_atomic_rmw<T, SCOPE, Space::generic_space>(&data[0]);
             });
         });
         queue.wait_and_throw();
@@ -565,6 +567,10 @@ namespace AtomicOrderScopeTests
     BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
+  /// Reviewer can remove the test if unnecessery other tests also uses local memory
+  /// @brief NO Contension; Just verify single load, store, CAS - 2 calls 
+  ///
+  /// i) local_space , ii) generic_space calls same memory (stress compiler)
   template<class T>
   void local_matrix(sycl::queue& queue)
   {
@@ -573,7 +579,7 @@ namespace AtomicOrderScopeTests
       sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
       queue.submit([&](sycl::handler& hndl)
       {
-        sycl::local_accessor<T, 1> data{sycl::range<1>{1}, hndl}; //one element
+        sycl::local_accessor<T, 1> data{ONE_ELEMENT, hndl}; //one element for kernel
         auto out = result.get_access<sycl::access::mode::write>(hndl);
 
         hndl.parallel_for(
@@ -582,8 +588,8 @@ namespace AtomicOrderScopeTests
           {
             if(item.get_local_linear_id() == 0)
             {
-              out[0] = exercise<T, Scope::work_group, Space::local_space>(&data[0]);
-              out[1] = exercise<T, Scope::sub_group, Space::generic_space>(&data[0]);
+              out[0] = exercise_atomic_rmw<T, Scope::work_group, Space::local_space>(&data[0]);
+              out[1] = exercise_atomic_rmw<T, Scope::sub_group, Space::generic_space>(&data[0]);
             }
           }
         );
@@ -595,6 +601,7 @@ namespace AtomicOrderScopeTests
     BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
+  /// real contenntion 256 worker each must execute 8 CAS
   template<class T>
   void contention(sycl::queue& queue)
   {
@@ -602,7 +609,7 @@ namespace AtomicOrderScopeTests
     T value = 0;
     int errors[WORK_ITEMS] = {};
     {
-      sycl::buffer<T> data{&value, sycl::range<1>{1}};
+      sycl::buffer<T> data{&value, ONE_ELEMENT};
       sycl::buffer<int> result{errors, sycl::range<1>{WORK_ITEMS}};
 
       queue.submit(
@@ -718,7 +725,6 @@ namespace AtomicOrderScopeTests
                 else 
                 {
                   T observed = FLAG_START;
-                  T fetch_confirmation = 3;
                   for (int atmp = 0; atmp < PUBLICATION_POOL_LIMIT; atmp++) 
                   {
                     if constexpr (FailedCAS && FetchMinMax) 
@@ -781,7 +787,7 @@ namespace AtomicOrderScopeTests
       sycl::buffer<T> data{values, sycl::range<1>{PAIRS * GROUPS_PER_PAIR}};
       sycl::buffer<int> result{observations, sycl::range<1>{PAIRS * GROUPS_PER_PAIR}};
       queue.submit(
-        [&](sycl::handler hndl)
+        [&](sycl::handler& hndl)
         {
           auto storage = data.template get_access<sycl::access::mode::read_write>(hndl);
           auto out = result.get_access<sycl::access::mode::write>(hndl);
@@ -839,8 +845,8 @@ namespace AtomicOrderScopeTests
     T init = 0;
     int errors = 0;
     {
-      sycl::buffer<T> data{&init, sycl::range<1>{1}};
-      sycl::buffer<int> result{&errors, sycl::range<1>{1}};
+      sycl::buffer<T> data{&init, ONE_ELEMENT};
+      sycl::buffer<int> result{&errors,ONE_ELEMENT};
       queue.submit(
         [&](sycl::handler& hndl)
         {
@@ -860,7 +866,7 @@ namespace AtomicOrderScopeTests
               count += atom.fetch_min(VALID_FETCH_MIN_VAL, order) != FIRST_VAL; //after valid fetch_min returns previous val
               count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // should return the fatch_min val 
               count += atom.fetch_min((VALID_FETCH_MIN_VAL + 2), order) != VALID_FETCH_MIN_VAL; //operation itself dosent modify the result (VALID_FETCH_MIN_VAL + 2)> VALID_FETCH_MIN_VAL
-              count += atom.load(Order::relaxed) == VALID_FETCH_MIN_VAL; // still unchanged
+              count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // still unchanged
               count += atom.fetch_max((VALID_FETCH_MIN_VAL - 2), order) != VALID_FETCH_MIN_VAL; //still fetch_max dosent modify 
               count += atom.fetch_max(VALID_FETCH_MAX_VAL, order) != VALID_FETCH_MIN_VAL;
               count += atom.fetch_min(FIRST_VAL, order) != VALID_FETCH_MAX_VAL; // now it returns previous fetch_max val and stors FIRST_VAL 
@@ -948,7 +954,7 @@ namespace AtomicOrderScopeTests
       global_matrix<T, Scope::device>(queue);
       global_matrix<T, Scope::system>(queue); // This dosent test CPU <-> GPU sync
 
-      local_matrix<T, Scope::system>(queue);
+      local_matrix<T>(queue);
     }
 
     //TEST 02 

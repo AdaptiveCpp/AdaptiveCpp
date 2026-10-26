@@ -17,6 +17,7 @@
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
 #include "hipSYCL/runtime/vk/vk_code_object.hpp"
+#include "hipSYCL/runtime/vk/vk_native_objects.hpp"
 #include "hipSYCL/runtime/vk/vk_profiling.hpp"
 #include <mutex>
 #include <vulkan/vulkan_raii.hpp>
@@ -126,8 +127,9 @@ private:
   // Members for command synchronization
   uint64_t _timeline_value = 0;
   vk::raii::Semaphore _semaphore;
-  // Events that come from other queues from the same backend
-  std::vector<std::shared_ptr<dag_node_event>> _wait_deps;
+  // Timeline values of other queues, or of semaphores imported from the
+  // application, that the next submission has to wait on
+  std::vector<vk_event_native_handle> _wait_deps;
   worker_thread _host_worker;
   mutable std::mutex _mutex;
 

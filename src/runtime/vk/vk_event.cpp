@@ -56,5 +56,49 @@ vk_node_event::backend_event_type vk_node_event::request_backend_event() {
 
 uint64_t vk_node_event::get_signal_val() const { return _signal_val; }
 
+vk_event_native_handle vk_node_event::get_native_event_handle() const {
+  return vk_event_native_handle{
+      _queue->get_semaphore(), _signal_val,
+      static_cast<VkDevice>(*_queue->get_dev_ctx()->get_device())};
+}
+
+vk_imported_node_event::vk_imported_node_event(vk::Device device,
+                                               vk_event_native_handle handle)
+    : _device{device}, _handle{handle} {}
+
+bool vk_imported_node_event::is_complete() const {
+  return _device.getSemaphoreCounterValue(vk::Semaphore{_handle.semaphore}) >=
+         _handle.value;
+}
+
+void vk_imported_node_event::wait() {
+  vk::Semaphore semaphore{_handle.semaphore};
+
+  HIPSYCL_DEBUG_INFO << "vk_event: imported semaphore " << semaphore
+                     << " wait on " << _handle.value << std::endl;
+
+  vk::SemaphoreWaitInfo wait_info({}, 1, &semaphore, &_handle.value);
+
+  vk::Result wait_ret_code;
+  do {
+    wait_ret_code = _device.waitSemaphores(wait_info, UINT64_MAX);
+  } while (vk::Result::eTimeout == wait_ret_code);
+
+  if (wait_ret_code != vk::Result::eSuccess) {
+    std::string err_msg("Semaphore wait failed with unexpected return code ");
+    err_msg += std::to_string(static_cast<VkResult>(wait_ret_code));
+    print_error(__acpp_here(), error_info{err_msg});
+  }
+}
+
+vk_imported_node_event::backend_event_type
+vk_imported_node_event::request_backend_event() {
+  return vk::Semaphore{_handle.semaphore};
+}
+
+vk_event_native_handle vk_imported_node_event::get_native_event_handle() const {
+  return _handle;
+}
+
 } // namespace rt
 } // namespace hipsycl

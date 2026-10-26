@@ -429,12 +429,6 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
 }
 #endif
 
-////---
-#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
-
-#endif
-////---
-
 namespace AtomicOrderScopeTests 
 {
   static constexpr size_t WORK_ITEMS = 256;
@@ -947,14 +941,7 @@ namespace AtomicOrderScopeTests
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_premitive_matrix, T, IntTypes)
     {
       sycl::queue queue;
-      if (!select_cuda(queue)) return;
-      if constexpr (sizeof(T) == sizeof(uint64_t))
-      {
-        BOOST_REQUIRE_MESSAGE(
-          queue.get_device().has(sycl::aspect::atomic64),
-          "64 bit atomic operation required by the device"
-        );
-      }
+      if (!select_cuda(queue) || !supports_type<T>(queue.get_device())) return;
 
       global_matrix<T, Scope::sub_group>(queue);
       global_matrix<T, Scope::work_group>(queue);
@@ -968,14 +955,8 @@ namespace AtomicOrderScopeTests
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_publication, T, IntTypes)
     {
       sycl::queue queue;
-      if (!select_cuda(queue)) return;
-      if constexpr (sizeof(T) == sizeof(uint64_t))
-      {
-        BOOST_REQUIRE_MESSAGE(
-          queue.get_device().has(sycl::aspect::atomic64),
-          "64 bit atomic operation required by the device"
-        );
-      }
+      if (!select_cuda(queue) || !supports_type<T>(queue.get_device())) return;
+
       publication<T, false>(queue);
       publication<T, true>(queue);
     }
@@ -984,17 +965,29 @@ namespace AtomicOrderScopeTests
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_seq_cst_check, T, IntTypes)
     {
       sycl::queue queue;
-      if (!select_cuda(queue)) return;
-      if constexpr (sizeof(T) == sizeof(uint64_t))
-      {
-        BOOST_REQUIRE_MESSAGE(
-          queue.get_device().has(sycl::aspect::atomic64),
-          "64 bit atomic operation required by the device"
-        );
-      }
+      if (!select_cuda(queue) || !supports_type<T>(queue.get_device())) return;
 
       sequential_consistancy<T, false>(queue);
       sequential_consistancy<T, true>(queue);
+    }
+
+    //TEST -04
+    BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_cas_contention, T, IntTypes)
+    {
+      sycl::queue queue;
+      if (!select_cuda(queue) || !supports_type<T>(queue.get_device())) return;
+
+      contention<T>(queue);
+    }
+
+    //TEST -05
+    BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_floating_fetch_min_max, T, FloatTypes)
+    {
+      sycl::queue queue;
+      if (!select_cuda(queue) || !supports_type<T>(queue.get_device())) return;
+
+      fetch_min_max_check<T>(queue);
+      publication<T, false, true>(queue);
     }
     
   }

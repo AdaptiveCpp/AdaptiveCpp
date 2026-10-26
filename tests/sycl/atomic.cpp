@@ -447,6 +447,14 @@ namespace AtomicOrderScopeTests
   using IntTypes = boost::mp11::mp_list<unsigned int, long long>;
   using FloatTypes = boost::mp11::mp_list<float, double>;
 
+  // More Tests can be added as we progress
+  enum class PublicationTestMode : uint8_t
+  {
+    ACQUIRE_LOAD = 0,
+    FAILED_CAS = 1,
+    FLOATING_MIN_MAX = 2
+  };
+
   template<class T>
   bool supports_type(const sycl::device& device)
   {
@@ -654,7 +662,7 @@ namespace AtomicOrderScopeTests
   }
 
   // Later based on demand we can convert publication into a actual class
-  template<class T, bool FailedCAS, bool FetchMinMax = false>
+  template<class T, PublicationTestMode M>
   void publication(sycl::queue& queue)
   {
     //observation enums
@@ -676,7 +684,7 @@ namespace AtomicOrderScopeTests
       T flags[PAIRS] = {};
 
       //when we want to test FetchMinMax we pre defined to INVALID_OBSERVED so that fetch_min is valid later
-      if constexpr (FetchMinMax)
+      if constexpr (M == PublicationTestMode::FLOATING_MIN_MAX)
       {
         for (T& f : flags) 
         {
@@ -713,7 +721,7 @@ namespace AtomicOrderScopeTests
                   data[pair] = RANDOM_VAL;
 
                   //now if FetchMinMax is enabled we fetch_min is valid due to earlier predefination
-                  if (FetchMinMax) 
+                  if constexpr (M == PublicationTestMode::FLOATING_MIN_MAX) 
                   {
                     atom.fetch_min(FLAG_READ_VALID, Order::release);
                   }
@@ -727,18 +735,12 @@ namespace AtomicOrderScopeTests
                   T observed = FLAG_START;
                   for (int atmp = 0; atmp < PUBLICATION_POOL_LIMIT; atmp++) 
                   {
-                    if constexpr (FailedCAS && FetchMinMax) 
-                    {
-                      observed = INVALID_OBSERVED;
-                      atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire); // invalid cmpx
-                      atom.fetch_max(FLAG_READ_VALID, Order::acquire); // leaves the value unchanged
-                    }
-                    if constexpr (FailedCAS)
+                    if constexpr (M == PublicationTestMode::FAILED_CAS)
                     {
                       observed = INVALID_OBSERVED;
                       atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire); // invalid cmpx
                     }
-                    else if constexpr (FetchMinMax) 
+                    else if constexpr (M == PublicationTestMode::FLOATING_MIN_MAX) 
                     {
                       observed = atom.fetch_max(FLAG_READ_VALID, Order::acquire); // leaves the value unchanged
                     }
@@ -882,8 +884,9 @@ namespace AtomicOrderScopeTests
     }
     BOOST_CHECK_EQUAL(errors, 0);
   }
-
-  namespace CudaPTXTestSpace 
+}
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
+  namespace AtomicOrderScopeTests::CudaPTXTestSpace 
   {
     inline bool select_cuda(sycl::queue& queue)
     {
@@ -907,7 +910,7 @@ namespace AtomicOrderScopeTests
           [&](sycl::handler& hndl)
           {
             auto out = prob.get_access<sycl::access::mode::write>(hndl);
-            hndl.single_task([&](){
+            hndl.single_task([=](){
               __acpp_if_target_sscp(
                 out[0] = __acpp_sscp_jit_reflect_target_arch();
                 out[1] = static_cast<int>(__acpp_sscp_jit_reflect_compiler_backend());
@@ -963,8 +966,8 @@ namespace AtomicOrderScopeTests
       sycl::queue queue;
       if (!select_cuda(queue) || !supports_type<T>(queue.get_device())) return;
 
-      publication<T, false>(queue);
-      publication<T, true>(queue);
+      publication<T, PublicationTestMode::ACQUIRE_LOAD>(queue);
+      publication<T, PublicationTestMode::FAILED_CAS>(queue);
     }
 
     //TEST - 03
@@ -993,12 +996,11 @@ namespace AtomicOrderScopeTests
       if (!select_cuda(queue) || !supports_type<T>(queue.get_device())) return;
 
       fetch_min_max_check<T>(queue);
-      publication<T, false, true>(queue);
+      publication<T, PublicationTestMode::FLOATING_MIN_MAX>(queue);
     }
     
   }
 
-
-}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

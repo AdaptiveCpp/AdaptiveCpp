@@ -35,6 +35,7 @@ struct MDKind {
 
 namespace cbs {
 static constexpr const char BarrierIntrinsicName[] = "__acpp_cbs_barrier";
+static constexpr const char SubGroupBarrierIntrinsicName[] = "__acpp_cbs_sub_group_barrier";
 static constexpr const char HostSubGroupSizeName[] = "__acpp_sscp_subgroup_size";
 static constexpr const char LocalIdGlobalNameX[] = "__acpp_cbs_local_id_x";
 static constexpr const char LocalIdGlobalNameY[] = "__acpp_cbs_local_id_y";

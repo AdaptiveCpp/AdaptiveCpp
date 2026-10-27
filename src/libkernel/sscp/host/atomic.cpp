@@ -443,23 +443,21 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_min_u64(
 HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
-  __acpp_int32 old_i = __acpp_sscp_atomic_load_i32(as, order, scope, (__acpp_int32*)ptr);
+  __acpp_int32 old_i = __acpp_sscp_atomic_load_i32(as, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int32*)ptr);
   __acpp_f32 old = *(__acpp_f32*)&old_i;
   do{
-    if (old < x) return old;
-  } while (!__acpp_sscp_cmp_exch_strong_i32(as, order, order, scope, (__acpp_int32*)ptr, (__acpp_int32*)&old, *(__acpp_int32*)&x));
-  return x;
+  } while (!__acpp_sscp_cmp_exch_strong_i32(as, order, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int32*)ptr, (__acpp_int32*)&old, (old < x ? *(__acpp_int32*)&old : *(__acpp_int32*)&x)));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
-  __acpp_int64 old_i = __acpp_sscp_atomic_load_i64(as, order, scope, (__acpp_int64*)ptr);
+  __acpp_int64 old_i = __acpp_sscp_atomic_load_i64(as, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int64*)ptr);
   __acpp_f64 old = *(__acpp_f64*)&old_i;
   do{
-    if (old < x) return old;
-  } while (!__acpp_sscp_cmp_exch_strong_i64(as, order, order, scope, (__acpp_int64*)ptr, (__acpp_int64*)&old, *(__acpp_int64*)&x));
-  return x;
+  } while (!__acpp_sscp_cmp_exch_strong_i64(as, order, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int64*)ptr, (__acpp_int64*)&old, (old < x ? *(__acpp_int64*)&old : *(__acpp_int64*)&x)));
+  return old;
 }
 
 
@@ -514,22 +512,19 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_max_u64(
 HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
-  __acpp_int32 old_i = __acpp_sscp_atomic_load_i32(as, order, scope, (__acpp_int32*)ptr);
+  __acpp_int32 old_i = __acpp_sscp_atomic_load_i32(as, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int32*)ptr);
   __acpp_f32 old = *(__acpp_f32*)&old_i;
   do{
-    if (old > x) return old;
-  } while (!__acpp_sscp_cmp_exch_strong_i32(as, order, order, scope, (__acpp_int32*)ptr, (__acpp_int32*)&old, *(__acpp_int32*)&x));
-  return x;
+  } while (!__acpp_sscp_cmp_exch_strong_i32(as, order, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int32*)ptr, (__acpp_int32*)&old, (old > x ? *(__acpp_int32*)&old : *(__acpp_int32*)&x)));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
-  __acpp_int64 old_i = __acpp_sscp_atomic_load_i64(as, order, scope, (__acpp_int64*)ptr);
+  __acpp_int64 old_i = __acpp_sscp_atomic_load_i64(as, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int64*)ptr);
   __acpp_f64 old = *(__acpp_f64*)&old_i;
   do{
-    if (old > x) return old;
-  } while (!__acpp_sscp_cmp_exch_strong_i64(as, order, order, scope, (__acpp_int64*)ptr, (__acpp_int64*)&old, *(__acpp_int64*)&x));
-  return x;
+  } while (!__acpp_sscp_cmp_exch_strong_i64(as, order, __acpp_sscp_memory_order::relaxed, scope, (__acpp_int64*)ptr, (__acpp_int64*)&old, (old > x ? *(__acpp_int64*)&old : *(__acpp_int64*)&x)));
+  return old;
 }
-

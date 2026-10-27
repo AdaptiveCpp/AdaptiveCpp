@@ -136,7 +136,9 @@ public:
   compare_exchange_weak(Integral &expected, Integral desired,
                         memory_order order = default_read_modify_write_order,
                         memory_scope scope = default_scope) const noexcept {
-    return compare_exchange_weak(expected, desired, order, order, scope);
+    return compare_exchange_weak(expected, desired, order,
+        order == memory_order::acq_rel ? memory_order::acquire :
+        order == memory_order::release ? memory_order::relaxed : order, scope);
   }
 
   bool compare_exchange_strong(Integral &expected, Integral desired,
@@ -150,7 +152,9 @@ public:
   bool compare_exchange_strong(Integral &expected, Integral desired,
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
-    return compare_exchange_strong(expected, desired, order, order, scope);
+    return compare_exchange_strong(expected, desired, order,
+        order == memory_order::acq_rel ? memory_order::acquire :
+        order == memory_order::release ? memory_order::relaxed : order, scope);
   }
 
   Integral fetch_add(Integral operand,
@@ -308,7 +312,9 @@ public:
   compare_exchange_weak(Floating &expected, Floating desired,
                         memory_order order = default_read_modify_write_order,
                         memory_scope scope = default_scope) const noexcept {
-    return compare_exchange_weak(expected, desired, order, order, scope);
+    return compare_exchange_weak(expected, desired, order,
+        order == memory_order::acq_rel ? memory_order::acquire :
+        order == memory_order::release ? memory_order::relaxed : order, scope);
   }
 
   bool compare_exchange_strong(Floating &expected, Floating desired,
@@ -322,7 +328,9 @@ public:
   bool compare_exchange_strong(Floating &expected, Floating desired,
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
-    return compare_exchange_strong(expected, desired, order, order, scope);
+    return compare_exchange_strong(expected, desired, order,
+        order == memory_order::acq_rel ? memory_order::acquire :
+        order == memory_order::release ? memory_order::relaxed : order, scope);
   }
 
   Floating fetch_add(Floating operand,
@@ -455,7 +463,9 @@ public:
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
 
-    return compare_exchange_weak(expected, desired, order, order, scope);
+    return compare_exchange_weak(expected, desired, order,
+        order == memory_order::acq_rel ? memory_order::acquire :
+        order == memory_order::release ? memory_order::relaxed : order, scope);
   }
 
   bool compare_exchange_strong(T* &expected, T* desired,
@@ -474,7 +484,9 @@ public:
     memory_order order = default_read_modify_write_order,
     memory_scope scope = default_scope) const noexcept {
     
-    return compare_exchange_strong(expected, desired, order, order, scope);
+    return compare_exchange_strong(expected, desired, order,
+        order == memory_order::acq_rel ? memory_order::acquire :
+        order == memory_order::release ? memory_order::relaxed : order, scope);
   }
 
   T *fetch_add(difference_type x,

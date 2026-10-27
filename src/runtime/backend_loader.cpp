@@ -110,14 +110,6 @@ std::vector<fs::path> get_plugin_search_paths()
 #endif
     paths.emplace_back(fs::path(install_dir) / ACPP_BACKEND_LIB_FOLDER / "hipSYCL");
   }
-
-  const auto install_prefixed_path = fs::path{HIPSYCL_INSTALL_PREFIX} / ACPP_BACKEND_LIB_FOLDER / "hipSYCL";
-
-  if(paths.empty()
-      || !fs::is_directory(paths.back())
-      || (fs::is_directory(install_prefixed_path)
-          && !fs::equivalent(install_prefixed_path, paths.back())))
-    paths.emplace_back(std::move(install_prefixed_path));
   return paths;
 }
 

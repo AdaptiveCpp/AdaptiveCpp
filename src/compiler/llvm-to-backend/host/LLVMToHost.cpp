@@ -173,6 +173,13 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
 
+  // the sub-group size as a constant for the libkernel builtins
+  if (auto *SgSize = M.getGlobalVariable(cbs::HostSubGroupSizeName)) {
+    SgSize->setInitializer(llvm::ConstantInt::get(SgSize->getValueType(), getSubgroupSize()));
+    SgSize->setConstant(true);
+    SgSize->setLinkage(llvm::GlobalValue::InternalLinkage);
+  }
+
   // Internalize all constant global variables that don't their definition
   // to be imported from external sources - this is fine because llvm-to-backend
   // lowering always happens *after* linking in all dependencies, and therefore
@@ -584,6 +591,11 @@ bool LLVMToHostTranslator::isKernelAfterFlavoring(llvm::Function &F) {
     if (F.getName() == Name)
       return true;
   return false;
+}
+
+// ACPP_OPENMP_SUBGROUP_SIZE (passed as desired-subgroup-size), else 1
+int LLVMToHostTranslator::getSubgroupSize() const {
+  return DesiredSubgroupSize > 0 ? DesiredSubgroupSize : 1;
 }
 
 AddressSpaceMap LLVMToHostTranslator::getAddressSpaceMap() const {

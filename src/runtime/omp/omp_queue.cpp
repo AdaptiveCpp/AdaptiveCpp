@@ -22,6 +22,7 @@
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/omp/omp_event.hpp"
 #include "hipSYCL/runtime/omp/omp_backend.hpp"
+#include "hipSYCL/runtime/omp/omp_hardware_manager.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
 #include "hipSYCL/runtime/signal_channel.hpp"
@@ -564,6 +565,10 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   if(host_veclib.has_value())
     _config.set_build_option(kernel_build_option::host_vector_math_library,
         static_cast<int>(*host_veclib));
+
+  // the sub-group size is a JIT-time constant, so it is part of the JIT cache key
+  _config.set_build_option(kernel_build_option::desired_subgroup_size,
+                           get_omp_subgroup_size());
 
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(_config);

@@ -15,9 +15,25 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/omp/omp_phys_mem.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 namespace hipsycl {
 namespace rt {
+
+// Read once per process; a power of two <= 1024, otherwise 1
+std::size_t get_omp_subgroup_size() {
+  static const std::size_t S = [] {
+    std::size_t s = application::get_settings().get<setting::openmp_subgroup_size>();
+    if (s == 0 || s > 1024 || (s & (s - 1)) != 0) {
+      HIPSYCL_DEBUG_WARNING << "omp: invalid ACPP_OPENMP_SUBGROUP_SIZE=" << s
+                            << ", using 1" << std::endl;
+      return std::size_t{1};
+    }
+    return s;
+  }();
+  return S;
+}
 
 
 bool omp_hardware_context::is_cpu() const {
@@ -321,7 +337,7 @@ std::vector<std::size_t> omp_hardware_context::get_property(device_uint_list_pro
 {
   switch(prop) {
   case device_uint_list_property::sub_group_sizes:
-    return std::vector<std::size_t>{1};
+    return std::vector<std::size_t>{get_omp_subgroup_size()};
     break;
   }
   assert(false && "Invalid device property");

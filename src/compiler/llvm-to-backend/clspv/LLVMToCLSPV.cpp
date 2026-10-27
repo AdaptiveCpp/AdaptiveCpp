@@ -40,6 +40,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Program.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Transforms/Scalar/InferAddressSpaces.h>
 #include <memory>
 #include <string>
 #include <system_error>
@@ -414,6 +415,8 @@ bool LLVMToCLSPVTranslator::optimizeFlavoredIR(llvm::Module &M,
 
   // Transformation passes to make the LLVM-IR consumable by clspv
   llvm::ModulePassManager MPM;
+  MPM.addPass(
+      llvm::createModuleToFunctionPassAdaptor(llvm::InferAddressSpacesPass(0)));
   MPM.addPass(
       llvm::createModuleToFunctionPassAdaptor(RemoveUnusedIntrinsicsPass()));
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(MemsetLoweringPass()));

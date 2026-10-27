@@ -115,15 +115,15 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
   auto s = builtin_memory_scope(scope);
   if (as == __acpp_sscp_address_space::global_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(1))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(1))) *)ptr;
     return atomic_store_explicit(casted_ptr, x, o, s);
   } else if (as == __acpp_sscp_address_space::local_space) {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(3))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(3))) *)ptr;
     return atomic_store_explicit(casted_ptr, x, o, s);
   } else {
     auto casted_ptr =
-        (volatile __acpp_int32 __attribute__((address_space(4))) *)ptr;
+        (volatile __acpp_int64 __attribute__((address_space(4))) *)ptr;
     return atomic_store_explicit(casted_ptr, x, o, s);
   }
 }

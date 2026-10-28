@@ -784,51 +784,43 @@ namespace AtomicOrderScopeTests
   {
     static constexpr T FLAG_READ_VALID = static_cast<T>(1);
     static constexpr T INVALID_OBSERVED = static_cast<T>(2);
-
     T values[PAIRS * GROUPS_PER_PAIR] = {};
     int observations[PAIRS * GROUPS_PER_PAIR] = {};
-    {
-      sycl::buffer<T> data{values, sycl::range<1>{PAIRS * GROUPS_PER_PAIR}};
-      sycl::buffer<int> result{observations, sycl::range<1>{PAIRS * GROUPS_PER_PAIR}};
-      queue.submit(
-        [&](sycl::handler& hndl)
+    DeviceUSM<T> data(queue, PAIRS * GROUPS_PER_PAIR);
+    DeviceUSM<T> result(queue, PAIRS * GROUPS_PER_PAIR);
+    T* storage = data.get_ptr();
+    int* out = result.get_ptr();
+
+    queue.memcpy(storage, values, sizeof(values)).wait_and_throw();
+    queue.parallel_for(
+      sycl::nd_range<1>{
+        sycl::range<1>{PAIRS * GROUPS_PER_PAIR * ITEMS_PER_GROUP}, 
+        sycl::range<1>{ITEMS_PER_GROUP}
+      },
+      [=](sycl::nd_item<1> item)
+      {
+        if (item.get_local_linear_id() != 0) return;
+        const auto self = item.get_group_linear_id();
+        const auto other = self ^ 1;
+
+        sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> own_st{storage[self]};
+        sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> peer{storage[other]};
+
+        own_st.store(FLAG_READ_VALID, Order::seq_cst);
+        T observed;
+        if constexpr (FailedCAS)
         {
-          auto storage = data.template get_access<sycl::access::mode::read_write>(hndl);
-          auto out = result.get_access<sycl::access::mode::write>(hndl);
-          hndl.parallel_for(
-            sycl::nd_range<1>{
-              sycl::range<1>{PAIRS * GROUPS_PER_PAIR * ITEMS_PER_GROUP}, 
-              sycl::range<1>{ITEMS_PER_GROUP}
-            },
-            [=](sycl::nd_item<1> item)
-            {
-              if (item.get_local_linear_id() != 0) return;
-              const auto self = item.get_group_linear_id();
-              const auto other = self ^ 1;
-
-              sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> own_st{storage[self]};
-              sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> peer{storage[other]};
-
-              own_st.store(FLAG_READ_VALID, Order::seq_cst);
-              T observed;
-              if constexpr (FailedCAS)
-              {
-                observed = INVALID_OBSERVED;
-                peer.compare_exchange_strong(observed, T{3}, Order::seq_cst, Order::seq_cst);
-              }
-              else 
-              {
-                observed = peer.load(Order::seq_cst);
-              }
-              out[self] = static_cast<int>(observed);
-            }
-          );
-          //
+          observed = INVALID_OBSERVED;
+          peer.compare_exchange_strong(observed, T{3}, Order::seq_cst, Order::seq_cst);
         }
-      );
-      //
-      queue.wait_and_throw();
-    }
+        else 
+        {
+          observed = peer.load(Order::seq_cst);
+        }
+        out[self] = static_cast<int>(observed);
+      }
+    ).wait_and_throw();
+    queue.memcpy(observations, out, sizeof(observations)).wait_and_throw();
     for (size_t p = 0; p < PAIRS; p++) 
     {
       BOOST_CHECK_MESSAGE(
@@ -848,48 +840,44 @@ namespace AtomicOrderScopeTests
 
     T init = 0;
     int errors = 0;
-    {
-      sycl::buffer<T> data{&init, ONE_ELEMENT};
-      sycl::buffer<int> result{&errors,ONE_ELEMENT};
-      queue.submit(
-        [&](sycl::handler& hndl)
-        {
-          auto storage = data.template get_access<sycl:: access::mode::read_write>(hndl);
-          auto out = result.get_access<sycl::access::mode::write>(hndl);
-          hndl.single_task([=](){
-            sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
-            const Order order_list [] = {
-              Order::relaxed, Order::acquire, Order::release, 
-              Order::acq_rel, Order::seq_cst
-            };
+    DeviceUSM<T> data(queue, 1);
+    DeviceUSM<int> result(queue, 1);
+    T* storage = data.get_ptr();
+    int* out = result.get_ptr();
 
-            int count = 0;
-            for (Order order : order_list) 
-            {
-              atom.store(FIRST_VAL, Order::relaxed);
-              count += atom.fetch_min(VALID_FETCH_MIN_VAL, order) != FIRST_VAL; //after valid fetch_min returns previous val
-              count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // should return the fatch_min val 
-              count += atom.fetch_min((VALID_FETCH_MIN_VAL + 2), order) != VALID_FETCH_MIN_VAL; //operation itself dosent modify the result (VALID_FETCH_MIN_VAL + 2)> VALID_FETCH_MIN_VAL
-              count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // still unchanged
-              count += atom.fetch_max((VALID_FETCH_MIN_VAL - 2), order) != VALID_FETCH_MIN_VAL; //still fetch_max dosent modify 
-              count += atom.fetch_max(VALID_FETCH_MAX_VAL, order) != VALID_FETCH_MIN_VAL;
-              count += atom.fetch_min(FIRST_VAL, order) != VALID_FETCH_MAX_VAL; // now it returns previous fetch_max val and stors FIRST_VAL 
-              count += atom.load(Order::relaxed) != FIRST_VAL;
-            }
-            out[0] = count;
-          });
-          //
-        }
-      );
-      //
-      queue.wait_and_throw();
-    }
+    queue.memcpy(storage, &init, sizeof(T));
+    queue.single_task([=](){
+      sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
+      const Order order_list [] = {
+        Order::relaxed, Order::acquire, Order::release, 
+        Order::acq_rel, Order::seq_cst
+      };
+
+      int count = 0;
+      for (Order order : order_list) 
+      {
+        atom.store(FIRST_VAL, Order::relaxed);
+        count += atom.fetch_min(VALID_FETCH_MIN_VAL, order) != FIRST_VAL; //after valid fetch_min returns previous val
+        count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // should return the fatch_min val 
+        count += atom.fetch_min((VALID_FETCH_MIN_VAL + 2), order) != VALID_FETCH_MIN_VAL; //operation itself dosent modify the result (VALID_FETCH_MIN_VAL + 2)> VALID_FETCH_MIN_VAL
+        count += atom.load(Order::relaxed) != VALID_FETCH_MIN_VAL; // still unchanged
+        count += atom.fetch_max((VALID_FETCH_MIN_VAL - 2), order) != VALID_FETCH_MIN_VAL; //still fetch_max dosent modify 
+        count += atom.fetch_max(VALID_FETCH_MAX_VAL, order) != VALID_FETCH_MIN_VAL;
+        count += atom.fetch_min(FIRST_VAL, order) != VALID_FETCH_MAX_VAL; // now it returns previous fetch_max val and stors FIRST_VAL 
+        count += atom.load(Order::relaxed) != FIRST_VAL;
+      }
+      out[0] = count;
+    }).wait_and_throw();
+    queue.memcpy(&errors, out, sizeof(errors));
     BOOST_CHECK_EQUAL(errors, 0);
   }
 }
+
+/// Put only Cuda Specific Tests in CudaPTXTestSpace
 #if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
   namespace AtomicOrderScopeTests::CudaPTXTestSpace 
   {
+
     inline bool select_cuda(sycl::queue& queue)
     {
       const bool cuda = queue.get_device().get_backend() == sycl::backend::cuda;
@@ -904,26 +892,24 @@ namespace AtomicOrderScopeTests
         BOOST_TEST_MESSAGE("PTX-specific runtime test skipped: selected device is not CUDA");
         return false;
       }
+      BOOST_REQUIRE_MESSAGE(
+        queue.get_device().has(sycl::aspect::usm_device_allocations),
+        "PTX atomic tests require device USM"
+      );
 
       int target[2] = {};
-      {
-        sycl::buffer<int> prob{target, sycl::range<1>{2}};
-        queue.submit(
-          [&](sycl::handler& hndl)
-          {
-            auto out = prob.get_access<sycl::access::mode::write>(hndl);
-            hndl.single_task([=](){
-              __acpp_if_target_sscp(
-                out[0] = __acpp_sscp_jit_reflect_target_arch();
-                out[1] = static_cast<int>(__acpp_sscp_jit_reflect_compiler_backend());
-              );
-            });
-            //
-          }
+      DeviceUSM<int> info(queue, 2);
+      int* out = info.get_ptr();
+
+      queue.memcpy(target, out, sizeof(target)).wait_and_throw();
+      queue.single_task([=](){
+        __acpp_if_target_sscp(
+          out[0] = __acpp_sscp_jit_reflect_target_arch();
+          out[1] = static_cast<int>(__acpp_sscp_jit_reflect_compiler_backend());
         );
-        //
-        queue.wait_and_throw();
-      }
+      }).wait_and_throw();
+      queue.memcpy(target, out, sizeof(target)).wait_and_throw();
+
       BOOST_REQUIRE_MESSAGE(
         target[1] == static_cast<int>(sycl::AdaptiveCpp_jit::compiler_backend::ptx),
         "SSCP PTX PATH REQUIRED"

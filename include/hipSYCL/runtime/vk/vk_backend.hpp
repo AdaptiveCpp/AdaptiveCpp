@@ -36,6 +36,10 @@ public:
   std::unique_ptr<backend_executor>
   create_inorder_executor(device_id dev, int priority) override;
 
+  std::shared_ptr<dag_node_event>
+  create_event_from_native_handle(const void *native_handle,
+                                  device_id dev) override;
+
 private:
   mutable vk_hardware_manager _hw_manager;
   mutable lazily_constructed_executor<multi_queue_executor> _executor;

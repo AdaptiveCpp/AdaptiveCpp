@@ -107,11 +107,25 @@ bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnot
   return false;
 }
 
+bool isSubGroupBarrier(const llvm::Instruction *I) {
+  if (const auto *CI = llvm::dyn_cast_or_null<llvm::CallInst>(I))
+    return CI->getCalledFunction() &&
+           CI->getCalledFunction()->getName() == SubGroupBarrierIntrinsicName;
+  return false;
+}
+
+GroupTier getBarrierTier(const llvm::BasicBlock *BB) {
+  return isSubGroupBarrier(BB->getTerminator()->getPrevNode()) ? GroupTier::SubGroup
+                                                               : GroupTier::WorkGroup;
+}
+
 llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotationInfo &SAA) {
   llvm::Module *M = InsertBefore->getParent()->getParent()->getParent();
 
+  // reuse the preceding barrier, unless it is a weaker sub-group barrier
   if (InsertBefore != &InsertBefore->getParent()->front() &&
-      isBarrier(InsertBefore->getPrevNode(), SAA))
+      isBarrier(InsertBefore->getPrevNode(), SAA) &&
+      !isSubGroupBarrier(InsertBefore->getPrevNode()))
     return llvm::cast<llvm::CallInst>(InsertBefore->getPrevNode());
   llvm::Function *F = llvm::cast<llvm::Function>(
       M->getOrInsertFunction(BarrierIntrinsicName, llvm::Type::getVoidTy(M->getContext()))

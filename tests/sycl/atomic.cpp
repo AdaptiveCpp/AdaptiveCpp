@@ -470,7 +470,7 @@ namespace AtomicOrderScopeTests
     DeviceUSM& operator = (const DeviceUSM&) = delete;
 
     T* get_ptr() {return Ptr_;}
-  }
+  };
 
   // More Tests can be added as we progress
   enum class PublicationTestMode : uint8_t
@@ -617,9 +617,7 @@ namespace AtomicOrderScopeTests
           }
         }
       );
-    });
-
-    queue.wait_and_throw();
+    }).wait_and_throw();
     queue.memcpy(errors, out, sizeof(errors)).wait_and_throw();
     
     BOOST_CHECK_EQUAL(errors[0], 0);
@@ -633,44 +631,37 @@ namespace AtomicOrderScopeTests
     static constexpr size_t CAS_RETRY_LIMIT = 4096;
     T value = 0;
     int errors[WORK_ITEMS] = {};
-    {
-      sycl::buffer<T> data{&value, ONE_ELEMENT};
-      sycl::buffer<int> result{errors, sycl::range<1>{WORK_ITEMS}};
+    DeviceUSM<T> storage{queue, 1};
+    DeviceUSM<int> result{queue, WORK_ITEMS};
+    T* data = storage.get_ptr();
+    int* out = result.get_ptr();
 
-      queue.submit(
-        [&](sycl::handler& hndl)
+    queue.memcpy(storage, &value, sizeof(T));
+    queue.parallel_for(
+      sycl::nd_range<1>{sycl::range<1>{WORK_ITEMS}, sycl::range<1>{ITEMS_PER_GROUP}},
+      [=](sycl::nd_item<1> item)
+      {
+        sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
+
+        int failures = 0;
+        for (int i = 0; i < INCREMENT_PER_ITEM; i++) 
         {
-          auto storage = data.template get_access<sycl::access::mode::read_write>(hndl);
-          auto out = result.get_access<sycl::access::mode::write>(hndl);
-          hndl.parallel_for(
-            sycl::nd_range<1>{sycl::range<1>{WORK_ITEMS}, sycl::range<1>{ITEMS_PER_GROUP}},
-            [=](sycl::nd_item<1> item)
-            {
-              sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
+          T expected = atom.load(Order::relaxed);
 
-              int failures = 0;
-              for (int i = 0; i < INCREMENT_PER_ITEM; i++) 
-              {
-                T expected = atom.load(Order::relaxed);
-
-                bool done = false;
-                for (int r = 0; r < CAS_RETRY_LIMIT && !done; r++) 
-                {
-                  T prior = expected;
-                  done = atom.compare_exchange_strong(expected, T(prior + 1), Order::acq_rel, Order::acquire);
-                  failures += !done && expected <= prior; //suspicious failed CAS
-                }
-                failures += !done;
-              }
-              out[item.get_global_linear_id()] = failures;
-            }
-          );
-
+          bool done = false;
+          for (int r = 0; r < CAS_RETRY_LIMIT && !done; r++) 
+          {
+            T prior = expected;
+            done = atom.compare_exchange_strong(expected, T(prior + 1), Order::acq_rel, Order::acquire);
+            failures += !done && expected <= prior; //suspicious failed CAS
+          }
+          failures += !done;
         }
-      );
-      queue.wait_and_throw();
-    }
-    
+        out[item.get_global_linear_id()] = failures;
+      }
+    ).wait_and_throw();
+    queue.memcpy(&value, storage, sizeof(T)).wait_and_throw();
+
     BOOST_CHECK_EQUAL(value, T(WORK_ITEMS * INCREMENT_PER_ITEM));
     for (int e : errors)
     {
@@ -694,8 +685,15 @@ namespace AtomicOrderScopeTests
     static constexpr T FLAG_START = static_cast<T>(0);
     static constexpr T FLAG_READ_VALID = static_cast<T>(1);
     static constexpr T INVALID_OBSERVED = static_cast<T>(2);
-
+    // runtime
     int observ = DIDNT_OBSERVED;
+    DeviceUSM<T> flag_usm(queue, PAIRS);
+    DeviceUSM<int> payload_usm(queue, PAIRS);
+    DeviceUSM<int> outcome_usm(queue, PAIRS);
+    T* flag = flag_usm.get_ptr();
+    int* data = payload_usm.get_ptr();
+    int* out = outcome_usm.get_ptr();
+
     for (int r = 0; r < PUBLICATION_ROUNDS ; r++) 
     {
       T flags[PAIRS] = {};
@@ -708,79 +706,66 @@ namespace AtomicOrderScopeTests
           f = INVALID_OBSERVED;
         }
       }
-
       int payload[PAIRS] = {};
       int outcome[PAIRS] = {};
-      {
-        sycl::buffer<T> f_buf{flags, sycl::range<1>{PAIRS}};
-        sycl::buffer<int> p_buf{payload, sycl::range<1>{PAIRS}};
-        sycl::buffer<int> o_buf{outcome, sycl::range<1>{PAIRS}};
 
-        queue.submit(
-          [&](sycl::handler& hndl)
+      queue.memcpy(flag, flags, sizeof(flags)).wait_and_throw();
+      queue.memcpy(data, payload, sizeof(payload)).wait_and_throw();
+      queue.memcpy(out, outcome, sizeof(outcome)).wait_and_throw();
+      queue.parallel_for(
+        sycl::nd_range<1>{sycl::range<1>{PAIRS * GROUPS_PER_PAIR * ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
+        [=](sycl::nd_item<1> item)
+        {
+          if (item.get_local_linear_id() != 0) return;
+          const auto group = item.get_group_linear_id();
+          const auto pair = group / GROUPS_PER_PAIR;
+          const bool producer = (group % GROUPS_PER_PAIR) == (r % GROUPS_PER_PAIR);
+          sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{flag[pair]};
+
+          if (producer) 
           {
-            auto flag = f_buf.template get_access<sycl::access::mode::read_write>(hndl);
-            auto data = p_buf.get_access<sycl::access::mode::read_write>(hndl);
-            auto out = o_buf.get_access<sycl::access::mode::read_write>(hndl);
+            data[pair] = RANDOM_VAL;
 
-            hndl.parallel_for(
-              sycl::nd_range<1>{sycl::range<1>{PAIRS * GROUPS_PER_PAIR * ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}},
-              [=](sycl::nd_item<1> item)
-              {
-                if (item.get_local_linear_id() != 0) return;
-                const auto group = item.get_group_linear_id();
-                const auto pair = group / GROUPS_PER_PAIR;
-                const bool producer = (group % GROUPS_PER_PAIR) == (r % GROUPS_PER_PAIR);
-                sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{flag[pair]};
-
-                if (producer) 
-                {
-                  data[pair] = RANDOM_VAL;
-
-                  //now if FetchMinMax is enabled we fetch_min is valid due to earlier predefination
-                  if constexpr (M == PublicationTestMode::FLOATING_MIN_MAX) 
-                  {
-                    atom.fetch_min(FLAG_READ_VALID, Order::release);
-                  }
-                  else 
-                  {
-                    atom.store(FLAG_READ_VALID, Order::release);
-                  }
-                }
-                else 
-                {
-                  T observed = FLAG_START;
-                  for (int atmp = 0; atmp < PUBLICATION_POOL_LIMIT; atmp++) 
-                  {
-                    if constexpr (M == PublicationTestMode::FAILED_CAS)
-                    {
-                      observed = INVALID_OBSERVED;
-                      atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire); // invalid cmpx
-                    }
-                    else if constexpr (M == PublicationTestMode::FLOATING_MIN_MAX) 
-                    {
-                      observed = atom.fetch_max(FLAG_READ_VALID, Order::acquire); // leaves the value unchanged
-                    }
-                    else 
-                    {
-                      observed = atom.load(Order::acquire);
-                    }
-
-                    if (observed == FLAG_READ_VALID) break;
-                  }
-                  if (observed == FLAG_READ_VALID) 
-                  {
-                    out[pair] = data[pair] == RANDOM_VAL ?
-                      PUBLICATION_OBSERVED_CORRECT_READ : PUBLICATION_OBSERVED_INCORRECT_READ;
-                  }
-                }
-              }
-            );
-            //
+            //now if FetchMinMax is enabled we fetch_min is valid due to earlier predefination
+            if constexpr (M == PublicationTestMode::FLOATING_MIN_MAX) 
+            {
+              atom.fetch_min(FLAG_READ_VALID, Order::release);
+            }
+            else 
+            {
+              atom.store(FLAG_READ_VALID, Order::release);
+            }
           }
-        );
-        queue.wait_and_throw();
-      }
+          else 
+          {
+            T observed = FLAG_START;
+            for (int atmp = 0; atmp < PUBLICATION_POOL_LIMIT; atmp++) 
+            {
+              if constexpr (M == PublicationTestMode::FAILED_CAS)
+              {
+                observed = INVALID_OBSERVED;
+                atom.compare_exchange_strong(observed, T{3}, Order::acquire, Order::acquire); // invalid cmpx
+              }
+              else if constexpr (M == PublicationTestMode::FLOATING_MIN_MAX) 
+              {
+                observed = atom.fetch_max(FLAG_READ_VALID, Order::acquire); // leaves the value unchanged
+              }
+              else 
+              {
+                observed = atom.load(Order::acquire);
+              }
+
+              if (observed == FLAG_READ_VALID) break;
+            }
+            if (observed == FLAG_READ_VALID) 
+            {
+              out[pair] = data[pair] == RANDOM_VAL ?
+                PUBLICATION_OBSERVED_CORRECT_READ : PUBLICATION_OBSERVED_INCORRECT_READ;
+            }
+          }
+        }
+      ).wait_and_throw();
+      queue.memcpy(outcome, out, sizeof(outcome));
 
       for (int r : outcome) 
       {

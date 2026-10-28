@@ -11,6 +11,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/atomic.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/assert.hpp"
 
 
 extern "C" int __acpp_sscp_jit_reflect_target_arch();
@@ -424,20 +425,26 @@ namespace PTXAtomicDetail
   using OrderSSCP = __acpp_sscp_memory_order;
   using ScopeSSCP  = __acpp_sscp_memory_scope;
 
-
-  // https://docs.nvidia.com/cuda/ptx-writers-guide-to-interoperability/atomic-abi.html
-  inline void assume_supports_address_space(__acpp_sscp_address_space space)
+  // Reports violated backend preconditions through AdaptiveCpp's device
+  // assertion builtin when NDEBUG is not defined.
+  inline void debug_assert(
+      bool condition,
+      const char* message,
+      const char* file,
+      __acpp_uint32 line,
+      const char* function)
   {
-    if (
-      space != __acpp_sscp_address_space::global_space &&
-      space != __acpp_sscp_address_space::local_space &&
-      space != __acpp_sscp_address_space::generic_space
-    ) 
-    {
-      __builtin_unreachable(); // illegal
-    }
+  #ifndef NDEBUG
+      if (!condition) {__acpp_sscp_assert_fail(message, file, line, function);}
+  #else
+      (void)condition; (void)message; (void)file; (void)line; (void)function;
+  #endif
   }
 
+  // Emits a sequentially consistent PTX fence at the requested scope.
+  // System scope uses .sys, device scope uses .gpu, and the smaller
+  // SYCL scopes use the conservative work-group-wide .cta scope.
+  // The fence participates in the PTX ABI lowering of SC atomic operations.
   inline void fence_seq_cst(ScopeSSCP scope)
   {
     if (scope == ScopeSSCP::system) 
@@ -454,8 +461,12 @@ namespace PTXAtomicDetail
     }
   }
 
-  //MEANING -> SEM = SEMENTIC(PTX memory-ordering semantic)
-  //MEANING -> REG = REGISTER
+
+  // Generates 32-bit and 64-bit PTX atomic-load helpers.
+  // SEM selects relaxed or acquire ordering; BITS selects the operand width;
+  // REG selects the corresponding PTX register constraint.
+  // The requested memory scope selects .cta, .gpu, or .sys.
+  // The memory clobber constrains compiler reordering around the inline asm.
   #define ACPP_PTX_LOAD(NAME, SEM, TYPE, BITS, REG)           \
   inline TYPE NAME(TYPE* ptr, ScopeSSCP scope)                \
   {                                                           \
@@ -495,6 +506,10 @@ namespace PTXAtomicDetail
   ACPP_PTX_LOAD(acquire_load, "acquire", __acpp_int64, "64", "l")
   #undef ACPP_PTX_LOAD
 
+  // Generates 32-bit and 64-bit PTX atomic-store helpers.
+  // SEM selects relaxed or release ordering, while the requested scope
+  // selects the PTX synchronization domain.
+  // The input register contains the value to store at the supplied address.
   #define ACPP_PTX_STORE(NAME, SEM, TYPE, BITS, REG)          \
   inline void NAME(TYPE* ptr, TYPE value, ScopeSSCP scope)    \
   {                                                           \
@@ -529,7 +544,11 @@ namespace PTXAtomicDetail
   ACPP_PTX_STORE(release_store, "release", __acpp_int64, "64", "l")
   #undef ACPP_PTX_STORE
 
-
+  // Generates scoped 32-bit and 64-bit PTX compare-and-swap helpers.
+  // Each operation atomically compares memory with the expected bit pattern,
+  // conditionally installs the desired value, and returns the observed old value.
+  // SEM selects relaxed, acquire, release, or acquire-release ordering.
+  // Success/failure-order handling is performed by compare_exchange().
   #define ACPP_PTX_CAS(NAME, SEM, TYPE, BITS, REG)                              \
   inline TYPE NAME(TYPE* ptr, TYPE compare, TYPE desired, ScopeSSCP scope)      \
   {                                                                             \
@@ -574,9 +593,15 @@ namespace PTXAtomicDetail
   ACPP_PTX_CAS(acq_rel_cas, "acq_rel", __acpp_int64, "64", "l")
   #undef ACPP_PTX_CAS
 
+  // Selects the PTX atomic-load sequence for the requested SYCL order.
+  // Relaxed and acquire use their corresponding scoped load instructions.
+  // Sequential consistency uses an SC fence followed by an acquire load.
+  // Unexpected orders trigger a device assertion in debug builds and use
+  // the SC sequence as a conservative implementation fallback.
   template<class T>
   inline T load(T* ptr, OrderSSCP order, ScopeSSCP scope)
   {
+    static_assert(sizeof(T) == 4 || sizeof(T) == 8,"The PTX primitive test targets 32/64-bit atomic types");
     switch (order) 
     {
       case OrderSSCP::relaxed:
@@ -584,16 +609,22 @@ namespace PTXAtomicDetail
       case OrderSSCP::acquire:
         return acquire_load(ptr, scope);
       case OrderSSCP::seq_cst:
+      default:
+        debug_assert(order == OrderSSCP::seq_cst, "Invalid atomic load order", __FILE__, __LINE__, __func__);
         fence_seq_cst(scope);
         return acquire_load(ptr, scope);
-      default:
-        __builtin_unreachable();
     }
   }
 
+  // Selects the PTX atomic-store sequence for the requested SYCL order.
+  // Relaxed and release use their corresponding scoped store instructions.
+  // Sequential consistency uses an SC fence followed by a release store,
+  // which is stronger than the minimum PTX ABI store mapping.
+  // Unexpected orders assert in debug builds and use the SC sequence.
   template<class T>
   inline void store(T* ptr, T value, OrderSSCP order, ScopeSSCP scope)
   {
+    static_assert(sizeof(T) == 4 || sizeof(T) == 8,"The PTX primitive test targets 32/64-bit atomic types");
     switch (order) 
     {
       case OrderSSCP::relaxed:
@@ -603,47 +634,81 @@ namespace PTXAtomicDetail
         release_store(ptr, value, scope);
         return;
       case OrderSSCP::seq_cst:
+      default:
+        debug_assert(order == OrderSSCP::seq_cst, "Invalid store order", __FILE__, __LINE__, __func__);
         fence_seq_cst(scope);
         release_store(ptr, value, scope);
         return;
-      default:
-        __builtin_unreachable();
     }
   }
 
-  //PTX has one order CAS semantic
-  inline OrderSSCP cas_singular_converter(OrderSSCP success, OrderSSCP failure)
+  // Validates SYCL compare-exchange success and failure memory orders.
+  // Converts their combined acquire/release requirements into one PTX
+  // instruction order. Invalid pairs assert in debug builds and fall back
+  // to sequential consistency when assertions are disabled.
+  inline static constexpr OrderSSCP cas_singular_converter(OrderSSCP success, OrderSSCP failure)
   {
-    if (failure == OrderSSCP::release || failure == OrderSSCP::acq_rel) 
+    bool valid = false;
+    switch (success)
     {
-      __builtin_unreachable();
-    }
+        case OrderSSCP::relaxed:
+        case OrderSSCP::release:
+            valid = failure == OrderSSCP::relaxed;
+            break;
 
-    if (success == OrderSSCP::seq_cst || failure == OrderSSCP::seq_cst) 
+        case OrderSSCP::acquire:
+        case OrderSSCP::acq_rel:
+            valid = failure == OrderSSCP::relaxed || failure == OrderSSCP::acquire;
+            break;
+
+        case OrderSSCP::seq_cst:
+            valid = failure == OrderSSCP::relaxed || failure == OrderSSCP::acquire || failure == OrderSSCP::seq_cst;
+            break;
+
+        default:
+            break;
+    }
+    if (!valid)
     {
+      debug_assert(false, "Invalid PTX CAS success/failure orders", __FILE__, __LINE__, __func__);
       return OrderSSCP::seq_cst;
     }
-
-    const bool acquire = success == OrderSSCP::acquire ||
-      success == OrderSSCP::acq_rel || failure == OrderSSCP::acquire;
-    
+    if (success == OrderSSCP::seq_cst)
+    {
+        return OrderSSCP::seq_cst;
+    }
+    const bool acquire = success == OrderSSCP::acquire || success == OrderSSCP::acq_rel || failure == OrderSSCP::acquire;
     const bool release = success == OrderSSCP::release || success == OrderSSCP::acq_rel;
+    if (acquire && release)
+        return OrderSSCP::acq_rel;
 
-    return acquire ?
-      (release ? OrderSSCP::acq_rel : OrderSSCP::acquire) :
-      (release ? OrderSSCP::release : OrderSSCP::relaxed);
+    if (acquire)
+        return OrderSSCP::acquire;
+
+    if (release)
+        return OrderSSCP::release;
+
+    return OrderSSCP::relaxed;
   }
 
+  // Implements strong compare-exchange for aligned 32/64-bit atomic objects.
+  // Selects one ordered PTX CAS instruction from the success/failure pair,
+  // adding an SC fence for sequentially consistent operations.
+  // Always updates *expected with the observed old value and returns true
+  // exactly when the observed bits match the original expected value.
   template<class T>
   inline bool compare_exchange(
     T* ptr, T* expected, T desired, 
     OrderSSCP success, OrderSSCP failure, ScopeSSCP scope
   )
   {
+    static_assert(sizeof(T) == 4 || sizeof(T) == 8,"The PTX primitive test targets 32/64-bit atomic types");
+
     const T compare = *expected;
     T observed;
 
-    switch (cas_singular_converter(success, failure)) 
+    const OrderSSCP instruction_order = cas_singular_converter(success, failure);
+    switch (instruction_order) 
     {
       case OrderSSCP::relaxed:
         observed = relaxed_cas(ptr, compare, desired, scope);
@@ -658,11 +723,11 @@ namespace PTXAtomicDetail
         observed = acq_rel_cas(ptr, compare, desired, scope);
         break;
       case OrderSSCP::seq_cst:
+      default:
+        debug_assert(instruction_order == OrderSSCP::seq_cst, "Invalid cas order", __FILE__, __LINE__, __func__);
         fence_seq_cst(scope);
         observed =  acq_rel_cas(ptr, compare,  desired, scope);
         break;
-      default:
-        __builtin_unreachable();
     }
 
     *expected = observed;
@@ -719,7 +784,6 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    PTXAtomicDetail::assume_supports_address_space(as);
     PTXAtomicDetail::store(ptr, x, order, scope);
     return;    
   }
@@ -730,7 +794,6 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    PTXAtomicDetail::assume_supports_address_space(as);
     PTXAtomicDetail::store(ptr, x, order, scope);
     return;    
   }
@@ -756,7 +819,6 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    PTXAtomicDetail::assume_supports_address_space(as);
     return PTXAtomicDetail::load(ptr, order, scope);
   }
   return memfenced_load(ptr, scope);
@@ -766,7 +828,6 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_load_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    PTXAtomicDetail::assume_supports_address_space(as);
     return PTXAtomicDetail::load(ptr, order, scope);
   }
   return memfenced_load(ptr, scope);
@@ -901,7 +962,6 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
   //new path
   if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
   {
-    PTXAtomicDetail::assume_supports_address_space(as);
     return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
   }
   // lagacy path
@@ -937,7 +997,6 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i64(
   //new path
   if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
   {
-    PTXAtomicDetail::assume_supports_address_space(as);
     return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
   }
   // lagacy path

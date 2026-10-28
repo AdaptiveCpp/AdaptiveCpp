@@ -70,6 +70,15 @@ run at the *Optimize Flavoured IR* stage of the pipeline.
 A major challenge in the implementation is making this part of the compilation
 flow less brittle so users can reliably run their kernels.
 
+### InferAddressSpacesPass
+
+The LLVM
+[InferAddressSpaces](https://llvm.org/doxygen/InferAddressSpaces_8cpp_source.html)
+pass is run with address space `0` as the generic (flat) address space. It
+rewrites the users of generic pointers that are derived from address space
+qualified pointers, e.g. the kernel arguments, to use the concrete address
+space.
+
 ### RemoveUnusedIntrinsicsPass
 
 `clspv` ignores LLVM freeze, assume, and lifetime intrinsics. Remove them early

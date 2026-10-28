@@ -28,9 +28,11 @@ function(create_llvm_based_library)
       ${sources})
   endif()
 
-  set_target_properties(${target} PROPERTIES
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON)
+  if(NOT APPLE AND NOT WIN32)
+    set_target_properties(${target} PROPERTIES
+      CXX_VISIBILITY_PRESET hidden
+      VISIBILITY_INLINES_HIDDEN ON)
+  endif()
 
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})

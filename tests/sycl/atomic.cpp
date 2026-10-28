@@ -9,6 +9,7 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
+#include "hipSYCL/sycl/queue.hpp"
 #include "sycl_test_suite.hpp"
 #include <cstddef>
 #include <limits>
@@ -447,6 +448,30 @@ namespace AtomicOrderScopeTests
   using IntTypes = boost::mp11::mp_list<unsigned int, long long>;
   using FloatTypes = boost::mp11::mp_list<float, double>;
 
+  /// RAII helper for Alloc, Ownership, Copy, Asser and Free
+  template<class T>
+  class DeviceUSM final
+  {
+  private:
+    sycl::queue& Queue_;
+    T* Ptr_;
+    
+  public:
+    DeviceUSM(sycl::queue& queue, size_t count) :
+      Queue_(queue), Ptr_(sycl::malloc_device<T>(count, queue))
+    {
+      BOOST_REQUIRE_MESSAGE(Ptr_ != nullptr, "Device USM Alloc Failed");
+    }
+    ~DeviceUSM()
+    {
+      if (Ptr_) sycl::free(Ptr_, Queue_);
+    }
+    DeviceUSM(const DeviceUSM&) = delete;
+    DeviceUSM& operator = (const DeviceUSM&) = delete;
+
+    T* get_ptr() {return Ptr_;}
+  }
+
   // More Tests can be added as we progress
   enum class PublicationTestMode : uint8_t
   {
@@ -455,12 +480,14 @@ namespace AtomicOrderScopeTests
     FLOATING_MIN_MAX = 2
   };
 
+  /// Checks the size of the dtype rejects more than 8 byte
+  /// https://github.khronos.org/SYCL_Reference/iface/atomic_ref.html
   template<class T>
   bool supports_type(const sycl::device& device)
   {
     if (sizeof(T) > sizeof(uint64_t)) 
     {
-      BOOST_TEST_MESSAGE("Skipping : arbeterary sized atomics are not possible");
+      BOOST_TEST_MESSAGE("Skipping : arbitrary sized atomics are not possible");
       return false;
     }
 
@@ -549,8 +576,7 @@ namespace AtomicOrderScopeTests
   } 
 
   /// @brief NO Contension; Just verify single load, store, CAS - 2 calls 
-  ///
-  /// i) global_space , ii) generic_space calls same memory (stress compiler)
+  // Single-work-item global/generic address-space matrix on device USM.
   template<class T, Scope SCOPE>
   void global_matrix(sycl::queue& queue)
   {

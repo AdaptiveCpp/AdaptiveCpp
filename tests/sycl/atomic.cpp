@@ -448,7 +448,9 @@ namespace AtomicOrderScopeTests
   using IntTypes = boost::mp11::mp_list<unsigned int, long long>;
   using FloatTypes = boost::mp11::mp_list<float, double>;
 
-  /// RAII helper for Alloc, Ownership, Copy, Asser and Free
+  // Owns a device USM allocation for the duration of a test.
+  // Provides a raw device pointer for kernels and queue memory operations.
+  // The caller must complete outstanding operations before destruction.
   template<class T>
   class DeviceUSM final
   {
@@ -480,7 +482,9 @@ namespace AtomicOrderScopeTests
     FLOATING_MIN_MAX = 2
   };
 
-  /// Checks the size of the dtype rejects more than 8 byte
+  // Checks the device aspects required by the tested atomic type.
+  // 64-bit types require atomic64; double additionally requires fp64.
+  // Unsupported types are skipped before submitting device kernels.
   /// https://github.khronos.org/SYCL_Reference/iface/atomic_ref.html
   template<class T>
   bool supports_type(const sycl::device& device)
@@ -507,6 +511,11 @@ namespace AtomicOrderScopeTests
     return true;
   }
 
+// Exercises 32/64-bit atomic load, store, and compare-exchange operations
+// using the requested memory scope and address-space declaration.
+// Verifies returned values and CAS expected-value updates across legal
+// memory-order combinations. Runs in one work-item, so it does not
+// establish cross-work-item synchronization correctness.
   template<class T, Scope SC, Space SP>
   int exercise_atomic_rmw(T* ptr)
   {
@@ -573,8 +582,10 @@ namespace AtomicOrderScopeTests
     return errors;
   } 
 
-  /// @brief NO Contension; Just verify single load, store, CAS - 2 calls 
-  // one work item calles exercise_atomic_rmw global/generic address-space
+  // Runs the atomic primitive matrix on one device-USM allocation using
+  // global_space and generic_space atomic references.
+  // Exercises scope/address-space lowering without concurrent writers.
+  // System scope here does not establish CPU/GPU atomic interoperability.
   template<class T, Scope SCOPE>
   void global_matrix(sycl::queue& queue)
   {
@@ -595,7 +606,10 @@ namespace AtomicOrderScopeTests
     BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
-  // Only work-item zero performs the atomic matrix;
+  // Runs the atomic primitive matrix on work-group local memory using
+  // local_space and generic_space references.
+  // Only local work-item zero accesses the atomic object.
+  // This checks local-memory lowering, not atomic contention.
   template<class T>
   void local_matrix(sycl::queue& queue)
   {
@@ -624,7 +638,10 @@ namespace AtomicOrderScopeTests
     BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
-  /// real contenntion 256 worker each must execute 8 CAS
+  // Launches multiple work-items that increment one device-global counter
+  // through compare_exchange_strong with acquire-release ordering.
+  // Verifies the final count and records unexpected CAS observations
+  // or exhaustion of the bounded retry loop.
   template<class T>
   void contention(sycl::queue& queue)
   {
@@ -636,12 +653,12 @@ namespace AtomicOrderScopeTests
     T* data = storage.get_ptr();
     int* out = result.get_ptr();
 
-    queue.memcpy(storage, &value, sizeof(T));
+    queue.memcpy(data, &value, sizeof(T)).wait_and_throw();
     queue.parallel_for(
       sycl::nd_range<1>{sycl::range<1>{WORK_ITEMS}, sycl::range<1>{ITEMS_PER_GROUP}},
       [=](sycl::nd_item<1> item)
       {
-        sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
+        sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{data[0]};
 
         int failures = 0;
         for (int i = 0; i < INCREMENT_PER_ITEM; i++) 
@@ -660,7 +677,8 @@ namespace AtomicOrderScopeTests
         out[item.get_global_linear_id()] = failures;
       }
     ).wait_and_throw();
-    queue.memcpy(&value, storage, sizeof(T)).wait_and_throw();
+    queue.memcpy(&value, data, sizeof(T)).wait_and_throw();
+    queue.memcpy(errors, out, sizeof(errors)).wait_and_throw();
 
     BOOST_CHECK_EQUAL(value, T(WORK_ITEMS * INCREMENT_PER_ITEM));
     for (int e : errors)
@@ -669,7 +687,11 @@ namespace AtomicOrderScopeTests
     }
   }
 
-  // Later based on demand we can convert publication into a actual class
+  // Tests release/acquire publication between independent work-groups.
+  // A producer writes a non-atomic payload before publishing an atomic flag.
+  // A consumer acquires the publication through load, failed CAS, or
+  // floating-point RMW, then verifies the payload's visibility.
+  // Polling is bounded; a run with no observed publication is inconclusive.
   template<class T, PublicationTestMode M>
   void publication(sycl::queue& queue)
   {
@@ -765,7 +787,7 @@ namespace AtomicOrderScopeTests
           }
         }
       ).wait_and_throw();
-      queue.memcpy(outcome, out, sizeof(outcome));
+      queue.memcpy(outcome, out, sizeof(outcome)).wait_and_throw();
 
       for (int r : outcome) 
       {
@@ -778,7 +800,11 @@ namespace AtomicOrderScopeTests
     BOOST_TEST_MESSAGE("PTX publication observations: " << observ);
   }
 
-
+  // Tests sequentially consistent ordering with a store-buffering litmus.
+  // Each of two work-groups stores to its own atomic and observes its peer.
+  // Both observations returning zero is forbidden by a common SC order.
+  // The observation is performed using either an SC load or failed SC CAS.
+  // Passing finite executions provides regression evidence, not proof.
   template<class T, bool FailedCAS>
   void sequential_consistancy(sycl::queue& queue)
   {
@@ -787,7 +813,7 @@ namespace AtomicOrderScopeTests
     T values[PAIRS * GROUPS_PER_PAIR] = {};
     int observations[PAIRS * GROUPS_PER_PAIR] = {};
     DeviceUSM<T> data(queue, PAIRS * GROUPS_PER_PAIR);
-    DeviceUSM<T> result(queue, PAIRS * GROUPS_PER_PAIR);
+    DeviceUSM<int> result(queue, PAIRS * GROUPS_PER_PAIR);
     T* storage = data.get_ptr();
     int* out = result.get_ptr();
 
@@ -830,6 +856,11 @@ namespace AtomicOrderScopeTests
     }
   }
 
+// Checks floating-point fetch_min/fetch_max previous-value semantics
+// across supported RMW memory orders.
+// Includes operations that leave the stored numerical value unchanged,
+// which must still satisfy the atomic RMW contract.
+// This NVIDIA PTX regression complements the separate host PR2 test.
   //PR-#2280 check_floating_fetch_min_max(host) can be removed eventually by this
   template<class T>
   void fetch_min_max_check(sycl::queue& queue)
@@ -845,7 +876,7 @@ namespace AtomicOrderScopeTests
     T* storage = data.get_ptr();
     int* out = result.get_ptr();
 
-    queue.memcpy(storage, &init, sizeof(T));
+    queue.memcpy(storage, &init, sizeof(T)).wait_and_throw();
     queue.single_task([=](){
       sycl::atomic_ref<T, Order::relaxed, Scope::device, Space::global_space> atom{storage[0]};
       const Order order_list [] = {
@@ -868,7 +899,7 @@ namespace AtomicOrderScopeTests
       }
       out[0] = count;
     }).wait_and_throw();
-    queue.memcpy(&errors, out, sizeof(errors));
+    queue.memcpy(&errors, out, sizeof(errors)).wait_and_throw();
     BOOST_CHECK_EQUAL(errors, 0);
   }
 }
@@ -877,7 +908,10 @@ namespace AtomicOrderScopeTests
 #if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
   namespace AtomicOrderScopeTests::CudaPTXTestSpace 
   {
-
+  // Selects tests for the CUDA backend using AdaptiveCpp's SSCP PTX path.
+  // Queries the compiled target architecture and requires SM70 or newer.
+  // An environment variable makes missing CUDA/SM70 support a test failure
+  // instead of silently skipping the requested validation.
     inline bool select_cuda(sycl::queue& queue)
     {
       const bool cuda = queue.get_device().get_backend() == sycl::backend::cuda;
@@ -901,7 +935,6 @@ namespace AtomicOrderScopeTests
       DeviceUSM<int> info(queue, 2);
       int* out = info.get_ptr();
 
-      queue.memcpy(target, out, sizeof(target)).wait_and_throw();
       queue.single_task([=](){
         __acpp_if_target_sscp(
           out[0] = __acpp_sscp_jit_reflect_target_arch();
@@ -935,6 +968,8 @@ namespace AtomicOrderScopeTests
     }
 
     // TEST 01 -PTX
+  // Verifies ordered load/store/CAS values for 32/64-bit integers,
+  // covering global, generic, and work-group local address spaces.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_premitive_matrix, T, IntTypes)
     {
       sycl::queue queue;
@@ -949,6 +984,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST 02 
+  // Tests cross-work-group release/acquire payload publication
+  // using atomic loads and failed compare-exchange operations.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_publication, T, IntTypes)
     {
       sycl::queue queue;
@@ -959,6 +996,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST - 03
+    // Runs sequential-consistency store-buffering litmus tests
+    // using SC loads and failed SC compare-exchange observations.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_seq_cst_check, T, IntTypes)
     {
       sycl::queue queue;
@@ -969,6 +1008,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST -04
+  // Verifies that contended device-scope CAS increments do not
+  // lose updates and that all work-items complete their retries.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_cas_contention, T, IntTypes)
     {
       sycl::queue queue;
@@ -978,6 +1019,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST -05
+    // Validates floating-point min/max RMW return values and
+    // acquire/release publication through floating-point atomics.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_floating_fetch_min_max, T, FloatTypes)
     {
       sycl::queue queue;
@@ -986,7 +1029,6 @@ namespace AtomicOrderScopeTests
       fetch_min_max_check<T>(queue);
       publication<T, PublicationTestMode::FLOATING_MIN_MAX>(queue);
     }
-    
   }
 
 #endif

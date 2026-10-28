@@ -485,11 +485,7 @@ namespace AtomicOrderScopeTests
   template<class T>
   bool supports_type(const sycl::device& device)
   {
-    if (sizeof(T) > sizeof(uint64_t)) 
-    {
-      BOOST_TEST_MESSAGE("Skipping : arbitrary sized atomics are not possible");
-      return false;
-    }
+    static_assert(sizeof(T) == 4 || sizeof(T) == 8,"The PTX primitive test targets 32/64-bit atomic types");
 
     if constexpr (sizeof(T) == sizeof(uint64_t)) 
     {
@@ -514,6 +510,8 @@ namespace AtomicOrderScopeTests
   template<class T, Scope SC, Space SP>
   int exercise_atomic_rmw(T* ptr)
   {
+    static_assert(sizeof(T) == 4 || sizeof(T) == 8,"The PTX primitive test targets 32/64-bit atomic types");
+
     static constexpr T FirstStoreVal = static_cast<T>(19);
     static constexpr T InvalidExpected = static_cast<T>(18);
     static constexpr T SecondDesired = static_cast<T>(16);
@@ -576,61 +574,54 @@ namespace AtomicOrderScopeTests
   } 
 
   /// @brief NO Contension; Just verify single load, store, CAS - 2 calls 
-  // Single-work-item global/generic address-space matrix on device USM.
+  // one work item calles exercise_atomic_rmw global/generic address-space
   template<class T, Scope SCOPE>
   void global_matrix(sycl::queue& queue)
   {
-    sycl::buffer<T> storage{ONE_ELEMENT}; // one element storage on host
+    DeviceUSM<T> storage{queue, 1};
+    DeviceUSM<int> result{queue, PER_TEST_ADDRESS_SPACE_COUNT};
     int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
+    
+    T* data = storage.get_ptr();
+    int* out = result.get_ptr();
+    queue.single_task([=]()
     {
-        sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
-        queue.submit([&](sycl::handler& hndl)
-        {
-            auto data = storage.template get_access<sycl::access::mode::read_write>(hndl);
-            auto out = result.get_access<sycl::access::mode::write>(hndl);
+        out[0] = exercise_atomic_rmw<T, SCOPE, Space::global_space>(&data[0]);
+        out[1] = exercise_atomic_rmw<T, SCOPE, Space::generic_space>(&data[0]);
+    }).wait_and_throw();
+    queue.memcpy(errors, out, sizeof(errors)).wait_and_throw();
 
-            hndl.single_task([=]()
-            {
-                out[0] = exercise_atomic_rmw<T, SCOPE, Space::global_space>(&data[0]);
-                out[1] = exercise_atomic_rmw<T, SCOPE, Space::generic_space>(&data[0]);
-            });
-        });
-        queue.wait_and_throw();
-    }
     BOOST_CHECK_EQUAL(errors[0], 0);
     BOOST_CHECK_EQUAL(errors[1], 0);
   }
 
-  /// Reviewer can remove the test if unnecessery other tests also uses local memory
-  /// @brief NO Contension; Just verify single load, store, CAS - 2 calls 
-  ///
-  /// i) local_space , ii) generic_space calls same memory (stress compiler)
+  // Only work-item zero performs the atomic matrix;
   template<class T>
   void local_matrix(sycl::queue& queue)
   {
+    DeviceUSM<int> result{queue, PER_TEST_ADDRESS_SPACE_COUNT};
     int errors[PER_TEST_ADDRESS_SPACE_COUNT] = {};
+    int* out = result.get_ptr();
+
+    queue.submit([&](sycl::handler& hndl)
     {
-      sycl::buffer<int> result{errors, sycl::range<1>{PER_TEST_ADDRESS_SPACE_COUNT}};
-      queue.submit([&](sycl::handler& hndl)
-      {
-        sycl::local_accessor<T, 1> data{ONE_ELEMENT, hndl}; //one element for kernel
-        auto out = result.get_access<sycl::access::mode::write>(hndl);
-
-        hndl.parallel_for(
-          sycl::nd_range<1>{sycl::range<1>{ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}}, //32 items
-          [=](sycl::nd_item<1> item)
+      sycl::local_accessor<T, 1> data{ONE_ELEMENT, hndl}; //one element for kernel
+      hndl.parallel_for(
+        sycl::nd_range<1>{sycl::range<1>{ITEMS_PER_GROUP}, sycl::range<1>{ITEMS_PER_GROUP}}, //32 items
+        [=](sycl::nd_item<1> item)
+        {
+          if(item.get_local_linear_id() == 0)
           {
-            if(item.get_local_linear_id() == 0)
-            {
-              out[0] = exercise_atomic_rmw<T, Scope::work_group, Space::local_space>(&data[0]);
-              out[1] = exercise_atomic_rmw<T, Scope::sub_group, Space::generic_space>(&data[0]);
-            }
+            out[0] = exercise_atomic_rmw<T, Scope::work_group, Space::local_space>(&data[0]);
+            out[1] = exercise_atomic_rmw<T, Scope::sub_group, Space::generic_space>(&data[0]);
           }
-        );
-      });
-      queue.wait_and_throw();
-    }
+        }
+      );
+    });
 
+    queue.wait_and_throw();
+    queue.memcpy(errors, out, sizeof(errors)).wait_and_throw();
+    
     BOOST_CHECK_EQUAL(errors[0], 0);
     BOOST_CHECK_EQUAL(errors[1], 0);
   }

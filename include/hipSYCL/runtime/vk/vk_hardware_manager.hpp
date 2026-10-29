@@ -48,6 +48,7 @@ enum extension_bits : uint16_t {
   khr_portability_subset = 1 << 0,
   khr_calibrated_timestamps = 1 << 1,
   ext_calibrated_timestamps = 1 << 2,
+  ext_subgroup_size_control = 1 << 3,
 };
 } // namespace vk_device_extensions
 
@@ -98,6 +99,7 @@ public:
     return _limits.minUniformBufferOffsetAlignment;
   }
   uint32_t get_subgroup_size() const { return _subgroup_size; }
+  uint32_t select_subgroup_size(size_t work_group_size) const;
   uint16_t get_phys_dev_features() const { return _physical_dev_features; }
 
   bool are_extensions_enabled(uint16_t bits) const {
@@ -114,6 +116,8 @@ private:
   vk::PhysicalDeviceProperties _properties{};
   vk::PhysicalDeviceLimits _limits{};
   size_t _subgroup_size{};
+  uint32_t _max_subgroup_size{};
+  bool _subgroup_size_selection = false;
   size_t _max_num_subgroups{};
   size_t _max_alloc_size{};
 

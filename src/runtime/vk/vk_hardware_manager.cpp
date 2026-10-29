@@ -116,18 +116,45 @@ vk_hardware_context::vk_hardware_context(
                      vk_device_extensions::khr_calibrated_timestamps),
       std::make_pair(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
                      vk_device_extensions::ext_calibrated_timestamps)};
-  std::vector<const char *> enable_ext_names;
-  for (auto opt_ext : optional_exts) {
-    bool ext_supported = std::any_of(
+  auto is_ext_supported = [&phys_dev_extensions](const char *ext_name) {
+    return std::any_of(
         std::begin(phys_dev_extensions), std::end(phys_dev_extensions),
-        [opt_ext](auto const &ext_property) {
-          return strcmp(ext_property.extensionName, opt_ext.first) == 0;
+        [ext_name](auto const &ext_property) {
+          return strcmp(ext_property.extensionName, ext_name) == 0;
         });
-    if (ext_supported) {
-      HIPSYCL_DEBUG_INFO << "vk_hardware_context: enabling extension "
-                         << opt_ext.first << std::endl;
-      _enabled_extensions |= opt_ext.second;
-      enable_ext_names.push_back(opt_ext.first);
+  };
+
+  std::vector<const char *> enable_ext_names;
+  auto enable_ext = [this, &enable_ext_names](const char *ext_name,
+                                              uint16_t ext_bit) {
+    HIPSYCL_DEBUG_INFO << "vk_hardware_context: enabling extension " << ext_name
+                       << std::endl;
+    _enabled_extensions |= ext_bit;
+    enable_ext_names.push_back(ext_name);
+  };
+
+  for (auto opt_ext : optional_exts) {
+    if (is_ext_supported(opt_ext.first)) {
+      enable_ext(opt_ext.first, opt_ext.second);
+    }
+  }
+
+  // Sub-group size control lets compute pipelines pin the sub-group size to the
+  // one reported to SYCL. The feature is core in Vulkan 1.3 and available
+  // through VK_EXT_subgroup_size_control on older devices.
+  bool subgroup_size_control = false;
+  if (_properties.apiVersion >= VK_API_VERSION_1_3 ||
+      is_ext_supported(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME)) {
+    auto supported =
+        phys_device
+            .getFeatures2<vk::PhysicalDeviceFeatures2,
+                          vk::PhysicalDeviceSubgroupSizeControlFeaturesEXT>();
+    subgroup_size_control =
+        supported.get<vk::PhysicalDeviceSubgroupSizeControlFeaturesEXT>()
+            .subgroupSizeControl;
+    if (subgroup_size_control && _properties.apiVersion < VK_API_VERSION_1_3) {
+      enable_ext(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME,
+                 vk_device_extensions::ext_subgroup_size_control);
     }
   }
 
@@ -137,11 +164,20 @@ vk_hardware_context::vk_hardware_context(
     dev_create_info.setPpEnabledExtensionNames(enable_ext_names.data());
   }
 
+  vk::PhysicalDeviceSubgroupSizeControlFeaturesEXT sg_control_features{};
+  sg_control_features.subgroupSizeControl = VK_TRUE;
+
   vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceFeatures2,
                      vk::PhysicalDeviceVulkan12Features,
-                     vk::PhysicalDeviceVulkan11Features>
+                     vk::PhysicalDeviceVulkan11Features,
+                     vk::PhysicalDeviceSubgroupSizeControlFeaturesEXT>
       dev_create_info_chain(dev_create_info, phys_dev_features,
-                            phys_dev_12_features, phys_dev_11_features);
+                            phys_dev_12_features, phys_dev_11_features,
+                            sg_control_features);
+  if (!subgroup_size_control) {
+    dev_create_info_chain
+        .unlink<vk::PhysicalDeviceSubgroupSizeControlFeaturesEXT>();
+  }
   auto device_create_info = dev_create_info_chain.get<vk::DeviceCreateInfo>();
 
   _device = vk::raii::Device(phys_device, device_create_info);
@@ -187,9 +223,70 @@ vk_hardware_context::vk_hardware_context(
   _max_num_subgroups = sg_control_props.maxComputeWorkgroupSubgroups;
   _max_alloc_size = maint3_props.maxMemoryAllocationSize;
 
+  if (subgroup_size_control && (sg_control_props.requiredSubgroupSizeStages &
+                                VK_SHADER_STAGE_COMPUTE_BIT)) {
+    _subgroup_size_selection = true;
+    uint32_t min_subgroup_size = sg_control_props.minSubgroupSize;
+    _max_subgroup_size = sg_control_props.maxSubgroupSize;
+    _subgroup_size = std::clamp(static_cast<uint32_t>(_subgroup_size),
+                                min_subgroup_size, _max_subgroup_size);
+
+    HIPSYCL_DEBUG_INFO << "vk_hardware_context: sub-group size selection "
+                       << "available, supported sizes [" << min_subgroup_size
+                       << ", " << _max_subgroup_size << "], default "
+                       << _subgroup_size << std::endl;
+  }
+
+  // maxComputeWorkgroupSubgroups is only meaningful when sub-group size
+  // control is around. Otherwise derive the limit from the largest work-group
+  // the device accepts at the one sub-group size it uses.
+  if (_max_num_subgroups == 0 && _subgroup_size != 0) {
+    _max_num_subgroups =
+        (_limits.maxComputeWorkGroupInvocations + _subgroup_size - 1) /
+        _subgroup_size;
+  }
+
   HIPSYCL_DEBUG_INFO << "vk_hardware_context: logical device constructed "
                      << "for device id " << dev_id << " with queue family "
                      << "index " << _queue_index << std::endl;
+}
+
+// Finds the subgroup size a compute pipeline should be created with for the
+// given work-group size.
+uint32_t
+vk_hardware_context::select_subgroup_size(size_t work_group_size) const {
+  if (!_subgroup_size_selection) {
+    // Device can't set a subgroup size, return 0
+    return 0;
+  }
+
+  // Requiring a sub-group size constrains the work-group size: VUID-
+  // VkPipelineShaderStageCreateInfo-pNext-02756 requires the local work-group
+  // size to be no larger than requiredSubgroupSize multiplied by
+  // maxComputeWorkgroupSubgroups. Widen the sub-group size while the
+  // work-group would otherwise need more sub-groups than are available.
+  auto too_many_subgroups = [this, work_group_size](uint32_t size) -> bool {
+    return _max_num_subgroups != 0 &&
+           ((work_group_size + size - 1) / size) > _max_num_subgroups;
+  };
+
+  uint32_t size = static_cast<uint32_t>(_subgroup_size);
+  while (too_many_subgroups(size) && (size * 2) <= _max_subgroup_size) {
+    size *= 2;
+  }
+
+  if (too_many_subgroups(size)) {
+    // No supported sub-group size satisfies the limit for this work-group.
+    // Requiring one anyway would be invalid, so leave the pipeline
+    // unconstrained and let the driver pick the sub-group size.
+    HIPSYCL_DEBUG_WARNING
+        << "vk_hardware_context: no required sub-group size is valid for a "
+        << "work-group of " << work_group_size << " work-items, leaving the "
+        << "compute pipeline unconstrained" << std::endl;
+    return 0;
+  }
+
+  return size;
 }
 
 void vk_hardware_context::init() {

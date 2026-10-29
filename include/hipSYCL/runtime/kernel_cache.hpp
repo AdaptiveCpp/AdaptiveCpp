@@ -216,6 +216,20 @@ public:
   const hcf_kernel_info *get_kernel_info(hcf_object_id obj,
                                          const std::string &kernel_name) const;
 
+  // Result of a global (object-independent) kernel lookup by name.
+  struct resolved_kernel {
+    hcf_object_id object_id = 0;
+    const hcf_kernel_info *info = nullptr;
+  };
+
+  // Look up a kernel by its (mangled) name across all registered HCF objects,
+  // without knowing which object provides it. This is used by free function
+  // kernels (sycl_khr_free_function_kernels), where the kernel may be defined
+  // and outlined in a different translation unit than the one that launches it,
+  // so the launching TU's local HCF object id cannot be used.
+  // Returns {0, nullptr} if the kernel is not found.
+  resolved_kernel get_kernel_info_by_name(std::string_view kernel_name) const;
+
   const hcf_image_info *get_image_info(hcf_object_id obj,
                                        const std::string &image_name) const;
 
@@ -226,6 +240,9 @@ private:
   std::unordered_map<hcf_object_id, std::unique_ptr<common::hcf_container>>
       _hcf_objects;
   std::unordered_map<std::string, symbol_resolver_list> _exported_symbol_providers;
+  // Maps a kernel's (mangled) name to the HCF object that provides it. Enables
+  // object-independent kernel lookup for free function kernels.
+  std::unordered_map<std::string, hcf_object_id> _kernel_name_providers;
 
   using info_id = std::array<uint64_t, 2>;
 

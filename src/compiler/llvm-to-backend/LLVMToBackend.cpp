@@ -19,6 +19,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/KnownPtrParamAlignmentOptPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/ProcessS2ReflectionPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/utils/IndirectAccess.hpp"
@@ -294,6 +295,50 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     // depends on IR constants.
     // This also means that we cannot error yet if we cannot resolve all symbols :(
     resolveExternalSymbols(M);
+
+    std::string PropConflictError;
+    if (!propagateKhrFunctionPropertiesToCallers(M, &PropConflictError)) {
+      this->registerError("LLVMToBackend: " + PropConflictError);
+      return false;
+    }
+
+    for (const auto &KN : Kernels) {
+      if (auto *F = M.getFunction(KN)) {
+        if (F->hasFnAttribute(SscpRequiresWorkGroupAttr)) {
+          int ReqWG = std::stoi(
+              F->getFnAttribute(SscpRequiresWorkGroupAttr).getValueAsString().str());
+          if (ReqWG > 0) {
+            HIPSYCL_DEBUG_INFO << "LLVMToBackend: Kernel " << KN
+                               << " has required work-group size property: " << ReqWG << "\n";
+            // Check if user launched with a conflicting known group size
+            int CurrentFlatWG =
+                (KnownGroupSizeX > 0 ? KnownGroupSizeX : 1) *
+                (KnownGroupSizeY > 0 ? KnownGroupSizeY : 1) *
+                (KnownGroupSizeZ > 0 ? KnownGroupSizeZ : 1);
+            if (KnownGroupSizeX <= 0 && KnownGroupSizeY <= 0 && KnownGroupSizeZ <= 0) {
+              KnownGroupSizeX = ReqWG;
+              KnownGroupSizeY = 1;
+              KnownGroupSizeZ = 1;
+            } else if (CurrentFlatWG != ReqWG) {
+              this->registerError(
+                  "LLVMToBackend: Kernel " + KN + " requires work-group size " +
+                  std::to_string(ReqWG) + ", but was launched with group size " +
+                  std::to_string(CurrentFlatWG));
+              return false;
+            }
+          }
+        }
+        if (F->hasFnAttribute(SscpSubGroupSizeAttr)) {
+          int ReqSG = std::stoi(
+              F->getFnAttribute(SscpSubGroupSizeAttr).getValueAsString().str());
+          if (ReqSG > 0) {
+            HIPSYCL_DEBUG_INFO << "LLVMToBackend: Kernel " << KN
+                               << " has required sub-group size property: " << ReqSG << "\n";
+            DesiredSubgroupSize = ReqSG;
+          }
+        }
+      }
+    }
 
     if(!this->prepareBackendFlavor(M))
       return false;
@@ -729,9 +774,14 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
     // we may have to do it again.
     llvm::SmallSet<std::string, 32> AllAttemptedSymbolResolutions;
     llvm::SmallSet<std::string, 16> UnresolvedSymbolsSet;
+    llvm::SmallSet<ExternalSymbolResolver::LLVMModuleId, 16> LinkedModules;
 
     // Find out which unresolved symbols are in this IR
     for(auto SymbolName : SymbolResolver.getImportedSymbols()) {
+      if (auto *F = M.getFunction(SymbolName)) {
+        if (!F->isDeclaration())
+          continue;
+      }
       HIPSYCL_DEBUG_INFO << "LLVMToBackend: Attempting to resolve primary symbol " << SymbolName
                          << "\n";
       UnresolvedSymbolsSet.insert(SymbolName);
@@ -755,6 +805,9 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
       llvm::SmallSet<std::string, 16> NewUnresolvedSymbolsSet;
 
       for(const auto& IRID : IRs) {
+        if (LinkedModules.contains(IRID))
+          continue;
+        LinkedModules.insert(IRID);
 
         SymbolListType NewUndefinedSymbolsFromIR;
 
@@ -765,6 +818,10 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
         }
 
         for(const auto& S : NewUndefinedSymbolsFromIR) {
+          if (auto *F = M.getFunction(S)) {
+            if (!F->isDeclaration())
+              continue;
+          }
           if(!AllAttemptedSymbolResolutions.contains(S)) {
             NewUnresolvedSymbolsSet.insert(S);
             HIPSYCL_DEBUG_INFO << "LLVMToBackend: Attemping resolve symbol " << S

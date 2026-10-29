@@ -36,10 +36,15 @@ public:
     return NonKernelOutliningEntrypoints;
   }
 
+  const std::vector<std::string>& getInternalLinkageEntrypoints() const {
+    return InternalLinkageEntrypoints;
+  }
+
 private:
   std::vector<std::string> KernelNames;
   std::vector<std::string> OutliningEntrypoints;
   std::vector<std::string> NonKernelOutliningEntrypoints;
+  std::vector<std::string> InternalLinkageEntrypoints;
   bool ExportAll;
 };
 
@@ -72,6 +77,14 @@ public:
 private:
   std::vector<std::string> KernelNames;
 };
+
+// Propagates KHR function property attributes (e.g. acpp_khr_requires_work_group,
+// acpp_khr_sub_group_size) upward from callees to all transitive callers in M.
+// Returns false and populates ConflictErrorOut if a caller transitively calls
+// functions with conflicting values for the same property.
+bool propagateKhrFunctionPropertiesToCallers(llvm::Module &M,
+                                             std::string *ConflictErrorOut = nullptr);
+
 }
 }
 

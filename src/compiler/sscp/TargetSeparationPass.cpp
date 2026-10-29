@@ -468,6 +468,13 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     MPM.run(*DeviceModule, DeviceMAM);
   }
 
+  for (const auto &InternalName : EPP.getInternalLinkageEntrypoints()) {
+    if (auto *F = DeviceModule->getFunction(InternalName)) {
+      if (!F->isDeclaration())
+        F->setLinkage(llvm::GlobalValue::InternalLinkage);
+    }
+  }
+
   KernelInfoOutput.clear();
   for(auto Name : EPP.getKernelNames()) {
     auto* OriginalParamInfos = KernelArgExpansionPass.getInfosOnOriginalParams(Name);

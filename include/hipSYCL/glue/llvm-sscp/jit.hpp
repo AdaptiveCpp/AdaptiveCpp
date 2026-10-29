@@ -27,6 +27,7 @@
 #include <atomic>
 #include <fstream>
 #include <string>
+#include <unordered_set>
 #include <algorithm>
 
 namespace hipsycl {
@@ -177,6 +178,7 @@ private:
 
   std::vector<llvm_module_id> map_smybols(const symbol_list_t& sym_list) {
     std::vector<llvm_module_id> ir_modules_to_link;
+    std::unordered_set<llvm_module_id> seen_modules;
 
     auto candidate_selector = [&, this](const std::string &symbol_name,
             const rt::hcf_cache::symbol_resolver_list &images) {
@@ -184,8 +186,12 @@ private:
         // Always attempt to link with global LLVM IR for now
         if (img.image_node->node_id == "llvm-ir.global") {
           _image_node_to_hcf_map[img.image_node] = img.hcf_id;
-          ir_modules_to_link.push_back(
-              reinterpret_cast<llvm_module_id>(img.image_node));
+          auto mod_id = reinterpret_cast<llvm_module_id>(img.image_node);
+          if (seen_modules.find(mod_id) == seen_modules.end()) {
+            seen_modules.insert(mod_id);
+            ir_modules_to_link.push_back(mod_id);
+          }
+          break; // Found a valid global IR provider for this symbol
         } else {
 
           HIPSYCL_DEBUG_INFO << "jit::setup_linking: Discarding image "

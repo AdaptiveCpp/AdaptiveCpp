@@ -67,6 +67,9 @@ static constexpr const char CbsKernelDimensionName[] = "acpp_cbs_kernel_dimensio
 
 static constexpr const char SscpAnnotationsName[] = "hipsycl.sscp.annotations";
 static constexpr const char SscpKernelDimensionName[] = "hipsycl_kernel_dimension";
+static constexpr const char SscpKhrFunctionPropertiesAnnotation[] = "sycl.function.properties";
+static constexpr const char SscpRequiresWorkGroupAttr[] = "acpp_khr_requires_work_group";
+static constexpr const char SscpSubGroupSizeAttr[] = "acpp_khr_sub_group_size";
 
 class SplitterAnnotationInfo;
 

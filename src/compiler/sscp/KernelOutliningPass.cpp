@@ -361,6 +361,100 @@ void attachKernelDim(llvm::Module &M, llvm::Function *F, llvm::Constant *DimVal)
       ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
 }
 
+void extractKhrFunctionProperties(llvm::Function *F, llvm::Constant *Argument) {
+  if (!F || !Argument)
+    return;
+  auto *ArgsGV = llvm::dyn_cast<llvm::GlobalVariable>(Argument->stripPointerCasts());
+  if (!ArgsGV || !ArgsGV->hasInitializer())
+    return;
+  auto *ArgsInit = llvm::dyn_cast<llvm::ConstantStruct>(ArgsGV->getInitializer());
+  if (!ArgsInit || ArgsInit->getNumOperands() == 0)
+    return;
+
+  auto *PropGV = llvm::dyn_cast<llvm::GlobalVariable>(
+      ArgsInit->getOperand(0)->stripPointerCasts());
+  if (!PropGV || !PropGV->hasInitializer())
+    return;
+  auto *PropStruct = llvm::dyn_cast<llvm::ConstantStruct>(PropGV->getInitializer());
+  if (!PropStruct || PropStruct->getNumOperands() < 1)
+    return;
+
+  auto *CountInt = llvm::dyn_cast<llvm::ConstantInt>(PropStruct->getOperand(0));
+  if (!CountInt || CountInt->getZExtValue() == 0 || PropStruct->getNumOperands() < 2)
+    return;
+
+  // Operand 1 is std::array<property_record, N>, which wraps [N x {i32, i32}]
+  llvm::Constant *ArrayOperand = PropStruct->getOperand(1);
+  if (auto *StdArrayStruct = llvm::dyn_cast<llvm::ConstantStruct>(ArrayOperand)) {
+    if (StdArrayStruct->getNumOperands() > 0)
+      ArrayOperand = StdArrayStruct->getOperand(0);
+  }
+  auto *EntriesArray = llvm::dyn_cast<llvm::ConstantArray>(ArrayOperand);
+  if (!EntriesArray)
+    return;
+
+  for (unsigned i = 0; i < EntriesArray->getNumOperands(); ++i) {
+    auto *Record = llvm::dyn_cast<llvm::ConstantStruct>(EntriesArray->getOperand(i));
+    if (!Record || Record->getNumOperands() < 2)
+      continue;
+    auto *IdInt = llvm::dyn_cast<llvm::ConstantInt>(Record->getOperand(0));
+    auto *ValInt = llvm::dyn_cast<llvm::ConstantInt>(Record->getOperand(1));
+    if (!IdInt || !ValInt)
+      continue;
+
+    uint32_t PropId = static_cast<uint32_t>(IdInt->getZExtValue());
+    uint32_t PropVal = static_cast<uint32_t>(ValInt->getZExtValue());
+    if (PropId == 1) { // requires_work_group
+      F->addFnAttr(SscpRequiresWorkGroupAttr, std::to_string(PropVal));
+    } else if (PropId == 2) { // sub_group_size
+      F->addFnAttr(SscpSubGroupSizeAttr, std::to_string(PropVal));
+    }
+  }
+}
+
+}
+
+bool propagateKhrFunctionPropertiesToCallers(llvm::Module &M,
+                                             std::string *ConflictErrorOut) {
+  bool OverallChanged = false;
+  bool Changed = true;
+  const std::array<const char*, 2> PropKeys = {
+    SscpRequiresWorkGroupAttr,
+    SscpSubGroupSizeAttr
+  };
+
+  while (Changed) {
+    Changed = false;
+    for (auto &F : M) {
+      for (const char *Key : PropKeys) {
+        if (F.hasFnAttribute(Key)) {
+          llvm::StringRef Val = F.getFnAttribute(Key).getValueAsString();
+          for (auto *U : F.users()) {
+            if (auto *CB = llvm::dyn_cast<llvm::CallBase>(U)) {
+              if (CB->getCalledFunction() == &F) {
+                if (auto *Caller = CB->getFunction()) {
+                  if (!Caller->hasFnAttribute(Key)) {
+                    Caller->addFnAttr(Key, Val);
+                    Changed = true;
+                    OverallChanged = true;
+                  } else if (Caller->getFnAttribute(Key).getValueAsString() != Val) {
+                    if (ConflictErrorOut) {
+                      *ConflictErrorOut = "Conflicting KHR property '" +
+                          std::string(Key) + "' on caller " + Caller->getName().str() +
+                          ": " + Caller->getFnAttribute(Key).getValueAsString().str() +
+                          " vs " + Val.str();
+                    }
+                    return false;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return true;
 }
 
 EntrypointPreparationPass::EntrypointPreparationPass(bool ExportByDefault)
@@ -376,10 +470,22 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
   
 
   llvm::DenseSet<llvm::Function*> MarkedFunctions;
+  llvm::SmallSet<std::string, 16> InternalLinkageSymbols;
   auto MarkThisFunctionForOutlining = [&](llvm::Function* F) {
     HIPSYCL_DEBUG_INFO << "Found SSCP outlining entrypoint: " << F->getName() << "\n";
-    // Make kernel have external linkage to avoid having everything optimized away
-    F->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    if (F->hasLocalLinkage()) {
+      InternalLinkageSymbols.insert(F->getName().str());
+      // GlobalOptPass removes internal functions without callers in the module,
+      // so promote to ExternalLinkage inside this module, but do NOT export it in HCF.
+      F->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    } else if (F->hasLinkOnceODRLinkage()) {
+      // Promote linkonce_odr to weak_odr: GlobalOptPass will not discard unused
+      // weak_odr functions, AND llvm::Linker::linkModules will merge duplicate
+      // definitions across TUs without multiply-defined symbol errors!
+      F->setLinkage(llvm::GlobalValue::WeakODRLinkage);
+    } else if (F->hasLinkOnceLinkage()) {
+      F->setLinkage(llvm::GlobalValue::WeakAnyLinkage);
+    }
 
     // If we have a definition, we need to perform outlining.
     // Otherwise, we would need to treat the function as imported --
@@ -420,6 +526,10 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
       if(Annotation.compare(SSCPOutliningMarker) == 0) {
         MarkThisFunctionForOutlining(F);
       }
+
+      if(Annotation.compare(SscpKhrFunctionPropertiesAnnotation) == 0) {
+        extractKhrFunctionProperties(F, Argument);
+      }
     }
   });
   for(auto KernelName : Kernels) {
@@ -444,9 +554,14 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
 
   for(const auto& EP : OutliningEntrypoints) {
     if(!Kernels.contains(EP)) {
-      NonKernelOutliningEntrypoints.push_back(EP);
+      if (InternalLinkageSymbols.contains(EP))
+        InternalLinkageEntrypoints.push_back(EP);
+      else
+        NonKernelOutliningEntrypoints.push_back(EP);
     }
   }
+
+  propagateKhrFunctionPropertiesToCallers(M);
 
   return llvm::PreservedAnalyses::none();
 }

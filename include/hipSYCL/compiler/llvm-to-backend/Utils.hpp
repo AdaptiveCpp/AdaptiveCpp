@@ -377,28 +377,28 @@ T getEnvironmentVariableOrDefault(const std::string& Name,
   return Default;
 }
 
-std::string getClangPath();
-std::string getLLCPath();
-std::string getLLDPath();
-std::string getOptPath();
-std::string getLibSvmlDir();
-std::string getLibSleefDir();
-std::string getLibAmathDir();
-std::string getLibMvecDir();
-std::string getBitcodePath();
-std::string getRedistPackageBitcodePath(const std::string& backend);
+ACPP_DEFAULT_VISIBILITY std::string getClangPath();
+ACPP_DEFAULT_VISIBILITY std::string getLLCPath();
+ACPP_DEFAULT_VISIBILITY std::string getLLDPath();
+ACPP_DEFAULT_VISIBILITY std::string getOptPath();
+ACPP_DEFAULT_VISIBILITY std::string getLibSvmlDir();
+ACPP_DEFAULT_VISIBILITY std::string getLibSleefDir();
+ACPP_DEFAULT_VISIBILITY std::string getLibAmathDir();
+ACPP_DEFAULT_VISIBILITY std::string getLibMvecDir();
+ACPP_DEFAULT_VISIBILITY std::string getBitcodePath();
+ACPP_DEFAULT_VISIBILITY std::string getRedistPackageBitcodePath(const std::string& backend);
 #ifdef _WIN32
 std::string getHostCRuntimeImportLibraryPath();
 #endif
 
 #if LLVM_VERSION_MAJOR >= 16
-int executeAndWait(
+ACPP_DEFAULT_VISIBILITY int executeAndWait(
     llvm::StringRef Program,
     llvm::ArrayRef<llvm::StringRef> Args,
     std::optional<llvm::ArrayRef<llvm::StringRef>> Env = std::nullopt,
     llvm::ArrayRef<std::optional<llvm::StringRef>> Redirects = {});
 #else
-int executeAndWait(
+ACPP_DEFAULT_VISIBILITY int executeAndWait(
     llvm::StringRef Program,
     llvm::ArrayRef<llvm::StringRef> Args,
     llvm::Optional<llvm::ArrayRef<llvm::StringRef>> Env = llvm::None,

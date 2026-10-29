@@ -290,15 +290,18 @@ getRegion(llvm::Function &F, const llvm::LoopInfo &LI, llvm::ArrayRef<llvm::Basi
 // calculate uniformity analysis
 hipsycl::compiler::VectorizationInfo
 getVectorizationInfo(llvm::Function &F, hipsycl::compiler::Region &R, llvm::LoopInfo &LI,
-                     llvm::DominatorTree &DT, llvm::PostDominatorTree &PDT, size_t Dim) {
+                     llvm::DominatorTree &DT, llvm::PostDominatorTree &PDT, size_t Dim,
+                     bool IsSscp) {
   hipsycl::compiler::VectorizationInfo VecInfo{F, R};
-  // seed varyingness
-  for (size_t D = 0; D < Dim - 1; ++D) {
+  // seed varyingness: only the local id of the innermost work-item loop (x for SSCP, the last
+  // dimension otherwise, as in createLoopsAround) steps by one from work-item to work-item. The
+  // others step once per row, so pinning them as contiguous too would make e.g. y - x or y <= x
+  // look uniform, and such values would not be kept per work-item across barriers
+  const size_t Inner = IsSscp ? 0 : Dim - 1;
+  for (size_t D = 0; D < Dim; ++D)
     VecInfo.setPinnedShape(*mergeGVLoadsInEntry(F, LocalIdGlobalNames[D]),
-                           hipsycl::compiler::VectorShape::cont());
-  }
-  VecInfo.setPinnedShape(*mergeGVLoadsInEntry(F, LocalIdGlobalNames[Dim - 1]),
-                         hipsycl::compiler::VectorShape::cont());
+                           D == Inner ? hipsycl::compiler::VectorShape::cont()
+                                      : hipsycl::compiler::VectorShape::varying());
 
   hipsycl::compiler::VectorizationAnalysis VecAna{VecInfo, LI, DT, PDT};
   VecAna.analyze();
@@ -1476,7 +1479,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   auto RImpl = getRegion(F, LI, Blocks);
   hipsycl::compiler::Region R{*RImpl};
-  auto VecInfo = getVectorizationInfo(F, R, LI, DT, PDT, Dim);
+  auto VecInfo = getVectorizationInfo(F, R, LI, DT, PDT, Dim, IsSscp);
 
   llvm::SmallPtrSet<llvm::BasicBlock *, 2> ExitingBlocks;
   R.getEndingBlocks(ExitingBlocks);

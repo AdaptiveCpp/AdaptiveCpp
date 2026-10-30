@@ -50,7 +50,7 @@ namespace PTXAtomicDetail
   #ifdef NDEBUG
       if (!condition) 
       {
-      #ifndef ACPP_PTX_DIRECT
+      #ifdef ACPP_PTX_DIRECT
         __builtin_trap();
       #else
         __acpp_sscp_assert_fail(message, file, line, function);

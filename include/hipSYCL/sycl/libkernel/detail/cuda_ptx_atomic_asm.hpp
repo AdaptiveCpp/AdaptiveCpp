@@ -47,7 +47,7 @@ namespace PTXAtomicDetail
       __acpp_uint32 line,
       const char* function)
   {
-  #ifndef NDEBUG
+  #ifdef NDEBUG
       if (!condition) 
       {
       #ifndef ACPP_PTX_DIRECT

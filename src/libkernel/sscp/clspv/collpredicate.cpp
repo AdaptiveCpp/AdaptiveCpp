@@ -16,9 +16,8 @@ __acpp_int32 sub_group_all(__acpp_int32) __attribute__((convergent));
 __acpp_int32 sub_group_any(__acpp_int32) __attribute__((convergent));
 
 /*
- * OpenCL-C work-group collectives are not supported in clspv as they are an
- * OpenCL 3.0 feature, so instead use the internal SSCP wg reduce
- * implementation.
+ * clspv does not support the OpenCL-C work-group collective functions, so
+ * instead use the internal SSCP wg reduce implementation.
  */
 HIPSYCL_SSCP_CONVERGENT_BUILTIN
 bool __acpp_sscp_work_group_any(bool pred) {

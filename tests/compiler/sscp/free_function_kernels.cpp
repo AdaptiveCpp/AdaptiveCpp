@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <array>
+#include <tuple>
 #include <sycl/sycl.hpp>
 #include "common.hpp"
 
@@ -51,6 +52,12 @@ void kernel_nested_struct(int* out, NestedStruct s) {
   for (int i = 0; i < 4; ++i)
     sum += s.arr[i];
   *out = sum;
+}
+
+// Test free function kernel with std::tuple passed by value (lowered as bare ptr without byval on x86-64 Linux)
+SYCL_KHR_KERNEL()
+void kernel_tuple(int* out, std::tuple<int, int> t) {
+  *out = std::get<0>(t) + std::get<1>(t);
 }
 
 // Test SYCL_KHR_FUNCTION with properties
@@ -108,6 +115,14 @@ int main() {
   q.wait();
   q.memcpy(&host_res, d_out, sizeof(int)).wait();
   // CHECK: 28
+  std::cout << host_res << std::endl;
+
+  // 4b. std::tuple passed by value
+  std::tuple<int, int> t1{19, 23}; // sum is 42
+  sycl::khr::launch_task(q, sycl::khr::kernel_function<kernel_tuple>, d_out, t1);
+  q.wait();
+  q.memcpy(&host_res, d_out, sizeof(int)).wait();
+  // CHECK: 42
   std::cout << host_res << std::endl;
 
   // 5. launch_grouped with properties

@@ -27,6 +27,11 @@ void cross_tu_nested_struct(int* out, NestedStruct s) {
   *out = sum;
 }
 
+SYCL_KHR_KERNEL()
+void cross_tu_tuple(int* out, std::tuple<int, int> t) {
+  *out = std::get<0>(t) + std::get<1>(t);
+}
+
 SYCL_KHR_FUNCTION(
     sycl::khr::requires_work_group<64>,
     sycl::khr::sub_group_size<16>

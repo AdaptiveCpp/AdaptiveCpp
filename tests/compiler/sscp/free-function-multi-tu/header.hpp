@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <tuple>
 #include <sycl/sycl.hpp>
 
 struct SmallStruct {
@@ -34,6 +35,9 @@ void cross_tu_big_struct(int* out, BigStruct s);
 
 SYCL_KHR_KERNEL()
 void cross_tu_nested_struct(int* out, NestedStruct s);
+
+SYCL_KHR_KERNEL()
+void cross_tu_tuple(int* out, std::tuple<int, int> t);
 
 // Cross-TU device helper with properties defined in tu1.cpp, called by kernel in tu2.cpp
 SYCL_KHR_FUNCTION(

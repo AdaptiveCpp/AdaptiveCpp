@@ -55,6 +55,14 @@ int main() {
   // CHECK: 28
   std::cout << host_res << std::endl;
 
+  // 3b. Cross-TU std::tuple by-value (lowered as bare ptr without byval on x86-64 Linux)
+  std::tuple<int, int> t1{19, 23};
+  sycl::khr::launch_task(q, sycl::khr::kernel_function<cross_tu_tuple>, d_out, t1);
+  q.wait();
+  q.memcpy(&host_res, d_out, sizeof(int)).wait();
+  // CHECK: 42
+  std::cout << host_res << std::endl;
+
   // 4. Kernel launched from tu1.cpp using tu1's static internal_helper + shared_header_helper<64>
   // (5 + 10) + 64 = 79
   run_tu1_kernels(q, d_out, host_res);

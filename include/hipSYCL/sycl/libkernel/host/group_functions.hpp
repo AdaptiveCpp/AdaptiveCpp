@@ -18,6 +18,7 @@
 #include "../detail/mem_fence.hpp"
 #include "../functional.hpp"
 #include "../group.hpp"
+#include "../group_traits.hpp"
 #include "../id.hpp"
 #include "../sub_group.hpp"
 #include "../vec.hpp"
@@ -294,8 +295,9 @@ T __acpp_leader_reduce(Group g, T *first, T *last,
   }
 
   if (g.leader()) {
+    result = *first;
 #pragma omp simd
-    for (T *i = first; i < last; ++i)
+    for (T *i = first + 1; i < last; ++i)
       result = binary_op(result, *i);
   }
   return result;

@@ -40,7 +40,7 @@ namespace PTXAtomicDetail
 
   // Reports violated backend preconditions through AdaptiveCpp's device
   // assertion builtin when NDEBUG is not defined.
-  inline void debug_assert(
+  AUTO_PTX_INLINE void debug_assert(
       bool condition,
       const char* message,
       const char* file,

@@ -10,12 +10,33 @@
 // SPDX-License-Identifier: BSD-2-Clause
 #ifndef HIPSYCL_NVIDIA_PTX_ATOMIC_PRIMITIVES_HPP
 #define HIPSYCL_NVIDIA_PTX_ATOMIC_PRIMITIVES_HPP
+
+#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
+#ifndef ACPP_PTX_DIRECT
 #include "hipSYCL/sycl/libkernel/sscp/builtins/assert.hpp"
+#define AUTO_PTX_INLINE inline
+#else
+#define AUTO_PTX_INLINE HIPSYCL_HIPLIKE_BUILTIN
+#endif
+
 
 namespace PTXAtomicDetail 
 {
+
+// Explicit definition based on the path
+#ifdef ACPP_PTX_DIRECT
+  using OrderSSCP = hipsycl::sycl::memory_order;
+  using ScopeSSCP = hipsycl::sycl::memory_scope;
+  using __acpp_int32 = int;
+  using __acpp_int64 = long long;
+  using __acpp_uint32 = unsigned int;
+#else
   using OrderSSCP = __acpp_sscp_memory_order;
   using ScopeSSCP  = __acpp_sscp_memory_scope;
+#endif
+
+
+
 
   // Reports violated backend preconditions through AdaptiveCpp's device
   // assertion builtin when NDEBUG is not defined.
@@ -27,7 +48,14 @@ namespace PTXAtomicDetail
       const char* function)
   {
   #ifndef NDEBUG
-      if (!condition) {__acpp_sscp_assert_fail(message, file, line, function);}
+      if (!condition) 
+      {
+      #ifndef ACPP_PTX_DIRECT
+        __builtin_trap();
+      #else
+        __acpp_sscp_assert_fail(message, file, line, function);
+      #endif
+      }
   #else
       (void)condition; (void)message; (void)file; (void)line; (void)function;
   #endif
@@ -37,7 +65,7 @@ namespace PTXAtomicDetail
   // System scope uses .sys, device scope uses .gpu, and the smaller
   // SYCL scopes use the conservative work-group-wide .cta scope.
   // The fence participates in the PTX ABI lowering of SC atomic operations.
-  inline void fence_seq_cst(ScopeSSCP scope)
+  AUTO_PTX_INLINE void fence_seq_cst(ScopeSSCP scope)
   {
     if (scope == ScopeSSCP::system) 
     {
@@ -60,7 +88,7 @@ namespace PTXAtomicDetail
   // The requested memory scope selects .cta, .gpu, or .sys.
   // The memory clobber constrains compiler reordering around the inline asm.
   #define ACPP_PTX_LOAD(NAME, SEM, TYPE, BITS, REG)           \
-  inline TYPE NAME(TYPE* ptr, ScopeSSCP scope)                \
+  AUTO_PTX_INLINE TYPE NAME(TYPE* ptr, ScopeSSCP scope)                \
   {                                                           \
     TYPE result;                                              \
     if (scope == ScopeSSCP::system)                           \
@@ -103,7 +131,7 @@ namespace PTXAtomicDetail
   // selects the PTX synchronization domain.
   // The input register contains the value to store at the supplied address.
   #define ACPP_PTX_STORE(NAME, SEM, TYPE, BITS, REG)          \
-  inline void NAME(TYPE* ptr, TYPE value, ScopeSSCP scope)    \
+  AUTO_PTX_INLINE void NAME(TYPE* ptr, TYPE value, ScopeSSCP scope)    \
   {                                                           \
     if (scope == ScopeSSCP::system)                           \
     {                                                         \
@@ -142,7 +170,7 @@ namespace PTXAtomicDetail
   // SEM selects relaxed, acquire, release, or acquire-release ordering.
   // Success/failure-order handling is performed by compare_exchange().
   #define ACPP_PTX_CAS(NAME, SEM, TYPE, BITS, REG)                              \
-  inline TYPE NAME(TYPE* ptr, TYPE compare, TYPE desired, ScopeSSCP scope)      \
+  AUTO_PTX_INLINE TYPE NAME(TYPE* ptr, TYPE compare, TYPE desired, ScopeSSCP scope)      \
   {                                                                             \
     TYPE result;                                                                \
     if (scope == ScopeSSCP::system)                                             \
@@ -191,7 +219,7 @@ namespace PTXAtomicDetail
   // Unexpected orders trigger a device assertion in debug builds and use
   // the SC sequence as a conservative implementation fallback.
   template<class T>
-  inline T load(T* ptr, OrderSSCP order, ScopeSSCP scope)
+  AUTO_PTX_INLINE T load(T* ptr, OrderSSCP order, ScopeSSCP scope)
   {
     static_assert(sizeof(T) == 4 || sizeof(T) == 8,"The PTX primitive test targets 32/64-bit atomic types");
     switch (order) 
@@ -214,7 +242,7 @@ namespace PTXAtomicDetail
   // which is stronger than the minimum PTX ABI store mapping.
   // Unexpected orders assert in debug builds and use the SC sequence.
   template<class T>
-  inline void store(T* ptr, T value, OrderSSCP order, ScopeSSCP scope)
+  AUTO_PTX_INLINE void store(T* ptr, T value, OrderSSCP order, ScopeSSCP scope)
   {
     static_assert(sizeof(T) == 4 || sizeof(T) == 8,"The PTX primitive test targets 32/64-bit atomic types");
     switch (order) 
@@ -238,7 +266,7 @@ namespace PTXAtomicDetail
   // Converts their combined acquire/release requirements into one PTX
   // instruction order. Invalid pairs assert in debug builds and fall back
   // to sequential consistency when assertions are disabled.
-  inline static constexpr OrderSSCP cas_singular_converter(OrderSSCP success, OrderSSCP failure)
+  AUTO_PTX_INLINE static constexpr OrderSSCP cas_singular_converter(OrderSSCP success, OrderSSCP failure)
   {
     bool valid = false;
     switch (success)
@@ -289,7 +317,7 @@ namespace PTXAtomicDetail
   // Always updates *expected with the observed old value and returns true
   // exactly when the observed bits match the original expected value.
   template<class T>
-  inline bool compare_exchange(
+  AUTO_PTX_INLINE bool compare_exchange(
     T* ptr, T* expected, T desired, 
     OrderSSCP success, OrderSSCP failure, ScopeSSCP scope
   )
@@ -327,4 +355,5 @@ namespace PTXAtomicDetail
   }
 }
 
+#undef AUTO_PTX_INLINE
 #endif

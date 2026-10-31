@@ -961,7 +961,7 @@ namespace AtomicOrderScopeTests
         "SSCP PTX PATH REQUIRED"
       );
       BOOST_TEST_MESSAGE("NVIDIA atomic compilation path: GENERIC/SSCP PTX");
-    #elif ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && !defined(__CUDA_ARCH__)
+    #elif ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
       BOOST_REQUIRE_MESSAGE(target[1] == CHAR_CUDA, "NVIDIA atomic tests require direct Clang CUDA device compilation");
       BOOST_TEST_MESSAGE("NVIDIA atomic compilation path: DIRECT CUDA");
     #endif
@@ -973,7 +973,7 @@ namespace AtomicOrderScopeTests
       }
 
       BOOST_TEST_MESSAGE(
-        "Executing SSCP PTX tests on " <<
+        "Executing NVIDIA atomic tests on " <<
         queue.get_device().get_info<sycl::info::device::name>() << 
         " SM " << target[0]
       );

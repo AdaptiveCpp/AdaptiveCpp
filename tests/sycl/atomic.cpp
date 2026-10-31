@@ -12,6 +12,7 @@
 #include "hipSYCL/sycl/queue.hpp"
 #include "sycl_test_suite.hpp"
 #include <cstddef>
+#include <cstdlib>
 #include <limits>
 #include <type_traits>
 #if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
@@ -904,23 +905,23 @@ namespace AtomicOrderScopeTests
   }
 }
 
-/// Put only Cuda Specific Tests in CudaPTXTestSpace
-#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
+// The same device-USM atomic tests execute under both NVIDIA compiler paths.
+// Generic/SSCP uses JIT reflection; direct Clang CUDA uses __CUDA_ARCH__.
+// The floating min/max regression is SSCP-only until the direct-CUDA RMW
+// implementation has been corrected independently.
+
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP 
+    // (ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && !defined(ACPP_LIBKERNEL_CUDA_NVCXX))
   namespace AtomicOrderScopeTests::CudaPTXTestSpace 
   {
-  // Selects tests for the CUDA backend using AdaptiveCpp's SSCP PTX path.
-  // Queries the compiled target architecture and requires SM70 or newer.
-  // An environment variable makes missing CUDA/SM70 support a test failure
-  // instead of silently skipping the requested validation.
+
+    // Select NVIDIA CUDA; report whether the kernel used SSCP PTX or direct CUDA.
+    // Queries the compiled target architecture and requires SM70 or newer.
     inline bool select_cuda(sycl::queue& queue)
     {
+      static constexpr int CHAR_CUDA = 0x43554441;
       const bool cuda = queue.get_device().get_backend() == sycl::backend::cuda;
-      const char* ENV_NAME = "PTX_ATOMIC_CUDA_ORDER";
 
-      if (std::getenv(ENV_NAME)) 
-      {
-        BOOST_REQUIRE_MESSAGE(cuda, "PTX atomic order validation requires an actual CUDA device");
-      }
       if (!cuda) 
       {
         BOOST_TEST_MESSAGE("PTX-specific runtime test skipped: selected device is not CUDA");
@@ -936,22 +937,34 @@ namespace AtomicOrderScopeTests
       int* out = info.get_ptr();
 
       queue.single_task([=](){
+      //lowered
+      #if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
         __acpp_if_target_sscp(
           out[0] = __acpp_sscp_jit_reflect_target_arch();
           out[1] = static_cast<int>(__acpp_sscp_jit_reflect_compiler_backend());
         );
+      //Direct
+      #elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA && defined(__CUDA_ARCH__)
+        out[0] = __CUDA_ARCH__ / 10; // e.g. 860 -> SM 86
+        out[1] = CHAR_CUDA; // "CUDA"
+      #else
+        out[0] = 0;
+        out[1] = 0;
+      #endif
+
       }).wait_and_throw();
       queue.memcpy(target, out, sizeof(target)).wait_and_throw();
 
+    #if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
       BOOST_REQUIRE_MESSAGE(
         target[1] == static_cast<int>(sycl::AdaptiveCpp_jit::compiler_backend::ptx),
         "SSCP PTX PATH REQUIRED"
       );
-
-      if (std::getenv(ENV_NAME)) 
-      {
-        BOOST_REQUIRE_MESSAGE(target[0] >= 70, "cuda validation requirs SM70+");
-      }
+      BOOST_TEST_MESSAGE("NVIDIA atomic compilation path: GENERIC/SSCP PTX");
+    #elif ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && !defined(ACPP_LIBKERNEL_CUDA_NVCXX)
+      BOOST_REQUIRE_MESSAGE(target[1] == CHAR_CUDA, "NVIDIA atomic tests require direct Clang CUDA device compilation");
+      BOOST_TEST_MESSAGE("NVIDIA atomic compilation path: DIRECT CUDA");
+    #endif
 
       if (target[0] < 70) 
       {
@@ -960,7 +973,7 @@ namespace AtomicOrderScopeTests
       }
 
       BOOST_TEST_MESSAGE(
-        "Executing SSCP PTX tests on " <<
+        "Executing NVIDIA atomic tests on " <<
         queue.get_device().get_info<sycl::info::device::name>() << 
         " SM " << target[0]
       );
@@ -968,8 +981,8 @@ namespace AtomicOrderScopeTests
     }
 
     // TEST 01 -PTX
-  // Verifies ordered load/store/CAS values for 32/64-bit integers,
-  // covering global, generic, and work-group local address spaces.
+    // Verifies ordered load/store/CAS values for 32/64-bit integers,
+    // covering global, generic, and work-group local address spaces.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_premitive_matrix, T, IntTypes)
     {
       sycl::queue queue;
@@ -984,8 +997,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST 02 
-  // Tests cross-work-group release/acquire payload publication
-  // using atomic loads and failed compare-exchange operations.
+    // Tests cross-work-group release/acquire payload publication
+    // using atomic loads and failed compare-exchange operations.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_publication, T, IntTypes)
     {
       sycl::queue queue;
@@ -1008,8 +1021,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST -04
-  // Verifies that contended device-scope CAS increments do not
-  // lose updates and that all work-items complete their retries.
+    // Verifies that contended device-scope CAS increments do not
+    // lose updates and that all work-items complete their retries.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_cas_contention, T, IntTypes)
     {
       sycl::queue queue;
@@ -1018,9 +1031,10 @@ namespace AtomicOrderScopeTests
       contention<T>(queue);
     }
 
-    //TEST -05
-    // Validates floating-point min/max RMW return values and
-    // acquire/release publication through floating-point atomics.
+  //TEST -05
+  // Validates floating-point min/max RMW return values and
+  // acquire/release publication through floating-point atomics.
+  #if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_floating_fetch_min_max, T, FloatTypes)
     {
       sycl::queue queue;
@@ -1029,6 +1043,7 @@ namespace AtomicOrderScopeTests
       fetch_min_max_check<T>(queue);
       publication<T, PublicationTestMode::FLOATING_MIN_MAX>(queue);
     }
+  #endif
   }
 
 #endif

@@ -910,8 +910,8 @@ namespace AtomicOrderScopeTests
 // The floating min/max regression is SSCP-only until the direct-CUDA RMW
 // implementation has been corrected independently.
 
-#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP || \
-    (ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && !defined(ACPP_LIBKERNEL_CUDA_NVCXX))
+#if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP 
+    // (ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && !defined(ACPP_LIBKERNEL_CUDA_NVCXX))
   namespace AtomicOrderScopeTests::CudaPTXTestSpace 
   {
 

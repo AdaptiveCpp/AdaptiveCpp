@@ -915,9 +915,8 @@ namespace AtomicOrderScopeTests
   namespace AtomicOrderScopeTests::CudaPTXTestSpace 
   {
 
-    // Selects tests for the CUDA backend using AdaptiveCpp's SSCP PTX path.
+    // Select NVIDIA CUDA; report whether the kernel used SSCP PTX or direct CUDA.
     // Queries the compiled target architecture and requires SM70 or newer.
-    // An environment variable makes missing CUDA/SM70 support a test failure
     inline bool select_cuda(sycl::queue& queue)
     {
       static constexpr int CHAR_CUDA = 0x43554441;
@@ -946,7 +945,7 @@ namespace AtomicOrderScopeTests
         );
       //Direct
       #elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA && defined(__CUDA_ARCH__)
-        out[0] = __CUDA_ARCH__;
+        out[0] = __CUDA_ARCH__ / 10; // e.g. 860 -> SM 86
         out[1] = CHAR_CUDA; // "CUDA"
       #else
         out[0] = 0;
@@ -962,7 +961,7 @@ namespace AtomicOrderScopeTests
         "SSCP PTX PATH REQUIRED"
       );
       BOOST_TEST_MESSAGE("NVIDIA atomic compilation path: GENERIC/SSCP PTX");
-    #elif ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && defined(__CUDA_ARCH__)
+    #elif ACPP_LIBKERNEL_COMPILER_SUPPORTS_CUDA && !defined(__CUDA_ARCH__)
       BOOST_REQUIRE_MESSAGE(target[1] == CHAR_CUDA, "NVIDIA atomic tests require direct Clang CUDA device compilation");
       BOOST_TEST_MESSAGE("NVIDIA atomic compilation path: DIRECT CUDA");
     #endif

@@ -11,6 +11,8 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/atomic.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/assert.hpp"
+#include "hipSYCL/sycl/libkernel/detail/cuda_ptx_atomic_asm.hpp"
 
 
 extern "C" int __acpp_sscp_jit_reflect_target_arch();
@@ -420,7 +422,6 @@ unsigned long long __ullAtomicXor_system(unsigned long long *__p,
 }
 
 
-
 // ********************** atomic store ***************************
 
 // Unlike the CUDA compilation flow, the __atomic_store and __atomic_load builtin
@@ -470,35 +471,8 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    if(scope == __acpp_sscp_memory_scope::system) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        asm volatile("st.relaxed.sys.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      } else if(order == __acpp_sscp_memory_order::release) {
-        asm volatile("st.release.sys.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      }
-    } else if(scope == __acpp_sscp_memory_scope::device) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        asm volatile("st.relaxed.gpu.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      } else if(order == __acpp_sscp_memory_order::release) {
-        asm volatile("st.release.gpu.s32 [%0], %1;"
-                    :
-                    :"l"(ptr), "r"(x)
-                    : "memory");
-        return;
-      }
-    }
+    PTXAtomicDetail::store(ptr, x, order, scope);
+    return;    
   }
   memfenced_store(ptr, x, scope);
 }
@@ -506,6 +480,10 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
 HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
+  if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    PTXAtomicDetail::store(ptr, x, order, scope);
+    return;    
+  }
   memfenced_store(ptr, x, scope);
 }
 
@@ -527,41 +505,8 @@ HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_load_i16(
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr) {
-
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    if(scope == __acpp_sscp_memory_scope::system) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        __acpp_int32 result;
-        asm volatile("ld.relaxed.sys.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      } else if(order == __acpp_sscp_memory_order::acquire) {
-        __acpp_int32 result;
-        asm volatile("ld.acquire.sys.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      }
-    } else if(scope == __acpp_sscp_memory_scope::device) {
-      if(order == __acpp_sscp_memory_order::relaxed) {
-        __acpp_int32 result;
-        asm volatile("ld.relaxed.gpu.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      } else if(order == __acpp_sscp_memory_order::acquire) {
-        __acpp_int32 result;
-        asm volatile("ld.acquire.gpu.u32 %0,[%1];"
-                    : "=r"(result)
-                    : "l"(ptr)
-                    : "memory");
-        return result;
-      } 
-    }
+    return PTXAtomicDetail::load(ptr, order, scope);
   }
   return memfenced_load(ptr, scope);
 }
@@ -569,6 +514,9 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
 HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_load_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr) {
+  if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    return PTXAtomicDetail::load(ptr, order, scope);
+  }
   return memfenced_load(ptr, scope);
 }
 
@@ -698,7 +646,12 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int32 *ptr, __acpp_int32 *expected, __acpp_int32 desired) {
-
+  //new path
+  if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
+  {
+    return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
+  }
+  // lagacy path
   __acpp_int32 old = *expected;
   if (scope == __acpp_sscp_memory_scope::system) {
     if (success == __acpp_sscp_memory_order::acquire &&
@@ -728,7 +681,12 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int64 *ptr, __acpp_int64 *expected, __acpp_int64 desired) {
-
+  //new path
+  if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
+  {
+    return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
+  }
+  // lagacy path
   __acpp_int64 old = *expected;
   if (scope == __acpp_sscp_memory_scope::system) {
     *expected = __llAtomicCAS_system(ptr, *expected, desired);
@@ -809,8 +767,6 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_and_i64(
     return __llAtomicAnd_block(ptr, x);
   }
 }
-
-
 
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_or_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
@@ -1210,27 +1166,25 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_atomic_fetch_min_u64(
 HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_min_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
-
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
-
+  // Even an unchanged numerical result must complete a successful CAS.
+  __acpp_f32 old = atomic_load_f32(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f32 desired = x;
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old < x ? old : x;
+  } while (!cmp_exch_strong_f32(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
-  
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+  // Even an unchanged numerical result must complete a successful CAS.
+  __acpp_f64 old = atomic_load_f64(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f64 desired = x;
   do {
-    if (old < x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old < x ? old : x;
+  } while (!cmp_exch_strong_f64(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 
@@ -1319,26 +1273,24 @@ HIPSYCL_SSCP_BUILTIN __acpp_f32 __acpp_sscp_atomic_fetch_max_f32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f32 *ptr, __acpp_f32 x) {
   
-  __acpp_f32 old = atomic_load_f32(as, order, scope, ptr);
-  
+  __acpp_f32 old = atomic_load_f32(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f32 desired = x;
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f32(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old > x ? old : x;
+  } while (!cmp_exch_strong_f32(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_max_f64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_f64 *ptr, __acpp_f64 x) {
   
-  __acpp_f64 old = atomic_load_f64(as, order, scope, ptr);
-  
+  __acpp_f64 old = atomic_load_f64(as, __acpp_sscp_memory_order::relaxed, scope, ptr);
+  __acpp_f64 desired = x;
   do {
-    if (old > x)
-      return old;
-  } while (!cmp_exch_strong_f64(as, order, order, scope, ptr, &old, x));
-  return x;
+    desired = old > x ? old : x;
+  } while (!cmp_exch_strong_f64(as, order, __acpp_sscp_memory_order::relaxed, scope, ptr, &old, desired));
+  return old;
 }
 
 

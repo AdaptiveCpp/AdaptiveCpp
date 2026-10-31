@@ -945,7 +945,7 @@ namespace AtomicOrderScopeTests
           out[1] = static_cast<int>(__acpp_sscp_jit_reflect_compiler_backend());
         );
       //Direct
-      #elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA && defined(__CUDA_ARCH__);
+      #elif ACPP_LIBKERNEL_IS_DEVICE_PASS_CUDA && defined(__CUDA_ARCH__)
         out[0] = __CUDA_ARCH__;
         out[1] = CHAR_CUDA; // "CUDA"
       #else
@@ -998,8 +998,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST 02 
-  // Tests cross-work-group release/acquire payload publication
-  // using atomic loads and failed compare-exchange operations.
+    // Tests cross-work-group release/acquire payload publication
+    // using atomic loads and failed compare-exchange operations.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_publication, T, IntTypes)
     {
       sycl::queue queue;
@@ -1022,8 +1022,8 @@ namespace AtomicOrderScopeTests
     }
 
     //TEST -04
-  // Verifies that contended device-scope CAS increments do not
-  // lose updates and that all work-items complete their retries.
+    // Verifies that contended device-scope CAS increments do not
+    // lose updates and that all work-items complete their retries.
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_cas_contention, T, IntTypes)
     {
       sycl::queue queue;
@@ -1032,9 +1032,9 @@ namespace AtomicOrderScopeTests
       contention<T>(queue);
     }
 
-    //TEST -05
-    // Validates floating-point min/max RMW return values and
-    // acquire/release publication through floating-point atomics.
+  //TEST -05
+  // Validates floating-point min/max RMW return values and
+  // acquire/release publication through floating-point atomics.
   #if ACPP_LIBKERNEL_COMPILER_SUPPORTS_SSCP
     BOOST_AUTO_TEST_CASE_TEMPLATE(ptx_floating_fetch_min_max, T, FloatTypes)
     {

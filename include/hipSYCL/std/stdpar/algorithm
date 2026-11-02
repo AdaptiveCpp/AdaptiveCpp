@@ -12,8 +12,12 @@
 #ifndef HIPSYCL_PSTL_ALGORITHM_HPP
 #define HIPSYCL_PSTL_ALGORITHM_HPP
 
+#define HIPSYCL_STDPAR_SYSTEM_ALGORITHM
 #include_next <algorithm>
+#undef HIPSYCL_STDPAR_SYSTEM_ALGORITHM
 
+#endif
+
+#ifndef HIPSYCL_STDPAR_EXECUTION_FWD_ONLY
 #include "detail/algorithm_fwd.hpp"
-
 #endif

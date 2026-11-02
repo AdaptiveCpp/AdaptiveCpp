@@ -29,27 +29,27 @@ namespace std {
 ////////////////// par_unseq policy
 
 template <class ForwardIt, class UnaryFunction2>
-HIPSYCL_STDPAR_ENTRYPOINT void for_each(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void for_each(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                         ForwardIt last, UnaryFunction2 f) {
   auto offloader = [&](auto& queue) {
     hipsycl::algorithms::for_each(queue, first, last, f);
   };
 
   auto fallback = [&](){
-    std::for_each(hipsycl::stdpar::par_unseq_host_fallback, first, last, f);
+    HIPSYCL_STDPAR_HOST_FALLBACK(for_each, hipsycl::stdpar::par_unseq_host_fallback, first, last, f);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::for_each{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), f);
 }
 
 template<class ForwardIt, class Size, class UnaryFunction2>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt for_each_n(hipsycl::stdpar::par_unseq,
+ForwardIt for_each_n(hipsycl::stdpar::par_unseq_argument,
                     ForwardIt first, Size n, UnaryFunction2 f) {
   auto offloader = [&](auto& queue) {
     ForwardIt last = first;
@@ -59,20 +59,20 @@ ForwardIt for_each_n(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::for_each_n(hipsycl::stdpar::par_unseq_host_fallback, first, n,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(for_each_n, hipsycl::stdpar::par_unseq_host_fallback, first, n,
                            f);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::for_each_n{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       n, ForwardIt, offloader, fallback, first, n, f);
 }
 
 template <class ForwardIt1, class ForwardIt2, class UnaryOperation>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 transform(hipsycl::stdpar::par_unseq,
+ForwardIt2 transform(hipsycl::stdpar::par_unseq_argument,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 d_first,
                      UnaryOperation unary_op) {
   
@@ -84,14 +84,14 @@ ForwardIt2 transform(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::transform(hipsycl::stdpar::par_unseq_host_fallback, first1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(transform, hipsycl::stdpar::par_unseq_host_fallback, first1,
                           last1, d_first, unary_op);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first1, last1), ForwardIt2, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), d_first, unary_op);
 }
@@ -99,7 +99,7 @@ ForwardIt2 transform(hipsycl::stdpar::par_unseq,
 template <class ForwardIt1, class ForwardIt2, class ForwardIt3,
           class BinaryOperation>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt3 transform(hipsycl::stdpar::par_unseq,
+ForwardIt3 transform(hipsycl::stdpar::par_unseq_argument,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
                      ForwardIt3 d_first, BinaryOperation binary_op) {
 
@@ -112,20 +112,20 @@ ForwardIt3 transform(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::transform(hipsycl::stdpar::par_unseq_host_fallback, first1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(transform, hipsycl::stdpar::par_unseq_host_fallback, first1,
                           last1, first2, d_first, binary_op);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first1, last1), ForwardIt3, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, d_first, binary_op);
 }
 
 template <class ForwardIt1, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(const hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(hipsycl::stdpar::par_unseq_argument,
                                           ForwardIt1 first, ForwardIt1 last,
                                           ForwardIt2 d_first) {
   auto offloader = [&](auto& queue){
@@ -136,20 +136,20 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(const hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::copy(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(copy, hipsycl::stdpar::par_unseq_host_fallback, first, last,
                      d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::copy{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
 
 template<class ForwardIt1, class ForwardIt2, class UnaryPredicate >
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 copy_if(hipsycl::stdpar::par_unseq,
+ForwardIt2 copy_if(hipsycl::stdpar::par_unseq_argument,
                    ForwardIt1 first, ForwardIt1 last,
                    ForwardIt2 d_first,
                    UnaryPredicate pred) {
@@ -175,20 +175,20 @@ ForwardIt2 copy_if(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::copy_if(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(copy_if, hipsycl::stdpar::par_unseq_host_fallback, first, last,
                         d_first, pred);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::copy_if{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, pred);
 }
 
 template<class ForwardIt1, class Size, class ForwardIt2 >
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 copy_n(hipsycl::stdpar::par_unseq,
+ForwardIt2 copy_n(hipsycl::stdpar::par_unseq_argument,
                    ForwardIt1 first, Size count, ForwardIt2 result ) {
 
   auto offloader = [&](auto& queue){
@@ -199,18 +199,18 @@ ForwardIt2 copy_n(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::copy_n(hipsycl::stdpar::par_unseq_host_fallback, first, count,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(copy_n, hipsycl::stdpar::par_unseq_host_fallback, first, count,
                        result);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::copy_n{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       count, ForwardIt2, offloader, fallback, first, count, result);
 }
 
 template <class ForwardIt1, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par_unseq_argument,
                                           ForwardIt1 first, ForwardIt1 last,
                                           ForwardIt2 d_first) {
   auto offloader = [&](auto& queue){
@@ -221,38 +221,38 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::move(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(move, hipsycl::stdpar::par_unseq_host_fallback, first, last,
                      d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::move{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
 
 template<class ForwardIt, class T >
 HIPSYCL_STDPAR_ENTRYPOINT
-void fill(hipsycl::stdpar::par_unseq,
+void fill(hipsycl::stdpar::par_unseq_argument,
           ForwardIt first, ForwardIt last, const T& value) {
   auto offloader = [&](auto& queue){
     hipsycl::algorithms::fill(queue, first, last, value);
   };
 
   auto fallback = [&]() {
-    std::fill(hipsycl::stdpar::par_unseq_host_fallback, first, last, value);
+    HIPSYCL_STDPAR_HOST_FALLBACK(fill, hipsycl::stdpar::par_unseq_host_fallback, first, last, value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::fill{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
 
 template <class ForwardIt, class Size, class T>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                            Size count, const T &value) {
  
   auto offloader = [&](auto& queue){
@@ -263,37 +263,37 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(hipsycl::stdpar::par_unseq, ForwardIt
   };
 
   auto fallback = [&]() {
-    return std::fill_n(hipsycl::stdpar::par_unseq_host_fallback, first, count,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(fill_n, hipsycl::stdpar::par_unseq_host_fallback, first, count,
                        value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::fill_n{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       count, ForwardIt, offloader, fallback, first, count, value);
 }
 
 template <class ForwardIt, class Generator>
-HIPSYCL_STDPAR_ENTRYPOINT void generate(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void generate(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                         ForwardIt last, Generator g) {
   auto offloader = [&](auto &queue) {
     hipsycl::algorithms::generate(queue, first, last, g);
   };
 
   auto fallback = [&]() {
-    std::generate(hipsycl::stdpar::par_unseq_host_fallback, first, last, g);
+    HIPSYCL_STDPAR_HOST_FALLBACK(generate, hipsycl::stdpar::par_unseq_host_fallback, first, last, g);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::generate{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), g);
 }
 
 template <class ForwardIt, class Size, class Generator>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(hipsycl::stdpar::par_unseq_argument,
                                                ForwardIt first, Size count,
                                                Generator g) {
   auto offloader = [&](auto& queue){
@@ -304,20 +304,20 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::generate_n(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(generate_n, hipsycl::stdpar::par_unseq_host_fallback, first,
                            count, g);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm(
                              hipsycl::stdpar::algorithm_category::generate_n{},
-                             hipsycl::stdpar::par_unseq{}),
+                             std::execution::par_unseq),
                          count, ForwardIt, offloader, fallback, first, count,
                          g);
 }
 
 template <class ForwardIt1, class ForwardIt2, class T>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 remove_copy(hipsycl::stdpar::par_unseq,
+ForwardIt2 remove_copy(hipsycl::stdpar::par_unseq_argument,
                    ForwardIt1 first, ForwardIt1 last,
                    ForwardIt2 d_first, const T &value) {
   auto offloader = [&](auto& queue){
@@ -343,14 +343,14 @@ ForwardIt2 remove_copy(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::remove_copy(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove_copy, hipsycl::stdpar::par_unseq_host_fallback,
                             first, last, d_first, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove_copy{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, value);
 }
@@ -358,7 +358,7 @@ ForwardIt2 remove_copy(hipsycl::stdpar::par_unseq,
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 remove_copy_if(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+ForwardIt2 remove_copy_if(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first,
                           ForwardIt1 last, ForwardIt2 d_first,
                           UnaryPredicate p) {
   auto offloader = [&](auto& queue){
@@ -384,14 +384,14 @@ ForwardIt2 remove_copy_if(hipsycl::stdpar::par_unseq, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::remove_copy_if(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove_copy_if, hipsycl::stdpar::par_unseq_host_fallback,
                             first, last, d_first, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove_copy_if{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, p);
 }
@@ -399,7 +399,7 @@ ForwardIt2 remove_copy_if(hipsycl::stdpar::par_unseq, ForwardIt1 first,
 
 template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt remove(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt remove(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                   ForwardIt last, const T &value) {
   auto offloader = [&](auto& queue){
     if(std::distance(first, last) == 0)
@@ -426,14 +426,14 @@ ForwardIt remove(hipsycl::stdpar::par_unseq, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::remove(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove, hipsycl::stdpar::par_unseq_host_fallback,
                             first, last, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
@@ -441,7 +441,7 @@ ForwardIt remove(hipsycl::stdpar::par_unseq, ForwardIt first,
 
 template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt remove_if(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt remove_if(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                   ForwardIt last, UnaryPredicate pred) {
   auto offloader = [&](auto& queue){
     if(std::distance(first, last) == 0)
@@ -468,40 +468,40 @@ ForwardIt remove_if(hipsycl::stdpar::par_unseq, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::remove_if(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove_if, hipsycl::stdpar::par_unseq_host_fallback,
                             first, last, pred);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove_if{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), pred);
 }
 
 
 template <class ForwardIt, class T>
-void replace(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+void replace(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
              const T &old_value, const T &new_value) {
   auto offloader = [&](auto &queue) {
     hipsycl::algorithms::replace(queue, first, last, old_value, new_value);
   };
 
   auto fallback = [&]() {
-    std::replace(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+    HIPSYCL_STDPAR_HOST_FALLBACK(replace, hipsycl::stdpar::par_unseq_host_fallback, first, last,
                  old_value, new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::replace{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), old_value, new_value);
 }
 
 template <class ForwardIt, class UnaryPredicate, class T>
-void replace_if(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+void replace_if(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
                 UnaryPredicate p, const T &new_value) {
   
   auto offloader = [&](auto& queue){
@@ -509,21 +509,21 @@ void replace_if(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&]() {
-    std::replace_if(hipsycl::stdpar::par_unseq_host_fallback, first, last, p,
+    HIPSYCL_STDPAR_HOST_FALLBACK(replace_if, hipsycl::stdpar::par_unseq_host_fallback, first, last, p,
                     new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::replace_if{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p, new_value);
 }
 
 template <class ForwardIt1, class ForwardIt2, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2
-replace_copy(hipsycl::stdpar::par_unseq, ForwardIt1 first, ForwardIt1 last,
+replace_copy(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first, ForwardIt1 last,
              ForwardIt2 d_first, const T &old_value, const T &new_value) {
 
   auto offloader = [&](auto &queue) {
@@ -535,21 +535,21 @@ replace_copy(hipsycl::stdpar::par_unseq, ForwardIt1 first, ForwardIt1 last,
   };
 
   auto fallback = [&]() {
-    return std::replace_copy(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(replace_copy, hipsycl::stdpar::par_unseq_host_fallback, first,
                              last, d_first, old_value, new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::replace_copy{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, old_value, new_value);
 }
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
-    hipsycl::stdpar::par_unseq, ForwardIt1 first,
+    hipsycl::stdpar::par_unseq_argument, ForwardIt1 first,
     ForwardIt1 last, ForwardIt2 d_first, UnaryPredicate p, const T &new_value) {
 
   auto offloader = [&](auto &queue) {
@@ -561,39 +561,39 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
   };
 
   auto fallback = [&]() {
-    return std::replace_copy_if(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(replace_copy_if, hipsycl::stdpar::par_unseq_host_fallback, first,
                                 last, d_first, p, new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
                              hipsycl::stdpar::algorithm_category::replace_copy_if{},
-                             hipsycl::stdpar::par_unseq{}),
+                             std::execution::par_unseq),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, p, new_value);
 }
 
 template<class BidirIt>
-HIPSYCL_STDPAR_ENTRYPOINT void reverse (hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT void reverse (hipsycl::stdpar::par_unseq_argument,
                                         BidirIt first, BidirIt last) {
   auto offloader = [&](auto& queue) {
     hipsycl::algorithms::reverse(queue, first, last);
   };
 
   auto fallback = [&]() {
-    std::reverse(hipsycl::stdpar::par_unseq_host_fallback, first, last);
+    HIPSYCL_STDPAR_HOST_FALLBACK(reverse, hipsycl::stdpar::par_unseq_host_fallback, first, last);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
     hipsycl::stdpar::algorithm(
                           hipsycl::stdpar::algorithm_category::reverse{},
-                          hipsycl::stdpar::par_unseq{}),
+                          std::execution::par_unseq),
     std::distance(first, last), offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
 
 template<class BidirIt, class ForwardIt>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq_argument,
                                                   BidirIt first, BidirIt last,
                                                   ForwardIt d_first) {
   auto offloader = [&](auto& queue) {
@@ -604,19 +604,19 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::reverse_copy(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(reverse_copy, hipsycl::stdpar::par_unseq_host_fallback, first, last,
                      d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::reverse_copy{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), ForwardIt, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
 
 template <class ForwardIt, class T>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(const hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                          ForwardIt last, const T &value) {
   auto offloader = [&](auto& queue) {
 
@@ -647,19 +647,19 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(const hipsycl::stdpar::par_unseq, Forwa
   };
 
   auto fallback =[&]() {
-    return std::find(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find, hipsycl::stdpar::par_unseq_host_fallback, first,
                      last, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
 
 template <class ForwardIt, class UnaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(const hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(hipsycl::stdpar::par_unseq_argument,
                                             ForwardIt first, ForwardIt last,
                                             UnaryPredicate p) {
   auto offloader = [&](auto& queue) {
@@ -691,20 +691,20 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(const hipsycl::stdpar::par_unseq,
   };
 
   auto fallback =[&]() {
-    return std::find_if(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_if, hipsycl::stdpar::par_unseq_host_fallback, first,
                      last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_if{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
 
 template <class ForwardIt, class UnaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(hipsycl::stdpar::par_unseq_argument,
                                                 ForwardIt first, ForwardIt last,
                                                 UnaryPredicate p) {
   auto offloader = [&](auto& queue) {
@@ -736,13 +736,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par_unseq
   };
 
   auto fallback =[&]() {
-    return std::find_if_not(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_if_not, hipsycl::stdpar::par_unseq_host_fallback, first,
                      last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_if_not{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -750,7 +750,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par_unseq
 
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+ForwardIt1 find_end(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first,
                          ForwardIt1 last, ForwardIt2 s_first,
                          ForwardIt2 s_last) {
   auto offloader = [&](auto &queue) {
@@ -787,13 +787,13 @@ ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_end(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_end, hipsycl::stdpar::par_unseq_host_fallback,
                               first, last, s_first, s_last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     std::distance(first, last), ForwardIt1, offloader, fallback,
     first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
@@ -802,7 +802,7 @@ ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
 
 template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+ForwardIt1 find_end(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first,
                          ForwardIt1 last, ForwardIt2 s_first,
                          ForwardIt2 s_last, BinaryPredicate p) {
   auto offloader = [&](auto &queue) {
@@ -839,13 +839,13 @@ ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_end(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_end, hipsycl::stdpar::par_unseq_host_fallback,
                               first, last, s_first, s_last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     std::distance(first, last), ForwardIt1, offloader, fallback,
     first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
@@ -854,7 +854,7 @@ ForwardIt1 find_end(hipsycl::stdpar::par_unseq, ForwardIt1 first,
 
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first,
                          ForwardIt1 last, ForwardIt2 s_first,
                          ForwardIt2 s_last) {
   auto offloader = [&](auto &queue) {
@@ -885,14 +885,14 @@ ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_first_of(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_first_of, hipsycl::stdpar::par_unseq_host_fallback,
                               first, last, s_first, s_last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(
       hipsycl::stdpar::algorithm_category::find_first_of{},
-      hipsycl::stdpar::par_unseq{}),
+      std::execution::par_unseq),
     std::distance(first, last), ForwardIt1, offloader,
     fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
     s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
@@ -901,7 +901,7 @@ ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
 
 template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
+ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first,
                          ForwardIt1 last, ForwardIt2 s_first,
                          ForwardIt2 s_last, BinaryPredicate p) {
   auto offloader = [&](auto &queue) {
@@ -932,14 +932,14 @@ ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_first_of(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_first_of, hipsycl::stdpar::par_unseq_host_fallback,
                               first, last, s_first, s_last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(
       hipsycl::stdpar::algorithm_category::find_first_of{},
-      hipsycl::stdpar::par_unseq{}),
+      std::execution::par_unseq),
     std::distance(first, last), ForwardIt1, offloader,
     fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
     s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
@@ -947,7 +947,7 @@ ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq, ForwardIt1 first,
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+bool all_of(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
 
   auto offloader = [&](auto& queue){
@@ -970,19 +970,19 @@ bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&](){
-    return std::all_of(hipsycl::stdpar::par_unseq_host_fallback, first, last, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(all_of, hipsycl::stdpar::par_unseq_host_fallback, first, last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::all_of{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), bool, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+bool any_of(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
   
   auto offloader = [&](auto& queue){
@@ -1005,19 +1005,19 @@ bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&](){
-    return std::any_of(hipsycl::stdpar::par_unseq_host_fallback, first, last, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(any_of, hipsycl::stdpar::par_unseq_host_fallback, first, last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::any_of{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), bool, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+bool none_of(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
   
   auto offloader = [&](auto& queue){
@@ -1040,19 +1040,19 @@ bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&](){
-    return std::none_of(hipsycl::stdpar::par_unseq_host_fallback, first, last, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(none_of, hipsycl::stdpar::par_unseq_host_fallback, first, last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::none_of{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), bool, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
 
 template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2) {
   auto offloader = [&](auto& queue){
 
@@ -1072,19 +1072,19 @@ bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2);
 }
 
 template <class ForwardIt1, class ForwardIt2, class BinaryPred>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2, BinaryPred p) {
   auto offloader = [&](auto& queue){
 
@@ -1104,19 +1104,19 @@ bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, p);
 }
 
 template<class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT typename std::iterator_traits<ForwardIt>::difference_type
-count(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+count(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
          const T& value) {
   auto offloader = [&](auto& queue) {
   using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
@@ -1141,13 +1141,13 @@ count(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&]() {
-    return std::count(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(count, hipsycl::stdpar::par_unseq_host_fallback, first,
                          last, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::count{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), typename std::iterator_traits<ForwardIt>::difference_type,
       offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
@@ -1155,7 +1155,7 @@ count(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT typename std::iterator_traits<ForwardIt>::difference_type
-count_if(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+count_if(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
          UnaryPredicate p) {
   auto offloader = [&](auto& queue) {
   using DiffT = typename std::iterator_traits<ForwardIt>::difference_type;
@@ -1180,13 +1180,13 @@ count_if(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&]() {
-    return std::count_if(hipsycl::stdpar::par_unseq_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(count_if, hipsycl::stdpar::par_unseq_host_fallback, first,
                          last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::count_if{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first, last), typename std::iterator_traits<ForwardIt>::difference_type,
       offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -1194,7 +1194,7 @@ count_if(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
 
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq_argument,
                                           ForwardIt1 first1, ForwardIt1 last1,
                                           ForwardIt2 first2) {
 
@@ -1226,13 +1226,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_unseq_host_fallback,
                          first1, last1, first2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     std::distance(first1, last1), std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2);
 }
@@ -1240,7 +1240,7 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
 
 template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq_argument,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2, BinaryPredicate p) {
 
@@ -1272,13 +1272,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_unseq_host_fallback,
                          first1, last1, first2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     std::distance(first1, last1), std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, p);
 }
@@ -1286,7 +1286,7 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
 
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq_argument,
                                           ForwardIt1 first1, ForwardIt1 last1,
                                           ForwardIt2 first2, ForwardIt2 last2) {
     using DiffT = typename std::iterator_traits<ForwardIt1>::difference_type;
@@ -1319,13 +1319,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_unseq_host_fallback,
                          first1, last1, first2, last2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     problem_size, std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2));
@@ -1334,7 +1334,7 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
 
 template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq_argument,
                                           ForwardIt1 first1, ForwardIt1 last1,
                                           ForwardIt2 first2, ForwardIt2 last2,
                                           BinaryPredicate p) {
@@ -1368,13 +1368,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_unseq_host_fallback,
                          first1, last1, first2, last2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     problem_size, std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), p);
@@ -1383,7 +1383,7 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
 
 template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2, ForwardIt2 last2) {
   auto offloader = [&](auto& queue){
 
@@ -1405,19 +1405,19 @@ bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2, last2);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_unseq_host_fallback, first1, last1, first2, last2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, last2);
 }
 
 template <class ForwardIt1, class ForwardIt2, class BinaryPred>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2, ForwardIt2 last2, BinaryPred p) {
   auto offloader = [&](auto& queue){
 
@@ -1439,60 +1439,60 @@ bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
                       first2, last2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, last2, p);
 }
 
 
 template <class RandomIt>
-HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq, RandomIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq_argument, RandomIt first,
                                         RandomIt last) {
   auto offloader = [&](auto& queue) {
     hipsycl::algorithms::sort(queue, first, last);
   };
 
   auto fallback = [&](){
-    std::sort(hipsycl::stdpar::par_unseq_host_fallback, first, last);
+    HIPSYCL_STDPAR_HOST_FALLBACK(sort, hipsycl::stdpar::par_unseq_host_fallback, first, last);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::sort{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
 
 
 template <class RandomIt, class Compare>
-HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq, RandomIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par_unseq_argument, RandomIt first,
                                         RandomIt last, Compare comp) {
   auto offloader = [&](auto& queue) {
     hipsycl::algorithms::sort(queue, first, last, comp);
   };
 
   auto fallback = [&]() {
-    std::sort(hipsycl::stdpar::par_unseq_host_fallback, first, last, comp);
+    HIPSYCL_STDPAR_HOST_FALLBACK(sort, hipsycl::stdpar::par_unseq_host_fallback, first, last, comp);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::sort{},
-          hipsycl::stdpar::par_unseq{}),
+          std::execution::par_unseq),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
 
 
 template<class ForwardIt>
-HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                          ForwardIt last) {
   auto offloader = [&](auto &queue){
     if(first == last || std::distance(first, last) == 1)
@@ -1511,19 +1511,19 @@ HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt f
   };
 
   auto fallback = [&]() {
-    return std::is_sorted(hipsycl::stdpar::par_unseq_host_fallback, first, last);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted, hipsycl::stdpar::par_unseq_host_fallback, first, last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     std::distance(first, last), bool, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
 
 
 template<class ForwardIt, class Compare>
-HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                          ForwardIt last, Compare comp) {
   auto offloader = [&](auto &queue){
     if(first == last || std::distance(first, last) == 1)
@@ -1542,13 +1542,13 @@ HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt f
   };
 
   auto fallback = [&]() {
-    return std::is_sorted(hipsycl::stdpar::par_unseq_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted, hipsycl::stdpar::par_unseq_host_fallback, first, last,
                           comp);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
-                               hipsycl::stdpar::par_unseq{}),
+                               std::execution::par_unseq),
     std::distance(first, last), bool, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
@@ -1556,7 +1556,7 @@ HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt f
 
 template<class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                           ForwardIt last) {
   auto offloader = [&](auto &queue){
     if (first == last || std::distance(first, last) == 1)
@@ -1587,13 +1587,13 @@ ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::is_sorted_until(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted_until, hipsycl::stdpar::par_unseq_host_fallback,
                                 first, last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
-                               hipsycl::stdpar::par_unseq()),
+                               std::execution::par_unseq),
     std::distance(first, last), ForwardIt, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -1601,7 +1601,7 @@ ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
 
 template<class ForwardIt, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                           ForwardIt last, Compare comp) {
   auto offloader = [&](auto &queue){
     if (first == last || std::distance(first, last) == 1)
@@ -1632,13 +1632,13 @@ ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::is_sorted_until(hipsycl::stdpar::par_unseq_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted_until, hipsycl::stdpar::par_unseq_host_fallback,
                                 first, last, comp);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
-                               hipsycl::stdpar::par_unseq()),
+                               std::execution::par_unseq),
     std::distance(first, last), ForwardIt, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
@@ -1647,7 +1647,7 @@ ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
 template<class ForwardIt1, class ForwardIt2,
          class ForwardIt3, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt3 merge(hipsycl::stdpar::par_unseq,
+ForwardIt3 merge(hipsycl::stdpar::par_unseq_argument,
                   ForwardIt1 first1, ForwardIt1 last1,
                   ForwardIt2 first2, ForwardIt2 last2,
                   ForwardIt3 d_first, Compare comp) {
@@ -1666,13 +1666,13 @@ ForwardIt3 merge(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::merge(hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(merge, hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
                       first2, last2, d_first, comp);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::merge{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first1, last1) + std::distance(first2, last2), ForwardIt3,
       offloader, fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1),
       first2, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), d_first, comp);
@@ -1681,7 +1681,7 @@ ForwardIt3 merge(hipsycl::stdpar::par_unseq,
 template<class ForwardIt1, class ForwardIt2,
          class ForwardIt3, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt3 merge(hipsycl::stdpar::par_unseq,
+ForwardIt3 merge(hipsycl::stdpar::par_unseq_argument,
                   ForwardIt1 first1, ForwardIt1 last1,
                   ForwardIt2 first2, ForwardIt2 last2,
                   ForwardIt3 d_first) {
@@ -1700,13 +1700,13 @@ ForwardIt3 merge(hipsycl::stdpar::par_unseq,
   };
 
   auto fallback = [&]() {
-    return std::merge(hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(merge, hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
                       first2, last2, d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::merge{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first1, last1) + std::distance(first2, last2), ForwardIt3,
       offloader, fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1),
       first2, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), d_first);
@@ -1715,7 +1715,7 @@ ForwardIt3 merge(hipsycl::stdpar::par_unseq,
 
 template<class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt min_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt min_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last) {
 auto offloader = [&](auto &queue) {
   if (first == last)
@@ -1747,13 +1747,13 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::min_element(hipsycl::stdpar::par_unseq_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(min_element, hipsycl::stdpar::par_unseq_host_fallback, first,
                           last);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::min_element{},
-                             hipsycl::stdpar::par_unseq{}),
+                             std::execution::par_unseq),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -1761,7 +1761,7 @@ HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
 
 template<class ForwardIt, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt min_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt min_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last, Compare comp) {
 auto offloader = [&](auto &queue) {
   if (first == last)
@@ -1793,13 +1793,13 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::min_element(hipsycl::stdpar::par_unseq_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(min_element, hipsycl::stdpar::par_unseq_host_fallback, first,
                           last, comp);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::min_element{},
-                             hipsycl::stdpar::par_unseq{}),
+                             std::execution::par_unseq),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
@@ -1807,7 +1807,7 @@ HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
 
 template<class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt max_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt max_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last) {
 auto offloader = [&](auto &queue) {
   if (first == last)
@@ -1838,13 +1838,13 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::max_element(hipsycl::stdpar::par_unseq_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(max_element, hipsycl::stdpar::par_unseq_host_fallback, first,
                           last);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::max_element{},
-                             hipsycl::stdpar::par_unseq{}),
+                             std::execution::par_unseq),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -1852,7 +1852,7 @@ HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
 
 template<class ForwardIt, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt max_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt max_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last, Compare comp) {
 auto offloader = [&](auto &queue) {
   if (first == last)
@@ -1883,19 +1883,21 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::max_element(hipsycl::stdpar::par_unseq_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(max_element, hipsycl::stdpar::par_unseq_host_fallback, first,
                           last, comp);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::max_element{},
-                             hipsycl::stdpar::par_unseq{}),
+                             std::execution::par_unseq),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
 
 
 //////////////////// par policy  /////////////////////////////////////
+
+#ifndef _LIBCPP_VERSION
 
 
 template <class ForwardIt, class UnaryFunction2>
@@ -1906,13 +1908,13 @@ HIPSYCL_STDPAR_ENTRYPOINT void for_each(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&](){
-    std::for_each(hipsycl::stdpar::par_host_fallback, first, last, f);
+    HIPSYCL_STDPAR_HOST_FALLBACK(for_each, hipsycl::stdpar::par_host_fallback, first, last, f);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::for_each{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), f);
 }
@@ -1929,14 +1931,14 @@ ForwardIt for_each_n(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::for_each_n(hipsycl::stdpar::par_host_fallback, first, n,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(for_each_n, hipsycl::stdpar::par_host_fallback, first, n,
                            f);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::for_each_n{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       n, ForwardIt, offloader, fallback, first, n, f);
 }
 
@@ -1954,14 +1956,14 @@ ForwardIt2 transform(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::transform(hipsycl::stdpar::par_host_fallback, first1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(transform, hipsycl::stdpar::par_host_fallback, first1,
                           last1, d_first, unary_op);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first1, last1), ForwardIt2, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), d_first, unary_op);
 }
@@ -1982,14 +1984,14 @@ ForwardIt3 transform(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::transform(hipsycl::stdpar::par_host_fallback, first1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(transform, hipsycl::stdpar::par_host_fallback, first1,
                           last1, first2, d_first, binary_op);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first1, last1), ForwardIt3, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, d_first, binary_op);
 }
@@ -2006,13 +2008,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(const hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::copy(hipsycl::stdpar::par_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(copy, hipsycl::stdpar::par_host_fallback, first, last,
                      d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::copy{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
@@ -2045,13 +2047,13 @@ ForwardIt2 copy_if(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::copy_if(hipsycl::stdpar::par_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(copy_if, hipsycl::stdpar::par_host_fallback, first, last,
                         d_first, pred);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::copy_if{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, pred);
 }
@@ -2069,13 +2071,13 @@ ForwardIt2 copy_n(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::copy_n(hipsycl::stdpar::par_host_fallback, first, count,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(copy_n, hipsycl::stdpar::par_host_fallback, first, count,
                        result);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::copy_n{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       count, ForwardIt2, offloader, fallback, first, count, result);
 }
 
@@ -2091,13 +2093,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(const hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::move(hipsycl::stdpar::par_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(move, hipsycl::stdpar::par_host_fallback, first, last,
                      d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::move{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
@@ -2111,12 +2113,12 @@ void fill(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    std::fill(hipsycl::stdpar::par_host_fallback, first, last, value);
+    HIPSYCL_STDPAR_HOST_FALLBACK(fill, hipsycl::stdpar::par_host_fallback, first, last, value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::fill{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
@@ -2133,13 +2135,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(hipsycl::stdpar::par, ForwardIt first
   };
 
   auto fallback = [&]() {
-    return std::fill_n(hipsycl::stdpar::par_host_fallback, first, count,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(fill_n, hipsycl::stdpar::par_host_fallback, first, count,
                        value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::fill_n{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       count, ForwardIt, offloader, fallback, first, count, value);
 }
 
@@ -2151,13 +2153,13 @@ HIPSYCL_STDPAR_ENTRYPOINT void generate(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    std::generate(hipsycl::stdpar::par_host_fallback, first, last, g);
+    HIPSYCL_STDPAR_HOST_FALLBACK(generate, hipsycl::stdpar::par_host_fallback, first, last, g);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::generate{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), g);
 }
@@ -2174,13 +2176,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::generate_n(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(generate_n, hipsycl::stdpar::par_host_fallback, first,
                            count, g);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(hipsycl::stdpar::algorithm(
                              hipsycl::stdpar::algorithm_category::generate_n{},
-                             hipsycl::stdpar::par{}),
+                             std::execution::par),
                          count, ForwardIt, offloader, fallback, first, count,
                          g);
 }
@@ -2214,14 +2216,14 @@ ForwardIt2 remove_copy(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::remove_copy(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove_copy, hipsycl::stdpar::par_host_fallback,
                             first, last, d_first, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove_copy{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, value);
 }
@@ -2254,14 +2256,14 @@ ForwardIt2 remove_copy_if(hipsycl::stdpar::par, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::remove_copy_if(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove_copy_if, hipsycl::stdpar::par_host_fallback,
                             first, last, d_first, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove_copy_if{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, p);
 }
@@ -2296,14 +2298,14 @@ ForwardIt remove(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::remove(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove, hipsycl::stdpar::par_host_fallback,
                             first, last, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
@@ -2338,14 +2340,14 @@ ForwardIt remove_if(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::remove_if(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(remove_if, hipsycl::stdpar::par_host_fallback,
                             first, last, pred);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::remove_if{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), pred);
 }
@@ -2360,13 +2362,13 @@ void replace(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&]() {
-    std::replace(hipsycl::stdpar::par_host_fallback, first, last,
+    HIPSYCL_STDPAR_HOST_FALLBACK(replace, hipsycl::stdpar::par_host_fallback, first, last,
                  old_value, new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::replace{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), old_value, new_value);
 }
@@ -2381,14 +2383,14 @@ void replace_if(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&]() {
-    std::replace_if(hipsycl::stdpar::par_host_fallback, first, last, p,
+    HIPSYCL_STDPAR_HOST_FALLBACK(replace_if, hipsycl::stdpar::par_host_fallback, first, last, p,
                     new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::replace_if{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p, new_value);
 }
@@ -2407,14 +2409,14 @@ replace_copy(hipsycl::stdpar::par, ForwardIt1 first, ForwardIt1 last,
   };
 
   auto fallback = [&]() {
-    return std::replace_copy(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(replace_copy, hipsycl::stdpar::par_host_fallback, first,
                              last, d_first, old_value, new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::replace_copy{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, old_value, new_value);
 }
@@ -2433,14 +2435,14 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
   };
 
   auto fallback = [&]() {
-    return std::replace_copy_if(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(replace_copy_if, hipsycl::stdpar::par_host_fallback, first,
                                 last, d_first, p, new_value);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
                              hipsycl::stdpar::algorithm_category::replace_copy_if{},
-                             hipsycl::stdpar::par{}),
+                             std::execution::par),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, p, new_value);
 }
@@ -2453,13 +2455,13 @@ HIPSYCL_STDPAR_ENTRYPOINT void reverse (hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    std::reverse(hipsycl::stdpar::par_host_fallback, first, last);
+    HIPSYCL_STDPAR_HOST_FALLBACK(reverse, hipsycl::stdpar::par_host_fallback, first, last);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
     hipsycl::stdpar::algorithm(
                           hipsycl::stdpar::algorithm_category::reverse{},
-                          hipsycl::stdpar::par{}),
+                          std::execution::par),
     std::distance(first, last), offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -2476,13 +2478,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::reverse_copy(hipsycl::stdpar::par_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(reverse_copy, hipsycl::stdpar::par_host_fallback, first, last,
                      d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::reverse_copy{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), ForwardIt, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
@@ -2519,13 +2521,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(const hipsycl::stdpar::par, ForwardIt f
   };
 
   auto fallback =[&]() {
-    return std::find(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find, hipsycl::stdpar::par_host_fallback, first,
                      last, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
@@ -2564,13 +2566,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(const hipsycl::stdpar::par,
   };
 
   auto fallback =[&]() {
-    return std::find_if(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_if, hipsycl::stdpar::par_host_fallback, first,
                      last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_if{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -2609,13 +2611,13 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const hipsycl::stdpar::par,
   };
 
   auto fallback =[&]() {
-    return std::find_if_not(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_if_not, hipsycl::stdpar::par_host_fallback, first,
                      last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_if_not{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), ForwardIt, offloader, fallback,
       first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -2660,13 +2662,13 @@ ForwardIt1 find_end(hipsycl::stdpar::par, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_end(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_end, hipsycl::stdpar::par_host_fallback,
                               first, last, s_first, s_last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     std::distance(first, last), ForwardIt1, offloader, fallback,
     first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
@@ -2712,13 +2714,13 @@ ForwardIt1 find_end(hipsycl::stdpar::par, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_end(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_end, hipsycl::stdpar::par_host_fallback,
                               first, last, s_first, s_last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::find_end{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     std::distance(first, last), ForwardIt1, offloader, fallback,
     first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), s_first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
@@ -2757,14 +2759,14 @@ ForwardIt1 find_first_of(hipsycl::stdpar::par, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_first_of(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_first_of, hipsycl::stdpar::par_host_fallback,
                               first, last, s_first, s_last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(
       hipsycl::stdpar::algorithm_category::find_first_of{},
-      hipsycl::stdpar::par{}),
+      std::execution::par),
     std::distance(first, last), ForwardIt1, offloader,
     fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
     s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last));
@@ -2803,14 +2805,14 @@ ForwardIt1 find_first_of(hipsycl::stdpar::par, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return std::find_first_of(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(find_first_of, hipsycl::stdpar::par_host_fallback,
                               first, last, s_first, s_last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(
       hipsycl::stdpar::algorithm_category::find_first_of{},
-      hipsycl::stdpar::par{}),
+      std::execution::par),
     std::distance(first, last), ForwardIt1, offloader,
     fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last),
     s_first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(s_last), p);
@@ -2841,12 +2843,12 @@ bool all_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&](){
-    return std::all_of(hipsycl::stdpar::par_host_fallback, first, last, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(all_of, hipsycl::stdpar::par_host_fallback, first, last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::all_of{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), bool, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -2876,12 +2878,12 @@ bool any_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&](){
-    return std::any_of(hipsycl::stdpar::par_host_fallback, first, last, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(any_of, hipsycl::stdpar::par_host_fallback, first, last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::any_of{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), bool, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -2911,12 +2913,12 @@ bool none_of(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&](){
-    return std::none_of(hipsycl::stdpar::par_host_fallback, first, last, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(none_of, hipsycl::stdpar::par_host_fallback, first, last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::none_of{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), bool, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -2949,13 +2951,13 @@ count(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&]() {
-    return std::count(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(count, hipsycl::stdpar::par_host_fallback, first,
                          last, value);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::count{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), typename std::iterator_traits<ForwardIt>::difference_type,
       offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), value);
 }
@@ -2988,13 +2990,13 @@ count_if(hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
   };
 
   auto fallback = [&]() {
-    return std::count_if(hipsycl::stdpar::par_host_fallback, first,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(count_if, hipsycl::stdpar::par_host_fallback, first,
                          last, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::count_if{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first, last), typename std::iterator_traits<ForwardIt>::difference_type,
       offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), p);
 }
@@ -3033,13 +3035,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_host_fallback,
                          first1, last1, first2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     std::distance(first1, last1), std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2);
 }
@@ -3079,13 +3081,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_host_fallback,
                          first1, last1, first2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     std::distance(first1, last1), std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, p);
 }
@@ -3126,13 +3128,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_host_fallback,
                          first1, last1, first2, last2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     problem_size, std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2));
@@ -3175,13 +3177,13 @@ std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::mismatch(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(mismatch, hipsycl::stdpar::par_host_fallback,
                          first1, last1, first2, last2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::mismatch{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     problem_size, std::pair, offloader,
     fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), p);
@@ -3210,12 +3212,12 @@ bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1, first2);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_host_fallback, first1, last1, first2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2);
 }
@@ -3243,12 +3245,12 @@ bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1, first2, p);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_host_fallback, first1, last1, first2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, p);
 }
@@ -3277,12 +3279,12 @@ bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1, first2, last2);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_host_fallback, first1, last1, first2, last2);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2));
@@ -3312,13 +3314,13 @@ bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
   };
 
   auto fallback = [&](){
-    return std::equal(hipsycl::stdpar::par_host_fallback, first1, last1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(equal, hipsycl::stdpar::par_host_fallback, first1, last1,
                       first2, last2, p);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::equal{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first1, last1), bool, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), p);
@@ -3333,13 +3335,13 @@ HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par, RandomIt first,
   };
 
   auto fallback = [&](){
-    std::sort(hipsycl::stdpar::par_host_fallback, first, last);
+    HIPSYCL_STDPAR_HOST_FALLBACK(sort, hipsycl::stdpar::par_host_fallback, first, last);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::sort{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -3352,13 +3354,13 @@ HIPSYCL_STDPAR_ENTRYPOINT void sort(hipsycl::stdpar::par, RandomIt first,
   };
 
   auto fallback = [&]() {
-    std::sort(hipsycl::stdpar::par_host_fallback, first, last, comp);
+    HIPSYCL_STDPAR_HOST_FALLBACK(sort, hipsycl::stdpar::par_host_fallback, first, last, comp);
   };
 
   HIPSYCL_STDPAR_OFFLOAD_NORET(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::sort{},
-          hipsycl::stdpar::par{}),
+          std::execution::par),
       std::distance(first, last), offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
@@ -3383,12 +3385,12 @@ HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::is_sorted(hipsycl::stdpar::par_host_fallback, first, last);
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted, hipsycl::stdpar::par_host_fallback, first, last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     std::distance(first, last), bool, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -3414,13 +3416,13 @@ HIPSYCL_STDPAR_ENTRYPOINT bool is_sorted(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::is_sorted(hipsycl::stdpar::par_host_fallback, first, last,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted, hipsycl::stdpar::par_host_fallback, first, last,
                           comp);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted{},
-                               hipsycl::stdpar::par{}),
+                               std::execution::par),
     std::distance(first, last), bool, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
@@ -3459,13 +3461,13 @@ ForwardIt is_sorted_until(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::is_sorted_until(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted_until, hipsycl::stdpar::par_host_fallback,
                                 first, last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
-                               hipsycl::stdpar::par()),
+                               std::execution::par),
     std::distance(first, last), ForwardIt, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -3504,13 +3506,13 @@ ForwardIt is_sorted_until(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return std::is_sorted_until(hipsycl::stdpar::par_host_fallback,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(is_sorted_until, hipsycl::stdpar::par_host_fallback,
                                 first, last, comp);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
     hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::is_sorted_until{},
-                               hipsycl::stdpar::par()),
+                               std::execution::par),
     std::distance(first, last), ForwardIt, offloader, fallback, first,
     HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
@@ -3538,13 +3540,13 @@ ForwardIt3 merge(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::merge(hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(merge, hipsycl::stdpar::par_unseq_host_fallback, first1, last1,
                       first2, last2, d_first, comp);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::merge{},
-                                 hipsycl::stdpar::par_unseq{}),
+                                 std::execution::par_unseq),
       std::distance(first1, last1) + std::distance(first2, last2), ForwardIt3,
       offloader, fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1),
       first2, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), d_first, comp);
@@ -3572,13 +3574,13 @@ ForwardIt3 merge(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return std::merge(hipsycl::stdpar::par_host_fallback, first1, last1,
+    return HIPSYCL_STDPAR_HOST_FALLBACK(merge, hipsycl::stdpar::par_host_fallback, first1, last1,
                       first2, last2, d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::merge{},
-                                 hipsycl::stdpar::par{}),
+                                 std::execution::par),
       std::distance(first1, last1) + std::distance(first2, last2), ForwardIt3,
       offloader, fallback, first1, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1),
       first2, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last2), d_first);
@@ -3619,13 +3621,13 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::min_element(hipsycl::stdpar::par_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(min_element, hipsycl::stdpar::par_host_fallback, first,
                           last);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::min_element{},
-                             hipsycl::stdpar::par{}),
+                             std::execution::par),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -3665,13 +3667,13 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::min_element(hipsycl::stdpar::par_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(min_element, hipsycl::stdpar::par_host_fallback, first,
                           last, comp);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::min_element{},
-                             hipsycl::stdpar::par{}),
+                             std::execution::par),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
@@ -3711,13 +3713,13 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::max_element(hipsycl::stdpar::par_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(max_element, hipsycl::stdpar::par_host_fallback, first,
                           last);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::max_element{},
-                             hipsycl::stdpar::par{}),
+                             std::execution::par),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -3757,17 +3759,19 @@ auto offloader = [&](auto &queue) {
 };
 
 auto fallback = [&]() {
-  return std::max_element(hipsycl::stdpar::par_host_fallback, first,
+  return HIPSYCL_STDPAR_HOST_FALLBACK(max_element, hipsycl::stdpar::par_host_fallback, first,
                           last, comp);
 };
 
 HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
   hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::max_element{},
-                             hipsycl::stdpar::par{}),
+                             std::execution::par),
   std::distance(first, last), ForwardIt, offloader, fallback, first,
   HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), comp);
 }
 
+
+#endif // !_LIBCPP_VERSION
 
 }
 

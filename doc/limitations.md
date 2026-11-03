@@ -9,3 +9,4 @@ The following is a (probably incomplete) list of features that are not yet imple
 * Error handling: wait_and_throw() and throw_asynchronous() do not invoke async handler
 * 0-dimensional objects (e.g 0D accessors) are mostly unimplemented
 * SYCL 1.2.1: Because hipSYCL is not based on OpenCL, all SYCL OpenCL interoperability features are unimplemented.
+* Some relational functions such as `sycl::select` and `sycl::bitselect` are not yet implemented.

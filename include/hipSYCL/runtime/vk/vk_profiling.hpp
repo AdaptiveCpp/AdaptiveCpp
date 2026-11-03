@@ -12,6 +12,7 @@
 
 #include "../instrumentation.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include <cmath>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace hipsycl {
@@ -34,6 +35,32 @@ uint64_t vk_get_query_pool_result(const vk::raii::QueryPool &);
 
 // Helper function for creating a single element query pool
 vk::raii::QueryPool vk_create_query_pool(const vk::raii::Device &);
+
+// Converts a device timestamp in device ticks into nanoseconds, using a
+// calibrated pair of reference timestamps taken at the same instant.
+//
+// `ns_per_tick` is VkPhysicalDeviceLimits::timestampPeriod and `valid_bits`
+// is VkQueueFamilyProperties::timestampValidBits, where only the low
+// `valid_bits` of device timestamps are meaningful.
+inline int64_t vk_device_to_host_time(uint64_t host_ref_ns,
+                                      uint64_t device_ref_ticks,
+                                      uint64_t device_ticks, double ns_per_tick,
+                                      uint32_t valid_bits) {
+  uint64_t delta = device_ticks - device_ref_ticks;
+  int64_t signed_delta;
+  if (valid_bits == 0 || valid_bits >= 64) {
+    signed_delta = static_cast<int64_t>(delta);
+  } else {
+    const uint64_t mask = (uint64_t{1} << valid_bits) - 1;
+    const uint64_t sign_bit = uint64_t{1} << (valid_bits - 1);
+    delta &= mask;
+    signed_delta = (delta & sign_bit) ? static_cast<int64_t>(delta | ~mask)
+                                      : static_cast<int64_t>(delta);
+  }
+
+  return static_cast<int64_t>(host_ref_ns) +
+         std::llround(static_cast<double>(signed_delta) * ns_per_tick);
+}
 
 // Synchronous timestamp used for submission metric
 class vk_sync_timestamp : public instrumentations::submission_timestamp {
@@ -58,12 +85,16 @@ private:
 // host (via host_worker thread)  async execution.
 template <class Base> class vk_async_timestamp : public Base {
 public:
+  // `ref_timestamps` is a calibrated (host, device) timestamp pair. Start and
+  // finish timestamps of the same operation should share the same pair, so
+  // that calibration jitter cannot make the measured duration negative.
   vk_async_timestamp(const vk::raii::Device &dev, vk::Semaphore sem,
-                     bool use_khr)
-      : _dev(dev), _use_khr(use_khr), _query_pool(nullptr), _sem(sem),
-        _sem_wait_val(0), _host_timestamp(0) {
-    // Snapshot the current host and device timestamps
-    _ref_timestamps = vk_get_calibrated_timestamps(_dev, _use_khr);
+                     bool use_khr, calibrated_timestamps ref_timestamps,
+                     double ns_per_tick, uint32_t valid_bits)
+      : _dev(dev), _use_khr(use_khr), _query_pool(nullptr),
+        _ref_timestamps(ref_timestamps), _ns_per_tick(ns_per_tick),
+        _valid_bits(valid_bits), _sem(sem), _sem_wait_val(0),
+        _host_timestamp(0) {
 
     // Create a single element query pool owned by this instrumentation object
     _query_pool = vk_create_query_pool(_dev);
@@ -89,23 +120,15 @@ public:
           profiler_clock::duration{_host_timestamp}};
     }
 
-    // If command was executed on device then use the difference between host
-    // and device counters from the reference timestamp to inform how to
-    // convert the device timestamp we captured into a time point.
-    const uint64_t &host_ref = _ref_timestamps.clock_monotonic;
-    const uint64_t &dev_ref = _ref_timestamps.device;
-
+    // If command was executed on device, convert the device timestamp
+    // (in device ticks) to host time using the calibrated reference pair.
     // Get captured device timestamp from query pool in domain
     // VK_TIME_DOMAIN_DEVICE_KHR
-    const int64_t device_time = vk_get_query_pool_result(_query_pool);
+    const uint64_t device_time = vk_get_query_pool_result(_query_pool);
 
-    // Convert device timestamp to host timepoint
-    int64_t host_time;
-    if (host_ref > dev_ref) {
-      host_time = (host_ref - dev_ref) + device_time;
-    } else {
-      host_time = device_time - (dev_ref - host_ref);
-    }
+    const int64_t host_time = vk_device_to_host_time(
+        _ref_timestamps.clock_monotonic, _ref_timestamps.device, device_time,
+        _ns_per_tick, _valid_bits);
     return profiler_clock::time_point{profiler_clock::duration{host_time}};
   }
 
@@ -133,6 +156,8 @@ private:
   bool _use_khr;
   vk::raii::QueryPool _query_pool;
   calibrated_timestamps _ref_timestamps;
+  double _ns_per_tick;
+  uint32_t _valid_bits;
 
   // Members used to implement wait() method
   vk::Semaphore _sem;

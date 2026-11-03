@@ -737,7 +737,7 @@ HIPSYCL_BUILTIN auto __acpp_any(T x, T y) noexcept
   using ReturnType = std::conditional_t<is_sycl_marray<T>::value, bool, int>;
   bool no_msb_set = true;
   for (size_t i = 0; i < T::size(); ++i) {
-    if (x[i] >= 0) {
+    if (x[i] < 0) {
       no_msb_set = false;
       break; 
     }

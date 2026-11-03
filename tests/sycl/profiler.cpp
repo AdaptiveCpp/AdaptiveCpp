@@ -11,6 +11,7 @@
 
 #include "sycl_test_suite.hpp"
 #include <boost/test/tools/old/interface.hpp>
+#include <chrono>
 
 BOOST_FIXTURE_TEST_SUITE(profiler_tests, reset_device_fixture)
 
@@ -238,5 +239,72 @@ BOOST_AUTO_TEST_CASE(queue_profiling_update_host_supported)
   }
 }
 
+// Profiled durations must be consistent with host wall-clock time, e.g. device
+// timestamp ticks must be converted to nanoseconds.
+BOOST_AUTO_TEST_CASE(queue_profiling_duration_vs_wall_clock) {
+  if (default_device_supports_profiling()) {
+    sycl::queue queue{
+        sycl::property_list{sycl::property::queue::in_order{},
+                            sycl::property::queue::enable_profiling{}}};
+    constexpr size_t n = 4 * 1024 * 1024;
+    float *data = sycl::malloc_device<float>(n, queue);
+    auto launch = [&]() {
+      return queue.parallel_for(sycl::range<1>{n}, [=](sycl::id<1> idx) {
+        float x = idx[0];
+        for (int r = 0; r < 256; ++r)
+          x = x * 1.0001f + 0.5f;
+        data[idx] = x;
+      });
+    };
+    launch().wait(); // warmup
+
+    // Measure several back-to-back launches so that the profiled span from
+    // the first start to the last end is dominated by device execution and
+    // comparable to host wall-clock time.
+    constexpr int num_launches = 10;
+    std::vector<sycl::event> events;
+    auto t0 = std::chrono::steady_clock::now();
+    for (int i = 0; i < num_launches; ++i)
+      events.push_back(launch());
+    queue.wait();
+    const double wall_ns = std::chrono::duration<double, std::nano>(
+                               std::chrono::steady_clock::now() - t0)
+                               .count();
+    const double device_ns = static_cast<double>(
+        events.back()
+            .get_profiling_info<sycl::info::event_profiling::command_end>() -
+        events.front()
+            .get_profiling_info<sycl::info::event_profiling::command_start>());
+
+    // The device profiling time excludes submission of the first launch, so it
+    // may be somewhat shorter than wall-clock time, but a wrong timestamp unit
+    // (e.g. device ticks instead of nanoseconds) shows up as a large factor.
+    BOOST_CHECK_LE(device_ns, wall_ns + 1e6);
+    BOOST_CHECK_GE(device_ns * 2, wall_ns);
+    sycl::free(data, queue);
+  }
+}
+
+// Profiled operations whose events are dropped immediately must not release
+// backend profiling resources while the device is still using them.
+BOOST_AUTO_TEST_CASE(queue_profiling_dropped_events) {
+  if (default_device_supports_profiling()) {
+    sycl::queue queue{
+        sycl::property_list{sycl::property::queue::in_order{},
+                            sycl::property::queue::enable_profiling{}}};
+    constexpr size_t n = 1 << 16;
+    int *data = sycl::malloc_device<int>(n, queue);
+    queue.memset(data, 0, n * sizeof(int));
+    for (int i = 0; i < 500; ++i)
+      queue.parallel_for(sycl::range<1>{n},
+                         [=](sycl::id<1> idx) { data[idx] += 1; });
+    queue.wait();
+
+    int result = 0;
+    queue.memcpy(&result, data + n - 1, sizeof(int)).wait();
+    BOOST_CHECK_EQUAL(result, 500);
+    sycl::free(data, queue);
+  }
+}
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

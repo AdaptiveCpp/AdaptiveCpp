@@ -19,6 +19,7 @@
 #include "hipSYCL/runtime/vk/vk_code_object.hpp"
 #include "hipSYCL/runtime/vk/vk_profiling.hpp"
 #include <mutex>
+#include <optional>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace hipsycl {
@@ -51,6 +52,7 @@ private:
 class vk_queue : public inorder_queue {
 public:
   vk_queue(vk_hardware_manager *hw_manager, std::size_t device_index);
+  ~vk_queue();
 
   std::shared_ptr<dag_node_event> insert_event() override;
   std::shared_ptr<dag_node_event> create_queue_completion_event() override;
@@ -87,6 +89,7 @@ private:
   vk::CommandBuffer begin_command_buffer();
   void end_command_buffer(vk::CommandBuffer &cmd_buf);
   vk::CommandBuffer get_command_buffer();
+  void retire_finished_cmd_bufs();
 
   void submit_command_buffer(vk::CommandBuffer &cmd_buf);
 
@@ -114,7 +117,13 @@ private:
   std::unique_ptr<vk::raii::CommandPool> _cmd_pool;
   vk::raii::CommandBuffers _cmd_bufs; // Owns the RAII lifetime
   std::vector<vk::CommandBuffer> _available_cmd_bufs;
-  std::map<uint64_t, vk::CommandBuffer> _executing_cmd_bufs; // ordered map
+  struct vk_executing_cmd_buf {
+    vk::CommandBuffer cmd_buf;
+    // Keeps the query pools referenced by the command-buffer alive until
+    // it has completed execution
+    std::optional<vk_async_profiling> profiling;
+  };
+  std::map<uint64_t, vk_executing_cmd_buf> _executing_cmd_bufs; // ordered map
 
   // Members for owned member objects for staging buffers
   vk_staging_allocation_map _staging_allocs;

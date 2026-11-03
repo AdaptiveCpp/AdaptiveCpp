@@ -84,6 +84,13 @@ vk_queue::vk_queue(vk_hardware_manager *hw_manager, std::size_t device_index)
       device.createSemaphore(semaphore_info.get<vk::SemaphoreCreateInfo>());
 }
 
+vk_queue::~vk_queue() {
+  // Command-buffers and the query pools they reference must not be
+  // destroyed while still executing
+  wait();
+  _executing_cmd_bufs.clear();
+}
+
 std::shared_ptr<dag_node_event> vk_queue::create_queue_completion_event() {
   return std::make_shared<queue_completion_event<vk::Semaphore, vk_node_event>>(
       this);
@@ -122,19 +129,33 @@ void vk_queue::profile_if_enabled(operation &op, const dag_node_ptr &node) {
   }
 
   vk_async_profiling async_prof;
-  if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+  const bool needs_start_timestamp =
+      hints.has_hint<rt::hints::request_instrumentation_start_timestamp>();
+  const bool needs_finish_timestamp =
+      hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>();
+  // Snapshot the current host and device timestamps once per operation,
+  // shared by its start and finish timestamps
+  calibrated_timestamps ref_timestamps{};
+  if (needs_start_timestamp || needs_finish_timestamp) {
+    ref_timestamps = vk_get_calibrated_timestamps(
+        _dev_ctx->get_device(), _dev_has_khr_calibrated_timestamps);
+  }
+
+  if (needs_start_timestamp) {
     async_prof.start_time = std::make_shared<vk_execution_start_timestamp>(
-        _dev_ctx->get_device(), *_semaphore,
-        _dev_has_khr_calibrated_timestamps);
+        _dev_ctx->get_device(), *_semaphore, _dev_has_khr_calibrated_timestamps,
+        ref_timestamps, _dev_ctx->get_timestamp_period(),
+        _dev_ctx->get_timestamp_valid_bits());
     op.get_instrumentations()
         .add_instrumentation<instrumentations::execution_start_timestamp>(
             async_prof.start_time);
   }
 
-  if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+  if (needs_finish_timestamp) {
     async_prof.finish_time = std::make_shared<vk_execution_finish_timestamp>(
-        _dev_ctx->get_device(), *_semaphore,
-        _dev_has_khr_calibrated_timestamps);
+        _dev_ctx->get_device(), *_semaphore, _dev_has_khr_calibrated_timestamps,
+        ref_timestamps, _dev_ctx->get_timestamp_period(),
+        _dev_ctx->get_timestamp_valid_bits());
     op.get_instrumentations()
         .add_instrumentation<instrumentations::execution_finish_timestamp>(
             async_prof.finish_time);
@@ -457,20 +478,7 @@ vk::CommandBuffer vk_queue::get_command_buffer() {
   HIPSYCL_DEBUG_INFO << "vk_queue: No free command-buffers, refreshing list"
                      << std::endl;
 
-  std::vector<uint64_t> finished;
-  for (auto &pair : _executing_cmd_bufs) {
-    auto &signal_val = pair.first;
-    auto &cmd_buf = pair.second;
-    if (_semaphore.getCounterValue() >= signal_val) {
-      finished.push_back(signal_val);
-      cmd_buf.reset({});
-      _available_cmd_bufs.push_back(cmd_buf);
-    }
-  }
-
-  for (auto &signal_val : finished) {
-    _executing_cmd_bufs.erase(signal_val);
-  }
+  retire_finished_cmd_bufs();
 
   // Check if any command-buffers now available
   if (!_available_cmd_bufs.empty()) {
@@ -486,7 +494,7 @@ vk::CommandBuffer vk_queue::get_command_buffer() {
   // will have soonest value to wait on.
   auto cmd = _executing_cmd_bufs.begin();
   auto wait_val = cmd->first;
-  auto cmd_buf = cmd->second;
+  auto cmd_buf = cmd->second.cmd_buf;
 
   HIPSYCL_DEBUG_INFO << "vk_queue: Still no free command-buffers, waiting on "
                      << wait_val
@@ -510,6 +518,20 @@ vk::CommandBuffer vk_queue::get_command_buffer() {
   _executing_cmd_bufs.erase(wait_val);
   cmd_buf.reset({});
   return cmd_buf;
+}
+
+void vk_queue::retire_finished_cmd_bufs() {
+  // Cleanups objects for commands which have already completed.
+  //
+  // Ordered map, so all finished command-buffers are at the front. Erasing
+  // an entry also releases the profiling query pools it kept alive.
+  const uint64_t counter = _semaphore.getCounterValue();
+  auto it = _executing_cmd_bufs.begin();
+  while (it != _executing_cmd_bufs.end() && it->first <= counter) {
+    it->second.cmd_buf.reset({});
+    _available_cmd_bufs.push_back(it->second.cmd_buf);
+    it = _executing_cmd_bufs.erase(it);
+  }
 }
 
 void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
@@ -562,7 +584,9 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
   _dev_ctx->get_queue().submit(submit_info_chain.get<vk::SubmitInfo>(),
                                nullptr);
   // Track the command-buffer and signal val as executing
-  _executing_cmd_bufs.insert({signal_value, cmd_buf});
+  _executing_cmd_bufs.insert(
+      {signal_value, vk_executing_cmd_buf{cmd_buf, _profiling}});
+  retire_finished_cmd_bufs();
 
   // Wipe event deps from other queues as we have now respected these
   _wait_deps.clear();

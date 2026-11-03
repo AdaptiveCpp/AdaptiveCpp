@@ -718,7 +718,7 @@ HIPSYCL_BUILTIN bool __acpp_isunordered(T x, T y) noexcept
 }
 
 template<class T>
-HIPSYCL_BUILTIN auto __acpp_all(T x, T y) noexcept
+HIPSYCL_BUILTIN auto __acpp_all(T x) noexcept
 {
   using ReturnType = std::conditional_t<is_sycl_marray<T>::value, bool, int>;
   bool all_msb_set = true;
@@ -732,7 +732,7 @@ HIPSYCL_BUILTIN auto __acpp_all(T x, T y) noexcept
 }
 
 template<class T>
-HIPSYCL_BUILTIN auto __acpp_any(T x, T y) noexcept
+HIPSYCL_BUILTIN auto __acpp_any(T x) noexcept
 {
   using ReturnType = std::conditional_t<is_sycl_marray<T>::value, bool, int>;
   bool no_msb_set = true;

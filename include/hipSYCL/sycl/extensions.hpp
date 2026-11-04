@@ -88,4 +88,10 @@
 #define SYCL_KHR_QUEUE_EMPTY_QUERY 1
 #define SYCL_KHR_MAX_WORK_GROUP_QUERIES 1
 
+// Only the generic SSCP compiler can outline a free function as a kernel entry
+// point, so the extension is only advertised for that flow.
+#if defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
+#define SYCL_KHR_FREE_FUNCTION_KERNELS 1
+#endif
+
 #endif

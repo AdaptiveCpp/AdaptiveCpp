@@ -12,7 +12,6 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/detail/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/spirv/spirv_common.hpp"
-#include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 
 extern "C" bool __acpp_sscp_jit_reflect_opencl_backend_supports_subgroup_extended_types();
 extern "C" bool __acpp_sscp_jit_reflect_knows_opencl_backend_supports_subgroup_extended_types();
@@ -88,7 +87,7 @@ ACPP_SUBGROUP_FLOAT_REDUCTION(f64)
                                                          __acpp_##type x) {                        \
     switch (op) {                                                                                  \
     case __acpp_sscp_algorithm_op::plus:                                                           \
-      ACPP_USE_SPIRV_BUILTIN_IF_SUPPORTED(FAdd, plus, x)                                           \
+      ACPP_USE_SPIRV_BUILTIN_IF_SUPPORTED(IAdd, plus, x)                                           \
     case __acpp_sscp_algorithm_op::multiply:                                                       \
       return hipsycl::libkernel::sscp::sg_reduce<__acpp_sscp_algorithm_op::multiply>(x);           \
     case __acpp_sscp_algorithm_op::min:                                                            \

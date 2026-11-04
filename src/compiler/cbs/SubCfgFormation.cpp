@@ -767,7 +767,10 @@ void SubCFG::arrayifyMultiSubCfgValues(
 #endif
         // if contiguous, and can be recalculated, don't arrayify but store
         // uniform values and insts required for recalculation
-        if (Shape.isContiguousOrStrided()) {
+        // not if BB is in another subCFG too (a loop with a barrier leads back to it). A subCFG
+        // can then use the value on entry and redefine it: if the value changes, recomputation
+        // cannot handle it
+        if (Shape.isContiguousOrStrided() && !OtherCFGBlocks.contains(BB)) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP,
                                            ReqdArrayElements, ContIdx_, VecInfo)) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying " << I << "\n";

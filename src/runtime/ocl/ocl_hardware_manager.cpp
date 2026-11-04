@@ -182,6 +182,7 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
     _has_intel_extension_profile = true;
   std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
   _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
+  _has_cl_khr_subgroup_extended_types_extension = (extensions.find("cl_khr_subgroup_extended_types") != std::string::npos);
 }
 
 bool ocl_hardware_context::is_cpu() const {
@@ -205,7 +206,7 @@ std::string ocl_hardware_context::get_device_name() const {
 }
 
 std::string ocl_hardware_context::get_vendor_name() const {
-  return info_query<CL_DEVICE_NAME, std::string>(_dev);
+  return info_query<CL_DEVICE_VENDOR, std::string>(_dev);
 }
 
 std::string ocl_hardware_context::get_device_arch() const {
@@ -218,6 +219,10 @@ bool ocl_hardware_context::has_intel_extension_profile() const {
 
 bool ocl_hardware_context::has_cl_khr_priority_hints_extension() const {
   return _has_cl_khr_priority_hints_extension;
+}
+
+bool ocl_hardware_context::has_cl_khr_subgroup_extended_types_extension() const {
+  return _has_cl_khr_subgroup_extended_types_extension;
 }
 
 

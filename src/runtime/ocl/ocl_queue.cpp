@@ -65,7 +65,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
     if(dae_retained_arguments_mask.has_value()) {
       original_index = dae_retained_arguments_mask.value()[i];
     }
-    
+
     if (can_submit_arbitrary_pointer_arguments &&
         info->get_argument_type(original_index) ==
             hcf_kernel_info::argument_type::pointer) {
@@ -73,7 +73,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
       const void* arg_location = kernel_args[i];
       void* ptr;
       std::memcpy(&ptr, arg_location, sizeof(void*));
-      
+
       err = usm->set_kernel_pointer_arg(kernel, static_cast<unsigned>(i), ptr);
     } else {
       // If we don't have arbitrary pointer argument support, the JIT compiler
@@ -103,7 +103,7 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: Submitting kernel!" << std::endl;
   rt::range<3> global_size = num_groups * group_size;
-  
+
   cl::NDRange cl_global_size{global_size[0], global_size[1], global_size[2]};
   cl::NDRange cl_local_size{group_size[0], group_size[1], group_size[2]};
   cl::NDRange offset{0, 0, 0};
@@ -175,6 +175,7 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
   }
 
   _reflection_map = glue::jit::construct_default_reflection_map(dev_ctx);
+  _reflection_map["target_has_ocl_subgroup_extended_types"] = dev_ctx->has_cl_khr_subgroup_extended_types_extension();
 }
 
 ocl_queue::~ocl_queue() {}
@@ -202,7 +203,7 @@ std::shared_ptr<dag_node_event> ocl_queue::insert_event() {
                 error_code{"CL", err}});
     }
     register_submitted_op(wait_evt);
-    
+
   }
 
   return _state.get_most_recent_event();
@@ -245,7 +246,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
       op.source().get_access_offset() == id<3>{} &&
       op.dest().get_access_offset() == id<3>{})
     dimension = 1;
-  
+
   assert(dimension >= 1 && dimension <= 3);
 
   auto linear_index = [](id<3> id, range<3> allocation_shape) {
@@ -259,7 +260,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
   ocl_usm* usm = ocl_ctx->get_usm_provider();
 
   if(dimension == 1) {
-    
+
     cl_int err = usm->enqueue_memcpy(_queue, op.dest().get_access_ptr(),
                         op.source().get_access_ptr(),
                         op.get_num_transferred_bytes(), {}, &evt);
@@ -335,7 +336,7 @@ result ocl_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
 
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_invoker);
-  
+
   // TODO: Instrumentation
   return op.get_launcher().invoke(backend_id::ocl, this, cap, node.get());
 }
@@ -391,7 +392,7 @@ result ocl_queue::submit_queue_wait_for(const dag_node_ptr& evt) {
 
   auto *ocl_evt =
       static_cast<inorder_queue_event<cl::Event> *>(evt->get_event().get());
-  
+
   std::vector<cl::Event> events{ocl_evt->request_backend_event()};
 
   if (_hw_manager->get_context(evt->get_assigned_device()) !=
@@ -515,7 +516,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   cl::Device dev = hw_ctx->get_cl_device();
 
   _config = initial_config;
-  
+
   _config.append_base_configuration(
       kernel_base_config_parameter::backend_id, backend_id::ocl);
   _config.append_base_configuration(
@@ -523,7 +524,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       compilation_flow::sscp);
   _config.append_base_configuration(
       kernel_base_config_parameter::hcf_object_id, hcf_object);
-  
+
   for(const auto& flag : kernel_info->get_compilation_flags())
     _config.set_build_flag(flag);
   for(const auto& opt : kernel_info->get_compilation_options())
@@ -532,7 +533,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   _config.set_build_option(
       kernel_build_option::spirv_dynamic_local_mem_allocation_size,
       local_mem_size);
-  
+
   // Not all OpenCL implementations support these extensions,
   // however if user code doesn't need them, then the compiler should in theory
   // not generate code that requires them. This should allow us to
@@ -558,26 +559,26 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
       code_object_configuration_id,
       kernel_base_config_parameter::runtime_context, ctx.get());
 
- 
 
-  
+
+
   auto jit_compiler = [&](std::string& compiled_image) -> bool {
-    
+
     std::vector<std::string> kernel_names;
     std::string selected_image_name =
         adaptivity_engine.select_image_and_kernels(&kernel_names);
 
     // Construct SPIR-V translator to compile the specified kernels
-    std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
+    std::unique_ptr<compiler::LLVMToBackendTranslator> translator =
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
-    
+
     // Lower kernels to SPIR-V
     bool enable_dead_arg_elimination = kernel_names.size() == 1;
     rt::result err = glue::jit::compile_and_store_stats(
         translator.get(), hcf_object, selected_image_name, _config,
         binary_configuration_id, _reflection_map, compiled_image,
         enable_dead_arg_elimination);
-    
+
     if(!err.is_success()) {
       register_error(err);
       return false;
@@ -623,7 +624,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
   cl::Kernel kernel;
   result res = static_cast<const ocl_executable_object *>(obj)->get_kernel(
       kernel_name, kernel);
-  
+
   if(!res.is_success())
     return res;
 

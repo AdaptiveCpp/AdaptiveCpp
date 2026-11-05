@@ -145,6 +145,8 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   }
 
   replaceLLVMIntrinsicsWithAcppBuiltins(M);
+  replaceLLVMModfWithAcppBuiltins(M);
+  replaceFRemWithAcppBuiltins(M);
 
   std::string BuiltinBitcodeFile =
       common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-ptx-full.bc");

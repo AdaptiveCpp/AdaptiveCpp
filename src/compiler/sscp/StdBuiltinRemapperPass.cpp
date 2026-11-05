@@ -111,7 +111,7 @@ llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
       SuffixOut = "f64";
       BaseNameOut = Name;
     } else {
-      if(Name.find("f") == Name.size() - 1) {
+      if(Name.back() == 'f') {
         SuffixOut = "f32";
         BaseNameOut = Name.substr(0, Name.size() - 1);
       } else {

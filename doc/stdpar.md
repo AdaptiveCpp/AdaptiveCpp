@@ -5,19 +5,22 @@ AdaptiveCpp supports automatic offloading of C++ standard algorithms.
 ## Installation & dependencies
 
 C++ standard parallelism offload requires LLVM >= 15. It is automatically enabled when a sufficiently new LLVM is detected. Requires `cmake -DACPP_COMPILER_FEATURE_PROFILE=full` (this is the default setting) at cmake configure time.
-C++ standard parallelism offload currently is only supported in conjunction with `libstdc++` >= 11. Other standard C++ standard library versions may or may not work. Support for `libc++` is likely easy to add if there is demand.
+C++ standard parallelism offload is supported with `libstdc++` >= 11. Initial execution-policy and host-fallback support is also available for `libc++`; its execution policies must be enabled (for example, libc++ 19 requires `-fexperimental-library` in addition to `-stdlib=libc++`). This header-level support is a prerequisite for Metal stdpar, not complete macOS/Metal support: Darwin allocation interception and device execution still require further work.
 
 ## Using accelerated C++ standard parallelism
 
 Offloading of C++ standard parallelism is enabled using `--acpp-stdpar`. This flag does not by itself imply a target or compilation flow, which will have to be provided in addition using the normal `--acpp-targets` argument. C++ standard parallelism is expected to work with any of our clang compiler-based compilation flows, such as `omp.accelerated`, `cuda`, `hip` or the generic SSCP compiler (`--acpp-targets=generic`). It is not currently supported in library-only compilation flows. The focus of testing currently is the generic SSCP compiler.
 
+Include `<execution>` before defining templates that call parallel algorithms. Some overloads (including sorting, merging and scans) are only declared when this header is included.
 
 ## Algorithms and policies supported for offloading
 
 Currently, the following execution policies qualify for offloading:
 
 * `par_unseq`
-* `par` (experimental; will only be offloaded on hardware that provides independent work item forward progress guarantees such as recent NVIDIA GPUs)
+* `par` (experimental, with `libstdc++`; will only be offloaded on hardware that provides independent work item forward progress guarantees such as recent NVIDIA GPUs)
+
+With `libc++`, `par` is left to the standard library's host implementation, subject to that library's algorithm coverage. AdaptiveCpp's `par_unseq` host fallback uses sequential algorithms because libc++'s native PSTL does not yet provide all required overloads. The existing parallel/vectorized libstdc++ fallbacks are unchanged.
 
 Offloading is implemented for the following STL algorithms:
 
@@ -69,7 +72,7 @@ Offloading is implemented for the following STL algorithms:
 |`transform_inclusive_scan` | |
 |`transform_exclusive_scan` | |
 
-For all other execution policies or algorithms, the algorithm will compile and execute correctly, however the regular host implementation of the algorithm provided by the C++ standard library implementation will be invoked and no offloading takes place.
+For all other execution policies or algorithms, the regular host implementation provided by the C++ standard library is used, if available; no offloading takes place. With libc++, availability depends on its native PSTL algorithm coverage.
 
 
 ## Performance

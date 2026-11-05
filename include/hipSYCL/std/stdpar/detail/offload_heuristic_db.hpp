@@ -82,7 +82,7 @@ struct algorithm {
   using algorithm_category = AlgorithmCategory;
   using execution_policy = ExecPolicy;
 
-  algorithm(const AlgorithmCategory&, ExecPolicy&&) {}
+  algorithm(const AlgorithmCategory&, const ExecPolicy&) {}
 };
 
 

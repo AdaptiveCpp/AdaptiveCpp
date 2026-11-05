@@ -458,7 +458,6 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_atomic_fetch_sub(
 // Need CAS loop for 64bit types - the definition of this
 // is required in order to be able to use the 
 // HIPSYCL_DEFINE_HIPLIKE_ATOMIC_INTEGRAL_NONNATIVE_OVERLOADS macro
-
 #define HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(Type, Arithmetic_T)     \
   template <access::address_space S>                                           \
   HIPSYCL_HIPLIKE_BUILTIN Type __acpp_atomic_fetch_sub(                         \

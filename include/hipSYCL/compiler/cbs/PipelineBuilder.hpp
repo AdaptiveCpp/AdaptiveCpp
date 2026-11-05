@@ -27,6 +27,8 @@ using OptLevel = llvm::OptimizationLevel;
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM);
 
 // build the CBS pipeline for the new PM
-void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp);
+// SubgroupSize: sub-group size of the SSCP host backend (1: no sub-group fission)
+void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp,
+                         std::size_t SubgroupSize = 1);
 } // namespace hipsycl::compiler
 #endif // HIPSYCL_PIPELINEBUILDER_HPP

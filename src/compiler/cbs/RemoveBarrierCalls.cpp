@@ -86,12 +86,13 @@ bool removeBarrierCalls(llvm::Function &F, SplitterAnnotationInfo &SAA) {
   }
 
   auto *M = F.getParent();
-  if (auto *B = M->getFunction(BarrierIntrinsicName)) {
-    if (B->getNumUses() == 0) {
-      B->eraseFromParent();
-      SAA.removeSplitter(B);
-      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up helper barrier: "
-                         << BarrierIntrinsicName << "\n";
+  for (const char *Name : {BarrierIntrinsicName, SubGroupBarrierIntrinsicName}) {
+    if (auto *B = M->getFunction(Name)) {
+      if (B->getNumUses() == 0) {
+        B->eraseFromParent();
+        SAA.removeSplitter(B);
+        HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up helper barrier: " << Name << "\n";
+      }
     }
   }
 

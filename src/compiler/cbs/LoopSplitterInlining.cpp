@@ -39,7 +39,9 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB,
             if (LastChanged)
               break;
           } else if (SAA.isSplitterFunc(CallI->getCalledFunction()) &&
-                     CallI->getCalledFunction()->getName() != BarrierIntrinsicName) {
+                     CallI->getCalledFunction()->getName() != BarrierIntrinsicName &&
+                     // keep sub-group barriers, so they don't lose their tier
+                     CallI->getCalledFunction()->getName() != SubGroupBarrierIntrinsicName) {
             HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] Replace barrier with intrinsic: "
                                << CallI->getCalledFunction()->getName() << "\n";
             hipsycl::compiler::utils::createBarrier(CallI, SAA);

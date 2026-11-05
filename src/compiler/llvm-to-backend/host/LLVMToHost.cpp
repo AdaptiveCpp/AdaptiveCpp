@@ -173,6 +173,13 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
   if (!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
 
+  // the sub-group size as a constant for the libkernel builtins
+  if (auto *SgSize = M.getGlobalVariable(cbs::HostSubGroupSizeName)) {
+    SgSize->setInitializer(llvm::ConstantInt::get(SgSize->getValueType(), getSubgroupSize()));
+    SgSize->setConstant(true);
+    SgSize->setLinkage(llvm::GlobalValue::InternalLinkage);
+  }
+
   // Internalize all constant global variables that don't their definition
   // to be imported from external sources - this is fine because llvm-to-backend
   // lowering always happens *after* linking in all dependencies, and therefore
@@ -183,17 +190,19 @@ bool LLVMToHostTranslator::toBackendFlavor(llvm::Module &M, PassHandler &PH) {
       GV.setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
   }
 
-  if(auto* Barrier = M.getFunction("__acpp_cbs_barrier")) {
+  for (const char *Name : {cbs::BarrierIntrinsicName, cbs::SubGroupBarrierIntrinsicName}) {
+    if (auto *Barrier = M.getFunction(Name)) {
 #if LLVM_VERSION_MAJOR >= 16
-    Barrier->setMemoryEffects(llvm::MemoryEffects::unknown());
+      Barrier->setMemoryEffects(llvm::MemoryEffects::unknown());
 #else
-    Barrier->removeFnAttr(llvm::Attribute::ReadNone);
-    Barrier->removeFnAttr(llvm::Attribute::ReadOnly);
-    Barrier->removeFnAttr(llvm::Attribute::WriteOnly);
-    Barrier->removeFnAttr(llvm::Attribute::ArgMemOnly);
-    Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOnly);
-    Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOrArgMemOnly);
+      Barrier->removeFnAttr(llvm::Attribute::ReadNone);
+      Barrier->removeFnAttr(llvm::Attribute::ReadOnly);
+      Barrier->removeFnAttr(llvm::Attribute::WriteOnly);
+      Barrier->removeFnAttr(llvm::Attribute::ArgMemOnly);
+      Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOnly);
+      Barrier->removeFnAttr(llvm::Attribute::InaccessibleMemOrArgMemOnly);
 #endif
+    }
   }
   
   HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done toBackendFlavor\n";
@@ -243,7 +252,7 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
     });
     PB.registerModuleAnalyses(MAM);
 
-    registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true);
+    registerCBSPipeline(MPM, hipsycl::compiler::OptLevel::O3, true, getSubgroupSize());
     HIPSYCL_DEBUG_INFO << "LLVMToHostTranslator: Done registering\n";
 
     llvm::FunctionPassManager FPM;
@@ -584,6 +593,11 @@ bool LLVMToHostTranslator::isKernelAfterFlavoring(llvm::Function &F) {
     if (F.getName() == Name)
       return true;
   return false;
+}
+
+// ACPP_OPENMP_SUBGROUP_SIZE (passed as desired-subgroup-size), else 1
+int LLVMToHostTranslator::getSubgroupSize() const {
+  return DesiredSubgroupSize > 0 ? DesiredSubgroupSize : 1;
 }
 
 AddressSpaceMap LLVMToHostTranslator::getAddressSpaceMap() const {

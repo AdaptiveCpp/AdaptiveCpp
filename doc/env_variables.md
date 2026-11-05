@@ -38,7 +38,7 @@
   * `svml`: Use Intel SVML.
   * `sleef`: Use SLEEF.
   * `armpl`: Use amath from Arm Performance Libraries.
-
+* `ACPP_OPENMP_SUBGROUP_SIZE`: Sub-group size of the OpenMP (CPU) device for kernels compiled with the generic SSCP target (`--acpp-targets=generic`). Must be a power of two up to 1024; other values fall back to the default 1.
 ## Environment variables to control dumping IR during JIT compilation
 
 AdaptiveCpp can dump the IR of the code during stage 2 compilation (JIT compilation) at various stages in the processing and optimization pipeline.

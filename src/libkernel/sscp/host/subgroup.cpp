@@ -11,16 +11,31 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/subgroup.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
 
+extern "C" const __acpp_uint32 __acpp_sscp_subgroup_size;
+
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_local_id() {
-  return 0;
+  __acpp_uint32 local_tid =
+      __acpp_sscp_get_local_id_x() +
+      __acpp_sscp_get_local_id_y() * __acpp_sscp_get_local_size_x() +
+      __acpp_sscp_get_local_id_z() * __acpp_sscp_get_local_size_x() *
+          __acpp_sscp_get_local_size_y();
+  return local_tid % __acpp_sscp_get_subgroup_max_size();
 }
 
+// all sub-groups have __acpp_sscp_subgroup_size work-items except a trailing partial one
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_size() {
-  return 1;
+  auto sg_size = __acpp_sscp_get_subgroup_max_size();
+  auto num_subgroups = __acpp_sscp_get_num_subgroups();
+  if (sg_size == 1 || __acpp_sscp_get_subgroup_id() != num_subgroups - 1)
+    return sg_size;
+  auto wg_size = __acpp_sscp_get_local_size_x() *
+                 __acpp_sscp_get_local_size_y() *
+                 __acpp_sscp_get_local_size_z();
+  return wg_size - (num_subgroups - 1) * sg_size;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_max_size() {
-  return 1;
+  return __acpp_sscp_subgroup_size;
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_id() {
@@ -29,12 +44,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_id() {
       __acpp_sscp_get_local_id_y() * __acpp_sscp_get_local_size_x() +
       __acpp_sscp_get_local_id_z() * __acpp_sscp_get_local_size_x() * 
           __acpp_sscp_get_local_size_y();
-  return local_tid;
+  return local_tid / __acpp_sscp_get_subgroup_max_size();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_num_subgroups() {
   auto wg_size = __acpp_sscp_get_local_size_x() *
                  __acpp_sscp_get_local_size_y() *
                  __acpp_sscp_get_local_size_z();
-  return wg_size;
+  auto sg_size = __acpp_sscp_get_subgroup_max_size();
+  return (wg_size + sg_size - 1) / sg_size;
 }

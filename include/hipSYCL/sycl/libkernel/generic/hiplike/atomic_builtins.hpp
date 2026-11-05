@@ -618,16 +618,3 @@ HIPSYCL_BUILTIN void __acpp_atomic_fence(memory_order order, memory_scope scope)
 #endif
 
 #endif
-
-template <access::address_space S>
-HIPSYCL_HIPLIKE_BUILTIN double
-__acpp_atomic_fetch_min(double *addr, double x, memory_order order,
-                           memory_scope scope) noexcept {
-  double old = __acpp_atomic_load<S>(addr, order, scope);
-  do {
-    if (old < x)
-      return old;
-  } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, order, scope));
-  return x;
-}

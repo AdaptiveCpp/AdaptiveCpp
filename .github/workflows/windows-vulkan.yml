@@ -13,7 +13,7 @@ jobs:
         clang_version: ['19', '20']
         base_compiler: ['19']
         os: [windows-2022]
-        clspv_commit: ['3d017c6d751cdabed1a5051b20c6bf5f71e8fd32']
+        clspv_commit: ['f37698b1c499bcd5935221d7ca214103924b0206']
     steps:
     - uses: actions/checkout@v7
       with:

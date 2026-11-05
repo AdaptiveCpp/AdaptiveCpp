@@ -20,7 +20,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable from commit `3d017c6d751cdabed1a5051b20c6bf5f71e8fd32`.
+* A `clspv` executable from commit `f37698b1c499bcd5935221d7ca214103924b0206`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -418,13 +418,23 @@ can detect and set.
 
 To implement the kernel functions declared by `libkernel` many of them are mapped to
 OpenCL-C builtin functions, which `clspv` then knows how to implement correctly for
-SPIR-V. However, clspv only supports OpenCL-C version 1.2 and some builtins (e.g.
-work-group collectives) require builtins from OpenCL 3.0. In such cases a more
-generic implementation is fallen back to.
+SPIR-V. clspv is not limited to the OpenCL-C 1.2 builtins: it also supports the
+OpenCL-C 2.0 atomic functions, `work_group_barrier` and `atomic_work_item_fence` with
+an explicit memory scope, and most of the sub-group builtins from `cl_khr_subgroups`
+and related extensions. See the clspv doc on
+[built-in functions](https://github.com/google/clspv/blob/main/docs/OpenCLCOnVulkan.md#built-in-functions)
+for details. Where clspv has no builtin for a SYCL feature, e.g. the work-group
+collective functions or relative sub-group shuffles, a more generic implementation
+is used instead.
 
 The existing spirv `libkernel` library is not used because it is implemented
 in terms of the
 [SPIRV-LLVM Translator IR expectations](https://github.com/KhronosGroup/SPIRV-LLVM-Translator/blob/main/docs/SPIRVRepresentationInLLVM.rst)
-which are not recognized by other tools like `clspv`. clspv however can
-represent spirv builtins in IR by using a function call to a mangled name prefixed with
-convention `_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`.
+which are not recognized by other tools like `clspv`.
+
+clspv represents SPIR-V instructions internally as calls to functions named
+`_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`. These are not used to implement
+`libkernel`, as they are not a documented clspv input format and only give access to
+the instructions that clspv already generates from OpenCL-C builtins. SYCL
+functionality missing from clspv should instead be added to clspv as OpenCL-C
+builtins.

@@ -42,7 +42,8 @@ The current situation with these is:
 1) The aggressive inlining from the compiler mitigates this by the time we get
    to optimizing the flavored IR stage of the pipeline.
 2) Not supported. To avoid this issue clspv will not compile OpenCL-C kernels that define structures which have pointers
-   members and does not support OpenCL-C generic address space feature. Additionally, OpenCL-C kernel arguments cannot
+   members, and only supports the OpenCL-C 2.0 generic address space feature when every generic pointer can be resolved
+   to a specific address space at compile time. Additionally, OpenCL-C kernel arguments cannot
    be pointer-to-pointer. Trying to use clspv for SYCL kernels that do pointer chasing or trying to exfiltrate pointers to
    host therefore results in a compilation fail. We may be able to work around this via the IR input to
    make assumptions about the address space but it could lead to incorrect results which would probably

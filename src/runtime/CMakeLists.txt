@@ -85,7 +85,7 @@ if(WIN32)
 
   # ensure actual output and expected are equivalent
   set_target_properties(acpp-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
-  if(MinGW)
+  if(MINGW)
     set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
   else()
     set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)

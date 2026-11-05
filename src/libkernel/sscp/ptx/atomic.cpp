@@ -471,8 +471,8 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr, __acpp_int32 x) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    PTXAtomicDetail::store(ptr, x, order, scope);
-    return;    
+    ptx_atomic_detail::store(ptr, x, order, scope);
+    return;
   }
   memfenced_store(ptr, x, scope);
 }
@@ -481,8 +481,8 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_atomic_store_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr, __acpp_int64 x) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    PTXAtomicDetail::store(ptr, x, order, scope);
-    return;    
+    ptx_atomic_detail::store(ptr, x, order, scope);
+    return;
   }
   memfenced_store(ptr, x, scope);
 }
@@ -506,7 +506,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_load_i32(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int32 *ptr) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    return PTXAtomicDetail::load(ptr, order, scope);
+    return ptx_atomic_detail::load(ptr, order, scope);
   }
   return memfenced_load(ptr, scope);
 }
@@ -515,7 +515,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_load_i64(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int64 *ptr) {
   if(__acpp_sscp_jit_reflect_target_arch() >= 70) {
-    return PTXAtomicDetail::load(ptr, order, scope);
+    return ptx_atomic_detail::load(ptr, order, scope);
   }
   return memfenced_load(ptr, scope);
 }
@@ -647,9 +647,8 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int32 *ptr, __acpp_int32 *expected, __acpp_int32 desired) {
   //new path
-  if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
-  {
-    return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
+  if (__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    return ptx_atomic_detail::compare_exchange(ptr, expected, desired, success, failure, scope);
   }
   // lagacy path
   __acpp_int32 old = *expected;
@@ -682,9 +681,8 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i64(
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int64 *ptr, __acpp_int64 *expected, __acpp_int64 desired) {
   //new path
-  if (__acpp_sscp_jit_reflect_target_arch() >= 70) 
-  {
-    return PTXAtomicDetail::compare_exchange(ptr, expected, desired, success, failure, scope);
+  if (__acpp_sscp_jit_reflect_target_arch() >= 70) {
+    return ptx_atomic_detail::compare_exchange(ptr, expected, desired, success, failure, scope);
   }
   // lagacy path
   __acpp_int64 old = *expected;

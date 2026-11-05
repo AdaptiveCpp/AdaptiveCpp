@@ -126,6 +126,12 @@ if( NUMA_INCLUDE_DIR AND NUMA_LIBRARY)
   target_include_directories(sycl_tests PRIVATE ${NUMA_INCLUDE_DIR})
 endif()
 
+# Vulkan backend interop tests are only built if the Vulkan headers are found
+find_package(Vulkan QUIET)
+if(Vulkan_INCLUDE_DIR)
+  target_include_directories(sycl_tests PRIVATE ${Vulkan_INCLUDE_DIR})
+endif()
+
 add_sycl_to_target(TARGET sycl_tests)
 
 add_executable(rt_tests 

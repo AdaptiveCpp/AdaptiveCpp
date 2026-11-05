@@ -45,5 +45,6 @@ template <sycl::backend b> struct backend_interop {
 #include "ze/ze_interop.hpp"
 #include "omp/omp_interop.hpp"
 #include "metal/metal_interop.hpp"
+#include "vk/vk_interop.hpp"
 
 #endif

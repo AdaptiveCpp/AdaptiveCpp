@@ -534,17 +534,14 @@ void vk_queue::submit_command_buffer(vk::CommandBuffer &cmd_buf) {
 
   std::vector<vk::Semaphore> semaphores{_semaphore};
   std::vector<uint64_t> wait_values{wait_value};
-  for (auto &evt : _wait_deps) {
-    auto vk_evt = static_cast<vk_node_event *>(evt.get());
-    const auto external_semaphore = vk_evt->get_event();
+  for (const vk_event_native_handle &dep : _wait_deps) {
+    const vk::Semaphore external_semaphore{dep.semaphore};
     semaphores.push_back(external_semaphore);
-    const uint64_t external_signal_val = vk_evt->get_signal_val();
-    wait_values.push_back(external_signal_val);
+    wait_values.push_back(dep.value);
 
     HIPSYCL_DEBUG_INFO << "vk_queue: command-buffer submit extra wait "
                        << "on semaphore " << external_semaphore
-                       << " with signal val " << external_signal_val
-                       << std::endl;
+                       << " with signal val " << dep.value << std::endl;
   }
 
   const uint32_t num_wait_semaphores =
@@ -708,7 +705,21 @@ result vk_queue::wait() {
 
 result vk_queue::submit_queue_wait_for(const dag_node_ptr &node) {
   auto evt = node->get_event();
-  _wait_deps.push_back(evt);
+  // Events of other queues, and events imported from a timeline semaphore of
+  // the application, describe a timeline value the device can wait on. Other
+  // events, e.g. coarse grained ones, are waited for on the host instead.
+  auto *vk_evt = dynamic_cast<vk_native_event_provider *>(evt.get());
+  if (!vk_evt) {
+    return submit_external_wait_for(node);
+  }
+
+  const vk_event_native_handle handle = vk_evt->get_native_event_handle();
+  // A semaphore can only be waited on by queues of the device it belongs to
+  if (handle.device != static_cast<VkDevice>(*_dev_ctx->get_device())) {
+    return submit_external_wait_for(node);
+  }
+
+  _wait_deps.push_back(handle);
   return make_success();
 }
 

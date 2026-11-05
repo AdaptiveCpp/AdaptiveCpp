@@ -12,6 +12,7 @@
 #pragma once
 
 #include "../hardware.hpp"
+#include "hipSYCL/runtime/vk/vk_native_objects.hpp"
 #include <vulkan/vulkan_raii.hpp>
 
 namespace hipsycl {
@@ -51,10 +52,11 @@ enum extension_bits : uint16_t {
 };
 } // namespace vk_device_extensions
 
-class vk_hardware_context : public hardware_context {
+class vk_hardware_context : public hardware_context,
+                            public vk_native_device_provider {
 public:
-  vk_hardware_context(const vk::raii::PhysicalDevice &, int dev_id,
-                      uint16_t features);
+  vk_hardware_context(const vk::raii::PhysicalDevice &, VkInstance instance,
+                      int dev_id, uint16_t features);
   vk_hardware_context(vk_hardware_context const &) = delete;
   vk_hardware_context(vk_hardware_context &&) = default;
 
@@ -82,6 +84,8 @@ public:
   vk_allocator *get_allocator();
   void init();
 
+  vk_device_native_handle get_native_device_handle() const override;
+
   const vk::raii::Device &get_device() const { return _device; }
   const vk::raii::PhysicalDevice &get_physical_device() const {
     return _physical_device;
@@ -108,6 +112,7 @@ private:
   size_t global_mem_size() const;
 
   vk::raii::PhysicalDevice _physical_device = nullptr;
+  VkInstance _instance = VK_NULL_HANDLE; // Non-owning
   vk::raii::Device _device = nullptr;
   uint32_t _queue_index = UINT32_MAX;
   vk::raii::Queue _queue = nullptr;

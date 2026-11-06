@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "../sycl_test_suite.hpp"
+#define ACPP_GROUP_FUNCTIONS_TEST_FILE_ID 4
 #include "group_functions.hpp"
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
@@ -17,11 +18,6 @@
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
-  }
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -66,11 +62,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
   SKIP_IF_MOLTENVK(sycl::device{})
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
-  }
 
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
@@ -149,11 +140,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
   SKIP_IF_MOLTENVK(sycl::device{})
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
-  }
 
   const size_t elements_per_thread = 3;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
@@ -392,12 +378,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_max, T, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_and, T, test_types) {
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
-  }
-
   const size_t elements_per_thread = 1;
   if constexpr(std::is_integral_v<detail::elementType<T>>) {
     const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
@@ -439,11 +419,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_and, T, test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
   SKIP_IF_MOLTENVK(sycl::device{})
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
-  }
 
   const size_t elements_per_thread = 1;
   if constexpr(std::is_integral_v<detail::elementType<T>>) {
@@ -486,11 +461,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_or, T, test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_xor, T, test_types) {
   SKIP_IF_MOLTENVK(sycl::device{})
-  if (sycl::device{}.get_backend() == sycl::backend::vk &&
-      !std::is_scalar_v<T>) {
-    BOOST_TEST_MESSAGE("group functions not yet stable on VK backend");
-    return;
-  }
 
   const size_t elements_per_thread = 1;
   if constexpr(std::is_integral_v<detail::elementType<T>>) {

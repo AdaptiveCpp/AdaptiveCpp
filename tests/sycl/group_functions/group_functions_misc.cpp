@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "../sycl_test_suite.hpp"
+#define ACPP_GROUP_FUNCTIONS_TEST_FILE_ID 1
 #include "group_functions.hpp"
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
@@ -69,10 +70,6 @@ BOOST_AUTO_TEST_CASE(group_barrier) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
-  if (sycl::device{}.get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
-    return;
-  }
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {

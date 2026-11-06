@@ -372,11 +372,17 @@ using shuffle_test_types =
     boost::mp11::mp_push_back<test_types, detail::trivially_copyable_16_byte_type,
                               detail::trivially_copyable_12_byte_type>;
 
-template<int N, int M, typename T>
+// Kernel names must be unique across all group function test TUs, which
+// are linked into the same binary. __LINE__ alone is not sufficient.
+#ifndef ACPP_GROUP_FUNCTIONS_TEST_FILE_ID
+#error "Define ACPP_GROUP_FUNCTIONS_TEST_FILE_ID before including group_functions.hpp"
+#endif
+
+template<int Dim, int FileId, int Line, typename T>
 class test_kernel;
 
 template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
-         typename ValidationFunction>
+         typename ValidationFunction, int FileId = ACPP_GROUP_FUNCTIONS_TEST_FILE_ID>
 void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
   sycl::queue    queue;
@@ -413,7 +419,7 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
         using namespace sycl::access;
         auto acc = buf.template get_access<mode::read_write>(cgh);
         auto sgpr_size_acc = used_sgrp_size_buffer.template get_access<mode::read_write>(cgh);
-        cgh.parallel_for<class test_kernel<1, CallingLine, T>>(
+        cgh.parallel_for<class test_kernel<1, FileId, CallingLine, T>>(
           sycl::nd_range<1>{global_size, local_size},
           [=](sycl::nd_item<1> item) {
           auto g  = item.get_group();
@@ -431,7 +437,7 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
 }
 
 template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
-         typename ValidationFunction>
+         typename ValidationFunction, int FileId = ACPP_GROUP_FUNCTIONS_TEST_FILE_ID>
 void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
   sycl::queue    queue;
@@ -468,7 +474,7 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
         using namespace sycl::access;
         auto acc = buf.template get_access<mode::read_write>(cgh);
 
-        cgh.parallel_for<class test_kernel<2, CallingLine, T>>(
+        cgh.parallel_for<class test_kernel<2, FileId, CallingLine, T>>(
           sycl::nd_range<2>{sycl::range<2>(global_size, global_size), sycl::range<2>(local_size, local_size)},
           [=](sycl::nd_item<2> item) {
           auto   g                = item.get_group();

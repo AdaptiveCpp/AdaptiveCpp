@@ -10,7 +10,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "../sycl_test_suite.hpp"
-#define ACPP_GROUP_FUNCTIONS_TEST_FILE_ID 2
 #include "group_functions.hpp"
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS

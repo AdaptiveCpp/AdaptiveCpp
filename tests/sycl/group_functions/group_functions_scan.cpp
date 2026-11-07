@@ -10,7 +10,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "../sycl_test_suite.hpp"
-#define ACPP_GROUP_FUNCTIONS_TEST_FILE_ID 3
 #include "group_functions.hpp"
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
@@ -60,10 +59,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_mul, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -112,10 +111,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -149,10 +148,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -216,10 +215,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -259,10 +258,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -315,7 +314,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -350,7 +349,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }
@@ -399,10 +398,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_mul, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -450,10 +449,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -487,10 +486,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -553,10 +552,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -597,10 +596,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -668,7 +667,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -703,7 +702,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }
@@ -736,9 +735,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_min, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_inclusive_scan_min for non-arithmetic type");
@@ -773,9 +772,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_max, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_inclusive_scan_max for non-arithmetic type");
@@ -815,9 +814,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_bit_and, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_inclusive_scan_bit_and for non-integer type");
@@ -857,9 +856,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_bit_or, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_inclusive_scan_bit_or for non-integer type");
@@ -898,9 +897,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_bit_xor, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_inclusive_scan_bit_xor for non-integer type");
@@ -936,9 +935,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_min, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_exclusive_scan_min for non-arithmetic type");
@@ -974,9 +973,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_max, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_exclusive_scan_max for non-arithmetic type");
@@ -1017,9 +1016,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_bit_and, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_exclusive_scan_bit_and for non-integer type");
@@ -1060,9 +1059,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_bit_or, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_exclusive_scan_bit_or for non-integer type");
@@ -1102,9 +1101,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_bit_xor, T, test_types) {
         }
       }
     };
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   } else {
     BOOST_TEST_MESSAGE("Skipping group_exclusive_scan_bit_xor for non-integer type");

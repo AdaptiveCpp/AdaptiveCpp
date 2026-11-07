@@ -12,7 +12,6 @@
 #include <cstddef>
 
 #include "../sycl_test_suite.hpp"
-#define ACPP_GROUP_FUNCTIONS_TEST_FILE_ID 0
 #include "group_functions.hpp"
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
@@ -43,10 +42,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_local) {
                                                "any_of");
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -63,10 +62,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_local) {
           "all_of");
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -83,10 +82,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_local) {
           "none_of");
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -115,7 +114,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
                                                 "any_of", subgroup_size);
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -132,7 +131,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
             "all_of bool sub group", subgroup_size);
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -149,7 +148,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
             "none_of", subgroup_size);
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }
@@ -186,10 +185,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
                                                "any_of", 0, 2 * global_size);
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -213,10 +212,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
           "all_of", 0, 2 * global_size);
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -241,10 +240,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
           "none_of", 0, 2 * global_size);
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -274,10 +273,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_function) {
                                                "any_of");
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -295,10 +294,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_function) {
           "all_of");
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -316,10 +315,10 @@ BOOST_AUTO_TEST_CASE(group_x_of_function) {
           "none_of");
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -349,7 +348,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
                                                 "any_of", subgroup_size);
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -367,7 +366,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
             "all_of", subgroup_size);
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -385,7 +384,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
             "none_of", subgroup_size);
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }

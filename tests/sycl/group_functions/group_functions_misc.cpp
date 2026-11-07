@@ -10,7 +10,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "../sycl_test_suite.hpp"
-#define ACPP_GROUP_FUNCTIONS_TEST_FILE_ID 1
 #include "group_functions.hpp"
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
@@ -64,7 +63,7 @@ BOOST_AUTO_TEST_CASE(group_barrier) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -100,10 +99,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -130,10 +129,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -164,10 +163,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function_1d, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function_2d, validation_function);
   }
 }
@@ -215,7 +214,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -246,7 +245,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -277,7 +276,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }
@@ -322,10 +321,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -358,10 +357,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -394,10 +393,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -427,10 +426,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -487,7 +486,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -529,7 +528,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
           }
         }
       };
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -573,7 +572,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
     
@@ -613,7 +612,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
           }
         };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }

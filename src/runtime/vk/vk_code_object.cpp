@@ -557,11 +557,11 @@ static spv_result_t parse_reflection(void *user_data,
   return SPV_SUCCESS;
 }
 
-static void verify_spv_capabilities(const uint16_t phys_dev_features,
+static void verify_spv_capabilities(const uint32_t phys_dev_features,
                                     const std::vector<spv::Capability> &caps) {
-  auto check_support = [phys_dev_features](int16_t bit,
+  auto check_support = [phys_dev_features](uint32_t bits,
                                            const char *err_string) {
-    if ((phys_dev_features & bit) == 0) {
+    if ((phys_dev_features & bits) == 0) {
       print_error(__acpp_here(), error_info{err_string});
     }
   };
@@ -634,6 +634,32 @@ static void verify_spv_capabilities(const uint16_t phys_dev_features,
     case spv::CapabilityFloat64:
       check_support(vk_device_features::shaderFloat64,
                     "SPIR-V Capability Float64 not supported by device");
+      break;
+    // clspv declares a single capability regardless of the storage class
+    // accessed, so require support for at least one of them.
+    case spv::CapabilityAtomicFloat32AddEXT:
+      check_support(vk_device_features::shaderBufferFloat32AtomicAdd |
+                        vk_device_features::shaderSharedFloat32AtomicAdd,
+                    "SPIR-V Capability AtomicFloat32AddEXT not supported "
+                    "by device");
+      break;
+    case spv::CapabilityAtomicFloat64AddEXT:
+      check_support(vk_device_features::shaderBufferFloat64AtomicAdd |
+                        vk_device_features::shaderSharedFloat64AtomicAdd,
+                    "SPIR-V Capability AtomicFloat64AddEXT not supported "
+                    "by device");
+      break;
+    case spv::CapabilityAtomicFloat32MinMaxEXT:
+      check_support(vk_device_features::shaderBufferFloat32AtomicMinMax |
+                        vk_device_features::shaderSharedFloat32AtomicMinMax,
+                    "SPIR-V Capability AtomicFloat32MinMaxEXT not supported "
+                    "by device");
+      break;
+    case spv::CapabilityAtomicFloat64MinMaxEXT:
+      check_support(vk_device_features::shaderBufferFloat64AtomicMinMax |
+                        vk_device_features::shaderSharedFloat64AtomicMinMax,
+                    "SPIR-V Capability AtomicFloat64MinMaxEXT not supported "
+                    "by device");
       break;
 
     default: {

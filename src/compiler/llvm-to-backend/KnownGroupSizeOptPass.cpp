@@ -22,7 +22,7 @@ namespace compiler {
 namespace {
 
 
-bool applyKnownGroupSize(llvm::Module &M, int KnownGroupSize,
+bool applyKnownGroupSize(llvm::Module &M, size_t KnownGroupSize,
                          llvm::StringRef GetGroupSizeBuiltinName,
                          llvm::StringRef GetLocalIdBuiltinName) {
 
@@ -67,7 +67,7 @@ bool applyKnownGroupSize(llvm::Module &M, int KnownGroupSize,
 
 }
 
-KnownGroupSizeOptPass::KnownGroupSizeOptPass(int GroupSizeX, int GroupSizeY, int GroupSizeZ)
+KnownGroupSizeOptPass::KnownGroupSizeOptPass(size_t GroupSizeX, size_t GroupSizeY, size_t GroupSizeZ)
     : KnownGroupSizeX{GroupSizeX}, KnownGroupSizeY{GroupSizeY}, KnownGroupSizeZ{GroupSizeZ} {}
 
 

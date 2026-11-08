@@ -1,6 +1,10 @@
 name: macOS Vulkan backend
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ develop, 'feature/**' ]
+  pull_request:
+
 env:
   clspv_commit: 'f37698b1c499bcd5935221d7ca214103924b0206'
 jobs:

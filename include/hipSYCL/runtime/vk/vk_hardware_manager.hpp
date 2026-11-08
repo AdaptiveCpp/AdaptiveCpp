@@ -22,7 +22,7 @@ class vk_allocator;
 namespace vk_device_features {
 // Bit for each SPIR-V capability feature we may encounter in kernel code
 // and can lazily check against device support.
-enum feature_bits {
+enum feature_bits : uint32_t {
   shaderInt8 = 1 << 0,
   shaderInt16 = 1 << 1,
   shaderInt64 = 1 << 2,
@@ -36,7 +36,17 @@ enum feature_bits {
   groupNonUniformVote = 1 << 10,
   shaderFloat64 = 1 << 11,
   uniformAndStorageBuffer16BitAccess = 1 << 12,
-  uniformAndStorageBuffer8BitAccess = 1 << 13
+  uniformAndStorageBuffer8BitAccess = 1 << 13,
+  // VK_EXT_shader_atomic_float
+  shaderBufferFloat32AtomicAdd = 1 << 14,
+  shaderSharedFloat32AtomicAdd = 1 << 15,
+  shaderBufferFloat64AtomicAdd = 1 << 16,
+  shaderSharedFloat64AtomicAdd = 1 << 17,
+  // VK_EXT_shader_atomic_float2
+  shaderBufferFloat32AtomicMinMax = 1 << 18,
+  shaderSharedFloat32AtomicMinMax = 1 << 19,
+  shaderBufferFloat64AtomicMinMax = 1 << 20,
+  shaderSharedFloat64AtomicMinMax = 1 << 21,
 };
 }; // namespace vk_device_features
 
@@ -49,13 +59,15 @@ enum extension_bits : uint16_t {
   khr_calibrated_timestamps = 1 << 1,
   ext_calibrated_timestamps = 1 << 2,
   ext_subgroup_size_control = 1 << 3,
+  ext_shader_atomic_float = 1 << 4,
+  ext_shader_atomic_float2 = 1 << 5,
 };
 } // namespace vk_device_extensions
 
 class vk_hardware_context : public hardware_context {
 public:
   vk_hardware_context(const vk::raii::PhysicalDevice &, int dev_id,
-                      uint16_t features);
+                      uint32_t features);
   vk_hardware_context(vk_hardware_context const &) = delete;
   vk_hardware_context(vk_hardware_context &&) = default;
 
@@ -102,7 +114,7 @@ public:
   uint32_t select_subgroup_size(size_t work_group_size) const;
   float get_timestamp_period() const { return _limits.timestampPeriod; }
   uint32_t get_timestamp_valid_bits() const { return _timestamp_valid_bits; }
-  uint16_t get_phys_dev_features() const { return _physical_dev_features; }
+  uint32_t get_phys_dev_features() const { return _physical_dev_features; }
 
   bool are_extensions_enabled(uint16_t bits) const {
     return (bits & _enabled_extensions) == bits;
@@ -125,7 +137,7 @@ private:
   size_t _max_alloc_size{};
 
   int _dev_id;
-  uint16_t _physical_dev_features;
+  uint32_t _physical_dev_features;
   uint16_t _enabled_extensions;
   std::unique_ptr<vk_allocator> _allocator;
 };

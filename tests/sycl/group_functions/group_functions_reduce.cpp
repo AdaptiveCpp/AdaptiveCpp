@@ -528,7 +528,8 @@ void test_joint_reduce_min_max() {
         BOOST_TEST(host_out[i] == expected);
       }
     };
-
+    // Regression test for https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2300
+    // Make sure that float reduction does not loose precision
     std::fill(host_in.begin(), host_in.end(), 2.6f);
     run_and_check(std::accumulate(host_in.begin() , host_in.end(),
                                   host_in[0], BinaryOperation{}));

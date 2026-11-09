@@ -63,16 +63,12 @@ BOOST_AUTO_TEST_CASE(group_barrier) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
-  if (sycl::device{}.get_backend() == sycl::backend::vk) {
-    BOOST_TEST_MESSAGE("libkernel function not yet implemented");
-    return;
-  }
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -103,10 +99,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -133,10 +129,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -167,10 +163,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function_1d, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function_2d, validation_function);
   }
 }
@@ -218,7 +214,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -249,7 +245,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -280,7 +276,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }
@@ -325,10 +321,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -361,10 +357,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -397,10 +393,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 
@@ -430,10 +426,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, shuffle_test_types) {
       }
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+    test_nd_group_function_2d<T>(elements_per_thread, data_generator,
                                            tested_function, validation_function);
   }
 }
@@ -490,7 +486,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -532,7 +528,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
           }
         }
       };
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
 
@@ -576,7 +572,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
         }
       };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
     
@@ -616,7 +612,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, shuffle_test_types) {
           }
         };
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+      test_nd_group_function_1d<T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
   }

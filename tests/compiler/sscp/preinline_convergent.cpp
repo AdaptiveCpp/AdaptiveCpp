@@ -9,13 +9,14 @@
 
 #include "common.hpp"
 #include <iostream>
+#include <vector>
 
 int main() {
   sycl::queue q = get_queue();
   constexpr int local_size = 128;
-  int *out = sycl::malloc_shared<int>(local_size, q);
-  for (int i = 0; i < local_size; ++i)
-    out[i] = -1;
+  std::vector<int> host_out(local_size, -1);
+  int *out = sycl::malloc_device<int>(local_size, q);
+  q.memcpy(out, host_out.data(), local_size * sizeof(int)).wait();
 
   q.submit([&](sycl::handler &cgh) {
     sycl::local_accessor<int> scratch{local_size, cgh};
@@ -30,10 +31,11 @@ int main() {
         out[lid] = scratch[lid];
     });
   }).wait();
+  q.memcpy(host_out.data(), out, local_size * sizeof(int)).wait();
 
   int sum = 0;
   for (int i = 0; i < 32; ++i)
-    sum += out[i];
+    sum += host_out[i];
   // sum over i < 32 of i + (i + 32)
   // OUT: 2016
   std::cout << sum << std::endl;

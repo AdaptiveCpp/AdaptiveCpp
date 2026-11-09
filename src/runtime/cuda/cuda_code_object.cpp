@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cassert>
+#include <cfenv>
 
 #include <cuda_runtime_api.h>
 #include <cuda.h>
@@ -85,9 +86,15 @@ result build_cuda_module_from_ptx(CUmod_st *&module, int device,
   std::string error_log_buffer(error_log_buffer_size, '\0');
   option_vals[1] = error_log_buffer.data();
 
+  // Suppress caller FPE traps during JIT, as some apps and libs may enable them during execution and break the JIT
+  std::fenv_t caller_fpe_env;
+  std::feholdexcept(&caller_fpe_env);
+
   auto err = cuModuleLoadDataEx(
       &module, source.data(),
       num_options, option_names.data(), option_vals.data());
+
+  std::fesetenv(&caller_fpe_env);
 
   if (err != CUDA_SUCCESS) {
     const auto error_log_size = reinterpret_cast<std::size_t>(option_vals[0]);

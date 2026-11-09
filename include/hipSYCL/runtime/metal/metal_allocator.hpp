@@ -21,6 +21,7 @@ namespace MTL {
 
 class Device;
 class Buffer;
+class ResidencySet;
 
 } // namespace MTL
 
@@ -72,6 +73,12 @@ public:
 
   size_t get_delta() const { return _delta; }
 
+  MTL::Buffer* get_atomic64_lock_buffer() const { return _atomic64_lock_buffer; }
+
+  // Null if the device does not provide residency sets
+  MTL::ResidencySet* get_residency_set() const { return _residency_set; }
+  void commit_residency_set();
+
   template<typename F>
   void for_each_buffer(F&& f) const {
     std::lock_guard<std::mutex> lock{_mutex};
@@ -85,6 +92,8 @@ public:
 private:
   MTL::Buffer* alloc_buffer(size_t size_bytes);
   void calibrate();
+  void add_to_residency_set(const std::lock_guard<std::mutex>&, MTL::Buffer* buffer);
+  void remove_from_residency_set(const std::lock_guard<std::mutex>&, MTL::Buffer* buffer);
 
   MTL::Device* _device = nullptr;
   device_id _device_id;
@@ -97,6 +106,9 @@ private:
   };
   std::map<void*, usm_block> _ptr_to_block;
   mutable std::mutex _mutex;
+  MTL::Buffer* _atomic64_lock_buffer = nullptr;
+  MTL::ResidencySet* _residency_set = nullptr;
+  bool _residency_set_dirty = false;
   std::shared_ptr<metal_mmap_region> _mmap_region;
 };
 

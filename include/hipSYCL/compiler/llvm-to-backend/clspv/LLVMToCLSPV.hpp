@@ -8,7 +8,7 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#pragma
+#pragma once
 
 #include "../LLVMToBackend.hpp"
 
@@ -47,6 +47,7 @@ private:
   unsigned DynamicLocalMemSize = 0;
   std::string MaxPushConstantSize;
   std::string MaxUniformBufferRange;
+  std::string DeviceName;
 };
 
 } // namespace compiler

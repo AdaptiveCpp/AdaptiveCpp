@@ -11,6 +11,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/metal/LLVMToMetal.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/metal/PointerTranslationAnnotationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/metal/PointerTranslationPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/metal/IntegerLegalizationPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
@@ -321,6 +322,10 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
         expandAbs(II);
         II->eraseFromParent();
         Changed = true;
+      } else if (ID == llvm::Intrinsic::bswap) {
+        expandBswap(II);
+        II->eraseFromParent();
+        Changed = true;
       } else if (ID == llvm::Intrinsic::scmp || ID == llvm::Intrinsic::ucmp) {
         expandCmpIntrinsic(II);
         II->eraseFromParent();
@@ -366,6 +371,28 @@ struct ExpandIntrinsics : llvm::PassInfoMixin<ExpandIntrinsics> {
         Ty, -(1LL << (Ty->getBitWidth() - 1)));
     llvm::Value* IsMin = B.CreateICmpEQ(X, IntMin, "ismin");
     llvm::Value* Res = B.CreateSelect(IsMin, IntMin, Abs, "abs_safe");
+
+    II->replaceAllUsesWith(Res);
+  }
+
+  void expandBswap(llvm::IntrinsicInst* II) {
+    llvm::IRBuilder<> B(II);
+
+    llvm::Value* X = II->getArgOperand(0);
+    llvm::Type* Ty = X->getType();
+    unsigned NumBytes = Ty->getScalarSizeInBits() / 8;
+    llvm::Value* ByteMask = llvm::ConstantInt::get(Ty, 0xff);
+
+    llvm::Value* Res = nullptr;
+    for (unsigned I = 0; I < NumBytes; ++I) {
+      llvm::Value* Shifted = I == 0 ? X : B.CreateLShr(X, llvm::ConstantInt::get(Ty, I * 8));
+      llvm::Value* Byte = B.CreateAnd(Shifted, ByteMask, "byte");
+      unsigned Pos = (NumBytes - 1 - I) * 8;
+      llvm::Value* Part = Pos == 0
+        ? Byte
+        : B.CreateShl(Byte, llvm::ConstantInt::get(Ty, Pos), "part");
+      Res = Res ? B.CreateOr(Res, Part, "bswap") : Part;
+    }
 
     II->replaceAllUsesWith(Res);
   }
@@ -584,6 +611,7 @@ bool LLVMToMetalTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) {
   AddressSpaceMap ASMap = getAddressSpaceMap();
 
+  std::string errorMessage = "LLVMToMetal: Failed to prepare module for Metal translation";
   auto ok = withPassBuilder([&](auto& PB, auto& LAM, auto& FAM, auto& CGAM, auto& MAM) {
     // Second ReplaceIntrinsics + link pass: the base class O3 pipeline (InstCombine etc.) may
     // have re-introduced LLVM intrinsics (llvm.minnum, llvm.maxnum, llvm.fmuladd) from the
@@ -615,18 +643,31 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
     // Since LLVM 22 this pass removes the Flow blocks that StructurizeCFG creates,
     // so a loop gets more than one exit again. HLExtractorPass needs exactly one
     FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().setSimplifyCondBranch(false)));
+    std::string localErrorMessage;
+    // Run after PromotePass to get SSA values and before pointer translation so new loads and stores are translated
+    FPM.addPass(IntegerLegalizationPass(localErrorMessage));
     AddressSpaceInferencePass ASIPass{ASMap};
+
     llvm::ModulePassManager MPM;
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     MPM.addPass(std::move(ASIPass));
-    MPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
-    MPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
     MPM.run(FlavoredModule, MAM);
+
+    if (!localErrorMessage.empty()) {
+      errorMessage = localErrorMessage;
+      return false;
+    }
+
+    llvm::ModulePassManager PtrMPM;
+    PtrMPM.addPass(PointerTranslationAnnotationPass(ASMap[AddressSpace::Global]));
+    PtrMPM.addPass(PointerTranslationPass(ASMap[AddressSpace::Global]));
+    PtrMPM.run(FlavoredModule, MAM);
+
     return true;
   });
 
   if (!ok) {
-    registerError("LLVMToMetal: Failed to prepare module for Metal translation");
+    registerError(errorMessage);
     return false;
   }
 

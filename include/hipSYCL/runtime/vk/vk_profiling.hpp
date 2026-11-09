@@ -60,8 +60,8 @@ template <class Base> class vk_async_timestamp : public Base {
 public:
   vk_async_timestamp(const vk::raii::Device &dev, vk::Semaphore sem,
                      bool use_khr)
-      : _dev(dev), _use_khr(use_khr), _query_pool(nullptr), _host_timestamp(0),
-        _sem(sem), _sem_wait_val(0) {
+      : _dev(dev), _use_khr(use_khr), _query_pool(nullptr), _sem(sem),
+        _sem_wait_val(0), _host_timestamp(0) {
     // Snapshot the current host and device timestamps
     _ref_timestamps = vk_get_calibrated_timestamps(_dev, _use_khr);
 

@@ -18,6 +18,7 @@
 #include "hipSYCL/common/spin_lock.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/reflection_map.hpp"
+#include <mutex>
 
 namespace hipsycl {
 namespace rt {
@@ -86,6 +87,41 @@ public:
   worker_thread& get_worker();
 private:
   const backend_id _backend_id;
+
+  struct kernel_submission_state {
+    std::vector<char> kernel_arg_buffer;
+    std::vector<void*> kernel_args;
+  };
+
+  class kernel_submission_state_pool {
+  public:
+    kernel_submission_state* get_state() {
+      std::lock_guard<std::mutex> lock{_lock};
+      if(!_states.empty()) {
+        auto* elem = _states.back();
+        _states.pop_back();
+        return elem;
+      } else {
+        return new kernel_submission_state{};
+      }
+    }
+
+    void return_state(kernel_submission_state* s) {
+      std::lock_guard<std::mutex> lock{_lock};
+      _states.push_back(s);
+    }
+
+    ~kernel_submission_state_pool() {
+      for(auto* s : _states) {
+        delete s;
+      }
+    }
+  private:
+    std::vector<kernel_submission_state*> _states;
+    std::mutex _lock;
+  } _kernel_state_pool;
+
+
   worker_thread _worker;
 
   omp_sscp_code_object_invoker _sscp_code_object_invoker;

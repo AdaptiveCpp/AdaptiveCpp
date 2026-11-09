@@ -38,7 +38,11 @@ function(create_llvm_based_library)
   target_compile_definitions(${target} PRIVATE -DHIPSYCL_COMPILER_COMPONENT)
 
   if(NOT ACPP_LLVM_COMPONENT)
-    find_library(LLVM_LIBRARY NAMES LLVM LLVM-${LLVM_VERSION_MAJOR} HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
+    if(CMAKE_CROSSCOMPILING)
+      find_library(LLVM_LIBRARY NAMES LLVM LLVM-${LLVM_VERSION_MAJOR} HINTS ${LLVM_LIBRARY_DIRS} NO_CMAKE_FIND_ROOT_PATH)
+    else()
+      find_library(LLVM_LIBRARY NAMES LLVM LLVM-${LLVM_VERSION_MAJOR} HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
+    endif()
     if(NOT LLVM_LIBRARY)
       message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Disable advanced compiler-based functionality (-DACPP_COMPILER_FEATURE_PROFILE=minimal, not recommended for most use cases) or choose another LLVM installation")
     endif()
@@ -282,9 +286,15 @@ if(WITH_SSCP_COMPILER)
         set(HOST_LLC_CPU_FLAG -mcpu=native)
         set(HOST_OPT_CPU_FLAG --mcpu=native)
       else()
+       if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+        # We don't know the exact CPU arch, so generic ensure correct ASM is generated
+        set(HOST_LLC_CPU_FLAG "-mcpu=generic")
+        set(HOST_OPT_CPU_FLAG "--mcpu=generic")
+       else()
         set(HOST_LLC_CPU_FLAG "")
         set(HOST_OPT_CPU_FLAG "")
         message(SEND_ERROR "Could not determine that llc -mcpu=native works. Please provide the CPU that AdaptiveCpp should target at JIT-time using -DACPP_HOST_FORCE_MCPU_TARGET")
+       endif()
       endif()
     else()
       set(HOST_LLC_CPU_FLAG "-mcpu=${ACPP_HOST_FORCE_MCPU_TARGET}")
@@ -292,10 +302,103 @@ if(WITH_SSCP_COMPILER)
     endif()
     message(STATUS "llvm-to-host: Using llc compilation flag to target native CPU: ${HOST_LLC_CPU_FLAG}")
 
+    if(WIN32)
+      add_library(acpp-sscp-host-c-runtime-import-obj OBJECT host/WindowsHostCRuntime.cpp)
+      target_compile_options(acpp-sscp-host-c-runtime-import-obj PRIVATE /Zl)
+
+      set(ACPP_HOST_C_RUNTIME_DEF "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntimeImport.def")
+      set(ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCRuntimeImport.lib")
+      set(ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/WindowsHostCompilerRuntimeImport.lib")
+      set(ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY "${LLVM_LIBRARY_OUTPUT_INTDIR}/hipSYCL")
+      set(ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY "${ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY}/acpp-sscp-host-c-runtime-import.lib")
+
+      # These paths and build dependencies assume that AdaptiveCpp is built as part of LLVM.
+      # Building AdaptiveCpp as a Clang plugin may require locating the tools in an existing LLVM installation instead.
+      set(ACPP_LLVM_READOBJ "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-readobj${CMAKE_EXECUTABLE_SUFFIX}")
+      set(ACPP_LLVM_DLLTOOL "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-dlltool${CMAKE_EXECUTABLE_SUFFIX}")
+      set(ACPP_LLVM_AR "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-ar${CMAKE_EXECUTABLE_SUFFIX}")
+
+      file(TO_CMAKE_PATH "$ENV{SystemRoot}/System32/ucrtbase.dll" ACPP_UCRT_DLL)
+
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_C_RUNTIME_DEF}"
+        COMMAND
+          "${CMAKE_COMMAND}"
+          "-DLLVM_READOBJ=${ACPP_LLVM_READOBJ}"
+          "-DUCRT_DLL=${ACPP_UCRT_DLL}"
+          "-DOUTPUT_DEF=${ACPP_HOST_C_RUNTIME_DEF}"
+          -P "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeImportDef.cmake"
+        DEPENDS
+          llvm-readobj
+          "${ACPP_UCRT_DLL}"
+          "${CMAKE_CURRENT_SOURCE_DIR}/host/GenerateWindowsHostCRuntimeImportDef.cmake"
+        VERBATIM
+      )
+
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
+        COMMAND
+          "${ACPP_LLVM_DLLTOOL}"
+          -d "${ACPP_HOST_C_RUNTIME_DEF}"
+          -l "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
+        DEPENDS
+          llvm-dlltool
+          "${ACPP_HOST_C_RUNTIME_DEF}"
+        VERBATIM
+      )
+
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+        COMMAND
+          "${ACPP_LLVM_DLLTOOL}"
+          -d "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCompilerRuntimeImport.def"
+          -l "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+        DEPENDS
+          llvm-dlltool
+          "${CMAKE_CURRENT_SOURCE_DIR}/host/WindowsHostCompilerRuntimeImport.def"
+        VERBATIM
+      )
+
+      add_custom_command(
+        OUTPUT "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+        COMMAND
+          "${CMAKE_COMMAND}" -E make_directory
+          "${ACPP_HOST_C_RUNTIME_IMPORT_DIRECTORY}"
+        COMMAND
+          "${CMAKE_COMMAND}" -E rm -f
+          "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+        COMMAND
+          "${ACPP_LLVM_AR}"
+          qcL
+          "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+          "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
+          "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+        COMMAND
+          "${ACPP_LLVM_AR}"
+          rcs
+          "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}"
+          $<TARGET_OBJECTS:acpp-sscp-host-c-runtime-import-obj>
+        DEPENDS
+          llvm-ar
+          acpp-sscp-host-c-runtime-import-obj
+          $<TARGET_OBJECTS:acpp-sscp-host-c-runtime-import-obj>
+          "${ACPP_HOST_C_RUNTIME_IMPORT_ARCHIVE}"
+          "${ACPP_HOST_COMPILER_RUNTIME_IMPORT_ARCHIVE}"
+        VERBATIM
+      )
+
+      add_custom_target(acpp-sscp-host-c-runtime-import DEPENDS "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}")
+      install(FILES "${ACPP_HOST_C_RUNTIME_IMPORT_LIBRARY}" DESTINATION "lib/hipSYCL")
+    endif()
+
     add_hipsycl_llvm_backend(
       BACKEND host
       LIBRARY host/LLVMToHost.cpp host/HostKernelWrapperPass.cpp host/StaticLocalMemoryPass.cpp
       TOOL host/LLVMToHostTool.cpp)
+
+    if(WIN32)
+      add_dependencies(llvm-to-host acpp-sscp-host-c-runtime-import)
+    endif()
 
     target_compile_definitions(llvm-to-host PRIVATE
       -DACPP_LLC_HOST_CPU_FLAG="${HOST_LLC_CPU_FLAG}"
@@ -313,6 +416,7 @@ if(WITH_SSCP_COMPILER)
         metal/HLExtractionPass.cpp
         metal/PointerTranslationAnnotationPass.cpp
         metal/PointerTranslationPass.cpp
+        metal/IntegerLegalizationPass.cpp
         metal/HLTree.cpp
         metal/Emitter.cpp
       TOOL metal/LLVMToMetalTool.cpp)
@@ -324,16 +428,16 @@ if(WITH_SSCP_COMPILER)
       LIBRARY clspv/LLVMToCLSPV.cpp
       clspv/AddrSpaceCastRemovalPass.cpp
       clspv/FoldChainedGEPsPass.cpp
+      clspv/LegalizeIntWidthsPass.cpp
       clspv/RemoveUnusedIntrinsicsPass.cpp
       clspv/MemsetLoweringPass.cpp
       clspv/ConstantAddrSpacePass.cpp
       TOOL clspv/LLVMToCLSPVTool.cpp)
 
-    find_program(CLSPV_COMPILER NAMES clspv REQUIRED)
+    find_program(ACPP_CLSPV_PATH NAMES clspv REQUIRED CACHE STRING)
 
-    message(STATUS "Using clspv at: ${CLSPV_COMPILER}")
-    target_compile_definitions(llvm-to-clspv PRIVATE
-      -DHIPSYCL_CLSPV_PATH="${CLSPV_COMPILER}")
+    message(STATUS "Using clspv at: ${ACPP_CLSPV_PATH}")
+    target_compile_definitions(llvm-to-clspv PRIVATE -DACPP_CLSPV_PATH="${ACPP_CLSPV_PATH}")
   endif()
 
 endif()

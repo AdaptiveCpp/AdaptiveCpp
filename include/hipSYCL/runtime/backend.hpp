@@ -28,6 +28,7 @@ class backend_hardware_manager;
 class hw_model;
 class kernel_cache;
 class inorder_queue;
+class dag_node_event;
 
 class backend
 {
@@ -59,6 +60,12 @@ public:
   // priority. It is backend-specific if or how this will affect execution.
   virtual std::unique_ptr<backend_executor>
   create_inorder_executor(device_id dev, int priority) = 0;
+
+  // Optionally imports a native backend event
+  virtual std::shared_ptr<dag_node_event>
+  create_event_from_native_handle(const void *, device_id) {
+    return nullptr;
+  }
 };
 
 class backend_manager
@@ -69,7 +76,7 @@ public:
 
   backend_manager();
   ~backend_manager();
-  
+
   backend* get(backend_id) const;
   hw_model& hardware_model();
   const hw_model& hardware_model() const;

@@ -1186,8 +1186,8 @@ void SubCFG::fixSingleSubCfgValues(
             InstLoadMap[OPI].push_back(PHINode);
           } else {
             InstLoadMap[OPI].push_back(Load);
-            // This fixes issue 1898
-            // Here, the issue was that an inner loop was split, and the outer loop wasn't split.
+            // This fixes issues 1898 and 2224.
+            // In issue 1898, an inner loop was split, and the outer loop wasn't split.
             // All loop indices are uniform in the outer loop.
             // Therefore, they were loaded only once in the uniload block.
             // However, when the outer loop takes its backedge (without another barrier),
@@ -1195,21 +1195,18 @@ void SubCFG::fixSingleSubCfgValues(
             // Therefore, we should create a PHI node after the backedge of the outer loop
             // to select between the value loaded in the uniload block and the value from
             // the backedge of the outer loop.
-            // This also works well, for other cases of split loops, where the I actually dominates it's OPI..
-            // Let's just use it for all cases where the I is in a block with multiple predecessors.
+            // This is also required if the use dominates OPI. Replacing OPI directly with the
+            // load in that case would hide a loop-carried update from later uses. If no merge is
+            // required, the IDF is empty and the load is used directly.
 
             // First calculate a dominance frontier for the load (in either load/uniload BB) and OPI
             // Then use this information to insert PHI nodes at the frontiers
             // Generally use findLeastDominatingLoad to find the right value to use
             // in the PHI nodes and for replacing the use in I.
-            if (!DT.dominates(&I, OPI) || !llvm::isa<llvm::PHINode>(I) && NumPreds > 1) {
-              llvm::SmallPtrSet<llvm::BasicBlock *, 16> DefiningBlocks{OPI->getParent(), LoadBB_};
-              llvm::Instruction *SeedDefs[] = {OPI, Load};
-              fixValueByDominanceFrontierPHIs(I, OPI, DefiningBlocks, SeedDefs, InstLoadMap, Builder,
-                                              DT);
-            } else {
-              I.replaceUsesOfWith(OPI, Load);
-            }
+            llvm::SmallPtrSet<llvm::BasicBlock *, 16> DefiningBlocks{OPI->getParent(), LoadBB_};
+            llvm::Instruction *SeedDefs[] = {OPI, Load};
+            fixValueByDominanceFrontierPHIs(I, OPI, DefiningBlocks, SeedDefs, InstLoadMap, Builder,
+                                            DT);
           }
 #endif
         }

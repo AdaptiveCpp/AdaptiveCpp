@@ -31,11 +31,14 @@
 #include "ir_constants.hpp"
 
 #include "../kernel_launcher_data.hpp"
+#include "s1_ir_constants.hpp"
 
 #include <array>
 #include <atomic>
 #include <string_view>
 
+
+extern "C" bool __acpp_sscp_jit_reflect_target_is_cpu();
 
 template <typename KernelType>
 // hipsycl_sscp_kernel causes kernel entries to be emitted to the HCF
@@ -146,8 +149,29 @@ public:
     auto this_item = sycl::detail::make_item<Dimensions>(
       sycl::detail::get_global_id<Dimensions>(), _range
     );
-    if(item_is_in_range(this_item, _range))
-      _k(this_item);
+    
+
+    if(__acpp_sscp_is_device) {
+      if(__acpp_sscp_jit_reflect_target_is_cpu()) {
+        auto grp_id = sycl::detail::get_group_id<Dimensions>();
+        auto num_grps = sycl::detail::get_grid_size<Dimensions>();
+        bool is_edge = false;
+        for(int i = 0; i < Dimensions; ++i) {
+          is_edge = is_edge || (grp_id[i] == num_grps[i]-1);
+        }
+        if(!is_edge)
+          _k(this_item);
+        else {
+          if(item_is_in_range(this_item, _range)) {
+            _k(this_item);
+          }    
+        }
+      } else {
+        if(item_is_in_range(this_item, _range)) {
+          _k(this_item);
+        }
+      }
+    }
   }
 private:
   UserKernel _k;

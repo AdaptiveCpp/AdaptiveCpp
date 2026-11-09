@@ -30,7 +30,7 @@ namespace rt {
 namespace {
 std::unique_ptr<multi_queue_executor>
 create_multi_queue_executor(vk_backend *b, vk_hardware_manager *mgr) {
-  return std::make_unique<multi_queue_executor>(*b, [b, mgr](device_id dev) {
+  return std::make_unique<multi_queue_executor>(*b, [mgr](device_id dev) {
     return std::make_unique<vk_queue>(mgr,
                                       static_cast<std::size_t>(dev.get_id()));
   });
@@ -54,7 +54,7 @@ backend_hardware_manager *vk_backend::get_hardware_manager() const {
   return &_hw_manager;
 }
 
-backend_executor *vk_backend::get_executor(device_id dev) const {
+backend_executor *vk_backend::get_executor(device_id) const {
   return _executor.get();
 }
 

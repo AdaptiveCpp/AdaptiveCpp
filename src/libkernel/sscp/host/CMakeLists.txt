@@ -1,8 +1,4 @@
 if(WITH_LLVM_TO_HOST)
-  if(NOT DEFINED LLVM_TARGET_TRIPLE)
-    set(LLVM_TARGET_TRIPLE ${TARGET_TRIPLE})
-  endif()
-
   set(HOST_LIBKERNEL_BITCODE_SOURCES
     assert.cpp
     atomic.cpp
@@ -23,15 +19,22 @@ if(WITH_LLVM_TO_HOST)
     scan_exclusive.cpp
     collpredicate.cpp)
 
+  set(HOST_BUILTINS_SYSROOT "")
+  set(HOST_BUILTINS_TRIPLE "")
+  if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(HOST_BUILTINS_SYSROOT --sysroot=${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot)
+    set(HOST_BUILTINS_TRIPLE ${ANDROID_LLVM_TRIPLE})
+  endif()
+
   libkernel_generate_bitcode_target(
-      TARGETNAME host 
-      TRIPLE ""
+      TARGETNAME host
+      TRIPLE ${HOST_BUILTINS_TRIPLE}
       SOURCES ${HOST_LIBKERNEL_BITCODE_SOURCES}
-      ADDITIONAL_ARGS -fno-math-errno -ffp-contract=fast)
+      ADDITIONAL_ARGS -fno-math-errno -ffp-contract=fast ${HOST_BUILTINS_SYSROOT})
 
   libkernel_generate_bitcode_target(
       TARGETNAME host-fast
-      TRIPLE ""
+      TRIPLE ${HOST_BUILTINS_TRIPLE}
       SOURCES ${HOST_LIBKERNEL_BITCODE_SOURCES}
-      ADDITIONAL_ARGS -ffast-math)
+      ADDITIONAL_ARGS -ffast-math ${HOST_BUILTINS_SYSROOT})
 endif()

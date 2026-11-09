@@ -24,6 +24,11 @@ bool skip_test_for_type() {
     pcudaGetDevice(&dev);
     pcudaDeviceProp prop;
     pcudaGetDeviceProperties(&prop, dev);
+    if constexpr (std::is_same_v<T, double>) {
+      if (!prop.pcudaHasFp64) {
+        return true;
+      }
+    }
     return !prop.pcudaHasAtomic64;
   }
   return false;

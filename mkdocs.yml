@@ -42,6 +42,8 @@ nav:
       - 'ROCM' : 'install-rocm.md'
       - 'OpenCL' : 'install-ocl.md'
       - 'Level Zero' : 'install-spirv.md'
+      - 'Vulkan' : 'install-vulkan.md'
+      - 'Metal' : 'install-metal.md'
 
 
 theme:

@@ -20,7 +20,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable from commit `88d8ff71000bf995493c8daaed865ec1ac216309`.
+* A `clspv` executable from commit `7d2f6f83443583d3572e2508e523b66a02816259`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -82,6 +82,10 @@ the features used in the kernel:
   instructions to be used in the implementation of SYCL sub-group builtins.
 * `VK_SUBGROUP_FEATURE_SHUFFLE_BIT` - Allows SPIR-V `CapabilityGroupNonUniformShuffle`
   instructions to be used in the implementation of SYCL sub-group builtins.
+* `uniformAndStorageBuffer8BitAccess` - Allows 8-bit arguments to be passed to
+  SPIR-V kernels via uniform buffers.
+* `uniformAndStorageBuffer16BitAccess` - Allows 16-bit arguments to be passed to
+  SPIR-V kernels via uniform buffers.
 
 ## Building
 
@@ -174,17 +178,19 @@ own bugs that need addressed (which may turn out to be not device specific once 
 
 Devices known to be well supported by the backend include:
 
-| Driver Name  | Driver Version    | Device Type          | Status
-| ------------ | ----------------- | -------------------- | ----------------------------------------------------------------------------------------------- |
-| llvmpipe     | Mesa 25.0.7       | CPU                  | Well supported                                                                                  |
-| RADV Pheonix | Mesa 25.0.7       | AMD Integrated GPU   | Well supported                                                                                  |
-| RADV MI100   | Mesa 23.2.1       | AMD Discrete GPU     | Well Supported                                                                                  |
-| RADV MI210   | Mesa 23.2.1       | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                           |
-| Arc MTL      | Mesa 25.0.7       | Intel Integrated GPU | Issues with sub-groups                                                                          |
-| RTX 500      | NVIDIA 580.95.5.0 | NVIDIA Discrete GPU  | Issues with group functions tests & device stops being detected when running full sycl suite[1] |
-| MoltenVK     | Khronos 1.4.1     | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](#issue-11) tests disabled                                  |
-| Swiftshader  | Google 5.0.0      | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                                      |
-| V3D          | Mesa 25.0.7       | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                                      |
+| Driver Name  | Driver Version       | Device Type          | Status
+| ------------ | -------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| llvmpipe     | Mesa 25.0.7          | CPU                  | Well supported                                                                                              |
+| RADV Pheonix | Mesa 25.0.7          | AMD Integrated GPU   | Well supported                                                                                              |
+| RADV MI100   | Mesa 23.2.1          | AMD Discrete GPU     | Well Supported                                                                                              |
+| RADV MI210   | Mesa 23.2.1          | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                                       |
+| Arc MTL      | Mesa 25.0.7          | Intel Integrated GPU | Issues with sub-groups                                                                                      |
+| RTX 500      | NVIDIA 580.95.5.0    | NVIDIA Discrete GPU  | Issues with group functions tests & device stops being detected when running full sycl suite[1]             |
+| MoltenVK     | Khronos 1.4.1        | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2120) tests disabled |
+| Swiftshader  | Google 5.0.0         | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
+| V3D          | Mesa 25.0.7          | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
+| Kosmic Krisp | Vulkan-sdk-1.4.341.1 | Apple Integrated GPU | Similar level of support to MoltenVK but more prone to hanging on an error than failing cleanly             |
+| Adreno 750   | Qualcomm 10ee450ed3  | Qualcomm iGPU        | Can run some kernels, driver fails to create Vulkan compute pipeline in many cases                          |
 
 Other devices are untested and support status is unknown.
 
@@ -312,11 +318,22 @@ each work-group size variant of a kernel. At adaptivity level 0, a specializatio
 constant is used to set the work-group size on the same `vk_executable_object` object for each
 work-group size variant.
 
-For small numbers of kernel arguments, no buffer descriptors may be required and all
-arguments can be set pushing push constants before the invocation of the Vulkan
-command-buffer containing the kernel. For larger numbers of kernel arguments or struct
-arguments that are decomposed, a single uniform buffer is used with binding 0,
-and each argument is an offset into that uniform buffer.
+#### Kernel Arguments
+
+There are two different mechanisms used for passing arguments to the SPIR-V kernel.
+The preferred is push constants, which are copied into the command buffer executing
+the kernel and suitable for small numbers of kernel arguments.
+
+For larger numbers of kernel arguments or struct arguments that are decomposed, uniform buffers
+are used. This may be multiple uniform buffers but most likely a single uniform buffer where
+each argument is an offset into that uniform buffer.
+
+In order to use uniform buffers, it's not just the buffers & memory that need to be created
+to hold the arguments for a kernel invocation, it's also the descriptor set which
+defines the binding of buffers to the compute pipeline. In order for multiple invocations
+of the same kernel with different arguments to behave correctly a `vk_kernel_uniform_descriptors`
+class is defined by the backend for containing all information, and a pool of objects
+is created which can be reused as the invocations associated with them complete execution.
 
 #### Queue
 
@@ -401,13 +418,23 @@ can detect and set.
 
 To implement the kernel functions declared by `libkernel` many of them are mapped to
 OpenCL-C builtin functions, which `clspv` then knows how to implement correctly for
-SPIR-V. However, clspv only supports OpenCL-C version 1.2 and some builtins (e.g.
-work-group collectives) require builtins from OpenCL 3.0. In such cases a more
-generic implementation is fallen back to.
+SPIR-V. clspv is not limited to the OpenCL-C 1.2 builtins: it also supports the
+OpenCL-C 2.0 atomic functions, `work_group_barrier` and `atomic_work_item_fence` with
+an explicit memory scope, and most of the sub-group builtins from `cl_khr_subgroups`
+and related extensions. See the clspv doc on
+[built-in functions](https://github.com/google/clspv/blob/main/docs/OpenCLCOnVulkan.md#built-in-functions)
+for details. Where clspv has no builtin for a SYCL feature, e.g. the work-group
+collective functions or relative sub-group shuffles, a more generic implementation
+is used instead.
 
 The existing spirv `libkernel` library is not used because it is implemented
 in terms of the
 [SPIRV-LLVM Translator IR expectations](https://github.com/KhronosGroup/SPIRV-LLVM-Translator/blob/main/docs/SPIRVRepresentationInLLVM.rst)
-which are not recognized by other tools like `clspv`. clspv however can
-represent spirv builtins in IR by using a function call to a mangled name prefixed with
-convention `_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`.
+which are not recognized by other tools like `clspv`.
+
+clspv represents SPIR-V instructions internally as calls to functions named
+`_Z8spirv.op.<SPIRV OpCode>.<Mangled parameters>`. These are not used to implement
+`libkernel`, as they are not a documented clspv input format and only give access to
+the instructions that clspv already generates from OpenCL-C builtins. SYCL
+functionality missing from clspv should instead be added to clspv as OpenCL-C
+builtins.

@@ -53,30 +53,68 @@ private:
   vk_queue *_queue;
 };
 
+// Wrapper for information related to uniform buffers and descriptors needed
+// to pass kernel arguments, and can be reused for another kernel execution
+// once a previous execution completes with arguments set using an instance.
+class vk_kernel_uniform_descriptors {
+public:
+  // Creates uniform buffers backend by memory, and descriptor sets, but
+  // only if they have not already been created.
+  void init(vk_kernel_object *kern_obj);
+
+  vk::DescriptorSet get_descriptor_set() const { return _desc_set; }
+
+  void set_completion_val(vk::Semaphore semaphore, uint64_t v) {
+    _semaphore = semaphore;
+    _completion_val = v;
+  }
+
+  bool is_available(bool stall);
+
+  void *map_memory(unsigned binding, unsigned offset, unsigned size) {
+    vk::DeviceSize mem_offset = _offsets[binding] + offset;
+    return _dev_mem.mapMemory(mem_offset, size);
+  }
+
+  vk::Buffer get_uniform_buffer(size_t i) { return _uniform_buffers[i]; }
+
+  void unmap_memory() { _dev_mem.unmapMemory(); }
+
+private:
+  void create_uniform_backing_buffers();
+  void create_descriptor_set();
+
+  vk_kernel_object *_kern_obj{nullptr};
+
+  std::vector<vk::raii::Buffer> _uniform_buffers;
+  std::vector<vk::DeviceSize> _offsets;
+  vk::raii::DeviceMemory _dev_mem{nullptr};
+  vk::raii::DescriptorSet _desc_set{nullptr};
+
+  vk::Semaphore _semaphore{nullptr};
+  uint64_t _completion_val{0};
+};
+
+// Wrapper for an kernel instance for a specific workgroup size which can be run
+// once it is bound to a command-buffer and has its arguments set.
 class vk_kernel_pipeline {
 public:
   vk_kernel_pipeline();
   vk_kernel_pipeline(vk_kernel_object *kern_obj,
                      const rt::range<3> &group_size);
 
-  void set_args(vk::CommandBuffer &,
+  void set_args(vk::CommandBuffer &, vk_kernel_uniform_descriptors &,
                 glue::jit::cxx_argument_mapper &arg_mapper);
-  void bind(vk::CommandBuffer &);
+  void bind(vk::CommandBuffer &, vk_kernel_uniform_descriptors &);
 
   const rt::range<3> &get_group_size() const { return _group_size; }
 
 private:
-  void create_uniform_backing_buffers();
-  void create_compute_pipeline();
-
   vk_kernel_object *_kern_obj;
   rt::range<3> _group_size;
 
   vk::raii::Pipeline _compute_pipeline;
   vk::raii::PipelineLayout _compute_pipeline_layout;
-
-  vk::raii::Buffer _uniform_buffer_raii = nullptr;
-  vk::raii::DeviceMemory _uniform_mem_raii = nullptr;
 };
 
 using vk_kernel_pipeline_sp = std::shared_ptr<vk_kernel_pipeline>;
@@ -105,6 +143,9 @@ struct spv_kernel_argument {
                                   const spv_kernel_argument &arg);
 };
 
+// Wrapper holding information about an abstract kernel from an executable
+// object and information about its arguments. In order to run it must be
+// made concrete for a specific workgroup size via `vk_kernel_pipeline`.
 class vk_kernel_object {
 public:
   vk_kernel_object();
@@ -112,24 +153,32 @@ public:
 
   vk_kernel_pipeline_sp create_pipeline(const rt::range<3> &group_size);
   void create_descriptor_pool();
-  void create_descriptor_sets();
+  void create_descriptor_layout();
 
   const std::string &get_name() const { return _name; }
   vk_executable_object *get_exe_obj() const { return _exe_obj; }
 
   void add_spv_arg(spv_kernel_argument);
   const std::vector<spv_kernel_argument> &get_spv_args() const;
-  unsigned get_uniform_arg_size() { return _uniform_arg_size; }
+
+  struct UniformArg {
+    unsigned binding;
+    unsigned size;
+  };
+  const std::vector<UniformArg> &get_uniform_args() const {
+    return _uniform_args;
+  }
+  vk_kernel_uniform_descriptors &create_kernel_descriptors();
 
   size_t get_push_constants_size() const;
   void set_reqd_wg_size(unsigned x, unsigned y, unsigned z);
   bool check_reqd_wg_size(const rt::range<3> &group_size) const;
-  vk::DescriptorSet get_descriptor_set() { return *_desc_sets.front(); }
   vk::DescriptorSetLayout get_descriptor_set_layout() {
     return *_desc_set_layout;
   }
+  vk::DescriptorPool get_descriptor_pool() { return *_desc_pool; }
 
-  // Maximum number of invocations of a kernel
+  // Maximum number of concurrent invocations of a kernel
   static constexpr uint32_t MAX_INSTANCES = 10;
 
 private:
@@ -139,11 +188,11 @@ private:
       _pipelines;
   std::vector<size_t> _reqd_wg_size;
   std::vector<spv_kernel_argument> _args;
-  unsigned _uniform_arg_size;
+  std::vector<UniformArg> _uniform_args;
 
   vk::raii::DescriptorPool _desc_pool;
   vk::raii::DescriptorSetLayout _desc_set_layout;
-  std::vector<vk::raii::DescriptorSet> _desc_sets;
+  std::array<vk_kernel_uniform_descriptors, MAX_INSTANCES> _uniform_descriptors;
 };
 
 struct spv_reflection_data {

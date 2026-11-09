@@ -18,6 +18,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/clspv/AddrSpaceCastRemovalPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/ConstantAddrSpacePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/FoldChainedGEPsPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/clspv/LegalizeIntWidthsPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/MemsetLoweringPass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/RemoveUnusedIntrinsicsPass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
@@ -40,6 +41,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Program.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Transforms/Scalar/InferAddressSpaces.h>
 #include <memory>
 #include <string>
 #include <system_error>
@@ -299,7 +301,7 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
     InputStream.flush();
   }
 
-  std::string CLSPV = HIPSYCL_CLSPV_PATH;
+  std::string CLSPV = ACPP_CLSPV_PATH;
 
   llvm::SmallVector<std::string> Args{"-x=ir",
                                       "--physical-storage-buffers",
@@ -307,6 +309,16 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
                                       "--arch=spir64",
                                       "-long-vector",
                                       "-o=" + OutputFileName};
+
+  // Workaround for the Qualcomm Adreno driver on Android that struggles to
+  // consume SPIR-V where the physical pointer arguments are passed in a push
+  // constant with non zero member index. To avoid this pass each argument as
+  // its own uniform buffer.
+  if (DeviceName.find("Adreno") != std::string::npos) {
+    Args.push_back("--pod-ubo");
+    Args.push_back("--cluster-pod-kernel-args=0");
+  }
+
   if (!MaxPushConstantSize.empty()) {
     Args.push_back("-max-pushconstant-size=" + MaxPushConstantSize);
   }
@@ -362,6 +374,12 @@ bool LLVMToCLSPVTranslator::applyBuildOption(const std::string &Option,
 
   if (Option == "-max-ubo-size") {
     this->MaxUniformBufferRange = Value;
+    return true;
+  }
+
+  if (Option == "-device-name") {
+    this->DeviceName = Value;
+    return true;
   }
 
   return false;
@@ -399,13 +417,15 @@ bool LLVMToCLSPVTranslator::optimizeFlavoredIR(llvm::Module &M,
   // Transformation passes to make the LLVM-IR consumable by clspv
   llvm::ModulePassManager MPM;
   MPM.addPass(
+      llvm::createModuleToFunctionPassAdaptor(llvm::InferAddressSpacesPass(0)));
+  MPM.addPass(
       llvm::createModuleToFunctionPassAdaptor(RemoveUnusedIntrinsicsPass()));
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(MemsetLoweringPass()));
-  MPM.addPass(
-      llvm::createModuleToFunctionPassAdaptor(FoldChainedGEPsPass()));
+  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(FoldChainedGEPsPass()));
   MPM.addPass(
       llvm::createModuleToFunctionPassAdaptor(AddrSpaceCastRemovalPass()));
   MPM.addPass(ConstantAddrSpacePass());
+  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(LegalizeIntWidthsPass()));
   MPM.run(M, *PH.ModuleAnalysisManager);
 
   return Result;

@@ -1,0 +1,4 @@
+LIBRARY kernelbase.dll
+
+EXPORTS
+    __chkstk

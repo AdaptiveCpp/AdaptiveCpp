@@ -242,7 +242,24 @@ set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") #
 set(WITH_CPU_BACKEND true)
 
 if(WITH_VULKAN_BACKEND)
-  find_package(Vulkan 1.4 QUIET COMPONENTS SPIRV-Tools REQUIRED)
+  # The Android NDK doesn't come with the Vulkan SDK, only Vulkan, so we need to
+  # find SPIRV-Tools separately
+  if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    find_package(Vulkan QUIET REQUIRED)
+    find_package(SPIRV-Tools QUIET REQUIRED)
+
+    set(ACPP_VULKAN_HPP_PATH "" CACHE PATH "Path to VulkanHpp source")
+    if(NOT ACPP_VULKAN_HPP_PATH)
+      message(SEND_ERROR "Could not find VulkanHpp headers, specify with -DACPP_VULKAN_HPP_PATH=")
+    endif()
+
+    set(ACPP_SPIRV_HEADER_PATH "" CACHE PATH "Path to SPIRV headers ")
+    if(NOT ACPP_SPIRV_HEADER_PATH)
+        message(SEND_ERROR "Could not find SPIR-V headers, specify with -DACPP_SPIRV_HEADER_PATH=")
+    endif()
+  else()
+    find_package(Vulkan 1.4 QUIET COMPONENTS SPIRV-Tools REQUIRED)
+  endif()
 endif()
 
 if(WITH_CUDA_BACKEND)
@@ -337,17 +354,25 @@ if(BUILD_CLANG_PLUGIN)
     # includes are not of high enough priority in the include path search order).
     # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
     # which is a clang-specific header file.
-    find_path(FOUND_CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
-      ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
-      ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
-      ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}/include
-      ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
-      ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
-      ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
-      ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
-      ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
-      ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}/include
-      DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
+
+    if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+      # clang-18 used in Android NDK r27d
+      find_path(FOUND_CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
+        ${ANDROID_TOOLCHAIN_ROOT}/lib/clang/*/include
+        DOC "Path to internal clang headers. Typically, $ANDROID_TOOLCHAIN_ROOT/lib/clang/<llvm-version>/include")
+    else()
+      find_path(FOUND_CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
+        ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+        ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+        ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}/include
+        ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+        ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+        ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
+        ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+        ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+        ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}/include
+        DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
+    endif()
 
     if(EXISTS ${FOUND_CLANG_INCLUDE_PATH})
       # Required for newer ROCm versions
@@ -465,9 +490,11 @@ if(BUILD_CLANG_PLUGIN)
 
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 
-  # Check if building on Windows and LLVM_LIBS is set, if not, use LLVM_AVAILABLE_LIBS 
-  if(WIN32 AND NOT LLVM_LIBS AND LLVM_AVAILABLE_LIBS)
-    llvm_map_components_to_libnames(LLVM_LIBS analysis core support passes)
+  # Check if building on Windows or crosscompiling for Android, and LLVM_LIBS is not set then use LLVM_AVAILABLE_LIBS
+  if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Android")
+    if (NOT LLVM_LIBS AND LLVM_AVAILABLE_LIBS)
+      llvm_map_components_to_libnames(LLVM_LIBS analysis core support passes)
+    endif()
   endif()
 endif()
 
@@ -758,6 +785,7 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
+  \"$ACPP_LIB_PATH/hipSYCL/acpp-sscp-host-c-runtime-import.lib\" : \"/hipSYCL/\",
   \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
   \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
   \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
@@ -813,7 +841,7 @@ set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
   \"${ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
-  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
+  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv${CMAKE_EXECUTABLE_SUFFIX}\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
   \"${OpenCL_LIBRARIES}\" : \"/\"
 }
 ")

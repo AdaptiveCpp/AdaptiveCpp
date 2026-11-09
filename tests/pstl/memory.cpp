@@ -8,6 +8,7 @@
 #include <boost/mp11/mpl.hpp>
 
 #include "pstl_test_suite.hpp"
+#include <hipSYCL/std/stdpar/detail/sycl_glue.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(pstl_memory, enable_unified_shared_memory)
 
@@ -63,6 +64,21 @@ BOOST_AUTO_TEST_CASE(pstl_aligned_alloc) {
     BOOST_CHECK_EQUAL(host_data[i], p1[i]);
 
   std::free(p1);
+}
+
+BOOST_AUTO_TEST_CASE(pstl_memory_pool_release_reclaims_space) {
+  hipsycl::stdpar::memory_pool pool{1 << 14};
+
+  // Repeatedly claim/release a small, non-page-aligned size. Before the
+  // effective_size() rounding fix, release() would file each freed block
+  // under the wrong buddy-allocator level, so it would never be reclaimed
+  // and the pool would be exhausted well before 100 iterations.
+  constexpr std::size_t small_size = 8;
+  for (int i = 0; i < 100; ++i) {
+    void* p = pool.claim(small_size);
+    BOOST_REQUIRE(p != nullptr);
+    pool.release(p, small_size);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

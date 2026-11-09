@@ -255,11 +255,10 @@ void *resize_and_strongly_align(std::vector<char> &data, std::size_t size) {
   return resize_and_align(data, size, alignment);
 }
 
-result
-launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
-                      const rt::range<3> &num_groups,
-                      const rt::range<3> &local_size, unsigned shared_memory,
-                      void **kernel_args) {
+void launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
+                           const rt::range<3> &num_groups,
+                           const rt::range<3> &local_size,
+                           unsigned shared_memory, void **kernel_args) {
   // *** Do NOT change these values without changing also on the compiler side
   //     in host/StaticLocalMemoryPass.cpp ***
   // for internal use in group algorithms
@@ -286,7 +285,7 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
         num_groups, rt::id<3>{0, 0, 0}, local_size, nullptr,
         aligned_internal_local_memory};
     kernel(&info, kernel_args);
-    return make_success();
+    return;
   }
 
 #ifndef _OPENMP
@@ -320,7 +319,6 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
       }
     }
   }
-  return make_success();
 }
 #endif
 } // namespace
@@ -522,6 +520,7 @@ result omp_queue::submit_sscp_kernel_from_code_object(
     std::size_t *arg_sizes, std::size_t num_args,
     const kernel_configuration &initial_config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
+  
   common::spin_lock_guard lock{_sscp_submission_spin_lock};
 
   if (!kernel_info) {
@@ -636,10 +635,31 @@ result omp_queue::submit_sscp_kernel_from_code_object(
       static_cast<const omp_sscp_executable_object *>(obj)->get_kernel(
           kernel_name);
 
-  auto err = launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
-                                   _arg_mapper.get_mapped_args());
+  // For correct synchronization semantics, we need to ensure
+  // we're in the worker thread. This is important because SYCL
+  // will already call this function from within the worker thread,
+  // while PCUDA invokes it directly in the user thread.
+  if(_worker.is_in_worker_thread()) {
+    launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
+                          const_cast<void**>(_arg_mapper.get_mapped_args()));
+  } else {
+    // Because we're now offloading to a worker thread, we need
+    // to copy kernel args to an external buffer so that it is safe
+    // to return even if the kernel uses the arguments while it runs.
+    auto* state_buffer = this->_kernel_state_pool.get_state();
+    _arg_mapper.copy_mapped_buffer(state_buffer->kernel_args,
+                                   state_buffer->kernel_arg_buffer);
+
+    _worker([kernel, num_groups, group_size, local_mem_size, state_buffer, this]() {
+      launch_kernel_from_so(kernel, num_groups, group_size, local_mem_size,
+                            state_buffer->kernel_args.data());
+      _kernel_state_pool.return_state(state_buffer);
+    });
+  }
+
   on_kernel_launch_complete(kernel_name, obj);
-  return err;
+
+  return make_success();
 
 #else
   return make_error(

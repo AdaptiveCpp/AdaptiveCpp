@@ -8,6 +8,7 @@ Operating system support currently strongly focuses on Linux.
 On Mac, the CPU backend and the experimental [Metal backend](install-metal.md) are supported. For the generic JIT compilation flow, we recommend [linking AdaptiveCpp into LLVM using a 2-stage build](#building-an-llvm-toolchain-with-adaptivecpp-linked-in-experimental-but-also-for-windows).
 Windows support with CPU and CUDA backends is expected to work when [linking AdaptiveCpp into LLVM](#building-an-llvm-toolchain-with-adaptivecpp-linked-in-experimental-but-also-for-windows).
 For Windows, you may also [download](https://nightly.link/AdaptiveCpp/AdaptiveCpp/workflows/windows-acppllvm/develop/AdaptiveCpp-LLVM20-Win.zip) nightly binaries for AdaptiveCpp from the `develop` branch.
+The project can also be cross compiled for Android for use on the CPU OMP backend and experimental [Vulkan backend](install-vulkan.md).
 
 ## Installation from source (Linux)
 
@@ -245,3 +246,7 @@ To enable support for the generic JIT compiler, you may want to refer to the [2-
 
 Windows, via `omp.accelerated` and `generic` compilation flows, is only supported when [building AdaptiveCpp as part of LLVM](#building-an-llvm-toolchain-with-adaptivecpp-linked-in-experimental-but-also-for-windows) (see above). Supported backends and devices on Windows include OpenMP (host CPU), CUDA (NVIDIA GPUs), HIP (AMD GPUs) and OpenCL (Intel GPUs).
 
+## Installation from source (Android)
+
+AdaptiveCpp can be cross compiled to support OpenMP(host CPU) and Vulkan backends through `generic` compilation flow. This is a complicated process,
+see [Android cross compilation instructions](install-android.md) for the full list of required steps.

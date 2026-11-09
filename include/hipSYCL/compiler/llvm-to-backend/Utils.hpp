@@ -387,6 +387,9 @@ std::string getLibAmathDir();
 std::string getLibMvecDir();
 std::string getBitcodePath();
 std::string getRedistPackageBitcodePath(const std::string& backend);
+#ifdef _WIN32
+std::string getHostCRuntimeImportLibraryPath();
+#endif
 
 #if LLVM_VERSION_MAJOR >= 16
 int executeAndWait(

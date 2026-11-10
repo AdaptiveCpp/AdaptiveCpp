@@ -66,6 +66,8 @@ inline T __acpp_sscp_metal_op_init_value() {
 #else
     if constexpr(is_fp_v<T>){
       return std::numeric_limits<T>::infinity();
+    } else {
+      return std::numeric_limits<T>::max();
     }
 #endif
   } else if constexpr(op == __acpp_sscp_algorithm_op::max) {
@@ -74,6 +76,8 @@ inline T __acpp_sscp_metal_op_init_value() {
 #else
     if constexpr(is_fp_v<T>){
       return -std::numeric_limits<T>::infinity();
+    } else {
+      return std::numeric_limits<T>::lowest();
     }
 #endif
   } else if constexpr(op == __acpp_sscp_algorithm_op::bit_and && std::is_integral_v<T>) {

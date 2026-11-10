@@ -50,6 +50,10 @@ template<typename T> inline __attribute__((address_space(3))) T* __acpp_sscp_get
   return typed_ptr;
 }
 
+template <class T>
+inline constexpr bool is_fp_v =
+    std::is_same_v<T, f32> || std::is_same_v<T, f16>;
+
 template<__acpp_sscp_algorithm_op op, typename T>
 inline T __acpp_sscp_metal_op_init_value() {
   if constexpr(op == __acpp_sscp_algorithm_op::plus) {
@@ -57,9 +61,21 @@ inline T __acpp_sscp_metal_op_init_value() {
   } else if constexpr(op == __acpp_sscp_algorithm_op::multiply) {
     return T{1};
   } else if constexpr(op == __acpp_sscp_algorithm_op::min) {
+#if defined(__FINITE_MATH_ONLY__) && (__FINITE_MATH_ONLY__ == 1)
     return std::numeric_limits<T>::max();
+#else
+    if constexpr(is_fp_v<T>){
+      return std::numeric_limits<T>::infinity();
+    }
+#endif
   } else if constexpr(op == __acpp_sscp_algorithm_op::max) {
+#if defined(__FINITE_MATH_ONLY__) && (__FINITE_MATH_ONLY__ == 1)
     return std::numeric_limits<T>::lowest();
+#else
+    if constexpr(is_fp_v<T>){
+      return -std::numeric_limits<T>::infinity();
+    }
+#endif
   } else if constexpr(op == __acpp_sscp_algorithm_op::bit_and && std::is_integral_v<T>) {
     return ~T{0};
   } else if constexpr(op == __acpp_sscp_algorithm_op::bit_or && std::is_integral_v<T>) {

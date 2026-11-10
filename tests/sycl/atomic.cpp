@@ -350,6 +350,8 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 
 
 BOOST_AUTO_TEST_CASE(fetch_add_sub_local_memory) {
+  SKIP_IF_MOLTENVK(sycl::device{})
+
   auto fetch_add = [](auto &atomic, auto x) {
     return atomic.fetch_add(x);
   };

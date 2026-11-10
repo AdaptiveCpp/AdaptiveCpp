@@ -534,13 +534,25 @@ HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min,
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max,
                                        T{std::numeric_limits<T>::min()},
                                        !is_sscp_floating_point_v<T>)
-// Use static cast so that we can also intialize half, without having numeric_limits overloaded
+#if defined(__FINITE_MATH_ONLY__) && (__FINITE_MATH_ONLY__ == 1)
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min,
-                                       static_cast<T>(std::numeric_limits<float>::infinity()),
+                                       std::numeric_limits<T>::max(),
                                        is_sscp_floating_point_v<T>)
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max,
-                                       static_cast<T>(-std::numeric_limits<float>::infinity()),
+                                       std::numeric_limits<T>::lowest(),
                                        is_sscp_floating_point_v<T>)
+#else
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min,
+                                       std::numeric_limits<T>::has_infinity
+                                           ? std::numeric_limits<T>::infinity()
+                                           : std::numeric_limits<T>::max(),
+                                       is_sscp_floating_point_v<T>)
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max,
+                                       std::numeric_limits<T>::has_infinity
+                                           ? -std::numeric_limits<T>::infinity()
+                                           : std::numeric_limits<T>::max(),
+                                       is_sscp_floating_point_v<T>)
+#endif
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_and, ~T{},
                                        true)
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_or, T{},

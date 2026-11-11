@@ -147,12 +147,18 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
   this->_api_accepts_arbirary_pointers =
       dev_ctx->get_usm_provider()->accepts_arbitrary_pointer_kernel_arguments();
 
+  // FIXME: profiling should be enabled only if the sycl queue was created  with the enable_profiling() property,
+  // but I cannot find how to determine this from here. OTOH, there is basically no downside from enabling it
+  // unconditionally, AFAIK.
+  cl_command_queue_properties common_properties = CL_QUEUE_PROFILING_ENABLE;
+
   cl_int err;
   if(priority != 0 && dev_ctx->has_cl_khr_priority_hints_extension()) {
 #ifdef CL_QUEUE_PRIORITY_KHR
     cl_queue_properties clPriority = (priority < 0) ? CL_QUEUE_PRIORITY_HIGH_KHR : CL_QUEUE_PRIORITY_LOW_KHR;
     cl_queue_properties props[] = {
       CL_QUEUE_PRIORITY_KHR, clPriority,
+      CL_QUEUE_PROPERTIES, common_properties,
       0
     };
     cl_command_queue rawQueue = clCreateCommandQueueWithProperties(cl_ctx(), cl_dev(), props, &err);
@@ -161,11 +167,11 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
     print_warning(__acpp_here(),
               error_info{"ocl_queue: Cannot set queue priority, "
                          "AdaptiveCpp was built with OpenCL headers that don't recognize CL_QUEUE_PRIORITY_KHR"});
-    cl_command_queue_properties props = 0;
+    cl_command_queue_properties props = common_properties;
     _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
 #endif
   } else {
-    cl_command_queue_properties props = 0;
+    cl_command_queue_properties props = common_properties;
     _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
   }
   if(err != CL_SUCCESS) {

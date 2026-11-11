@@ -217,7 +217,7 @@ std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {
       this);
 }
 
-result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
+result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) {
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: On device "
                      << _hw_manager->get_device_id(_device_index)
@@ -332,6 +332,10 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
   }
 
   register_submitted_op(evt);
+
+  // TODO: FIXME this will get instrumentation only for the last USM copy
+  // in the dimension > 1 case
+  profile_if_enabled(op, node, evt);
   return make_success();
 }
 
@@ -339,12 +343,17 @@ result ocl_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
 
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_invoker);
-  
-  // TODO: Instrumentation
-  return op.get_launcher().invoke(backend_id::ocl, this, cap, node.get());
+
+  result ret = op.get_launcher().invoke(backend_id::ocl, this, cap, node.get());
+
+  auto recent = _state.get_most_recent_event();
+  auto last_node_evt = std::static_pointer_cast<ocl_node_event>(recent);
+  cl::Event evt = last_node_evt->get_event();
+  profile_if_enabled(op, node, evt);
+  return ret;
 }
 
-result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {
+result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr& node) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -367,10 +376,11 @@ result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {
   }
 
   register_submitted_op(evt);
+  profile_if_enabled(op, node, evt);
   return make_success();
 }
 
-result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
+result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr& node) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -386,6 +396,7 @@ result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
   }
 
   register_submitted_op(evt);
+  profile_if_enabled(op, node, evt);
   return make_success();
 }
 
@@ -662,6 +673,47 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 void ocl_queue::register_submitted_op(cl::Event evt) {
   this->_state.set_most_recent_event(std::make_shared<ocl_node_event>(
       _hw_manager->get_device_id(_device_index), evt));
+}
+
+void ocl_queue::profile_if_enabled(operation &op, const dag_node_ptr& node, cl::Event evt)
+{
+  if (!node) {
+    return;
+  }
+
+  auto &hints = node->get_execution_hints();
+  ocl_async_profiling async_prof;
+
+  if (hints.has_hint<
+          rt::hints::request_instrumentation_submission_timestamp>()) {
+    async_prof.submission_time = std::make_shared<ocl_submission_timestamp>(evt);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::submission_timestamp>(
+            async_prof.submission_time);
+  }
+
+  if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+    async_prof.start_time = std::make_shared<ocl_execution_start_timestamp>(evt);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::execution_start_timestamp>(
+            async_prof.start_time);
+  }
+
+  if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+    async_prof.finish_time = std::make_shared<ocl_execution_finish_timestamp>(evt);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::execution_finish_timestamp>(
+            async_prof.finish_time);
+  }
+
+  // Reset this for every new command submission, the underlying
+  // instrumentation object from previous command submissions is kept alive
+  // through the shared pointer attached to `op`.
+  if (async_prof.submission_time || async_prof.start_time || async_prof.finish_time) {
+    _profiling = std::move(async_prof);
+  } else {
+    _profiling.reset();
+  }
 }
 
 }

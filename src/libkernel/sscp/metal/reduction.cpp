@@ -148,7 +148,6 @@ inline T __acpp_sscp_work_group_reduce(T value) {
 
   using binary_op_type = typename hipsycl::libkernel::sscp::get_op<op>::type;
   auto binary_op = [](T a, T b) -> T { return binary_op_type{}(a, b); };
-//  auto identity = [&]() -> T { return __acpp_sscp_metal_op_init_value<op, T>(); };
 
   const uint group_base = group_id * subgroup_size;
   uint active = 0;

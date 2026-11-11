@@ -16,6 +16,9 @@
 namespace hipsycl {
 namespace rt {
 
+// Sub-group size of the SSCP host backend, from ACPP_OPENMP_SUBGROUP_SIZE (default 1)
+std::size_t get_omp_subgroup_size();
+
 class omp_hardware_context : public hardware_context
 {
 public:

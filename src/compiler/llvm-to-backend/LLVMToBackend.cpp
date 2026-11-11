@@ -59,10 +59,39 @@ namespace compiler {
 
 namespace {
 
+// Mark every function that calls a convergent function, directly or through other functions, as
+// convergent. Not only the builtins but also the wrappers that contain them must be marked as
+// convergent.
+void markConvergentCallers(llvm::Module &M) {
+  llvm::SmallVector<llvm::Function *, 16> Worklist;
+  for (llvm::Function &F : M) {
+    bool CallsConvergent = false;
+    for (llvm::BasicBlock &BB : F)
+      for (llvm::Instruction &I : BB)
+        if (auto *CB = llvm::dyn_cast<llvm::CallBase>(&I))
+          CallsConvergent |= CB->isConvergent();
+    if (CallsConvergent)
+      F.setConvergent();
+    if (F.isConvergent())
+      Worklist.push_back(&F);
+  }
+  while (!Worklist.empty()) {
+    llvm::Function *F = Worklist.pop_back_val();
+    for (llvm::User *U : F->users())
+      if (auto *CB = llvm::dyn_cast<llvm::CallBase>(U))
+        if (CB->getCalledOperand() == F && !CB->getFunction()->isConvergent()) {
+          CB->getFunction()->setConvergent();
+          Worklist.push_back(CB->getFunction());
+        }
+  }
+}
+
 // Simplify each function before it is force-inlined into the kernel, while
 // its parameter attributes (e.g. `dereferenceable` on a `const T&`) still let
 // SimplifyCFG fold short-circuited conditions into selects.
 void runPreInlineSimplification(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+  // before the simplification: calls to convergent functions must keep their control dependences
+  markConvergentCallers(M);
   llvm::FunctionPassManager FPM;
   FPM.addPass(llvm::GVNPass());
   FPM.addPass(llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().hoistCommonInsts(true)));

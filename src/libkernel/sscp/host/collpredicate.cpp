@@ -31,18 +31,4 @@ bool __acpp_sscp_work_group_none(bool pred){
     return !result_or;
 }
 
-HIPSYCL_SSCP_CONVERGENT_BUILTIN
-bool __acpp_sscp_sub_group_all(bool pred){
-    return __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_and, pred);
-}
-
-HIPSYCL_SSCP_CONVERGENT_BUILTIN
-bool __acpp_sscp_sub_group_any(bool pred){
-    return __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_or, pred);
-}
-
-HIPSYCL_SSCP_CONVERGENT_BUILTIN
-bool __acpp_sscp_sub_group_none(bool pred){
-    bool result_or = __acpp_sscp_sub_group_reduce_i8(__acpp_sscp_algorithm_op::logical_or, pred);
-    return !result_or;
-}
+// the sub-group votes are in shuffle.cpp, next to the sub-group scratch they use

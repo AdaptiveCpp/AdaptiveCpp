@@ -546,7 +546,7 @@ void test_joint_reduce_min_max() {
 #else
       constexpr T inf = std::is_same_v<BinaryOperation, sycl::minimum<T>>
                             ? std::numeric_limits<T>::max()
-                            : -std::numeric_limits<T>::lowest();
+                            : std::numeric_limits<T>::lowest();
 #endif
       std::fill(host_in.begin(), host_in.end(), inf);
       run_and_check(inf);

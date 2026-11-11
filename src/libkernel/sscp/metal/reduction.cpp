@@ -148,7 +148,6 @@ inline T __acpp_sscp_work_group_reduce(T value) {
 
   using binary_op_type = typename hipsycl::libkernel::sscp::get_op<op>::type;
   auto binary_op = [](T a, T b) -> T { return binary_op_type{}(a, b); };
-  auto identity = [&]() -> T { return __acpp_sscp_metal_op_init_value<op, T>(); };
 
   const uint group_base = group_id * subgroup_size;
   uint active = 0;
@@ -158,61 +157,62 @@ inline T __acpp_sscp_work_group_reduce(T value) {
   }
 
   T v = value;
-  if(lane_id >= active) v = identity();
+  if (lane_id < active) {
 
-  const T sg_reduced = reduce_op(v);
+    const T sg_reduced = reduce_op(v);
 
-  if(lane_id == 0) scratch[group_id] = sg_reduced;
+    if (lane_id == 0)
+      scratch[group_id] = sg_reduced;
+  }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
-  if(group_id == 0) {
-    T result = identity();
-
-    if(ngroups <= subgroup_size) {
-      T x = identity();
-      if(lid < ngroups) x = scratch[lid];
-      result = reduce_op(x);
-
-      if(lane_id == 0) scratch[0] = result;
+  T result;
+  if (ngroups <= subgroup_size) {
+    if (group_id == 0) {
+      if (lid < ngroups) {
+        T x = scratch[lid];
+        result = reduce_op(x);
+      }
+      if (lane_id == 0)
+        scratch[0] = result;
     }
-    else if(ngroups <= 2u * subgroup_size) {
-      T x0 = identity();
-      if(lid < subgroup_size) {
+  } else if (ngroups <= 2u * subgroup_size) {
+    if (group_id == 0) {
+      T x0, r0;
+      if (lid < subgroup_size) {
         uint i = lid;
-        if(i < ngroups) x0 = scratch[i];
-      }
-      T r0 = reduce_op(x0);
-
-      T x1 = identity();
-      if(lid < subgroup_size) {
-        uint i = lid + subgroup_size;
-        if(i < ngroups) x1 = scratch[i];
-      }
-      T r1 = reduce_op(x1);
-
-      if(lane_id == 0) scratch[0] = r0;
-      if(lane_id == 1) scratch[1] = r1;
-      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
-
-      T y = identity();
-      if(lid < 2) y = scratch[lid];
-      result = reduce_op(y);
-
-      if(lane_id == 0) scratch[0] = result;
-    }
-    else {
-      uint active_ngroups = ngroups;
-      while(active_ngroups > 1) {
-        uint offset = (active_ngroups + 1u) >> 1;
-        if(lid < offset) {
-          uint j = lid + offset;
-          if(j < active_ngroups)
-            scratch[lid] = binary_op(scratch[lid], scratch[j]);
+        if (i < ngroups) {
+          x0 = scratch[i];
+          r0 = reduce_op(x0);
         }
-        __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
-        active_ngroups = offset;
       }
-      if(lane_id == 0) scratch[0] = scratch[0];
+
+      T x1, r1;
+      if (lid < subgroup_size) {
+        uint i = lid + subgroup_size;
+        if (i < ngroups) {
+          x1 = scratch[i];
+          r1 = reduce_op(x1);
+        }
+      }
+
+      if (lane_id == 0) {
+        result = binary_op(r0, r1);
+        scratch[0] = result;
+      }
+    }
+  } else {
+    uint active_ngroups = ngroups;
+    while (active_ngroups > 1) {
+      uint offset = (active_ngroups + 1u) >> 1;
+      if (lid < offset) {
+        uint j = lid + offset;
+        if (j < active_ngroups)
+          scratch[lid] = binary_op(scratch[lid], scratch[j]);
+      }
+      __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
+                                     __acpp_sscp_memory_order::acq_rel);
+      active_ngroups = offset;
     }
   }
 

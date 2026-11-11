@@ -18,6 +18,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_map>
+#include <type_traits>
 
 #include "export.hpp"
 
@@ -70,20 +71,24 @@ bool try_retrieve_environment_variable(const std::string& name, T& out) {
   }
   
   if (!env.empty()) {
-    
-    T val;
-    std::stringstream sstr{std::string{env}};
-    sstr >> val;
+    if constexpr (std::is_same_v<T, std::string>) {
+      out = env;
+    } else {
+      T val;
+      std::stringstream sstr{std::string{env}};
+      sstr >> val;
 
-    if (sstr.fail() || sstr.bad()) {
-      std::cerr << "AdaptiveCpp settings parsing: Could not parse value of environment "
-                    "variable: "
-                << env_name << std::endl;
-      return false;
+      if (sstr.fail() || sstr.bad()) {
+        std::cerr << "AdaptiveCpp settings parsing: Could not parse value of environment "
+                      "variable: "
+                  << env_name << std::endl;
+        return false;
+      }
+      out = val;
     }
-    out = val;
     return true;
   }
+
   return false;
 }
 
@@ -99,18 +104,21 @@ bool try_retrieve_settings_variable(const std::string& name, T& out) {
   std::string value_string;
 
   if(settings_config_file::get().retrieve_setting(var_name, value_string)) {
+    if constexpr (std::is_same_v<T, std::string>) {
+      out = value_string;
+    } else {
+      T val;
+      std::istringstream sstr{std::string{value_string}};
+      sstr >> val;
 
-    T val;
-    std::istringstream sstr{std::string{value_string}};
-    sstr >> val;
-
-    if (sstr.fail() || sstr.bad()) {
-      std::cerr << "AdaptiveCpp settings parsing: Could not parse value of config file "
-                    "entry: "
-                << var_name << std::endl;
-      return false;
+      if (sstr.fail() || sstr.bad()) {
+        std::cerr << "AdaptiveCpp settings parsing: Could not parse value of config file "
+                      "entry: "
+                  << var_name << std::endl;
+        return false;
+      }
+      out = val;
     }
-    out = val;
     return true;
   }
   

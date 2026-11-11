@@ -372,10 +372,7 @@ using shuffle_test_types =
     boost::mp11::mp_push_back<test_types, detail::trivially_copyable_16_byte_type,
                               detail::trivially_copyable_12_byte_type>;
 
-template<int N, int M, typename T>
-class test_kernel;
-
-template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
+template<typename T, typename DataGenerator, typename TestedFunction,
          typename ValidationFunction>
 void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
@@ -392,13 +389,6 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
   if(queue.get_device().get_backend() == sycl::backend::hip) {
     local_sizes = std::vector<size_t>{256};
     global_sizes = std::vector<size_t>{1024};
-  } else if (queue.get_device().get_backend() == sycl::backend::vk &&
-             std::string::npos !=
-                 queue.get_device().get_info<sycl::info::device::name>().find(
-                     "RADV")) {
-    // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2127
-    local_sizes = std::vector<size_t>{128};
-    global_sizes = std::vector<size_t>{512};
   }
 
   for (int i = 0; i < local_sizes.size(); ++i) {
@@ -420,7 +410,7 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
         using namespace sycl::access;
         auto acc = buf.template get_access<mode::read_write>(cgh);
         auto sgpr_size_acc = used_sgrp_size_buffer.template get_access<mode::read_write>(cgh);
-        cgh.parallel_for<class test_kernel<1, CallingLine, T>>(
+        cgh.parallel_for(
           sycl::nd_range<1>{global_size, local_size},
           [=](sycl::nd_item<1> item) {
           auto g  = item.get_group();
@@ -437,7 +427,7 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
   }
 }
 
-template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
+template<typename T, typename DataGenerator, typename TestedFunction,
          typename ValidationFunction>
 void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
@@ -454,13 +444,6 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
 
   if(queue.get_device().get_backend() == sycl::backend::hip) {
     // currently only groupsizes between 128 and 256 are supported for HIP
-    local_sizes = std::vector<size_t>{16};
-    global_sizes = std::vector<size_t>{32};
-  } else if (queue.get_device().get_backend() == sycl::backend::vk &&
-             std::string::npos !=
-                 queue.get_device().get_info<sycl::info::device::name>().find(
-                     "RADV")) {
-    // https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2127
     local_sizes = std::vector<size_t>{16};
     global_sizes = std::vector<size_t>{32};
   }
@@ -482,7 +465,7 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
         using namespace sycl::access;
         auto acc = buf.template get_access<mode::read_write>(cgh);
 
-        cgh.parallel_for<class test_kernel<2, CallingLine, T>>(
+        cgh.parallel_for(
           sycl::nd_range<2>{sycl::range<2>(global_size, global_size), sycl::range<2>(local_size, local_size)},
           [=](sycl::nd_item<2> item) {
           auto   g                = item.get_group();

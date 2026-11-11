@@ -785,7 +785,7 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
-\"$ACPP_LIB_PATH/hipSYCL/llvm-to-backend/acpp-sscp-host-c-runtime-import.lib\" : \"/hipSYCL/\",
+  \"$ACPP_LIB_PATH/hipSYCL/acpp-sscp-host-c-runtime-import.lib\" : \"/hipSYCL/\",
   \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
   \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
   \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
@@ -841,7 +841,7 @@ set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
   \"${ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
-  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
+  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv${CMAKE_EXECUTABLE_SUFFIX}\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
   \"${OpenCL_LIBRARIES}\" : \"/\"
 }
 ")

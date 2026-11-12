@@ -263,7 +263,9 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
            allocation_shape[2] * allocation_shape[1] * id[0];
   };
 
-  cl::Event evt;
+  // multidimensional copies do multiple calls,
+  // to get proper profiling information we want to keep the first and the last
+  cl::Event first_evt, last_evt;
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -272,7 +274,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
     
     cl_int err = usm->enqueue_memcpy(_queue, op.dest().get_access_ptr(),
                         op.source().get_access_ptr(),
-                        op.get_num_transferred_bytes(), {}, &evt);
+                        op.get_num_transferred_bytes(), {}, &last_evt);
 
     if(err != CL_SUCCESS) {
       return make_error(
@@ -280,6 +282,9 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
           error_info{"ocl_queue: enqueuing memcpy failed",
                      error_code{"CL", static_cast<int>(err)}});
     }
+    // first and last event in this case are the same
+    first_evt = last_evt;
+
   } else {
     id<3> src_offset = op.source().get_access_offset();
     id<3> dest_offset = op.dest().get_access_offset();
@@ -316,6 +321,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
                reinterpret_cast<char *>(base_dest) +
                    dest_allocation_shape.size() * dest_element_size);
 
+	cl::Event evt = (surface == 0 && row == 0) ? first_evt : last_evt;
         cl_int err = usm->enqueue_memcpy(_queue, current_dest, current_src,
                                          row_size, {}, &evt);
 
@@ -337,11 +343,11 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) 
     }
   }
 
-  register_submitted_op(evt);
+  register_submitted_op(last_evt);
 
   // TODO: FIXME this will get instrumentation only for the last USM copy
   // in the dimension > 1 case
-  profile_if_enabled(op, node, evt);
+  profile_if_enabled(op, node, first_evt, last_evt);
   return make_success();
 }
 
@@ -681,7 +687,7 @@ void ocl_queue::register_submitted_op(cl::Event evt) {
       _hw_manager->get_device_id(_device_index), evt));
 }
 
-void ocl_queue::profile_if_enabled(operation &op, const dag_node_ptr& node, cl::Event evt)
+void ocl_queue::profile_if_enabled(operation &op, const dag_node_ptr& node, cl::Event first_evt, cl::Event last_evt)
 {
   if (!node) {
     return;
@@ -692,21 +698,21 @@ void ocl_queue::profile_if_enabled(operation &op, const dag_node_ptr& node, cl::
 
   if (hints.has_hint<
           rt::hints::request_instrumentation_submission_timestamp>()) {
-    async_prof.submission_time = std::make_shared<ocl_submission_timestamp>(evt);
+    async_prof.submission_time = std::make_shared<ocl_submission_timestamp>(first_evt);
     op.get_instrumentations()
         .add_instrumentation<instrumentations::submission_timestamp>(
             async_prof.submission_time);
   }
 
   if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
-    async_prof.start_time = std::make_shared<ocl_execution_start_timestamp>(evt);
+    async_prof.start_time = std::make_shared<ocl_execution_start_timestamp>(first_evt);
     op.get_instrumentations()
         .add_instrumentation<instrumentations::execution_start_timestamp>(
             async_prof.start_time);
   }
 
   if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
-    async_prof.finish_time = std::make_shared<ocl_execution_finish_timestamp>(evt);
+    async_prof.finish_time = std::make_shared<ocl_execution_finish_timestamp>(last_evt);
     op.get_instrumentations()
         .add_instrumentation<instrumentations::execution_finish_timestamp>(
             async_prof.finish_time);

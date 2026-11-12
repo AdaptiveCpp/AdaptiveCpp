@@ -73,7 +73,9 @@ public:
 
 private:
   void register_submitted_op(cl::Event);
-  void profile_if_enabled(operation &op, const dag_node_ptr &node, cl::Event evt);
+  void profile_if_enabled(operation &op, const dag_node_ptr &node, cl::Event first_evt, cl::Event last_evt);
+  void profile_if_enabled(operation &op, const dag_node_ptr &node, cl::Event evt)
+  { profile_if_enabled(op, node, evt, evt); }
 
   // These member variables have to be thread-safe.
   ocl_hardware_manager* _hw_manager;

@@ -13,6 +13,7 @@
 
 #include "builtin_config.hpp"
 
+#include <stddef.h>
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_local_id_x();
 HIPSYCL_SSCP_BUILTIN __acpp_uint64 __acpp_sscp_get_local_id_y();
@@ -75,7 +76,7 @@ T __acpp_sscp_typed_get_global_linear_id() {
     T lid_y = (T)__acpp_sscp_get_local_id_y();
     T ngroups_x = (T)__acpp_sscp_get_num_groups_x();
 
-    T id_x = gid_x * lsize_x + lid_x; 
+    T id_x = gid_x * lsize_x + lid_x;
     T id_y = gid_y * lsize_y + lid_y;
 
     T global_size_x = lsize_x * ngroups_x;
@@ -93,7 +94,7 @@ T __acpp_sscp_typed_get_global_linear_id() {
     T lid_z = (T)__acpp_sscp_get_local_id_z();
     T ngroups_x = (T)__acpp_sscp_get_num_groups_x();
     T ngroups_y = (T)__acpp_sscp_get_num_groups_y();
-    
+
     T id_x = gid_x * lsize_x + lid_x;
     T id_y = gid_y * lsize_y + lid_y;
     T id_z = gid_z * lsize_z + lid_z;
@@ -107,9 +108,19 @@ T __acpp_sscp_typed_get_global_linear_id() {
   }
 }
 
+size_t __spirv_BuiltInLocalInvocationIndex();
+
+extern "C" bool __acpp_sscp_jit_reflect_knows_ocl_platform_supports_builtin_id_variables();
+extern "C" bool __acpp_sscp_jit_reflect_ocl_platform_supports_builtin_id_variables();
 
 template<int Dim, class T>
 T __acpp_sscp_typed_get_local_linear_id() {
+
+  // Some OpenCL platforms may benefit from SPIR-V builtin (PoCL does).
+  if(__acpp_sscp_jit_reflect_knows_ocl_platform_supports_builtin_id_variables())
+    if(__acpp_sscp_jit_reflect_ocl_platform_supports_builtin_id_variables())
+      return __spirv_BuiltInLocalInvocationIndex();
+
   if constexpr(Dim == 1) {
     return (T)__acpp_sscp_get_local_id_x();
   } else if constexpr(Dim == 2) {

@@ -26,7 +26,7 @@ vk_hardware_context::vk_hardware_context(
       _physical_dev_features(features), _enabled_extensions(0) {
   _properties = phys_device.getProperties();
 
-  std::vector<vk::QueueFamilyProperties> queue_family_props =
+  const std::vector<vk::QueueFamilyProperties> queue_family_props =
       phys_device.getQueueFamilyProperties();
 
   // Queue family that supports compute and the least other features
@@ -148,6 +148,7 @@ vk_hardware_context::vk_hardware_context(
   _queue = vk::raii::Queue(_device, _queue_index, 0);
 
   _limits = phys_device.getProperties().limits;
+  _timestamp_valid_bits = queue_family_props[_queue_index].timestampValidBits;
 
   /* Vulkan hpp headers don't seem to like instantiating
    * a pointer chain wrapper with `vkGetPhysicalDeviceSubgroupProperties`

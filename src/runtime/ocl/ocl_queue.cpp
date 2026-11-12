@@ -147,12 +147,18 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
   this->_api_accepts_arbirary_pointers =
       dev_ctx->get_usm_provider()->accepts_arbitrary_pointer_kernel_arguments();
 
+  // FIXME: profiling should be enabled only if the sycl queue was created  with the enable_profiling() property,
+  // but I cannot find how to determine this from here. OTOH, there is basically no downside from enabling it
+  // unconditionally, AFAIK.
+  cl_command_queue_properties common_properties = CL_QUEUE_PROFILING_ENABLE;
+
   cl_int err;
   if(priority != 0 && dev_ctx->has_cl_khr_priority_hints_extension()) {
 #ifdef CL_QUEUE_PRIORITY_KHR
     cl_queue_properties clPriority = (priority < 0) ? CL_QUEUE_PRIORITY_HIGH_KHR : CL_QUEUE_PRIORITY_LOW_KHR;
     cl_queue_properties props[] = {
       CL_QUEUE_PRIORITY_KHR, clPriority,
+      CL_QUEUE_PROPERTIES, common_properties,
       0
     };
     cl_command_queue rawQueue = clCreateCommandQueueWithProperties(cl_ctx(), cl_dev(), props, &err);
@@ -161,11 +167,11 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
     print_warning(__acpp_here(),
               error_info{"ocl_queue: Cannot set queue priority, "
                          "AdaptiveCpp was built with OpenCL headers that don't recognize CL_QUEUE_PRIORITY_KHR"});
-    cl_command_queue_properties props = 0;
+    cl_command_queue_properties props = common_properties;
     _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
 #endif
   } else {
-    cl_command_queue_properties props = 0;
+    cl_command_queue_properties props = common_properties;
     _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
   }
   if(err != CL_SUCCESS) {
@@ -217,7 +223,7 @@ std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {
       this);
 }
 
-result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
+result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr& node) {
 
   HIPSYCL_DEBUG_INFO << "ocl_queue: On device "
                      << _hw_manager->get_device_id(_device_index)
@@ -257,7 +263,9 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
            allocation_shape[2] * allocation_shape[1] * id[0];
   };
 
-  cl::Event evt;
+  // multidimensional copies do multiple calls,
+  // to get proper profiling information we want to keep the first and the last
+  cl::Event first_evt, last_evt;
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -266,7 +274,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
     
     cl_int err = usm->enqueue_memcpy(_queue, op.dest().get_access_ptr(),
                         op.source().get_access_ptr(),
-                        op.get_num_transferred_bytes(), {}, &evt);
+                        op.get_num_transferred_bytes(), {}, &last_evt);
 
     if(err != CL_SUCCESS) {
       return make_error(
@@ -274,6 +282,9 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
           error_info{"ocl_queue: enqueuing memcpy failed",
                      error_code{"CL", static_cast<int>(err)}});
     }
+    // first and last event in this case are the same
+    first_evt = last_evt;
+
   } else {
     id<3> src_offset = op.source().get_access_offset();
     id<3> dest_offset = op.dest().get_access_offset();
@@ -310,6 +321,7 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
                reinterpret_cast<char *>(base_dest) +
                    dest_allocation_shape.size() * dest_element_size);
 
+	cl::Event evt = (surface == 0 && row == 0) ? first_evt : last_evt;
         cl_int err = usm->enqueue_memcpy(_queue, current_dest, current_src,
                                          row_size, {}, &evt);
 
@@ -331,7 +343,11 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, const dag_node_ptr&) {
     }
   }
 
-  register_submitted_op(evt);
+  register_submitted_op(last_evt);
+
+  // TODO: FIXME this will get instrumentation only for the last USM copy
+  // in the dimension > 1 case
+  profile_if_enabled(op, node, first_evt, last_evt);
   return make_success();
 }
 
@@ -339,12 +355,17 @@ result ocl_queue::submit_kernel(kernel_operation &op, const dag_node_ptr& node) 
 
   rt::backend_kernel_launch_capabilities cap;
   cap.provide_sscp_invoker(&_sscp_invoker);
-  
-  // TODO: Instrumentation
-  return op.get_launcher().invoke(backend_id::ocl, this, cap, node.get());
+
+  result ret = op.get_launcher().invoke(backend_id::ocl, this, cap, node.get());
+
+  auto recent = _state.get_most_recent_event();
+  auto last_node_evt = std::static_pointer_cast<ocl_node_event>(recent);
+  cl::Event evt = last_node_evt->get_event();
+  profile_if_enabled(op, node, evt);
+  return ret;
 }
 
-result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {
+result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr& node) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -367,10 +388,11 @@ result ocl_queue::submit_prefetch(prefetch_operation &op, const dag_node_ptr&) {
   }
 
   register_submitted_op(evt);
+  profile_if_enabled(op, node, evt);
   return make_success();
 }
 
-result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
+result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr& node) {
   ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
         _hw_manager->get_device(_device_index));
   ocl_usm* usm = ocl_ctx->get_usm_provider();
@@ -386,6 +408,7 @@ result ocl_queue::submit_memset(memset_operation& op, const dag_node_ptr&) {
   }
 
   register_submitted_op(evt);
+  profile_if_enabled(op, node, evt);
   return make_success();
 }
 
@@ -662,6 +685,47 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 void ocl_queue::register_submitted_op(cl::Event evt) {
   this->_state.set_most_recent_event(std::make_shared<ocl_node_event>(
       _hw_manager->get_device_id(_device_index), evt));
+}
+
+void ocl_queue::profile_if_enabled(operation &op, const dag_node_ptr& node, cl::Event first_evt, cl::Event last_evt)
+{
+  if (!node) {
+    return;
+  }
+
+  auto &hints = node->get_execution_hints();
+  ocl_async_profiling async_prof;
+
+  if (hints.has_hint<
+          rt::hints::request_instrumentation_submission_timestamp>()) {
+    async_prof.submission_time = std::make_shared<ocl_submission_timestamp>(first_evt);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::submission_timestamp>(
+            async_prof.submission_time);
+  }
+
+  if (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>()) {
+    async_prof.start_time = std::make_shared<ocl_execution_start_timestamp>(first_evt);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::execution_start_timestamp>(
+            async_prof.start_time);
+  }
+
+  if (hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+    async_prof.finish_time = std::make_shared<ocl_execution_finish_timestamp>(last_evt);
+    op.get_instrumentations()
+        .add_instrumentation<instrumentations::execution_finish_timestamp>(
+            async_prof.finish_time);
+  }
+
+  // Reset this for every new command submission, the underlying
+  // instrumentation object from previous command submissions is kept alive
+  // through the shared pointer attached to `op`.
+  if (async_prof.submission_time || async_prof.start_time || async_prof.finish_time) {
+    _profiling = std::move(async_prof);
+  } else {
+    _profiling.reset();
+  }
 }
 
 }

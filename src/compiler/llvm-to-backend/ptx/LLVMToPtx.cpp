@@ -317,7 +317,7 @@ AddressSpaceMap LLVMToPtxTranslator::getAddressSpaceMap() const {
   return ASMap;
 }
 
-std::unique_ptr<LLVMToBackendTranslator>
+ACPP_DEFAULT_VISIBILITY std::unique_ptr<LLVMToBackendTranslator>
 createLLVMToPtxTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToPtxTranslator>(KernelNames);
 }

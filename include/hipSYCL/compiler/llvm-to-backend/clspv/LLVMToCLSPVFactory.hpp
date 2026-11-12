@@ -18,7 +18,7 @@
 namespace hipsycl {
 namespace compiler {
 
-std::unique_ptr<LLVMToBackendTranslator>
+ACPP_DEFAULT_VISIBILITY std::unique_ptr<LLVMToBackendTranslator>
 createLLVMToCLSPVTranslator(const std::vector<std::string> &KernelNames);
 
 }

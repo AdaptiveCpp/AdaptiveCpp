@@ -99,6 +99,14 @@ std::string ocl_backend::get_name() const {
   return "OpenCL";
 }
 
+std::string ocl_backend::get_platform_name(platform_id platform) const {
+  int platform_num = platform.get_platform();
+  std::string name = _hw_manager.get_platform_name(platform_num);
+  name += " (OpenCL platform " + std::to_string(platform_num) + ")";
+  return name;
+}
+
+
 std::unique_ptr<backend_executor>
 ocl_backend::create_inorder_executor(device_id dev, int priority) {
   std::unique_ptr<inorder_queue> q =

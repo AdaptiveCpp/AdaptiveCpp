@@ -37,7 +37,8 @@ public:
   virtual backend_allocator *get_allocator(device_id dev) const override;
 
   virtual std::string get_name() const override;
-  
+  virtual std::string get_platform_name(platform_id) const override;
+
   virtual ~ocl_backend();
 
   virtual std::unique_ptr<backend_executor>

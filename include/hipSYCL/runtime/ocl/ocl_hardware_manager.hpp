@@ -101,6 +101,7 @@ public:
   virtual ~ocl_hardware_manager() {}
   
   cl::Platform get_platform(int platform_id);
+  std::string get_platform_name(int platform_id);
   cl::Context get_context(device_id dev);
 private:
   std::vector<ocl_hardware_context> _devices;

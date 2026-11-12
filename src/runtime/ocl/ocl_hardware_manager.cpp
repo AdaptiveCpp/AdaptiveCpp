@@ -52,10 +52,7 @@ ResultT info_query(const cl::Device& dev) {
 }
 
 template<int Query, class ResultT>
-ResultT platform_info_query(const cl::Device& dev) {
-  cl_platform_id platform = info_query<CL_DEVICE_PLATFORM, cl_platform_id>(dev);
-  cl::Platform p{platform};
-
+ResultT platform_info_query(const cl::Platform& p) {
   ResultT r{};
   cl_int err = p.getInfo(Query, &r);
   if(err != CL_SUCCESS) {
@@ -65,6 +62,13 @@ ResultT platform_info_query(const cl::Device& dev) {
                     error_code{"CL", err}});
   }
   return r;
+}
+
+template<int Query, class ResultT>
+ResultT platform_info_query(const cl::Device& dev) {
+  cl_platform_id platform = info_query<CL_DEVICE_PLATFORM, cl_platform_id>(dev);
+  cl::Platform p{platform};
+  return platform_info_query<Query, ResultT>(p);
 }
 
 bool parse_ocl_version_string(const std::string& s, int& major_version_out) {
@@ -823,6 +827,10 @@ device_id ocl_hardware_manager::get_device_id(std::size_t index) const {
 
 cl::Platform ocl_hardware_manager::get_platform(int platform_id) {
   return _platforms[platform_id];
+}
+
+std::string ocl_hardware_manager::get_platform_name(int platform_id) {
+  return platform_info_query<CL_PLATFORM_NAME, std::string>(_platforms[platform_id]);
 }
 
 

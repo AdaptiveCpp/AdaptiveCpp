@@ -51,7 +51,7 @@ public:
   virtual std::size_t get_property(device_uint_property prop) const override;
   virtual std::vector<std::size_t>
   get_property(device_uint_list_property prop) const override;
-  
+
   virtual std::string get_driver_version() const override;
   virtual std::string get_profile() const override;
 
@@ -69,6 +69,8 @@ public:
 
   bool has_intel_extension_profile() const;
   bool has_cl_khr_priority_hints_extension() const;
+  bool has_cl_khr_subgroup_extended_types_extension() const;
+  bool platform_supports_builtin_ids() const;
   bool has_native_fp32_atomics() const;
   bool has_native_fp64_atomics() const;
   uint64_t get_device_uid() const;
@@ -79,10 +81,12 @@ private:
   int _platform_id;
   cl::Context _ctx;
   cl::Device _dev;
+  std::string _platform_name;
   std::shared_ptr<ocl_usm> _usm_provider;
   ocl_allocator _alloc;
   bool _has_intel_extension_profile;
   bool _has_cl_khr_priority_hints_extension;
+  bool _has_cl_khr_subgroup_extended_types_extension;
   bool _has_native_fp32_atomics;
   bool _has_native_fp64_atomics;
   uint64_t _device_uid;
@@ -99,13 +103,13 @@ public:
   virtual std::size_t get_num_platforms() const override;
 
   virtual ~ocl_hardware_manager() {}
-  
+
   cl::Platform get_platform(int platform_id);
   cl::Context get_context(device_id dev);
 private:
   std::vector<ocl_hardware_context> _devices;
   std::vector<cl::Platform> _platforms;
-  
+
   hardware_platform _hw_platform;
 };
 

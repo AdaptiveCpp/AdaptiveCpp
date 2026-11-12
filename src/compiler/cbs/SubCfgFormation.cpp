@@ -1128,10 +1128,11 @@ void SubCFG::fixSingleSubCfgValues(
             }
 
           llvm::AllocaInst *Alloca = nullptr;
-          if (auto *RemAlloca = RemappedInstAllocaMap.lookup(OPI))
+          if (auto *RemAlloca = RemappedInstAllocaMap.lookup(OPI)) {
             Alloca = RemAlloca;
-          if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI))
+          } else if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI)) {
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
+          }
           if (!Alloca) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] No alloca, yet for " << *OPI << "\n";
             Alloca = utils::arrayifyInstruction(

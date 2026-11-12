@@ -175,7 +175,8 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
                                            const cl::Context &ctx, int dev_id,
                                            int platform_id)
     : _dev_id{dev_id}, _platform_id{platform_id}, _ctx{ctx}, _dev{dev},
-      _alloc{}, _has_intel_extension_profile{false},
+      _platform_name{platform_info_query<CL_PLATFORM_NAME, std::string>(_dev)}, _alloc{},
+      _has_intel_extension_profile{false},
       _has_native_fp32_atomics{false}, _has_native_fp64_atomics{false} {
   std::string platform_name =
       platform_info_query<CL_PLATFORM_NAME, std::string>(_dev);
@@ -184,6 +185,7 @@ ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
     _has_intel_extension_profile = true;
   std::string extensions = info_query<CL_DEVICE_EXTENSIONS, std::string>(dev);
   _has_cl_khr_priority_hints_extension = (extensions.find("cl_khr_priority_hints") != std::string::npos);
+  _has_cl_khr_subgroup_extended_types_extension = (extensions.find("cl_khr_subgroup_extended_types") != std::string::npos);
 #ifdef CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT
   if(extensions.find("cl_ext_float_atomics") != std::string::npos) {
     // Only rely on native float atomics when all of cl_ext_float_atomics
@@ -244,7 +246,7 @@ std::string ocl_hardware_context::get_device_name() const {
 }
 
 std::string ocl_hardware_context::get_vendor_name() const {
-  return info_query<CL_DEVICE_NAME, std::string>(_dev);
+  return info_query<CL_DEVICE_VENDOR, std::string>(_dev);
 }
 
 std::string ocl_hardware_context::get_device_arch() const {
@@ -271,6 +273,21 @@ uint64_t ocl_hardware_context::get_device_uid() const {
   return _device_uid;
 }
 
+bool ocl_hardware_context::has_cl_khr_subgroup_extended_types_extension() const {
+  return _has_cl_khr_subgroup_extended_types_extension;
+}
+
+bool ocl_hardware_context::platform_supports_builtin_ids() const {
+  // This enables lowering to high level SPIR-V builtin IDs, such as
+  // get_local_linear_id(). These should be supported by all platforms,
+  // in principle, but Intel CPU OpenCL has a related bug:
+  // https://github.com/intel/llvm/issues/23541
+  if (_platform_name == "Portable Computing Language")
+    return true;
+
+  // Other platforms can be whitelisted here if found beneficial.
+  return false;
+}
 
 bool ocl_hardware_context::has(device_support_aspect aspect) const {
   switch (aspect) {

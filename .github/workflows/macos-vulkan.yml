@@ -2,7 +2,7 @@ name: macOS Vulkan backend
 
 on: [push, pull_request]
 env:
-  clspv_commit: '7d2f6f83443583d3572e2508e523b66a02816259'
+  clspv_commit: 'c2633c799f9cab999acc00ed6bd5f3f5646b189b'
 jobs:
   build_vulkan:
     name: Vulkan backend macOS

@@ -20,7 +20,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable from commit `7d2f6f83443583d3572e2508e523b66a02816259`.
+* A `clspv` executable from commit `c2633c799f9cab999acc00ed6bd5f3f5646b189b`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -151,25 +151,18 @@ can be used. Optionally setting a individual device, for example in the output a
 
 ## Limitations
 
+All the runtime functionality and synchronization of SYCL is expected to work, although
+some optional features are not supported. Most notably only device USM is available,
+and not host or shared USM. However, there is no support of backend interop at this time.
+
+Support gaps are more likely to arise from deficiencies in the compilation of kernel code
+down to SPIR-V than runtime execution.
 Due to the challenge of supporting a generic address space in SYCL/PCUDA on Vulkan
 SPIR-V `PhysicalStorageBuffer64` memory model, kernels cannot currently
 chase pointers in a linked list fashion or store to global memory the addresses
 of variables.
 
-All the runtime functionality and synchronization of SYCL is expected to work, although
-some optional features are not supported. Most notably only device USM is available,
-and not host or shared USM. However, there is no support of backend interop at this time.
-
-The holes in support arise from deficiencies in the compilation of kernel code. Features
-which are not supported for use in kernels targeting Vulkan SPIR-V are:
-
-* Floating point atomics - Not supported, will generate incorrect results rather than error.
-* `marray` - Will fail to compile. SPIR-V does not support non-standard integer types without
-  the `SPV_INTEL_arbitrary_precision_integers` extension which clspv does not support. However,
-  using `marray` can generate such types in LLVM IR, for example an `i48` for `marray<short, 3>`. See the
-  [chipStar HipPromoteInts](https://github.com/CHIP-SPV/chipStar/blob/main/llvm_passes/HipPromoteInts.cpp)
-  LLVM pass as a possible way to resolve this.
-* group function variants - Unstable support, will fail to compile or generate incorrect results.
+If you run into any bugs, please file an issue on GitHub with the 'Vulkan' label.
 
 ## Device Support
 

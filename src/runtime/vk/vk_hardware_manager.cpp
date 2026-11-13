@@ -21,7 +21,7 @@ namespace hipsycl {
 namespace rt {
 
 vk_hardware_context::vk_hardware_context(
-    const vk::raii::PhysicalDevice &phys_device, int dev_id, uint16_t features)
+    const vk::raii::PhysicalDevice &phys_device, int dev_id, uint32_t features)
     : _physical_device(phys_device), _dev_id(dev_id),
       _physical_dev_features(features), _enabled_extensions(0) {
   _properties = phys_device.getProperties();
@@ -55,67 +55,74 @@ vk_hardware_context::vk_hardware_context(
   phys_dev_12_features.timelineSemaphore = VK_TRUE;
   phys_dev_12_features.shaderSubgroupExtendedTypes = VK_TRUE;
 
-  phys_dev_12_features.shaderInt8 =
-      (_physical_dev_features & vk_device_features::shaderInt8) ? VK_TRUE
-                                                                : VK_FALSE;
+  auto has_feature = [this](uint32_t bit) {
+    return (_physical_dev_features & bit) ? VK_TRUE : VK_FALSE;
+  };
+
+  phys_dev_12_features.shaderInt8 = has_feature(vk_device_features::shaderInt8);
   phys_dev_12_features.shaderFloat16 =
-      (_physical_dev_features & vk_device_features::shaderFloat16) ? VK_TRUE
-                                                                   : VK_FALSE;
+      has_feature(vk_device_features::shaderFloat16);
   phys_dev_12_features.storagePushConstant8 =
-      (_physical_dev_features & vk_device_features::storagePushConstant8)
-          ? VK_TRUE
-          : VK_FALSE;
+      has_feature(vk_device_features::storagePushConstant8);
   phys_dev_12_features.uniformAndStorageBuffer8BitAccess =
-      (_physical_dev_features &
-       vk_device_features::uniformAndStorageBuffer8BitAccess)
-          ? VK_TRUE
-          : VK_FALSE;
+      has_feature(vk_device_features::uniformAndStorageBuffer8BitAccess);
 
   vk::PhysicalDeviceVulkan11Features phys_dev_11_features{};
   phys_dev_11_features.variablePointers =
-      (_physical_dev_features & vk_device_features::variablePointers)
-          ? VK_TRUE
-          : VK_FALSE;
+      has_feature(vk_device_features::variablePointers);
   phys_dev_11_features.variablePointersStorageBuffer =
-      (_physical_dev_features &
-       vk_device_features::variablePointersStorageBuffer)
-          ? VK_TRUE
-          : VK_FALSE;
+      has_feature(vk_device_features::variablePointersStorageBuffer);
   phys_dev_11_features.storagePushConstant16 =
-      (_physical_dev_features & vk_device_features::storagePushConstant16)
-          ? VK_TRUE
-          : VK_FALSE;
+      has_feature(vk_device_features::storagePushConstant16);
   phys_dev_11_features.uniformAndStorageBuffer16BitAccess =
-      (_physical_dev_features &
-       vk_device_features::uniformAndStorageBuffer16BitAccess)
-          ? VK_TRUE
-          : VK_FALSE;
+      has_feature(vk_device_features::uniformAndStorageBuffer16BitAccess);
 
   vk::PhysicalDeviceFeatures phys_dev_features{};
-  phys_dev_features.shaderInt16 =
-      (_physical_dev_features & vk_device_features::shaderInt16) ? VK_TRUE
-                                                                 : VK_FALSE;
-  phys_dev_features.shaderInt64 =
-      (_physical_dev_features & vk_device_features::shaderInt64) ? VK_TRUE
-                                                                 : VK_FALSE;
+  phys_dev_features.shaderInt16 = has_feature(vk_device_features::shaderInt16);
+  phys_dev_features.shaderInt64 = has_feature(vk_device_features::shaderInt64);
   phys_dev_features.shaderFloat64 =
-      (_physical_dev_features & vk_device_features::shaderFloat64) ? VK_TRUE
-                                                                   : VK_FALSE;
+      has_feature(vk_device_features::shaderFloat64);
+
+  vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT atomic_float_features{};
+  atomic_float_features.shaderBufferFloat32AtomicAdd =
+      has_feature(vk_device_features::shaderBufferFloat32AtomicAdd);
+  atomic_float_features.shaderSharedFloat32AtomicAdd =
+      has_feature(vk_device_features::shaderSharedFloat32AtomicAdd);
+  atomic_float_features.shaderBufferFloat64AtomicAdd =
+      has_feature(vk_device_features::shaderBufferFloat64AtomicAdd);
+  atomic_float_features.shaderSharedFloat64AtomicAdd =
+      has_feature(vk_device_features::shaderSharedFloat64AtomicAdd);
+
+  vk::PhysicalDeviceShaderAtomicFloat2FeaturesEXT atomic_float2_features{};
+  atomic_float2_features.shaderBufferFloat32AtomicMinMax =
+      has_feature(vk_device_features::shaderBufferFloat32AtomicMinMax);
+  atomic_float2_features.shaderSharedFloat32AtomicMinMax =
+      has_feature(vk_device_features::shaderSharedFloat32AtomicMinMax);
+  atomic_float2_features.shaderBufferFloat64AtomicMinMax =
+      has_feature(vk_device_features::shaderBufferFloat64AtomicMinMax);
+  atomic_float2_features.shaderSharedFloat64AtomicMinMax =
+      has_feature(vk_device_features::shaderSharedFloat64AtomicMinMax);
 
   vk::DeviceCreateInfo dev_create_info{{}, queue_create_info};
 
   auto phys_dev_extensions =
       _physical_device.enumerateDeviceExtensionProperties();
 
-  // Portability subset extensions used to enable MoltenVK.
-  // Calibrated timestamps extension used to enable event profiling.
-  std::array<std::pair<const char *, uint16_t>, 3> optional_exts = {
+  // Optional extensions:
+  // * Portability subset extensions used to enable MoltenVK.
+  // * Calibrated timestamps extension used to enable event profiling.
+  // * Atomic float extensions used for floating-point atomics in kernels.
+  std::array<std::pair<const char *, uint16_t>, 5> optional_exts = {
       std::make_pair(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
                      vk_device_extensions::khr_portability_subset),
       std::make_pair(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
                      vk_device_extensions::khr_calibrated_timestamps),
       std::make_pair(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
-                     vk_device_extensions::ext_calibrated_timestamps)};
+                     vk_device_extensions::ext_calibrated_timestamps),
+      std::make_pair(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
+                     vk_device_extensions::ext_shader_atomic_float),
+      std::make_pair(VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
+                     vk_device_extensions::ext_shader_atomic_float2)};
   std::vector<const char *> enable_ext_names;
   for (auto opt_ext : optional_exts) {
     bool ext_supported = std::any_of(
@@ -139,9 +146,20 @@ vk_hardware_context::vk_hardware_context(
 
   vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceFeatures2,
                      vk::PhysicalDeviceVulkan12Features,
-                     vk::PhysicalDeviceVulkan11Features>
+                     vk::PhysicalDeviceVulkan11Features,
+                     vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT,
+                     vk::PhysicalDeviceShaderAtomicFloat2FeaturesEXT>
       dev_create_info_chain(dev_create_info, phys_dev_features,
-                            phys_dev_12_features, phys_dev_11_features);
+                            phys_dev_12_features, phys_dev_11_features,
+                            atomic_float_features, atomic_float2_features);
+  if (!are_extensions_enabled(vk_device_extensions::ext_shader_atomic_float)) {
+    dev_create_info_chain
+        .unlink<vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
+  }
+  if (!are_extensions_enabled(vk_device_extensions::ext_shader_atomic_float2)) {
+    dev_create_info_chain
+        .unlink<vk::PhysicalDeviceShaderAtomicFloat2FeaturesEXT>();
+  }
   auto device_create_info = dev_create_info_chain.get<vk::DeviceCreateInfo>();
 
   _device = vk::raii::Device(phys_device, device_create_info);
@@ -666,7 +684,7 @@ vk_hardware_manager::vk_hardware_manager()
     // Other physical features we can error on lazily if they are used in
     // kernels which have the SPIR-V capabilities we don't support. So still
     // create a device but record the relevant features.
-    uint16_t backend_features{};
+    uint32_t backend_features{};
     if (features_12.shaderFloat16) {
       backend_features |= vk_device_features::shaderFloat16;
     }
@@ -709,6 +727,54 @@ vk_hardware_manager::vk_hardware_manager()
     if (features_11.uniformAndStorageBuffer16BitAccess) {
       backend_features |=
           vk_device_features::uniformAndStorageBuffer16BitAccess;
+    }
+
+    auto phys_dev_extensions = phys_dev.enumerateDeviceExtensionProperties();
+    auto has_extension = [&phys_dev_extensions](const char *name) {
+      return std::any_of(phys_dev_extensions.begin(), phys_dev_extensions.end(),
+                         [name](auto const &ext_property) {
+                           return strcmp(ext_property.extensionName, name) == 0;
+                         });
+    };
+
+    if (has_extension(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME)) {
+      auto atomic_float_features =
+          phys_dev
+              .getFeatures2<vk::PhysicalDeviceFeatures2,
+                            vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>()
+              .get<vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
+      if (atomic_float_features.shaderBufferFloat32AtomicAdd) {
+        backend_features |= vk_device_features::shaderBufferFloat32AtomicAdd;
+      }
+      if (atomic_float_features.shaderSharedFloat32AtomicAdd) {
+        backend_features |= vk_device_features::shaderSharedFloat32AtomicAdd;
+      }
+      if (atomic_float_features.shaderBufferFloat64AtomicAdd) {
+        backend_features |= vk_device_features::shaderBufferFloat64AtomicAdd;
+      }
+      if (atomic_float_features.shaderSharedFloat64AtomicAdd) {
+        backend_features |= vk_device_features::shaderSharedFloat64AtomicAdd;
+      }
+    }
+
+    if (has_extension(VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME)) {
+      auto atomic_float2_features =
+          phys_dev
+              .getFeatures2<vk::PhysicalDeviceFeatures2,
+                            vk::PhysicalDeviceShaderAtomicFloat2FeaturesEXT>()
+              .get<vk::PhysicalDeviceShaderAtomicFloat2FeaturesEXT>();
+      if (atomic_float2_features.shaderBufferFloat32AtomicMinMax) {
+        backend_features |= vk_device_features::shaderBufferFloat32AtomicMinMax;
+      }
+      if (atomic_float2_features.shaderSharedFloat32AtomicMinMax) {
+        backend_features |= vk_device_features::shaderSharedFloat32AtomicMinMax;
+      }
+      if (atomic_float2_features.shaderBufferFloat64AtomicMinMax) {
+        backend_features |= vk_device_features::shaderBufferFloat64AtomicMinMax;
+      }
+      if (atomic_float2_features.shaderSharedFloat64AtomicMinMax) {
+        backend_features |= vk_device_features::shaderSharedFloat64AtomicMinMax;
+      }
     }
 
     auto device_name = phys_dev.getProperties().deviceName;

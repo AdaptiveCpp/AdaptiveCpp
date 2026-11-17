@@ -51,22 +51,25 @@ private:
 
 }
 
-namespace {
+namespace detail {
 
-  rt::allocation_hints
-    inline create_hints_from_proplist(const property_list &propList ) {
-    rt::allocation_hints hints {};
+rt::allocation_hints inline create_hints_from_proplist(
+    const property_list &propList) {
+  rt::allocation_hints hints{};
 
-    if(propList.has_property<property::usm::AdaptiveCpp_target_numa_node>()) {
+  if (propList.has_property<
+          hipsycl::sycl::property::usm::AdaptiveCpp_target_numa_node>()) {
 
-        hints.AdaptiveCpp_target_numa_node.emplace(
-            propList.get_property<property::usm::AdaptiveCpp_target_numa_node>()
-                .get_numa_nodes());
+    hints.AdaptiveCpp_target_numa_node.emplace(
+        propList
+            .get_property<
+                hipsycl::sycl::property::usm::AdaptiveCpp_target_numa_node>()
+            .get_numa_nodes());
 
-    }// AdaptiveCpp_target_numa_node
+  } // AdaptiveCpp_target_numa_node
 
-    return hints;
-  }
+  return hints;
+}
 } //namespace
 
 // Explicit USM
@@ -76,7 +79,7 @@ inline void *malloc_device(size_t num_bytes, const device &dev,
                            const property_list &propList = {}) {
   if (num_bytes == 0)
     return nullptr;
-  rt::allocation_hints hints = create_hints_from_proplist(propList);
+  rt::allocation_hints hints = detail::create_hints_from_proplist(propList);
   return rt::allocate_device(detail::select_device_allocator(dev), 0,
                              num_bytes, hints);
 }
@@ -104,7 +107,7 @@ inline void *aligned_alloc_device(std::size_t alignment, std::size_t num_bytes,
                                   const property_list &propList = {}) {
   if (num_bytes == 0)
     return nullptr;
-  rt::allocation_hints hints = create_hints_from_proplist(propList);
+  rt::allocation_hints hints = detail::create_hints_from_proplist(propList);
   return rt::allocate_device(detail::select_device_allocator(dev), alignment,
                              num_bytes, hints);
 }
@@ -138,7 +141,7 @@ inline void *malloc_host(std::size_t num_bytes, const context &ctx,
                          const property_list &propList = {}) {
   if (num_bytes == 0)
     return nullptr;
-  rt::allocation_hints hints = create_hints_from_proplist(propList);
+  rt::allocation_hints hints = detail::create_hints_from_proplist(propList);
   return rt::allocate_host(detail::select_usm_allocator(ctx), 0, num_bytes,
                            hints);
 }
@@ -163,7 +166,7 @@ inline void *malloc_shared(std::size_t num_bytes, const device &dev,
                            const property_list &propList = {}) {
   if (num_bytes == 0)
     return nullptr;
-  rt::allocation_hints hints = create_hints_from_proplist(propList);
+  rt::allocation_hints hints = detail::create_hints_from_proplist(propList);
   return rt::allocate_shared(detail::select_usm_allocator(ctx, dev), num_bytes,
                              hints);
 }
@@ -190,7 +193,7 @@ inline void *aligned_alloc_host(std::size_t alignment, std::size_t num_bytes,
                                 const property_list &propList = {}) {
   if (num_bytes == 0)
     return nullptr;
-  rt::allocation_hints hints = create_hints_from_proplist(propList);
+  rt::allocation_hints hints = detail::create_hints_from_proplist(propList);
   return rt::allocate_host(detail::select_usm_allocator(ctx), alignment,
                            num_bytes, hints);
 }
@@ -222,7 +225,7 @@ inline void *aligned_alloc_shared(std::size_t alignment, std::size_t num_bytes,
                                   const property_list &propList = {}) {
   if (num_bytes == 0)
     return nullptr;
-  rt::allocation_hints hints = create_hints_from_proplist(propList);
+  rt::allocation_hints hints = detail::create_hints_from_proplist(propList);
   return rt::allocate_shared(detail::select_usm_allocator(ctx, dev), num_bytes,
                              hints);
 }

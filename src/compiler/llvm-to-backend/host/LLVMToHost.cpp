@@ -373,12 +373,18 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
                                                     "-lSystem", // needed to prevent error 'missing LC_LOAD_DYLIB (must link with at least libSystem.dylib'
                                                     };
 #elif defined(_WIN32)
+  std::string runtime_lib = getHostCRuntimeImportLibraryPath();
+  if(runtime_lib.empty()) {
+    this->registerError("LLVMToHost: Could not locate host C runtime import library");
+    return false;
+  }
   std::string LldOutputFlag = "/out:"+OutputFileName.str();
   llvm::SmallVector<llvm::StringRef, 16> LldInvocation{LLDPath,
                                                     "/dll",
                                                     "/noimplib",
-                                                    "/defaultlib:libcmt",
-                                                    "/defaultlib:oldnames",
+                                                    "/noentry",
+                                                    "/nodefaultlib",
+                                                    runtime_lib,
                                                     LldOutputFlag,
                                                     LlcOutputFileName
                                                     };

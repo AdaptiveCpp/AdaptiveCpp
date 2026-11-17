@@ -54,7 +54,7 @@ private:
 namespace {
 
   rt::allocation_hints
-    create_hints_from_proplist(const property_list &propList ) {
+    inline create_hints_from_proplist(const property_list &propList ) {
     rt::allocation_hints hints {};
 
     if(propList.has_property<property::usm::AdaptiveCpp_target_numa_node>()) {

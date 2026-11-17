@@ -71,7 +71,7 @@ inline int get_num_threads() {
 }
 
 template <class Function>
-void parallel_invocation(Function kernel) noexcept {
+inline void parallel_invocation(Function kernel) noexcept {
 #ifndef _OPENMP
   HIPSYCL_DEBUG_WARNING
       << "omp_kernel_launcher: Kernel launcher was built without OpenMP "

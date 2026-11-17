@@ -52,6 +52,29 @@ BOOST_AUTO_TEST_CASE(incomplete_subgroup) {
   s::free(res, q);
 }
 
+BOOST_AUTO_TEST_CASE(num_subgroups) {
+  namespace s = sycl;
+  s::queue q;
+
+  const size_t WG = 97; // The last sub-group is incomplete
+
+  auto* res = s::malloc_device<size_t>(2 * WG, q);
+  q.parallel_for(s::nd_range<1>(WG, WG), [=](s::nd_item<1> it) {
+    auto sg = it.get_sub_group();
+    res[it.get_local_linear_id()] = sg.get_group_linear_id();
+    res[WG + it.get_local_linear_id()] = sg.get_group_linear_range();
+  }).wait();
+
+  std::vector<size_t> data(2 * WG);
+  q.memcpy(data.data(), res, 2 * WG * sizeof(size_t)).wait();
+
+  size_t max_id = *std::max_element(data.begin(), data.begin() + WG);
+  for (size_t i = 0; i < WG; ++i)
+    BOOST_CHECK_EQUAL(data[WG + i], max_id + 1);
+
+  s::free(res, q);
+}
+
 BOOST_AUTO_TEST_CASE(sub_group) {
   namespace s = sycl;
   s::queue q;

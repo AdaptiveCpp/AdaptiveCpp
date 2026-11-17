@@ -484,7 +484,7 @@ void LLVMToSpirvTranslator::removeKernelProperties(llvm::Function* F) {
   F->clearMetadata();
 }
 
-std::unique_ptr<LLVMToBackendTranslator>
+ACPP_DEFAULT_VISIBILITY std::unique_ptr<LLVMToBackendTranslator> 
 createLLVMToSpirvTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToSpirvTranslator>(KernelNames);
 }

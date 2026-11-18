@@ -434,3 +434,4 @@ endif()
 
 
 add_subdirectory(llvm-to-backend)
+add_subdirectory(builtin_gen)

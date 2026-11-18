@@ -244,7 +244,7 @@ std::string ocl_hardware_context::get_device_name() const {
 }
 
 std::string ocl_hardware_context::get_vendor_name() const {
-  return info_query<CL_DEVICE_NAME, std::string>(_dev);
+  return info_query<CL_DEVICE_VENDOR, std::string>(_dev);
 }
 
 std::string ocl_hardware_context::get_device_arch() const {
@@ -325,7 +325,7 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
     return this->_usm_provider->has_usm_system_allocations();
     break;
   case device_support_aspect::execution_timestamps:
-    return false;
+    return true;
     break;
   case device_support_aspect::sscp_kernels:
 #ifdef HIPSYCL_WITH_SSCP_COMPILER

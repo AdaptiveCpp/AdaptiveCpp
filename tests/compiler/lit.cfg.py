@@ -12,6 +12,18 @@ config.test_exec_root = os.path.join(config.my_obj_root)
 
 config.substitutions.append(('%acpp', config.acpp_compiler))
 
+config.substitutions.append(('%acpp-hcf-tool', os.path.join(os.path.dirname(config.acpp_compiler), 'acpp-hcf-tool')))
+
+llvm_to_amdgpu_tool = os.path.join(os.path.dirname(config.acpp_compiler), 'hipSYCL/llvm-to-backend/llvm-to-amdgpu-tool')
+if os.path.isfile(llvm_to_amdgpu_tool):
+  config.available_features.add('amdgpu-backend-tools')
+  config.substitutions.append(('%llvm-to-amdgpu', llvm_to_amdgpu_tool))
+else:
+  config.substitutions.append(('%llvm-to-amdgpu', 'false # llvm-to-amdgpu-tool not available'))
+
+config.substitutions.append(('%llvm-dis', 'llvm-dis'))
+config.substitutions.append(('%clangxx', 'clang++'))
+
 system = platform.system().lower()
 if system == 'darwin':
   config.available_features.add('system-darwin')

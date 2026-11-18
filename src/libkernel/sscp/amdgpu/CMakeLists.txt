@@ -28,5 +28,6 @@ if(WITH_LLVM_TO_AMDGPU_AMDHSA)
       broadcast.cpp
       scan_inclusive.cpp
       scan_exclusive.cpp
+      amdgpu_builtins.cpp
       ADDITIONAL_ARGS ${amdgpu_libkernel_additional_args})
 endif()

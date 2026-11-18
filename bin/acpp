@@ -1292,17 +1292,14 @@ def filter_cmd_args(command, verbose = False):
   new_cmd = []
 
   whitelist = [
-    "-I", "-D", "-W", "-std=","-pedantic-errors"
+    "-I", "-D", "-W", "-std=","-pedantic-errors", "-isystem", "-o"
   ]
 
-  # -I and -D can each be given either glued to their value ("-Iinclude",
-  # "-DFOO=1") or as two separate arguments ("-I", "include" / "-D",
-  # "FOO=1"); only the latter form needs the next argument kept as well.
+  # Flags whose value can arrive as a separate argument ("-I", "include"),
+  # so the argument after them has to be kept as well. Compared exactly:
+  # the glued forms ("-Iinclude", "-DFOO=1") are covered by the whitelist.
   whitelist_enable_next = [
-    "-isystem", "-o", "-c"
-  ]
-  whitelist_enable_next_exact = [
-    "-I", "-D"
+    "-isystem", "-o", "-c", "-I", "-D"
   ]
 
   add_next_arg = True # to add clang call
@@ -1312,13 +1309,7 @@ def filter_cmd_args(command, verbose = False):
       add_next_arg = False
       continue
 
-    for w in whitelist_enable_next:
-      if arg.startswith(w):
-        new_cmd.append(arg)
-        add_next_arg = True
-        continue
-
-    if arg in whitelist_enable_next_exact:
+    if arg in whitelist_enable_next:
       new_cmd.append(arg)
       add_next_arg = True
       continue

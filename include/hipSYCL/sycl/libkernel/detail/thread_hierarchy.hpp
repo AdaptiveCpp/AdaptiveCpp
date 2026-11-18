@@ -25,7 +25,7 @@ namespace detail {
 #define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(                                 \
     name, cuda_variable, hip_variable, sscp_variable, host_variable)           \
   ACPP_KERNEL_TARGET                                                        \
-  inline int name() {                                                          \
+  inline size_t name() {                                                       \
     __acpp_backend_switch(return 0, return sscp_variable(),                    \
                                  return cuda_variable, return hip_variable)    \
   }

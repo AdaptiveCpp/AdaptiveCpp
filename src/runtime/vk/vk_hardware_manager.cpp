@@ -21,8 +21,9 @@ namespace hipsycl {
 namespace rt {
 
 vk_hardware_context::vk_hardware_context(
-    const vk::raii::PhysicalDevice &phys_device, int dev_id, uint16_t features)
-    : _physical_device(phys_device), _dev_id(dev_id),
+    const vk::raii::PhysicalDevice &phys_device, VkInstance instance,
+    int dev_id, uint16_t features)
+    : _physical_device(phys_device), _instance(instance), _dev_id(dev_id),
       _physical_dev_features(features), _enabled_extensions(0) {
   _properties = phys_device.getProperties();
 
@@ -468,6 +469,11 @@ std::size_t vk_hardware_context::get_platform_index() const { return 0; }
 
 vk_allocator *vk_hardware_context::get_allocator() { return _allocator.get(); }
 
+vk_device_native_handle vk_hardware_context::get_native_device_handle() const {
+  return vk_device_native_handle{_instance, *_physical_device, *_device,
+                                 _queue_index};
+}
+
 static VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(
     vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
     vk::DebugUtilsMessageTypeFlagsEXT type,
@@ -714,7 +720,8 @@ vk_hardware_manager::vk_hardware_manager()
     auto device_name = phys_dev.getProperties().deviceName;
     if (device_matches(visibility_mask, backend_id::vk, device_index,
                        device_index, 0, device_name, {})) {
-      _devices.emplace_back(phys_dev, static_cast<int>(_devices.size()),
+      _devices.emplace_back(phys_dev, *_instance,
+                            static_cast<int>(_devices.size()),
                             backend_features);
     }
     device_index++;

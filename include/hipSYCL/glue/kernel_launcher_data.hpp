@@ -67,6 +67,13 @@ struct kernel_launcher_data {
   const char* sscp_kernel_id = nullptr;
   const rt::hcf_kernel_info* kernel_info = nullptr;
   invoker_function_t sscp_invoker;
+
+  // Used by the free function kernel launcher (sycl_khr_free_function_kernels):
+  // Unlike lambda/functor kernels - which pass a single closure struct as one
+  // kernel argument - a free function kernel passes each function parameter as
+  // a separate kernel argument. This holds the per-argument sizes; the argument
+  // values themselves are packed contiguously into kernel_args.
+  std::vector<std::size_t> sscp_argument_sizes;
 };
 
 

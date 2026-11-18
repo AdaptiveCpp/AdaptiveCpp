@@ -767,7 +767,10 @@ void SubCFG::arrayifyMultiSubCfgValues(
 #endif
         // if contiguous, and can be recalculated, don't arrayify but store
         // uniform values and insts required for recalculation
-        if (Shape.isContiguousOrStrided()) {
+        // not if BB is in another subCFG too (a loop with a barrier leads back to it). A subCFG
+        // can then use the value on entry and redefine it: if the value changes, recomputation
+        // cannot handle it
+        if (Shape.isContiguousOrStrided() && !OtherCFGBlocks.contains(BB)) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP,
                                            ReqdArrayElements, ContIdx_, VecInfo)) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying " << I << "\n";
@@ -1039,19 +1042,27 @@ void SubCFG::fixValueByDominanceFrontierPHIs(
   for (auto *Seed : SeedDefs)
     BBToInst.insert({Seed->getParent(), Seed});
 
+  // create all PHIs before wiring any: an incoming value can be one of them, e.g. on a loop's
+  // backedge the PHI in the loop header itself
+  llvm::SmallVector<llvm::PHINode *, 8> NewPhis;
   for (auto *DFB : NewPhisToInsert) {
     assert(std::find(NewBlocks_.begin(), NewBlocks_.end(), DFB) != NewBlocks_.end() &&
            "Should be in the subcfg");
     HIPSYCL_DEBUG_INFO << "[SubCFG] Need PHI in block " << DFB->getName() << " for value " << *OPI
                        << " used in " << I << "\n";
     Builder.SetInsertPoint(DFB, DFB->getFirstInsertionPt());
-    auto *NewPhi =
-        Builder.CreatePHI(OPI->getType(), llvm::pred_size(DFB), OPI->getName() + ".fixdom.phi");
+    NewPhis.push_back(
+        Builder.CreatePHI(OPI->getType(), llvm::pred_size(DFB), OPI->getName() + ".fixdom.phi"));
+    InstLoadMap[OPI].push_back(NewPhis.back());
+    BBToInst.insert({DFB, NewPhis.back()});
+  }
 
-    llvm::SmallVector<llvm::Instruction *, 4> LoadsOrPhis;
-    llvm::transform(BBToInst, std::back_inserter(LoadsOrPhis),
-                    [](auto &Pair) { return Pair.second; });
+  llvm::SmallVector<llvm::Instruction *, 4> LoadsOrPhis;
+  llvm::transform(BBToInst, std::back_inserter(LoadsOrPhis),
+                  [](auto &Pair) { return Pair.second; });
 
+  for (auto *NewPhi : NewPhis) {
+    auto *DFB = NewPhi->getParent();
     for (auto *Pred : llvm::predecessors(DFB)) {
       HIPSYCL_DEBUG_INFO << "  Pred: " << Pred->getName() << "\n";
       if (BBToInst.find(Pred) != BBToInst.end()) {
@@ -1067,9 +1078,6 @@ void SubCFG::fixValueByDominanceFrontierPHIs(
         assert(false && "Should have found a dominating value");
       }
     }
-
-    InstLoadMap[OPI].push_back(NewPhi);
-    BBToInst.insert({DFB, NewPhi});
   }
   if (auto ReplaceWith = findLeastDominatingLoad(I, OPI, InstLoadMap[OPI], PreHeader_, DT)) {
     HIPSYCL_DEBUG_INFO << "   Using " << *ReplaceWith << " for use in " << I << "\n";
@@ -1130,7 +1138,7 @@ void SubCFG::fixSingleSubCfgValues(
           llvm::AllocaInst *Alloca = nullptr;
           if (auto *RemAlloca = RemappedInstAllocaMap.lookup(OPI))
             Alloca = RemAlloca;
-          if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI))
+          if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI); LInst && !Alloca)
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] No alloca, yet for " << *OPI << "\n";

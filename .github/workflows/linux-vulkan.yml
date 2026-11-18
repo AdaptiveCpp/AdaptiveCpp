@@ -53,7 +53,7 @@ jobs:
       matrix:
         docker: ${{fromJson(needs.prep-container.outputs.docker_matrix)}}
         clang_version: ['19', '21']
-        clspv_commit: ['7d2f6f83443583d3572e2508e523b66a02816259']
+        clspv_commit: ['c2633c799f9cab999acc00ed6bd5f3f5646b189b']
       fail-fast: false
     steps:
     - uses: actions/checkout@v7

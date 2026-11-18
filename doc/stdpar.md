@@ -60,6 +60,8 @@ Offloading is implemented for the following STL algorithms:
 |`equal` | |
 |`merge` | |
 |`sort` | may not scale optimally for large problems |
+|`unique_copy` | |
+|`unique` | |
 |`min_element` | |
 |`max_element` | |
 |`is_sorted_until` | both overloads |

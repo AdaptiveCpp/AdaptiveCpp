@@ -128,10 +128,26 @@ void vk_queue::profile_if_enabled(operation &op, const dag_node_ptr &node) {
                 _dev_ctx->get_device(), _dev_has_khr_calibrated_timestamps));
   }
 
-  vk_async_profiling async_prof;
+  // Requesting these timestamps is only valid if the user checked
+  // device.has(aspect::queue_profiling) beforehand, but nothing enforces
+  // this, so guard against it here.
+  const bool supports_async_timestamps =
+      _dev_ctx->has(device_support_aspect::execution_timestamps);
+  if (!supports_async_timestamps &&
+      (hints.has_hint<rt::hints::request_instrumentation_start_timestamp>() ||
+       hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>())) {
+    HIPSYCL_DEBUG_WARNING
+        << "vk_queue: Ignoring request for execution start/finish "
+           "timestamps; device does not support execution timestamps "
+           "(sycl::aspect::queue_profiling)"
+        << std::endl;
+  }
+
   const bool needs_start_timestamp =
+      supports_async_timestamps &&
       hints.has_hint<rt::hints::request_instrumentation_start_timestamp>();
   const bool needs_finish_timestamp =
+      supports_async_timestamps &&
       hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>();
   // Snapshot the current host and device timestamps once per operation,
   // shared by its start and finish timestamps
@@ -141,6 +157,7 @@ void vk_queue::profile_if_enabled(operation &op, const dag_node_ptr &node) {
         _dev_ctx->get_device(), _dev_has_khr_calibrated_timestamps);
   }
 
+  vk_async_profiling async_prof;
   if (needs_start_timestamp) {
     async_prof.start_time = std::make_shared<vk_execution_start_timestamp>(
         _dev_ctx->get_device(), *_semaphore, _dev_has_khr_calibrated_timestamps,

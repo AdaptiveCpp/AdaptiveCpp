@@ -25,6 +25,13 @@ enum ScopeFlag : __acpp_uint32 {
   Invocation = 4,
 };
 
+// TODO: Implement scans with SPIR-V builtins
+enum GroupOperation {
+  GroupOperationReduce = 0,
+  GroupOperationInclusiveScan = 1,
+  GroupOperationExclusiveScan = 2,
+};
+
 enum MemorySemanticsMaskFlag : __acpp_uint32 {
   None = 0x0,
   Acquire = 0x2,

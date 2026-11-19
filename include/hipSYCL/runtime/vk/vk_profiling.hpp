@@ -12,6 +12,7 @@
 
 #include "../instrumentation.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include <cassert>
 #include <cmath>
 #include <vulkan/vulkan_raii.hpp>
 
@@ -46,9 +47,11 @@ inline int64_t vk_device_to_host_time(uint64_t host_ref_ns,
                                       uint64_t device_ref_ticks,
                                       uint64_t device_ticks, double ns_per_tick,
                                       uint32_t valid_bits) {
+  assert(valid_bits != 0 && "queue family does not support timestamps");
+
   uint64_t delta = device_ticks - device_ref_ticks;
   int64_t signed_delta;
-  if (valid_bits == 0 || valid_bits >= 64) {
+  if (valid_bits >= 64) {
     signed_delta = static_cast<int64_t>(delta);
   } else {
     const uint64_t mask = (uint64_t{1} << valid_bits) - 1;

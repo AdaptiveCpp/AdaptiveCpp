@@ -43,22 +43,52 @@ vk::raii::QueryPool vk_create_query_pool(const vk::raii::Device &);
 // `ns_per_tick` is VkPhysicalDeviceLimits::timestampPeriod and `valid_bits`
 // is VkQueueFamilyProperties::timestampValidBits, where only the low
 // `valid_bits` of device timestamps are meaningful.
+//
+// Only `valid_bits` of the device counter are guaranteed meaningful, and the
+// counter itself can wrap around after `2^valid_bits` ticks. To recover the
+// elapsed ticks since `device_ref_ticks` despite a possible wrap, we reduce
+// the difference modulo `2^valid_bits` and then pick whichever of
+// `{wrapped_delta, wrapped_delta - 2^valid_bits}` has the smaller magnitude.
 inline int64_t vk_device_to_host_time(uint64_t host_ref_ns,
                                       uint64_t device_ref_ticks,
                                       uint64_t device_ticks, double ns_per_tick,
                                       uint32_t valid_bits) {
   assert(valid_bits != 0 && "queue family does not support timestamps");
 
-  uint64_t delta = device_ticks - device_ref_ticks;
+  // Plain unsigned subtraction, relying on it wrapping modulo 2^64.
+  const uint64_t delta = device_ticks - device_ref_ticks;
   int64_t signed_delta;
   if (valid_bits >= 64) {
     signed_delta = static_cast<int64_t>(delta);
   } else {
-    const uint64_t mask = (uint64_t{1} << valid_bits) - 1;
-    const uint64_t sign_bit = uint64_t{1} << (valid_bits - 1);
-    delta &= mask;
-    signed_delta = (delta & sign_bit) ? static_cast<int64_t>(delta | ~mask)
-                                      : static_cast<int64_t>(delta);
+    // Only `valid_bits` of the device counter are guaranteed meaningful, and
+    // the counter itself can wrap around after `period` ticks. All we can
+    // reliably recover is the elapsed ticks modulo `period`.
+    const uint64_t period = uint64_t{1} << valid_bits;
+    const uint64_t wrapped_delta = delta % period;
+
+    // `device_ref_ticks` is sampled before the operation is submitted and
+    // `device_ticks` is sampled once it has completed, so the true elapsed
+    // amount is never actually negative. If `wrapped_delta` falls in the
+    // upper half of the period, the true elapsed ticks is better represented
+    // as a small negative number (`wrapped_delta - period`) than as a huge
+    // positive one close to a full wrap period. This covers both:
+    //  - a real counter wrap that occurred between the two samples (the
+    //    large `wrapped_delta` collapses to a small value close to zero), or
+    //  - pure calibration/measurement jitter around a true elapsed time
+    //    close to zero (e.g. the operation completed almost immediately
+    //    after the reference sample was taken, within the uncertainty of
+    //    vkGetCalibratedTimestampsKHR/EXT).
+    // Both are benign and expected. This interpretation is only valid while
+    // the true elapsed ticks stays below half the wrap period; a command (or
+    // queueing delay) long enough to exceed that would be misread as a small
+    // negative delta instead of a large positive one.
+    if (wrapped_delta < period / 2) {
+      signed_delta = static_cast<int64_t>(wrapped_delta);
+    } else {
+      signed_delta =
+          static_cast<int64_t>(wrapped_delta) - static_cast<int64_t>(period);
+    }
   }
 
   return static_cast<int64_t>(host_ref_ns) +

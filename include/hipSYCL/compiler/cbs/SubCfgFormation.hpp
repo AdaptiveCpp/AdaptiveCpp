@@ -37,8 +37,10 @@ public:
 
 class SubCfgFormationPass : public llvm::PassInfoMixin<SubCfgFormationPass> {
   bool IsSscp_;
+  std::size_t SubgroupSize_; // S is folded away before CBS, so it is passed explicitly
 public:
-  explicit SubCfgFormationPass(bool IsSscp) : IsSscp_(IsSscp) {}
+  explicit SubCfgFormationPass(bool IsSscp, std::size_t SubgroupSize = 1)
+      : IsSscp_(IsSscp), SubgroupSize_(SubgroupSize) {}
 
   llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &AM);
   static bool isRequired() { return true; }

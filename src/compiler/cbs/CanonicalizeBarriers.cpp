@@ -86,6 +86,12 @@ bool pruneEmptyRegions(llvm::Function &F, const SplitterAnnotationInfo &SAA) {
 
       if (utils::hasOnlyBarrier(Successor, SAA) && Successor->getSinglePredecessor() == &BB) {
         HIPSYCL_DEBUG_INFO << "Prune BasicBlock: " << BB.getName() << "\n";
+        // WG then SG: BB is deleted below, so upgrade the kept successor to BB's WG barrier
+        if (utils::getBarrierTier(&BB) == GroupTier::WorkGroup &&
+            utils::getBarrierTier(Successor) == GroupTier::SubGroup)
+          llvm::cast<llvm::CallInst>(Successor->getTerminator()->getPrevNode())
+              ->setCalledFunction(
+                  llvm::cast<llvm::CallInst>(T->getPrevNode())->getCalledFunction());
         BB.replaceAllUsesWith(Successor);
         BB.eraseFromParent();
         EmptyRegionDeleted = true;

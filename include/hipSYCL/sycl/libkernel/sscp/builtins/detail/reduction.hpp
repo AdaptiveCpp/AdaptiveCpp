@@ -67,8 +67,11 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
                                  __acpp_sscp_memory_order::acq_rel);
 
+  // one lane per sub-group adds the sub-group's result: lanes that run one after another (as on
+  // the host) would each add it again
+  const bool sg_leader = __acpp_sscp_get_subgroup_local_id() == 0;
   for (int i = shmem_array_length; i < num_subgroups; i += shmem_array_length) {
-    if (subgroup_id >= i && subgroup_id < i + shmem_array_length) {
+    if (sg_leader && subgroup_id >= i && subgroup_id < i + shmem_array_length) {
       shrd_mem[subgroup_id % shmem_array_length] =
           op(local_reduce_result, shrd_mem[subgroup_id % shmem_array_length]);
     }

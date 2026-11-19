@@ -35,6 +35,8 @@ struct MDKind {
 
 namespace cbs {
 static constexpr const char BarrierIntrinsicName[] = "__acpp_cbs_barrier";
+static constexpr const char SubGroupBarrierIntrinsicName[] = "__acpp_cbs_sub_group_barrier";
+static constexpr const char HostSubGroupSizeName[] = "__acpp_sscp_subgroup_size";
 static constexpr const char LocalIdGlobalNameX[] = "__acpp_cbs_local_id_x";
 static constexpr const char LocalIdGlobalNameY[] = "__acpp_cbs_local_id_y";
 static constexpr const char LocalIdGlobalNameZ[] = "__acpp_cbs_local_id_z";
@@ -70,6 +72,9 @@ static constexpr const char SscpKernelDimensionName[] = "hipsycl_kernel_dimensio
 
 class SplitterAnnotationInfo;
 
+// a work-group barrier also covers a sub-group one
+enum class GroupTier { WorkGroup, SubGroup };
+
 namespace utils {
 // can be used to make `llvm::SmallPtrSet` compatible with `std::inserter`
 template <class PtrSet> struct PtrSetWrapper {
@@ -100,6 +105,10 @@ bool startsWithBarrier(const llvm::BasicBlock *BB,
                        const hipsycl::compiler::SplitterAnnotationInfo &SAA);
 bool endsWithBarrier(const llvm::BasicBlock *BB,
                      const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+// true if I calls the sub-group barrier intrinsic
+bool isSubGroupBarrier(const llvm::Instruction *I);
+// tier of a barrier block: SubGroup or WorkGroup
+GroupTier getBarrierTier(const llvm::BasicBlock *BB);
 llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore,
                               hipsycl::compiler::SplitterAnnotationInfo &SAA);
 

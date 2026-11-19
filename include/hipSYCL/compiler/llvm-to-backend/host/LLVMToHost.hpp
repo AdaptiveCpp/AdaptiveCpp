@@ -44,6 +44,7 @@ protected:
   virtual AddressSpaceMap getAddressSpaceMap() const override;
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
 private:
+  int getSubgroupSize() const;
   std::vector<std::string> KernelNames;
   host_vector_math_library VectorMathLibary = host_vector_math_library::DEFAULT_VEC_MATH_LIB;
 };

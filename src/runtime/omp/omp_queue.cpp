@@ -22,6 +22,7 @@
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/omp/omp_event.hpp"
 #include "hipSYCL/runtime/omp/omp_backend.hpp"
+#include "hipSYCL/runtime/omp/omp_hardware_manager.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
 #include "hipSYCL/runtime/signal_channel.hpp"
@@ -260,9 +261,10 @@ void launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
                            const rt::range<3> &local_size,
                            unsigned shared_memory, void **kernel_args) {
   // *** Do NOT change these values without changing also on the compiler side
-  //     in host/StaticLocalMemoryPass.cpp ***
-  // for internal use in group algorithms
-  constexpr std::size_t internal_local_memory = 1024 * sizeof(uint64_t);
+  //     in host/StaticLocalMemoryPass.cpp, and the sub-group scratch offset in
+  //     libkernel/sscp/host/shuffle.cpp ***
+  // for internal use: [0, 8K) group algorithms, [8K, 16K) sub-group scratch
+  constexpr std::size_t internal_local_memory = 2 * 1024 * sizeof(uint64_t);
   // for local memory global variables
   constexpr std::size_t static_local_mem_size = 1024 * 64 * sizeof(uint64_t);
   std::size_t total_internal_local_mem_size =
@@ -564,6 +566,10 @@ result omp_queue::submit_sscp_kernel_from_code_object(
   if(host_veclib.has_value())
     _config.set_build_option(kernel_build_option::host_vector_math_library,
         static_cast<int>(*host_veclib));
+
+  // the sub-group size is a JIT-time constant, so it is part of the JIT cache key
+  _config.set_build_option(kernel_build_option::desired_subgroup_size,
+                           get_omp_subgroup_size());
 
   auto binary_configuration_id =
       adaptivity_engine.finalize_binary_configuration(_config);

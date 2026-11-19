@@ -58,7 +58,8 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 #define IS_ROCM_CLANG_VERSION_5_5_0
 #endif
 
-void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp) {
+void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp,
+                         std::size_t SubgroupSize) {
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;
@@ -92,7 +93,7 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt, bool IsSscp
   FPM.addPass(CanonicalizeBarriersPass{});
   if (IsSscp)
     FPM.addPass(KernelFlatteningPass{});
-  FPM.addPass(SubCfgFormationPass{IsSscp});
+  FPM.addPass(SubCfgFormationPass{IsSscp, SubgroupSize});
   FPM.addPass(RemoveBarrierCallsPass{});
 
   if (Opt == OptLevel::O3)

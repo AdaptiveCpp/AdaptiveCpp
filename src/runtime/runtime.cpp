@@ -15,7 +15,8 @@ namespace hipsycl {
 namespace rt {
 
 runtime::runtime()
-: _dag_manager{this}
+  : _dag_manager{this}
+  , _allocation_map{get_allocation_map()}
 {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
                       << std::endl;

@@ -20,16 +20,16 @@ namespace std {
 ///////////////////////////// par_unseq policy /////////////////////////////
 
 template <class ForwardIt, class UnaryFunction2>
-HIPSYCL_STDPAR_ENTRYPOINT void for_each(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void for_each(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                         ForwardIt last, UnaryFunction2 f);
 
 template <class ForwardIt, class Size, class UnaryFunction2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt for_each_n(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt for_each_n(hipsycl::stdpar::par_unseq_argument,
                                                ForwardIt first, Size n,
                                                UnaryFunction2 f);
 
 template <class ForwardIt1, class ForwardIt2, class UnaryOperation>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 transform(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 transform(hipsycl::stdpar::par_unseq_argument,
                                                ForwardIt1 first1,
                                                ForwardIt1 last1,
                                                ForwardIt2 d_first,
@@ -38,243 +38,245 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 transform(hipsycl::stdpar::par_unseq,
 template <class ForwardIt1, class ForwardIt2, class ForwardIt3,
           class BinaryOperation>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt3
-transform(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+transform(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
           ForwardIt2 first2, ForwardIt3 d_first, BinaryOperation binary_op);
 
 template <class ForwardIt1, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(hipsycl::stdpar::par_unseq_argument,
                                           ForwardIt1 first, ForwardIt1 last,
                                           ForwardIt2 d_first);
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy_if(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy_if(hipsycl::stdpar::par_unseq_argument,
                                              ForwardIt1 first, ForwardIt1 last,
                                              ForwardIt2 d_first,
                                              UnaryPredicate pred);
 
 template <class ForwardIt1, class Size, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy_n(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy_n(hipsycl::stdpar::par_unseq_argument,
                                             ForwardIt1 first, Size count,
                                             ForwardIt2 result);
 
 template <class ForwardIt1, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par_unseq_argument,
                                           ForwardIt1 first, ForwardIt1 last,
                                           ForwardIt2 d_first);
 
 template <class ForwardIt, class T>
-HIPSYCL_STDPAR_ENTRYPOINT void fill(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void fill(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                     ForwardIt last, const T &value);
 
 template <class ForwardIt, class Size, class T>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                            Size count, const T &value);
 
 template <class ForwardIt, class Generator>
-HIPSYCL_STDPAR_ENTRYPOINT void generate(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void generate(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                         ForwardIt last, Generator g);
 
 template <class ForwardIt, class Size, class Generator>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(const hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(hipsycl::stdpar::par_unseq_argument,
                                                ForwardIt first, Size count,
                                                Generator g);
 
 template <class ForwardIt1, class ForwardIt2, class T>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 remove_copy(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 remove_copy(hipsycl::stdpar::par_unseq_argument,
                                                  ForwardIt1 first, ForwardIt1 last,
                                                  ForwardIt2 d_first, const T &value);
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 remove_copy_if(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 remove_copy_if(hipsycl::stdpar::par_unseq_argument,
                                                  ForwardIt1 first, ForwardIt1 last,
                                                  ForwardIt2 d_first, UnaryPredicate p);
 
 template <class ForwardIt, class T>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove(hipsycl::stdpar::par_unseq_argument,
                                            ForwardIt first, ForwardIt last,
                                            const T &value);
 
 template <class ForwardIt, class UnaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove_if(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt remove_if(hipsycl::stdpar::par_unseq_argument,
                                            ForwardIt first, ForwardIt last,
                                            UnaryPredicate p);
 
 template <class ForwardIt, class T>
-HIPSYCL_STDPAR_ENTRYPOINT void replace(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void replace(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                        ForwardIt last, const T &old_value,
                                        const T &new_value);
 
 template <class ForwardIt, class UnaryPredicate, class T>
-HIPSYCL_STDPAR_ENTRYPOINT void replace_if(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT void replace_if(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                           ForwardIt last, UnaryPredicate p,
                                           const T &new_value);
 
 template <class ForwardIt1, class ForwardIt2, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2
-replace_copy(hipsycl::stdpar::par_unseq, ForwardIt1 first, ForwardIt1 last,
+replace_copy(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first, ForwardIt1 last,
              ForwardIt2 d_first, const T &old_value, const T &new_value);
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2
-replace_copy_if(hipsycl::stdpar::par_unseq, ForwardIt1 first, ForwardIt1 last,
+replace_copy_if(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first, ForwardIt1 last,
                 ForwardIt2 d_first, UnaryPredicate p, const T &new_value);
 
 template<class BidirIt>
-HIPSYCL_STDPAR_ENTRYPOINT void reverse (hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT void reverse (hipsycl::stdpar::par_unseq_argument,
                                         BidirIt first, BidirIt last);
 
 template<class BidirIt, class ForwardIt>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt reverse_copy (hipsycl::stdpar::par_unseq_argument,
                                                   BidirIt first, BidirIt last,
                                                   ForwardIt d_first);
 
 template <class ForwardIt, class T>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(hipsycl::stdpar::par_unseq, ForwardIt first,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                                          ForwardIt last, const T &value);
 
 template <class ForwardIt, class UnaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(hipsycl::stdpar::par_unseq_argument,
                                             ForwardIt first, ForwardIt last,
                                             UnaryPredicate p);
 
 template <class ForwardIt, class UnaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(hipsycl::stdpar::par_unseq_argument,
                                                 ForwardIt first, ForwardIt last,
                                                 UnaryPredicate p);
 
 template <class ForwardIt1, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par_unseq_argument,
                                             ForwardIt1 first, ForwardIt1 last,
                                             ForwardIt2 s_first, ForwardIt2 s_last);
 
 template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_end(hipsycl::stdpar::par_unseq_argument,
                                             ForwardIt1 first, ForwardIt1 last,
                                             ForwardIt2 s_first, ForwardIt2 s_last,
                                             BinaryPredicate p);
 
 template <class ForwardIt1, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq_argument,
                                             ForwardIt1 first, ForwardIt1 last,
                                             ForwardIt2 s_first, ForwardIt2 s_last);
 
 template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par_unseq_argument,
                                             ForwardIt1 first, ForwardIt1 last,
                                             ForwardIt2 s_first, ForwardIt2 s_last,
                                             BinaryPredicate p);
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+bool all_of(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
             UnaryPredicate p );
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+bool any_of(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
             UnaryPredicate p );
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+bool none_of(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
             UnaryPredicate p );
 
 template<class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::difference_type
-count( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+count( hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
        const T& value );
 
 template<class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::difference_type
-count_if( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+count_if( hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
 
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par_unseq_argument,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2 );
 
 template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq_argument,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2, BinaryPredicate p);
 
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par_unseq_argument,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2, ForwardIt2 last2 );
 
 template<class ForwardIt1, class ForwardIt2, class BinaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT
-std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq,
+std::pair<ForwardIt1, ForwardIt2> mismatch(hipsycl::stdpar::par_unseq_argument,
                                     ForwardIt1 first1, ForwardIt1 last1,
                                     ForwardIt2 first2, ForwardIt2 last2,
                                     BinaryPredicate p);
 
 template <class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt min_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt min_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last);
 
 template <class ForwardIt, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt min_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt min_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last, Compare comp);
 
 template <class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt max_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt max_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last);
 
 template <class ForwardIt, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt max_element(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt max_element(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                       ForwardIt last, Compare comp);
 
 template<class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last);
+bool is_sorted(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last);
 
 template<class ForwardIt, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool is_sorted(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
+bool is_sorted(hipsycl::stdpar::par_unseq_argument, ForwardIt first, ForwardIt last,
                Compare comp);
 
 template<class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                      ForwardIt last);
 
 template<class ForwardIt, class Compare>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
+ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq_argument, ForwardIt first,
                      ForwardIt last, Compare comp);
 
 template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2);
 
 template <class ForwardIt1, class ForwardIt2, class BinaryPred>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2, BinaryPred p);
 
 template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2, ForwardIt2 last2);
 
 template <class ForwardIt1, class ForwardIt2, class BinaryPred>
 HIPSYCL_STDPAR_ENTRYPOINT
-bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
+bool equal(hipsycl::stdpar::par_unseq_argument, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2, ForwardIt2 last2, BinaryPred p);
 ///////////////////////////// par policy /////////////////////////////
+
+#ifndef _LIBCPP_VERSION
 
 template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 move(hipsycl::stdpar::par,
@@ -439,6 +441,8 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt1 find_first_of(hipsycl::stdpar::par,
                                             ForwardIt1 first, ForwardIt1 last,
                                             ForwardIt2 s_first, ForwardIt2 s_last,
                                             BinaryPredicate p);
+
+#endif // !_LIBCPP_VERSION
 
 }
 #endif

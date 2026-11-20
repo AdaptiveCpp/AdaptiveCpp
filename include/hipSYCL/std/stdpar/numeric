@@ -12,8 +12,12 @@
 #ifndef HIPSYCL_PSTL_NUMERIC_HPP
 #define HIPSYCL_PSTL_NUMERIC_HPP
 
+#define HIPSYCL_STDPAR_SYSTEM_NUMERIC
 #include_next <numeric>
+#undef HIPSYCL_STDPAR_SYSTEM_NUMERIC
 
+#endif
+
+#ifndef HIPSYCL_STDPAR_EXECUTION_FWD_ONLY
 #include "detail/numeric_fwd.hpp"
-
 #endif

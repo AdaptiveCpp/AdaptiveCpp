@@ -242,9 +242,9 @@ template <access::address_space S>
 HIPSYCL_BUILTIN float __acpp_atomic_fetch_add(
     float *addr, float x, memory_order order, memory_scope scope) noexcept {
   
-  float old = __acpp_atomic_load<S>(addr, order, scope);
+  float old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
   while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, old + x, order,
-                                                      order, scope))
+                                                      memory_order::relaxed, scope))
     ;
   return old;
 }
@@ -253,9 +253,9 @@ template <access::address_space S>
 HIPSYCL_BUILTIN double __acpp_atomic_fetch_add(
     double *addr, double x, memory_order order, memory_scope scope) noexcept {
   
-  double old = __acpp_atomic_load<S>(addr, order, scope);
+  double old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
   while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, old + x, order,
-                                                      order, scope))
+                                                      memory_order::relaxed, scope))
     ;
   return old;
 }
@@ -270,9 +270,9 @@ template <access::address_space S>
 HIPSYCL_BUILTIN float __acpp_atomic_fetch_sub(
     float *addr, float x, memory_order order, memory_scope scope) noexcept {
   
-  float old = __acpp_atomic_load<S>(addr, order, scope);
+  float old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
   while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, old - x, order,
-                                                      order, scope))
+                                                      memory_order::relaxed, scope))
     ;
   return old;
 }
@@ -281,9 +281,9 @@ template <access::address_space S>
 HIPSYCL_BUILTIN double __acpp_atomic_fetch_sub(
     double *addr, double x, memory_order order, memory_scope scope) noexcept {
   
-  double old = __acpp_atomic_load<S>(addr, order, scope);
+  double old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
   while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, old - x, order,
-                                                      order, scope))
+                                                      memory_order::relaxed, scope))
     ;
   return old;
 }
@@ -291,24 +291,23 @@ HIPSYCL_BUILTIN double __acpp_atomic_fetch_sub(
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __acpp_atomic_fetch_min(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
-  T old = __acpp_atomic_load<S>(addr, order, scope);
+  T old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
   do{
-    if (old < x) return old;
-  } while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, x, order,
-                                                           order, scope));
-  return x;
+    // Even an unchanged minimum is a read-modify-write operation.
+  } while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, old < x ? old : x, order,
+                                                           memory_order::relaxed, scope));
+  return old;
 }
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __acpp_atomic_fetch_max(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
-  T old = __acpp_atomic_load<S>(addr, order, scope);
+  T old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
   do{
-    if (old > x)
-      return old;
-  } while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, x, order,
-                                                        order, scope));
-  return x;
+    // Even an unchanged maximum is a read-modify-write operation.
+  } while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, old > x ? old : x, order,
+                                                        memory_order::relaxed, scope));
+  return old;
 }
 
 HIPSYCL_BUILTIN void __acpp_atomic_fence(memory_order order,

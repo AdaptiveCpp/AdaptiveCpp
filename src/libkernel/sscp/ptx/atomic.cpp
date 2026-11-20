@@ -592,22 +592,14 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 atomic_load_f64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_exchange_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-  
-  // We can only do 32-bit atomics, so we just treat it as a 32-bit value.
-  // This is very bogus, but since sycl::atomic_ref does not support
-  // types < 32bit, it's not user-facing anyway.
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_exchange_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_exchange_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr,
     __acpp_int16 x) {
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_exchange_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_exchange_i32(
@@ -676,22 +668,14 @@ HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int8 *ptr, __acpp_int8 *expected, __acpp_int8 desired) {
-
-  return __acpp_sscp_cmp_exch_strong_i32(
-      as, success, failure, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      reinterpret_cast<__acpp_int32 *>(expected),
-      static_cast<__acpp_int32>(desired));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order success,
     __acpp_sscp_memory_order failure, __acpp_sscp_memory_scope scope,
     __acpp_int16 *ptr, __acpp_int16 *expected, __acpp_int16 desired) {
-
-  return __acpp_sscp_cmp_exch_strong_i32(
-      as, success, failure, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      reinterpret_cast<__acpp_int32 *>(expected),
-      static_cast<__acpp_int32>(desired));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN bool __acpp_sscp_cmp_exch_strong_i32(
@@ -769,19 +753,13 @@ HIPSYCL_SSCP_BUILTIN bool cmp_exch_strong_f64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_and_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_fetch_and_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_and_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr, __acpp_int16 x) {
-
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_fetch_and_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_and_i32(
@@ -815,17 +793,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_and_i64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_or_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_fetch_or_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_or_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr, __acpp_int16 x) {
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_fetch_or_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_or_i32(
@@ -857,17 +831,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_or_i64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_xor_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_fetch_xor_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_xor_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr, __acpp_int16 x) {
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_fetch_xor_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_xor_i32(
@@ -899,17 +869,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_xor_i64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_add_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_fetch_add_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_add_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr, __acpp_int16 x) {
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_fetch_add_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_add_i32(
@@ -949,17 +915,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_add_i64(
 HIPSYCL_SSCP_BUILTIN __acpp_uint8 __acpp_sscp_atomic_fetch_add_u8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint8 *ptr, __acpp_uint8 x) {
-  return static_cast<__acpp_uint8>(__acpp_sscp_atomic_fetch_add_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint16 __acpp_sscp_atomic_fetch_add_u16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint16 *ptr, __acpp_uint16 x) {
-  return static_cast<__acpp_uint16>(__acpp_sscp_atomic_fetch_add_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_add_u32(
@@ -1024,17 +986,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_add_f64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_sub_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_fetch_sub_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_sub_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr, __acpp_int16 x) {
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_fetch_sub_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_sub_i32(
@@ -1064,17 +1022,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_sub_i64(
 HIPSYCL_SSCP_BUILTIN __acpp_uint8 __acpp_sscp_atomic_fetch_sub_u8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint8 *ptr, __acpp_uint8 x) {
-  return static_cast<__acpp_uint8>(__acpp_sscp_atomic_fetch_sub_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint16 __acpp_sscp_atomic_fetch_sub_u16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint16 *ptr, __acpp_uint16 x) {
-  return static_cast<__acpp_uint16>(__acpp_sscp_atomic_fetch_sub_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_sub_u32(
@@ -1130,17 +1084,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_sub_f64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_min_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_fetch_min_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_min_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr, __acpp_int16 x) {
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_fetch_min_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_min_i32(
@@ -1170,17 +1120,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_min_i64(
 HIPSYCL_SSCP_BUILTIN __acpp_uint8 __acpp_sscp_atomic_fetch_min_u8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint8 *ptr, __acpp_uint8 x) {
-  return static_cast<__acpp_uint8>(__acpp_sscp_atomic_fetch_min_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint16 __acpp_sscp_atomic_fetch_min_u16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint16 *ptr, __acpp_uint16 x) {
-  return static_cast<__acpp_uint16>(__acpp_sscp_atomic_fetch_min_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_min_u32(
@@ -1238,17 +1184,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_f64 __acpp_sscp_atomic_fetch_min_f64(
 HIPSYCL_SSCP_BUILTIN __acpp_int8 __acpp_sscp_atomic_fetch_max_i8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int8 *ptr, __acpp_int8 x) {
-  return static_cast<__acpp_int8>(__acpp_sscp_atomic_fetch_max_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int16 __acpp_sscp_atomic_fetch_max_i16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_int16 *ptr, __acpp_int16 x) {
-  return static_cast<__acpp_int16>(__acpp_sscp_atomic_fetch_max_i32(
-      as, order, scope, reinterpret_cast<__acpp_int32 *>(ptr),
-      static_cast<__acpp_int32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_int32 __acpp_sscp_atomic_fetch_max_i32(
@@ -1278,17 +1220,13 @@ HIPSYCL_SSCP_BUILTIN __acpp_int64 __acpp_sscp_atomic_fetch_max_i64(
 HIPSYCL_SSCP_BUILTIN __acpp_uint8 __acpp_sscp_atomic_fetch_max_u8(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint8 *ptr, __acpp_uint8 x) {
-  return static_cast<__acpp_uint8>(__acpp_sscp_atomic_fetch_max_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint16 __acpp_sscp_atomic_fetch_max_u16(
     __acpp_sscp_address_space as, __acpp_sscp_memory_order order,
     __acpp_sscp_memory_scope scope, __acpp_uint16 *ptr, __acpp_uint16 x) {
-  return static_cast<__acpp_uint16>(__acpp_sscp_atomic_fetch_max_u32(
-      as, order, scope, reinterpret_cast<__acpp_uint32 *>(ptr),
-      static_cast<__acpp_uint32>(x)));
+  __builtin_trap();
 }
 
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_atomic_fetch_max_u32(

@@ -90,6 +90,13 @@ void * cuda_allocator::raw_allocate_usm(size_t bytes,
   
   void *ptr;
   auto err = cudaMallocManaged(&ptr, bytes);
+#if CUDART_VERSION < 10000
+  // Fallback for Fermi (CC 2.x) / older CUDA where Unified Memory is unsupported
+  if (err == cudaErrorNotSupported || err == cudaErrorNotPermitted) {
+    cudaGetLastError();
+    err = cudaHostAlloc(&ptr, bytes, cudaHostAllocMapped | cudaHostAllocPortable);
+  }
+#endif
   if (err != cudaSuccess) {
     register_error(__acpp_here(),
                    error_info{"cuda_allocator: cudaMallocManaged() failed",
@@ -112,6 +119,7 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   cudaPointerAttributes attribs;
   auto err = cudaPointerGetAttributes(&attribs, ptr);
 
+#if CUDART_VERSION >= 10000
   if (err != cudaSuccess) {
     if (err == cudaErrorInvalidValue)
       return make_error(
@@ -142,6 +150,31 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   out.is_usm = attribs.type == cudaMemoryTypeManaged;
   out.native_handle = nullptr;
   out.native_offset = 0;
+#else
+  // CUDA < 10.0 fallback
+  if (err != cudaSuccess) {
+    if (err == cudaErrorInvalidValue) {
+      cudaGetLastError();
+      out.is_from_host_backend = false;
+      out.is_optimized_host = false;
+      out.is_usm = false;
+      out.dev = rt::device_id{
+          backend_descriptor{hardware_platform::cpu, api_platform::omp}, 0};
+      return make_success();
+    }
+    return make_error(
+        __acpp_here(),
+        error_info{"cuda_allocator: cudaPointerGetAttributes() failed",
+                   error_code{"CUDA", static_cast<int>(err)}});
+  }
+
+  out.is_from_host_backend = false;
+  out.is_optimized_host = (attribs.memoryType == cudaMemoryTypeHost);
+  out.is_usm = (attribs.isManaged != 0) || (attribs.memoryType == cudaMemoryTypeHost);
+  out.dev = rt::device_id{
+      backend_descriptor{hardware_platform::cuda, api_platform::cuda},
+      attribs.device};
+#endif
   
   return make_success();
 }

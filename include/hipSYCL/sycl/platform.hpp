@@ -172,11 +172,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, version)
 HIPSYCL_SPECIALIZE_GET_INFO(platform, name)
 {
   rt::backend_id b = _platform.get_backend();
-  std::string platform_name =
-      _requires_runtime.get()->backends().get(b)->get_name();
-  platform_name +=
-      " (platform " + std::to_string(_platform.get_platform()) + ")";
-      return platform_name;
+  return _requires_runtime.get()->backends().get(b)->get_platform_name(_platform);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(platform, vendor)

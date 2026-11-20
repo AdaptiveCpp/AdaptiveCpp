@@ -43,6 +43,13 @@ public:
 
   virtual std::string get_name() const = 0;
 
+  // Name of a given platform.
+  // This is by default assembled by the backend name itself plus the progressive index of
+  // the specific platform, but can be overridden by backends that can get more specific names
+  // from e.g. the hardware manager.
+  virtual std::string get_platform_name(platform_id p) const
+  { return get_name() + " (platform " + std::to_string(p.get_platform()) + ")"; }
+
   virtual ~backend() {}
 
   backend_descriptor get_backend_descriptor() const {

@@ -711,7 +711,7 @@ void LLVMToMetalTranslator::migrateKernelProperties(llvm::Function* From, llvm::
 }
 
 
-std::unique_ptr<LLVMToBackendTranslator>
+ACPP_DEFAULT_VISIBILITY std::unique_ptr<LLVMToBackendTranslator>
 createLLVMToMetalTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToMetalTranslator>(KernelNames);
 }

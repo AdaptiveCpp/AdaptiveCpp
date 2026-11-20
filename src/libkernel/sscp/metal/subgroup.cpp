@@ -49,3 +49,7 @@ HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_max_size() {
 HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_subgroup_id() {
   return __acpp_sscp_metal_symbol_simd_id("__simd_group_id");
 }
+
+HIPSYCL_SSCP_BUILTIN __acpp_uint32 __acpp_sscp_get_num_subgroups() {
+  return __acpp_sscp_metal_symbol_simd_id("__simd_num_groups");
+}

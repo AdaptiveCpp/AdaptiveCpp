@@ -16,7 +16,6 @@
 #include "hipSYCL/runtime/vk/vk_hardware_manager.hpp"
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
-#include "hipSYCL/compiler/llvm-to-backend/clspv/LLVMToCLSPV.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/clspv/LLVMToCLSPVFactory.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit.hpp"
 #include "hipSYCL/runtime/adaptivity_engine.hpp"

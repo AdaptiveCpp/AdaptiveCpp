@@ -458,22 +458,23 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_atomic_fetch_sub(
 // Need CAS loop for 64bit types - the definition of this
 // is required in order to be able to use the 
 // HIPSYCL_DEFINE_HIPLIKE_ATOMIC_INTEGRAL_NONNATIVE_OVERLOADS macro
-
-#define HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(Type)                   \
+#define HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(Type, Arithmetic_T)     \
   template <access::address_space S>                                           \
-  HIPSYCL_HIPLIKE_BUILTIN Type __acpp_atomic_fetch_sub(                     \
+  HIPSYCL_HIPLIKE_BUILTIN Type __acpp_atomic_fetch_sub(                         \
       Type *addr, Type x, memory_order order, memory_scope scope) noexcept {   \
-    Type old = __acpp_atomic_load<S>(addr, order, scope);                   \
-    while (!__acpp_atomic_compare_exchange_strong<S>(addr, old, old - x,    \
-                                                        order, order, scope))  \
-      ;                                                                        \
-    return old;                                                                \
+    Type old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);       \
+    Type desired;                                                            \
+    do {                                                                     \
+      desired = bit_cast<Type>(static_cast<Arithmetic_T>(old) - static_cast<Arithmetic_T>(x));              \
+    } while (!__acpp_atomic_compare_exchange_strong<S>(                       \
+        addr, old, desired, order, memory_order::relaxed, scope));             \
+    return old;                                                              \
   }
 
-HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(long long)
-HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(unsigned long long)
-HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(float)
-HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(double)
+HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(long long, unsigned long long)
+HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(unsigned long long, unsigned long long)
+HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(float, float)
+HIPSYCL_DEFINE_HIPLIKE_ATOMICSUB_CAS_EMULATION(double, double)
 
 template <access::address_space S>
 HIPSYCL_HIPLIKE_BUILTIN long
@@ -524,31 +525,32 @@ HIPSYCL_HIPLIKE_BUILTIN T __acpp_atomic_fetch_min(
 HIPSYCL_DEFINE_HIPLIKE_ATOMIC_INTEGRAL_NONNATIVE_OVERLOADS_SIGNED(
     __acpp_atomic_fetch_min, __acpp_bitcast_atomic_fetch_min);
 
+    
 // Need CAS loop for emulation of floating point overloads
 template <access::address_space S>
 HIPSYCL_HIPLIKE_BUILTIN float
 __acpp_atomic_fetch_min(float *addr, float x, memory_order order,
                            memory_scope scope) noexcept {
-  float old = __acpp_atomic_load<S>(addr, order, scope);
+  float old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
+  float desired;
   do {
-    if (old < x)
-      return old;
+    desired = (old < x) ? old : x;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, order, scope));
-  return x;
+      addr, old, desired, order, memory_order::relaxed, scope));
+  return old;
 }
 
 template <access::address_space S>
 HIPSYCL_HIPLIKE_BUILTIN double
 __acpp_atomic_fetch_min(double *addr, double x, memory_order order,
                            memory_scope scope) noexcept {
-  double old = __acpp_atomic_load<S>(addr, order, scope);
+  double old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
+  double desired;
   do {
-    if (old < x)
-      return old;
+    desired = (old < x) ? old : x;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, order, scope));
-  return x;
+      addr, old, desired, order, memory_order::relaxed, scope));
+  return old;
 }
 
 // *********************** atomic max ****************************
@@ -575,26 +577,26 @@ template <access::address_space S>
 HIPSYCL_HIPLIKE_BUILTIN float
 __acpp_atomic_fetch_max(float *addr, float x, memory_order order,
                            memory_scope scope) noexcept {
-  float old = __acpp_atomic_load<S>(addr, order, scope);
+  float old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
+  float desired;
   do {
-    if (old > x)
-      return old;
+    desired = (old > x) ? old : x;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, order, scope));
-  return x;
+      addr, old, desired, order, memory_order::relaxed, scope));
+  return old;
 }
 
 template <access::address_space S>
 HIPSYCL_HIPLIKE_BUILTIN double
 __acpp_atomic_fetch_max(double *addr, double x, memory_order order,
                            memory_scope scope) noexcept {
-  double old = __acpp_atomic_load<S>(addr, order, scope);
+  double old = __acpp_atomic_load<S>(addr, memory_order::relaxed, scope);
+  double desired;
   do {
-    if (old > x)
-      return old;
+    desired = (old > x) ? old : x;
   } while (!__acpp_atomic_compare_exchange_strong<S>(
-      addr, old, x, order, order, scope));
-  return x;
+      addr, old, desired, order, memory_order::relaxed, scope));
+  return old;
 }
 
 HIPSYCL_BUILTIN void __acpp_atomic_fence(memory_order order, memory_scope scope){

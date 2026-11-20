@@ -618,14 +618,14 @@ T transform_reduce(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(transform_reduce, hipsycl::stdpar::par_host_fallback,
+    return std::transform_reduce(hipsycl::stdpar::par_host_fallback,
                                  first1, last1, first2, init);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform_reduce{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first1, last1), T, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, init);
 }
@@ -664,7 +664,7 @@ T transform_reduce(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(transform_reduce, hipsycl::stdpar::par_host_fallback,
+    return std::transform_reduce(hipsycl::stdpar::par_host_fallback,
                                  first1, last1, first2, init, reduce,
                                  transform);
   };
@@ -672,7 +672,7 @@ T transform_reduce(hipsycl::stdpar::par,
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
                              hipsycl::stdpar::algorithm_category::transform_reduce{},
-                             std::execution::par),
+                             hipsycl::stdpar::par{}),
       std::distance(first1, last1), T, offloader, fallback, first1,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, init, reduce, transform);
 }
@@ -710,14 +710,14 @@ T transform_reduce(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(transform_reduce, hipsycl::stdpar::par_host_fallback,
+    return std::transform_reduce(hipsycl::stdpar::par_host_fallback,
                                  first, last, init, reduce, transform);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform_reduce{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), T, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), init, reduce, transform);
 }
@@ -754,12 +754,12 @@ reduce(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&](){
-    return HIPSYCL_STDPAR_HOST_FALLBACK(reduce, hipsycl::stdpar::par_host_fallback, first, last);
+    return std::reduce(hipsycl::stdpar::par_host_fallback, first, last);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::reduce{},
-                                 std::execution::par),
+                                 hipsycl::stdpar::par{}),
       std::distance(first, last), result_type, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
@@ -794,13 +794,13 @@ T reduce(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(reduce, hipsycl::stdpar::par_host_fallback, first, last,
+    return std::reduce(hipsycl::stdpar::par_host_fallback, first, last,
                        init);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::reduce{},
-                                 std::execution::par),
+                                 hipsycl::stdpar::par{}),
       std::distance(first, last), T, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), init);
 }
@@ -834,13 +834,13 @@ T reduce(hipsycl::stdpar::par, ForwardIt first,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(reduce, hipsycl::stdpar::par_host_fallback, first, last,
+    return std::reduce(hipsycl::stdpar::par_host_fallback, first, last,
                        init, binary_op);
   };
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm(hipsycl::stdpar::algorithm_category::reduce{},
-                                 std::execution::par),
+                                 hipsycl::stdpar::par{}),
       std::distance(first, last), T, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), init, binary_op);
 }
@@ -869,14 +869,14 @@ OutputIt inclusive_scan(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(inclusive_scan, hipsycl::stdpar::par_host_fallback, first,
+    return std::inclusive_scan(hipsycl::stdpar::par_host_fallback, first,
                           last, d_first, op);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::inclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), OutputIt, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, op);
   
@@ -904,14 +904,14 @@ HIPSYCL_STDPAR_ENTRYPOINT OutputIt inclusive_scan(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(inclusive_scan, hipsycl::stdpar::par_host_fallback, first,
+    return std::inclusive_scan(hipsycl::stdpar::par_host_fallback, first,
                           last, d_first, op, init);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::inclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), OutputIt, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, op, init);
 }
@@ -937,14 +937,14 @@ HIPSYCL_STDPAR_ENTRYPOINT OutputIt inclusive_scan(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(inclusive_scan, hipsycl::stdpar::par_host_fallback, first, last,
+    return std::inclusive_scan(hipsycl::stdpar::par_host_fallback, first, last,
                                d_first);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::inclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), OutputIt, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first);
 }
@@ -972,14 +972,14 @@ exclusive_scan(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(exclusive_scan, hipsycl::stdpar::par_host_fallback, first,
+    return std::exclusive_scan(hipsycl::stdpar::par_host_fallback, first,
                           last, d_first, init, op);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::exclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), OutputIt, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, init, op);
 }
@@ -1006,14 +1006,14 @@ OutputIt exclusive_scan(hipsycl::stdpar::par,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(exclusive_scan, hipsycl::stdpar::par_host_fallback, first,
+    return std::exclusive_scan(hipsycl::stdpar::par_host_fallback, first,
                           last, d_first, init);
   };
 
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::exclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), OutputIt, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, init);
 }
@@ -1039,7 +1039,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 transform_inclusive_scan(
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(transform_inclusive_scan, hipsycl::stdpar::par_host_fallback,
+    return std::transform_inclusive_scan(hipsycl::stdpar::par_host_fallback,
                                          first, last, d_first, binary_op,
                                          unary_op);
   };
@@ -1047,7 +1047,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 transform_inclusive_scan(
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform_inclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, binary_op, unary_op);
 }
@@ -1074,7 +1074,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 transform_inclusive_scan(
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(transform_inclusive_scan, hipsycl::stdpar::par_host_fallback,
+    return std::transform_inclusive_scan(hipsycl::stdpar::par_host_fallback,
                                          first, last, d_first, binary_op,
                                          unary_op, init);
   };
@@ -1082,7 +1082,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 transform_inclusive_scan(
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform_inclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, binary_op, unary_op,
       init);
@@ -1112,7 +1112,7 @@ ForwardIt2 transform_exclusive_scan(hipsycl::stdpar::par, ForwardIt1 first,
   };
 
   auto fallback = [&]() {
-    return HIPSYCL_STDPAR_HOST_FALLBACK(transform_exclusive_scan, hipsycl::stdpar::par_host_fallback,
+    return std::transform_exclusive_scan(hipsycl::stdpar::par_host_fallback,
                                          first, last, d_first, init, binary_op,
                                          unary_op);
   };
@@ -1120,7 +1120,7 @@ ForwardIt2 transform_exclusive_scan(hipsycl::stdpar::par, ForwardIt1 first,
   HIPSYCL_STDPAR_OFFLOAD(
       hipsycl::stdpar::algorithm(
           hipsycl::stdpar::algorithm_category::transform_exclusive_scan{},
-          std::execution::par),
+          hipsycl::stdpar::par{}),
       std::distance(first, last), ForwardIt2, offloader, fallback, first,
       HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), d_first, init, binary_op,
       unary_op);

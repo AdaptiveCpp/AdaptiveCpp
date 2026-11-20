@@ -20,7 +20,9 @@
 #include <execution>
 #undef HIPSYCL_STDPAR_EXECUTION_FWD_ONLY
 
-#ifdef _LIBCPP_HAS_NO_INCOMPLETE_PSTL
+#if defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) || \
+    (defined(_LIBCPP_HAS_EXPERIMENTAL_PSTL) && \
+     !_LIBCPP_HAS_EXPERIMENTAL_PSTL)
 #error "AdaptiveCpp stdpar requires libc++ execution policies; try -fexperimental-library"
 #endif
 

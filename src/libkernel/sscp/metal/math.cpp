@@ -284,7 +284,26 @@ HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_powr_f32(f32 x, f32 n) {
 }
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_hypot_f32(f32 x, f32 y) {
-  return __acpp_sscp_metal_math_f32_f32_f32("length(float2(%s, %s))", x, y);
+  // check nan/inf bits
+  const u32 ax = __builtin_bit_cast(u32, x) & 0x7fffffffu;
+  const u32 ay = __builtin_bit_cast(u32, y) & 0x7fffffffu;
+  if (ax == 0x7f800000u || ay == 0x7f800000u) {
+    return __builtin_bit_cast(f32, 0x7f800000u);
+  }
+  if (ax > 0x7f800000u || ay > 0x7f800000u) {
+    return __builtin_bit_cast(f32, 0x7fc00000u);
+  }
+  // scale by a power of two so that the squares cannot overflow or underflow
+  const f32 a = __builtin_bit_cast(f32, ax > ay ? ax : ay);
+  f32 s = 1.0f, inv = 1.0f;
+  if (a > 0x1p+60f) {
+    s = 0x1p-70f;
+    inv = 0x1p+70f;
+  } else if(a < 0x1p-50f) {
+    s = 0x1p+100f;
+    inv = 0x1p-100f;
+  }
+  return __acpp_sscp_metal_math_f32_f32_f32("length(float2(%s, %s))", x * s, y * s) * inv;
 }
 
 #define BITOP_TYPES \

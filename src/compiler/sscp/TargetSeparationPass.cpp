@@ -461,7 +461,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   DeviceMAM.clear();
   if(!PreoptimizeSSCPKernels) {
-    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
+    llvm::ModulePassManager MPM = PB.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
     MPM.run(*DeviceModule, DeviceMAM);
   } else {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);

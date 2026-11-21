@@ -34,6 +34,15 @@ using rel_test_genfloats = boost::mp11::mp_list<
   sycl::vec<double, 8>,
   sycl::vec<double, 16>>;
 
+// list of some types classified as "genints" in the SYCL standard
+using rel_test_genints = boost::mp11::mp_list<
+  sycl::marray<bool, 2>,
+  sycl::vec<bool, 2>,
+  sycl::vec<std::int8_t, 2>,
+  sycl::vec<std::int16_t, 2>,
+  sycl::vec<std::int32_t, 2>,
+  sycl::vec<std::int64_t, 2>>;
+
 namespace {
 
   template<typename DT, int D>
@@ -298,5 +307,86 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_binary, T,
     }
   }
 }
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genint_binary, T,
+                              rel_test_genints) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = sycl;
+
+  using OutType = s::detail::builtin_input_boollike_t<T>;
+  using BoolType = s::detail::builtin_input_element_t<OutType>;
+
+  constexpr int FUN_COUNT = 1;
+
+  // build inputs and allocate outputs
+
+  s::queue queue;
+  if constexpr(std::is_same_v<DT, double>) {
+    if (!queue.get_device().has(sycl::aspect::int64)) {
+      BOOST_TEST_MESSAGE("Skipping test for double since device has no int64 support");
+      return;
+    }
+  }
+  s::buffer<T> in1{{1}};
+  s::buffer<T> in2{{1}};
+  s::buffer<OutType> out{{FUN_COUNT}};
+  {
+    auto inputs1  = in1.get_host_access();
+	auto inputs2  = in2.get_host_access();
+    auto outputs = out.get_host_access();
+    s::vec<DT, 2> v1{
+      DT(1.0), DT(-1.0)
+    };
+    s::vec<DT, 2> v2{
+      DT(1.0), DT(2.0)
+    };
+    inputs1[0] = get_subvector<DT, D>(v1);
+	inputs2[0] = get_subvector<DT, D>(v2);
+    for(int i = 0; i < FUN_COUNT; ++i) {
+      outputs[i] = OutType{BoolType{0}};
+    }
+  }
+
+  // run functions
+
+  queue.submit([&](s::handler &cgh) {
+    auto inputs1  = in1.template get_access<s::access::mode::read>(cgh);
+	auto inputs2  = in2.template get_access<s::access::mode::read>(cgh);
+    auto outputs = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class rel_binary, D, DT>>([=]() {
+      int i = 0;
+      outputs[i++] = s::all(inputs1[0], inputs2[0]);
+	  outputs[i++] = s::any(inputs1[0], inputs2[0]);
+    });
+  });
+
+  // check results
+  auto host_all = [](DT a, DT b) {
+    //TODO;
+  };
+  auto host_any = [](DT a, DT b) {
+    //TODO;
+  };
+  auto postprocess = [](bool a) {
+    static_assert(std::is_same_v<T, sycl::vec<DT, D> || std::is_same_v<T, sycl::marray<DT, D>>);
+    return a ? 1 : 0;
+  };
+      
+  {
+    auto inputs1  = in1.get_host_access();
+    auto inputs2  = in2.get_host_access();    
+    auto outputs = out.get_host_access();
+
+    for(int c = 0; c < std::max(D,1); ++c) {
+      int i = 0;
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_all(comp(inputs1[0], c), comp(inputs2[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == postprocess(host_any(comp(inputs1[0], c), comp(inputs2[0], c))));
+    }
+  }
+}
+
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

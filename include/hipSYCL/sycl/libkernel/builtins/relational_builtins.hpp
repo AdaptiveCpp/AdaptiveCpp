@@ -95,6 +95,17 @@ namespace detail {
     HIPSYCL_PP_CONCATENATE(detail::__acpp_, builtin_name)                          \
   )
 
+#define HIPSYCL_RELATIONAL_INTEGER_BUILTIN(arity, builtin_name)                     \
+  HIPSYCL_RELATIONAL_INTEGER_BUILTIN_OVERLOADED_IMPL(                              \
+    HIPSYCL_PP_CONCATENATE(HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_, arity),          \
+    HIPSYCL_PP_CONCATENATE(HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_TEMPLATE_, arity), \
+    builtin_name,                                                                  \
+    HIPSYCL_PP_CONCATENATE(detail::__acpp_, builtin_name)                          \
+  )
+
+#define HIPSYCL_RELATIONAL_INTEGER_BUILTIN_OVERLOADED_IMPL(h, template_h, builtin_name, builtin_func) \
+  template_h(detail::is_valid_relational_nonscalar, builtin_name, builtin_func)
+
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isnan)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isinf)
 HIPSYCL_RELATIONAL_BUILTIN(UNARY_T_RET_BOOL, isfinite)
@@ -110,4 +121,42 @@ HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, islessgreater)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isordered)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isunordered)
 }
+
+namespace hipsycl::sycl {
+namespace detail {
+  template <typename T>
+  struct is_valid_relational_integer_scalar : is_in_type_set<
+    bool, char, signed char, short, int, long, long long
+  >::scalar_tester<T> {};
+
+  // For ease of implementation, ensure the fixed width integer types
+  // are aliased to the standard integer types.
+  static_assert(is_valid_relational_integer_scalar<bool>::value);
+  static_assert(is_valid_relational_integer_scalar<int8_t>::value);
+  static_assert(is_valid_relational_integer_scalar<int16_t>::value);
+  static_assert(is_valid_relational_integer_scalar<int32_t>::value);
+  static_assert(is_valid_relational_integer_scalar<int64_t>::value);
+
+  template <typename T>
+  struct is_valid_relational_integer : std::bool_constant<
+    is_valid_relational_integer_scalar<builtin_input_element_t<T>>::value
+  > {};
+}
+
+#define HIPSYCL_BUILTIN_GENERATOR_UNARY_T_REDUCTION(tester, builtin_name, builtin_func) \
+  template<typename Gen1>                                                              \
+  HIPSYCL_BUILTIN                                                                      \
+  std::enable_if_t<                                                                    \
+    detail::builtin_inputs_are_compatible_v<Gen1> &&                                   \
+    detail::builtin_input_is_nonscalar_v<Gen1> &&                                      \
+    tester<Gen1>::value,                                                               \
+    detail::builtin_input_return_t<Gen1>                                               \
+  > builtin_name(Gen1 x) noexcept {                                                    \
+    return builtin_func(x);                                                            \
+  }
+
+HIPSYCL_RELATIONAL_INTEGER_BUILTIN(UNARY_T_REDUCTION, all)
+HIPSYCL_RELATIONAL_INTEGER_BUILTIN(UNARY_T_REDUCTION, any)
+}
+
 #endif

@@ -19,9 +19,9 @@ namespace rt {
 runtime::runtime()
 : _dag_manager{this}
 {
-  // Ensure global singletons used during runtime and queue teardown are
-  // initialized before any static SYCL object holding a runtime_keep_alive_token
-  // completes construction, so they are destroyed after runtime shutdown.
+  // Initialize global singletons needed during shutdown before any static
+  // object that owns the runtime completes construction, so reverse-order
+  // static destruction destroys them after runtime shutdown.
   (void)application::get_settings();
   (void)application::errors();
   (void)application::event_handler_layer();

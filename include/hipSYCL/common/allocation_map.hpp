@@ -138,8 +138,10 @@ public:
     for (int i = 0;
          i < this->get_num_entries_in_level(bit_tree_t::root_level_idx); ++i) {
       auto* ptr = _root.children[i].load(std::memory_order_acquire);
-      if(ptr)
+      if(ptr) {
         release(*ptr);
+        this->free(ptr);
+      }
     }
   }
     

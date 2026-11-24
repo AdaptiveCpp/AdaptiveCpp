@@ -8,7 +8,6 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#include <atomic>
 #include <cstdlib>
 #include <mutex>
 
@@ -34,26 +33,9 @@ namespace {
 static std::mutex numa_amap_mutex;
 using numa_amap_t = std::unordered_map<void*, size_t>;
 
-struct numa_allocation_map_wrapper {
-  numa_amap_t numa_amap;
-
-  ~numa_allocation_map_wrapper() {
-    std::lock_guard<std::mutex> lock(numa_amap_mutex);
-    is_shut_down.store(true, std::memory_order_release);
-  }
-
-  static std::atomic<bool> is_shut_down;
-};
-
-std::atomic<bool> numa_allocation_map_wrapper::is_shut_down{false};
-
-numa_amap_t* get_numa_allocation_map() {
-  if (numa_allocation_map_wrapper::is_shut_down.load(std::memory_order_acquire))
-    return nullptr;
-  static numa_allocation_map_wrapper wrapper;
-  if (numa_allocation_map_wrapper::is_shut_down.load(std::memory_order_acquire))
-    return nullptr;
-  return &wrapper.numa_amap;
+numa_amap_t& get_numa_allocation_map() {
+  static numa_amap_t numa_amap;
+  return numa_amap;
 }
 
 }
@@ -117,9 +99,9 @@ static bool has_warned = false;
 
     // the allocation size is stored in an allocation map so that it can be
     // retrieved when calling numafree.
+    numa_amap_t& numa_amap = get_numa_allocation_map();
     std::lock_guard<std::mutex> lock(numa_amap_mutex);
-    if (auto* numa_amap = get_numa_allocation_map())
-      (*numa_amap)[mem] = size_bytes;
+    numa_amap[mem] = size_bytes;
 
     return mem;
   }
@@ -181,12 +163,11 @@ void omp_allocator::raw_free(void *mem) {
 #ifdef LIB_NUMA_AVAILABLE
   {
     std::lock_guard<std::mutex> lock(numa_amap_mutex);
-    if (auto* numa_amap = get_numa_allocation_map()) {
-      if(auto node = numa_amap->extract(mem)){
-        size_t size_bytes = node.mapped();
-        numa_free(mem, size_bytes);
-        return;
-      }
+    numa_amap_t& numa_amap = get_numa_allocation_map();
+    if(auto node = numa_amap.extract(mem)){
+      size_t size_bytes = node.mapped();
+      numa_free(mem, size_bytes);
+      return;
     }
   }
 #endif // LIB_NUMA_AVAILABLE

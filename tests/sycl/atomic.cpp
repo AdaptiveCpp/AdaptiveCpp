@@ -426,4 +426,87 @@ BOOST_AUTO_TEST_CASE(atomic_fence) {
 }
 #endif
 
+// Host-only regression for CAS-emulated floating-point fetch_min/fetch_max.
+  template <class T>
+  void check_floating_fetch_min_max(sycl::queue& queue, sycl::memory_order order) 
+  {
+
+    //index
+    static constexpr size_t  ValIdx = 0;
+    static constexpr size_t  FetchMinStorageIdx = 1;
+    static constexpr size_t  FetchMaxStorageIdx = 2;
+    static constexpr size_t  SIZE_TEST = 3; // len
+
+    //value
+    static constexpr T InitialValue = static_cast<T>(4);
+    static constexpr T MinValue = static_cast<T>(3);
+    static constexpr T MaxValueLast = static_cast<T>(7);
+
+    static constexpr T InvalidMinValue = static_cast<T>(MaxValueLast + 2);
+    static constexpr T InvalidMaxValue = static_cast<T>(MaxValueLast - 2);
+
+    T values[SIZE_TEST] = {InitialValue, T{0}, T{0}};
+    T* device_values = sycl::malloc_device<T>(SIZE_TEST, queue);
+
+    BOOST_REQUIRE(device_values != nullptr);
+
+    queue.memcpy(device_values, values, sizeof(values)).wait_and_throw();
+    __acpp_if_target_host(
+    queue.single_task([=](){
+      sycl::atomic_ref<
+        T, 
+        sycl::memory_order::relaxed, 
+        sycl::memory_scope::device,
+        sycl::access::address_space::global_space
+      > atomic_this{device_values[ValIdx]};
+      // valid op
+      device_values[FetchMinStorageIdx] = atomic_this.fetch_min(MinValue, order);
+      device_values[FetchMaxStorageIdx] = atomic_this.fetch_max(MaxValueLast, order);
+      //try invalid
+      atomic_this.fetch_min(InvalidMinValue, order);
+      atomic_this.fetch_max(InvalidMaxValue, order);
+    }).wait_and_throw();
+    );
+
+    queue.memcpy(values, device_values, sizeof(values)).wait_and_throw();
+    sycl::free(device_values, queue);
+
+    BOOST_CHECK(values[ValIdx] == MaxValueLast); // our last valid op was (device_values[FetchMaxStorageIdx] = atomic_this.fetch_max(MaxValueLast, order);)
+    BOOST_CHECK(values[FetchMinStorageIdx] == InitialValue); // FetchMinStorageIdx - truly stores the previous value before change and that was our first operation and before that it was : InitialValue
+    BOOST_CHECK(values[FetchMaxStorageIdx] == MinValue); // FetchMaxStorageIdx - dose same and its the 2nd operation and before that value was MinValue due to fetch_min 
+  }
+
+
+  BOOST_AUTO_TEST_CASE(host_floating_fetch_min_max_return_old_value)
+  {
+    sycl::queue queue;
+
+    if (queue.get_device().get_backend() != sycl::backend::omp)
+    {
+      BOOST_TEST_MESSAGE("Skipping host atomic regression outside the OpenMP backend");
+      return;
+    }
+    if(!queue.get_device().has(sycl::aspect::usm_device_allocations)) 
+    {
+      BOOST_TEST_MESSAGE("Skipping host atomic regression without device USM");
+      return;
+    }
+
+    for (auto order : {
+      sycl::memory_order::relaxed,
+      sycl::memory_order::release,
+      sycl::memory_order::acq_rel,
+    })
+    {
+      check_floating_fetch_min_max<float>(queue, order);
+      if(
+        queue.get_device().has(sycl::aspect::fp64) &&
+        queue.get_device().has(sycl::aspect::atomic64)
+      ) 
+      {
+        check_floating_fetch_min_max<double>(queue, order);      
+      }
+    }
+  }
+
 BOOST_AUTO_TEST_SUITE_END()

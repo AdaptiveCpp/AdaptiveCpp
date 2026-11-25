@@ -10,6 +10,12 @@ Windows support with CPU and CUDA backends is expected to work when [linking Ada
 For Windows, you may also [download](https://nightly.link/AdaptiveCpp/AdaptiveCpp/workflows/windows-acppllvm/develop/AdaptiveCpp-LLVM20-Win.zip) nightly binaries for AdaptiveCpp from the `develop` branch.
 The project can also be cross compiled for Android for use on the CPU OMP backend and experimental [Vulkan backend](install-vulkan.md).
 
+## Installation as a package
+
+The following package managers have AdaptiveCpp available:
+* The Arch Linux AUR has a package under the name [adaptivecpp](https://aur.archlinux.org/packages/adaptivecpp).
+* A Homebrew distribution for MacOS is available under the name [adaptivecpp](https://formulae.brew.sh/formula/adaptivecpp#default).
+
 ## Installation from source (Linux)
 
 ### Software dependencies

@@ -191,6 +191,18 @@ typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
 
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt2 unique_copy( hipsycl::stdpar::par_unseq, ForwardIt1 first,
+                        ForwardIt1 last, ForwardIt2 d_first,
+                        BinaryPredicate pred );
+
+template <class ForwardIt, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt unique( hipsycl::stdpar::par_unseq, ForwardIt first,
+                          ForwardIt last, BinaryPredicate pred );
+
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
 std::pair<ForwardIt1, ForwardIt2> mismatch( hipsycl::stdpar::par_unseq,
@@ -255,6 +267,7 @@ HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt is_sorted_until(hipsycl::stdpar::par_unseq, ForwardIt first,
                      ForwardIt last, Compare comp);
 
+
 template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
 bool equal(hipsycl::stdpar::par_unseq, ForwardIt1 first1, ForwardIt1 last1,
@@ -301,6 +314,17 @@ HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::difference_type
 count_if( hipsycl::stdpar::par, ForwardIt first, ForwardIt last,
          UnaryPredicate p );
+
+template <class ForwardIt1, class ForwardIt2, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt2 unique_copy( hipsycl::stdpar::par, ForwardIt1 first,
+                        ForwardIt1 last, ForwardIt2 d_first,
+                        BinaryPredicate pred );
+
+template <class ForwardIt, class BinaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt unique( hipsycl::stdpar::par, ForwardIt first,
+                  ForwardIt last, BinaryPredicate pred );
 
 template<class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
@@ -388,6 +412,7 @@ template <class ForwardIt1, class ForwardIt2>
 HIPSYCL_STDPAR_ENTRYPOINT
 bool equal(hipsycl::stdpar::par, ForwardIt1 first1, ForwardIt1 last1,
            ForwardIt2 first2);
+
 
 template <class ForwardIt1, class ForwardIt2, class BinaryPred>
 HIPSYCL_STDPAR_ENTRYPOINT

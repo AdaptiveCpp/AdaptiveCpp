@@ -260,6 +260,7 @@ if(WITH_SSCP_COMPILER)
     sscp/AggregateArgumentExpansionPass.cpp
     sscp/StdBuiltinRemapperPass.cpp
     sscp/StdAtomicRemapperPass.cpp
+    sscp/ExceptionToAssertionPass.cpp
     sscp/DeviceAssertPass.cpp
     sscp/HcfRegistrationPass.cpp
     sscp/pcuda/FreeKernelCall.cpp
@@ -289,6 +290,17 @@ else()
   set(REFLECTION_BUILTINS "")
 endif()
 
+if(WITH_REFLECTION_BUILTINS)
+  set(REFLECTION_BUILTINS
+    reflection/IntrospectStructPass.cpp
+    reflection/FunctionNameExtractionPass.cpp)
+  add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
+else()
+  set(REFLECTION_BUILTINS "")
+endif()
+
+
+
 set(COMPILER_LIBRARY_SOURCES
   AdaptiveCppLlvmPasses.cpp
   GlobalsPruningPass.cpp
@@ -296,6 +308,7 @@ set(COMPILER_LIBRARY_SOURCES
   ${SSCP_COMPILER}
   ${STDPAR_COMPILER}
   ${REFLECTION_BUILTINS}
+  ${DEVICE_EXCEPTIONS}
 )
 
 if(NOT ACPP_LLVM_COMPONENT)

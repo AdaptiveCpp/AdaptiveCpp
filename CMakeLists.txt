@@ -745,12 +745,12 @@ set(ACPP_ROCM_CONFIG_FILE "{
 }
 ")
 
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-core.json ${ACPP_CORE_CONFIG_FILE})
+file(WRITE ${ACPP_BINARY_ROOT}/acpp-core.json "${ACPP_CORE_CONFIG_FILE}")
 if(WITH_CUDA_BACKEND)
-  file(WRITE ${ACPP_BINARY_ROOT}/acpp-cuda.json ${ACPP_CUDA_CONFIG_FILE})
+  file(WRITE ${ACPP_BINARY_ROOT}/acpp-cuda.json "${ACPP_CUDA_CONFIG_FILE}")
 endif()
 if(WITH_ROCM_BACKEND)
-  file(WRITE ${ACPP_BINARY_ROOT}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
+  file(WRITE ${ACPP_BINARY_ROOT}/acpp-rocm.json "${ACPP_ROCM_CONFIG_FILE}")
 endif()
 
 message(STATUS "Numa: ${NUMA_LIBRARY}")

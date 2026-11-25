@@ -80,6 +80,7 @@
 #include "specialized.hpp"
 #include "jit.hpp"
 #include "pcuda_interop.hpp"
+#include "khr/free_function_kernels.hpp"
 #include "detail/namespace_compat.hpp"
 
 // Support SYCL_EXTERNAL for SSCP - we cannot have SYCL_EXTERNAL if accelerated CPU

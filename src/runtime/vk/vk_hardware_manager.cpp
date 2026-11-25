@@ -539,8 +539,18 @@ std::size_t vk_hardware_context::get_property(device_uint_property prop) const {
 std::vector<std::size_t>
 vk_hardware_context::get_property(device_uint_list_property prop) const {
   switch (prop) {
-  case device_uint_list_property::sub_group_sizes:
-    return std::vector<std::size_t>{_subgroup_size};
+  case device_uint_list_property::sub_group_sizes: {
+    if (!_subgroup_size_selection) {
+      // We can't select the subgroup size, so just return the device default
+      return std::vector<std::size_t>{_subgroup_size};
+    }
+    std::vector<std::size_t> sizes;
+    for (uint32_t size = _subgroup_size; size <= _max_subgroup_size;
+         size *= 2) {
+      sizes.push_back(size);
+    }
+    return sizes;
+  }
   }
 
   assert(false && "Invalid device property");

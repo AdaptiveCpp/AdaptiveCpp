@@ -29,7 +29,12 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <llvm/Passes/PassBuilder.h>
+#if (LLVM_VERSION_MAJOR < 22) || (defined(ROCM_CLANG_VERSION_MAJOR) && (ROCM_CLANG_VERSION_MAJOR == 7) && (ROCM_CLANG_VERSION_MINOR == 2))
 #include <llvm/Passes/PassPlugin.h>
+#else
+#include <llvm/Plugins/PassPlugin.h>
+#endif
+
 
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar/EarlyCSE.h>
@@ -231,6 +236,7 @@ inline typename __pointer_type<To, From>::type __pointer_cast(From ptr) {
 uint __simd_size [[threads_per_simdgroup]];
 uint __simd_group_id [[simdgroup_index_in_threadgroup]];
 uint __simd_lane_id [[thread_index_in_simdgroup]];
+uint __simd_num_groups [[simdgroups_per_threadgroup]];
 
 uint3 __acpp_sscp_metal_group_id [[threadgroup_position_in_grid]];
 uint3 __acpp_sscp_metal_num_groups [[threadgroups_per_grid]];

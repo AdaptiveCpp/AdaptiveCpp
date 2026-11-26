@@ -326,17 +326,28 @@ vk_kernel_pipeline::vk_kernel_pipeline(vk_kernel_object *kern_obj,
                        << _group_size[2] << ")" << std::endl;
   }
 
+  // Pick the sub-group size for this kernel and work-group size, and feed
+  // the same value to both the device SPIR-V SubgroupMaxSize specialization
+  // constant and the host compute pipeline. Kernels without that
+  // specialization constant never observe the sub-group size, so leave their
+  // pipelines unconstrained and let the driver pick the SIMD width it prefers.
+  auto *hw_ctx = _kern_obj->get_exe_obj()->get_hw_ctx();
+  uint32_t selected_sg_size = 0;
+
   if (_kern_obj->get_exe_obj()->has_spec_const_subgroup_max_size()) {
+    selected_sg_size = hw_ctx->select_subgroup_size(
+        _group_size[0] * _group_size[1] * _group_size[2]);
+
     size_t offset = spec_map_entries.size() * sizeof(uint32_t);
     auto spec_id = _kern_obj->get_exe_obj()->get_spec_const_subgroup_max_size();
     spec_map_entries.emplace_back(spec_id, offset, sizeof(uint32_t));
-    auto device_subgroup_size =
-        _kern_obj->get_exe_obj()->get_hw_ctx()->get_subgroup_size();
-    spec_map_data.push_back(device_subgroup_size);
+    auto subgroup_size =
+        selected_sg_size != 0 ? selected_sg_size : hw_ctx->get_subgroup_size();
+    spec_map_data.push_back(subgroup_size);
 
     HIPSYCL_DEBUG_INFO << "vk_kernel_pipeline: Specialization constant id "
                        << spec_id << " set for subgroup group size "
-                       << device_subgroup_size << std::endl;
+                       << subgroup_size << std::endl;
   }
 
   vk::SpecializationInfo spec_info(
@@ -344,6 +355,17 @@ vk_kernel_pipeline::vk_kernel_pipeline(vk_kernel_object *kern_obj,
       spec_map_entries.size() * sizeof(uint32_t), spec_map_data.data());
   stage_info.pSpecializationInfo =
       spec_map_entries.empty() ? nullptr : &spec_info;
+
+  vk::PipelineShaderStageRequiredSubgroupSizeCreateInfo required_sg_size_info{};
+  if (selected_sg_size != 0) {
+    required_sg_size_info.requiredSubgroupSize = selected_sg_size;
+    stage_info.pNext = &required_sg_size_info;
+
+    HIPSYCL_DEBUG_INFO << "vk_kernel_pipeline: Requiring sub-group size "
+                       << selected_sg_size << " for work-group ("
+                       << _group_size[0] << "," << _group_size[1] << ","
+                       << _group_size[2] << ")" << std::endl;
+  }
 
   vk::ComputePipelineCreateInfo pipeline_info({}, stage_info,
                                               _compute_pipeline_layout);

@@ -18,7 +18,7 @@
 namespace hipsycl {
 namespace compiler {
 
-class AddressSpaceInferencePass : public llvm::PassInfoMixin<AddressSpaceInferencePass> {
+class ACPP_DEFAULT_VISIBILITY AddressSpaceInferencePass : public llvm::PassInfoMixin<AddressSpaceInferencePass> {
 public:
   AddressSpaceInferencePass(const AddressSpaceMap& Map);
   llvm::PreservedAnalyses run(llvm::Module &M,

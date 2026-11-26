@@ -50,7 +50,7 @@ OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
                                  __acpp_sscp_memory_order::acq_rel);
   if (subgroup_id == 0) {
     // we only care about the result of the first 32 elements of the
-    // subgroup reduce
+    // subgroup prefixes
     OutType sg_val = (wg_lid < num_sg) ? shrd_mem[wg_lid] : OutType{};
     auto result = sg_inclusive_scan<SharedMemorySize>(sg_val, op);
     if (wg_lid < SharedMemorySize) {

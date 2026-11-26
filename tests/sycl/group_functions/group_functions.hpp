@@ -356,29 +356,6 @@ void check_binary_reduce(std::vector<T> buffer, std::vector<T> input, size_t loc
   }
 }
 
-ACPP_KERNEL_TARGET
-inline int32_t local_mem_sentinel(size_t lid) {
-  return static_cast<int32_t>(lid ^ 0x5a5a5a5a);
-}
-
-inline void check_local_mem_uncorrupted(const std::vector<int32_t> &local_mem_check,
-                                        size_t local_size) {
-  size_t corrupted_idx = local_mem_check.size();
-  for (size_t i = 0; i < local_mem_check.size(); ++i) {
-    if (local_mem_check[i] != local_mem_sentinel(i % local_size)) {
-      corrupted_idx = i;
-      break;
-    }
-  }
-  const int32_t got = corrupted_idx < local_mem_check.size() ? local_mem_check[corrupted_idx] : 0;
-  const int32_t expected =
-      corrupted_idx < local_mem_check.size() ? local_mem_sentinel(corrupted_idx % local_size) : 0;
-  BOOST_TEST(corrupted_idx == local_mem_check.size(),
-             "Local memory corrupted at global index " << corrupted_idx
-             << " (local_size=" << local_size << "): got " << got
-             << " instead of " << expected);
-}
-
 } // namespace detail
 
 #ifdef TESTS_GROUPFUNCTION_FULL
@@ -444,7 +421,7 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
           auto sg = item.get_sub_group();
           const size_t lid = item.get_local_linear_id();
           const size_t gid = item.get_global_linear_id();
-          local_mem[lid] = detail::local_mem_sentinel(lid);
+          local_mem[lid] = static_cast<int32_t>(gid + 1);
           sycl::group_barrier(g);
 
           T local_value = acc[gid];
@@ -457,7 +434,15 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
       });
     }
 
-    detail::check_local_mem_uncorrupted(local_mem_check, local_size);
+    for (size_t j = 0; j < global_size; ++j) {
+      const int32_t expected = static_cast<int32_t>(j + 1);
+      if (local_mem_check[j] != expected) {
+        BOOST_TEST(local_mem_check[j] == expected,
+                   "Local memory corrupted at global index " << j
+                   << " (local_size=" << local_size << ")");
+        break;
+      }
+    }
     vf(host_buf, original_host_buf,used_sgrp_size, local_size, global_size);
   }
 }

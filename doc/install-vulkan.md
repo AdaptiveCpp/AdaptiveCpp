@@ -20,7 +20,7 @@ the generic SSCP compilation flow.
   `VK_KHR_buffer_device_address` respectively.
 * The [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) versions 1.4 or later
   for Vulkan loader, layers, headers, and other tools.
-* A `clspv` executable from commit `7d2f6f83443583d3572e2508e523b66a02816259`.
+* A `clspv` executable from commit `c2633c799f9cab999acc00ed6bd5f3f5646b189b`.
 * Linux, macOS, and Windows operating systems are tested in CI. Ubuntu 22.04 and later are the
   tested distributions for Linux. MacOS 15.7.4 is tested CI with MoltenVK. Windows server 2022
   is used with llvmpipe in CI. However on Windows there are sporadic failures in the `group_functions` suite
@@ -151,25 +151,20 @@ can be used. Optionally setting a individual device, for example in the output a
 
 ## Limitations
 
+All the runtime functionality and synchronization of SYCL is expected to work, although
+some optional features are not supported. Most notably only device USM is available,
+and not host or shared USM. Furthermore, the pointers returned by `malloc_device` do not
+conform to a unified address space, in that they may collide with the pointers returned
+from host side `malloc` or from the `malloc_device` calls of other SYCL devices.
+
+Support gaps are more likely to arise from deficiencies in the compilation of kernel code
+down to SPIR-V than runtime execution.
 Due to the challenge of supporting a generic address space in SYCL/PCUDA on Vulkan
 SPIR-V `PhysicalStorageBuffer64` memory model, kernels cannot currently
 chase pointers in a linked list fashion or store to global memory the addresses
 of variables.
 
-All the runtime functionality and synchronization of SYCL is expected to work, although
-some optional features are not supported. Most notably only device USM is available,
-and not host or shared USM. However, there is no support of backend interop at this time.
-
-The holes in support arise from deficiencies in the compilation of kernel code. Features
-which are not supported for use in kernels targeting Vulkan SPIR-V are:
-
-* Floating point atomics - Not supported, will generate incorrect results rather than error.
-* `marray` - Will fail to compile. SPIR-V does not support non-standard integer types without
-  the `SPV_INTEL_arbitrary_precision_integers` extension which clspv does not support. However,
-  using `marray` can generate such types in LLVM IR, for example an `i48` for `marray<short, 3>`. See the
-  [chipStar HipPromoteInts](https://github.com/CHIP-SPV/chipStar/blob/main/llvm_passes/HipPromoteInts.cpp)
-  LLVM pass as a possible way to resolve this.
-* group function variants - Unstable support, will fail to compile or generate incorrect results.
+If you run into any bugs, please file an issue on GitHub with the 'Vulkan' label.
 
 ## Device Support
 
@@ -184,8 +179,8 @@ Devices known to be well supported by the backend include:
 | RADV Pheonix | Mesa 25.0.7          | AMD Integrated GPU   | Well supported                                                                                              |
 | RADV MI100   | Mesa 23.2.1          | AMD Discrete GPU     | Well Supported                                                                                              |
 | RADV MI210   | Mesa 23.2.1          | AMD Discrete GPU     | Many [Issues](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2123)                                       |
-| Arc MTL      | Mesa 25.0.7          | Intel Integrated GPU | Issues with sub-groups                                                                                      |
-| RTX 500      | NVIDIA 580.95.5.0    | NVIDIA Discrete GPU  | Issues with group functions tests & device stops being detected when running full sycl suite[1]             |
+| Arc MTL      | Mesa 25.0.7          | Intel Integrated GPU | Well supported, but no workgroup float add/sub atomics[2]                                                   |
+| RTX 500      | NVIDIA 580.95.5.0    | NVIDIA Discrete GPU  | Well supported, but no float min/max atomics[2] and device stops being detected when running full sycl suite[1] |
 | MoltenVK     | Khronos 1.4.1        | Apple Integrated GPU | CI testing with Macos 15.7.4, [some](https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2120) tests disabled |
 | Swiftshader  | Google 5.0.0         | CPU                  | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
 | V3D          | Mesa 25.0.7          | Broadcom iGPU        | Poor support, no `Int64` or `VariablePointer` capabilities                                                  |
@@ -194,7 +189,9 @@ Devices known to be well supported by the backend include:
 
 Other devices are untested and support status is unknown.
 
-[1] A workaround to this issue is to set the `ACPP_PERSISTENT_RUNTIME=1` environment variable.
+[1] The [NVIDIA driver leaking file descriptors on vkDestroyInstance](https://forums.developer.nvidia.com/t/file-descriptor-leak-when-vulkan-loader-unloads-libglx-nvidia-after-vkdestroyinstance/376648/3) is believed to be the underlying issue. A workaround to this issue is to set the `ACPP_PERSISTENT_RUNTIME=1` environment variable.
+
+[2] Workgroup add/sub requires the `VK_EXT_Shader_atomic_float` capability `shaderSharedFloat32AtomicAdd`, and float min/max requires `VK_EXT_shader_atomic_float2`.
 
 ## Benchmarks
 

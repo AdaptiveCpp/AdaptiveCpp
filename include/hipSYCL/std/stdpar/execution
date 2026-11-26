@@ -14,7 +14,14 @@
 
 #include_next <execution>
 
+#endif
 
-#include "pstl-impl/pstl.hpp" 
-
+// libc++ includes <execution> from <algorithm>/<numeric>. Those headers are
+// needed while initializing the SYCL runtime; defer implementations until an
+// explicit <execution> include. Keep this outside the system-header guard.
+#if !defined(HIPSYCL_STDPAR_EXECUTION_FWD_ONLY) && \
+    !defined(HIPSYCL_STDPAR_SYSTEM_ALGORITHM) && \
+    !defined(HIPSYCL_STDPAR_SYSTEM_NUMERIC)
+#include "detail/execution_fwd.hpp"
+#include "pstl-impl/pstl.hpp"
 #endif

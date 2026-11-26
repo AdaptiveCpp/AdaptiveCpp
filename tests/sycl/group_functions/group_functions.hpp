@@ -356,6 +356,29 @@ void check_binary_reduce(std::vector<T> buffer, std::vector<T> input, size_t loc
   }
 }
 
+ACPP_KERNEL_TARGET
+inline int32_t local_mem_sentinel(size_t lid) {
+  return static_cast<int32_t>(lid ^ 0x5a5a5a5a);
+}
+
+inline void check_local_mem_uncorrupted(const std::vector<int32_t> &local_mem_check,
+                                        size_t local_size) {
+  size_t corrupted_idx = local_mem_check.size();
+  for (size_t i = 0; i < local_mem_check.size(); ++i) {
+    if (local_mem_check[i] != local_mem_sentinel(i % local_size)) {
+      corrupted_idx = i;
+      break;
+    }
+  }
+  const int32_t got = corrupted_idx < local_mem_check.size() ? local_mem_check[corrupted_idx] : 0;
+  const int32_t expected =
+      corrupted_idx < local_mem_check.size() ? local_mem_sentinel(corrupted_idx % local_size) : 0;
+  BOOST_TEST(corrupted_idx == local_mem_check.size(),
+             "Local memory corrupted at global index " << corrupted_idx
+             << " (local_size=" << local_size << "): got " << got
+             << " instead of " << expected);
+}
+
 } // namespace detail
 
 #ifdef TESTS_GROUPFUNCTION_FULL
@@ -401,28 +424,40 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
     dg(host_buf, local_size, global_size);
 
     std::vector<T> original_host_buf(host_buf);
+    std::vector<int32_t> local_mem_check(global_size, -1);
 
     {
       sycl::buffer<T, 1> buf{host_buf.data(), host_buf.size()};
       sycl::buffer<uint32_t, 1> used_sgrp_size_buffer(&used_sgrp_size, 1);
+      sycl::buffer<int32_t, 1> local_mem_check_buf{local_mem_check.data(), local_mem_check.size()};
 
       queue.submit([&](sycl::handler &cgh) {
         using namespace sycl::access;
         auto acc = buf.template get_access<mode::read_write>(cgh);
         auto sgpr_size_acc = used_sgrp_size_buffer.template get_access<mode::read_write>(cgh);
+        auto local_check_acc = local_mem_check_buf.template get_access<mode::write>(cgh);
+        sycl::local_accessor<int32_t, 1> local_mem{sycl::range<1>{local_size}, cgh};
         cgh.parallel_for(
           sycl::nd_range<1>{global_size, local_size},
           [=](sycl::nd_item<1> item) {
           auto g  = item.get_group();
           auto sg = item.get_sub_group();
+          const size_t lid = item.get_local_linear_id();
+          const size_t gid = item.get_global_linear_id();
+          local_mem[lid] = detail::local_mem_sentinel(lid);
+          sycl::group_barrier(g);
 
-          T local_value = acc[item.get_global_linear_id()];
+          T local_value = acc[gid];
           sgpr_size_acc[0] =  sg.get_max_local_range().size();
-          f(acc, item.get_global_linear_id(), sg, g, local_value);
+          f(acc, gid, sg, g, local_value);
+
+          sycl::group_barrier(g);
+          local_check_acc[gid] = local_mem[lid];
         });
       });
     }
 
+    detail::check_local_mem_uncorrupted(local_mem_check, local_size);
     vf(host_buf, original_host_buf,used_sgrp_size, local_size, global_size);
   }
 }

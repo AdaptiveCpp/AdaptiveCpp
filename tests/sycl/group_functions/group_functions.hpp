@@ -383,13 +383,8 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
       return;
     }
   }
-  std::vector<size_t> local_sizes  = {25, 144, 256};
-  std::vector<size_t> global_sizes = {100, 576, 1024};
-  // currently only groupsizes between 128 and 256 are supported for HIP
-  if(queue.get_device().get_backend() == sycl::backend::hip) {
-    local_sizes = std::vector<size_t>{256};
-    global_sizes = std::vector<size_t>{1024};
-  }
+  std::vector<size_t> local_sizes  = {25, 144, 169, 256};
+  std::vector<size_t> global_sizes = {100, 576, 676, 1024};
 
   for (int i = 0; i < local_sizes.size(); ++i) {
     size_t local_size  = local_sizes[i];
@@ -439,14 +434,8 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
     }
   }
 
-  std::vector<size_t> local_sizes  = {5, 12, 16};
-  std::vector<size_t> global_sizes = {10, 24, 32};
-
-  if(queue.get_device().get_backend() == sycl::backend::hip) {
-    // currently only groupsizes between 128 and 256 are supported for HIP
-    local_sizes = std::vector<size_t>{16};
-    global_sizes = std::vector<size_t>{32};
-  }
+  std::vector<size_t> local_sizes  = {5, 12, 13, 16};
+  std::vector<size_t> global_sizes = {10, 24, 26, 32};
 
   for (int i = 0; i < local_sizes.size(); ++i) {
     size_t local_size  = local_sizes[i];

@@ -980,6 +980,7 @@ namespace atomic_order_scope_tests::cuda_ptx_test_space {
 
 #endif
 
+  // Validates floating-point min/max RMW return values for host using shared helper
   BOOST_AUTO_TEST_CASE(host_floating_fetch_min_max_return_old_value)
   {
     sycl::queue queue;

@@ -31,7 +31,7 @@ OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
 
   const __acpp_uint32 subgroup_id = wg_lid / max_sg_size;
 
-  const bool last_item_in_sg = (wg_lid % sg_size) == (sg_size - 1);
+  const bool last_item_in_sg = (wg_lid % max_sg_size) == (sg_size - 1);
   OutType sg_scan_result;
   if constexpr (ExclusiveScan) {
     sg_scan_result = sg_exclusive_scan(x, op, init);

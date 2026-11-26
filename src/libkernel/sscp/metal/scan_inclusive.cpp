@@ -82,7 +82,6 @@ inline T __acpp_sscp_work_group_inclusive_scan(T value) {
 
   using binary_op_type = typename hipsycl::libkernel::sscp::get_op<op>::type;
   auto binary_op = [](T a, T b) -> T { return binary_op_type{}(a, b); };
-  auto initial_value = [&]() -> T { return __acpp_sscp_metal_op_init_value<op, T>(); };
 
   const T prefix = prefix_op(value);
 
@@ -114,14 +113,14 @@ inline T __acpp_sscp_work_group_inclusive_scan(T value) {
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
 
-    if(lid < ngroups) {
-      T add = (lid >= subgroup_size) ? scratch[subgroup_size - 1u] : initial_value();
+    if(lid < ngroups && lid >= subgroup_size) {
+      T add = scratch[subgroup_size - 1u];
       scratch[lid] = binary_op(scratch[lid], add);
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   } else {
     for(uint offset = 1; offset < ngroups; offset <<= 1) {
-      T addend = initial_value();
+      T addend;
       if(lid < ngroups && lid >= offset) {
         addend = scratch[lid - offset];
       }
@@ -136,9 +135,13 @@ inline T __acpp_sscp_work_group_inclusive_scan(T value) {
     }
     __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
   }
-
-  const T group_offset = (group_id > 0) ? scratch[group_id - 1] : initial_value();
-  return binary_op(prefix, group_offset);
+  T result = prefix; 
+  if (group_id > 0) {
+    T group_offset = scratch[group_id - 1];
+    result = binary_op(result, group_offset);
+  }
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group, __acpp_sscp_memory_order::acq_rel);
+  return result;
 }
 
 #define X(type) \

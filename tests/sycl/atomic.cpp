@@ -805,12 +805,7 @@ namespace atomic_order_scope_tests {
     }
   }
 
-  // Checks floating-point fetch_min/fetch_max previous-value semantics
-  // across supported RMW memory orders.
-  // Includes operations that leave the stored numerical value unchanged,
-  // which must still satisfy the atomic RMW contract.
-  // This NVIDIA PTX regression complements the separate host PR2 test.
-  //PR-#2280 check_floating_fetch_min_max(host) can be removed eventually by this
+  // Shared host and Device regression for floating-point fetch_min/fetch_max return values and stored-value semantics.
   template<class T>
   void fetch_min_max_check(sycl::queue& queue) {
     static constexpr T first_val = static_cast<T>(10);
@@ -833,15 +828,15 @@ namespace atomic_order_scope_tests {
       };
 
       int count = 0;
-      for (order order : order_list) {
+      for (order ord : order_list) {
         atom.store(first_val, order::relaxed);
-        count += atom.fetch_min(valid_fetch_min_val, order) != first_val; //after valid fetch_min returns previous val
+        count += atom.fetch_min(valid_fetch_min_val, ord) != first_val; //after valid fetch_min returns previous val
         count += atom.load(order::relaxed) != valid_fetch_min_val; // should return the fatch_min val
-        count += atom.fetch_min((valid_fetch_min_val + 2), order) != valid_fetch_min_val; //operation itself dosent modify the result (VALID_FETCH_MIN_VAL + 2)> VALID_FETCH_MIN_VAL
+        count += atom.fetch_min((valid_fetch_min_val + 2), ord) != valid_fetch_min_val; //operation itself dosent modify the result (VALID_FETCH_MIN_VAL + 2)> VALID_FETCH_MIN_VAL
         count += atom.load(order::relaxed) != valid_fetch_min_val; // still unchanged
-        count += atom.fetch_max((valid_fetch_min_val - 2), order) != valid_fetch_min_val; //still fetch_max dosent modify
-        count += atom.fetch_max(valid_fetch_max_val, order) != valid_fetch_min_val;
-        count += atom.fetch_min(first_val, order) != valid_fetch_max_val; // now it returns previous fetch_max val and stors FIRST_VAL
+        count += atom.fetch_max((valid_fetch_min_val - 2), ord) != valid_fetch_min_val; //still fetch_max dosent modify
+        count += atom.fetch_max(valid_fetch_max_val, ord) != valid_fetch_min_val;
+        count += atom.fetch_min(first_val, ord) != valid_fetch_max_val; // now it returns previous fetch_max val and stors FIRST_VAL
         count += atom.load(order::relaxed) != first_val;
       }
       out[0] = count;
@@ -984,5 +979,26 @@ namespace atomic_order_scope_tests::cuda_ptx_test_space {
 }
 
 #endif
+
+  BOOST_AUTO_TEST_CASE(host_floating_fetch_min_max_return_old_value)
+  {
+    sycl::queue queue;
+
+    if (queue.get_device().get_backend() != sycl::backend::omp) {
+      BOOST_TEST_MESSAGE("Skipping host atomic regression outside the OpenMP backend");
+      return;
+    }
+    if(!queue.get_device().has(sycl::aspect::usm_device_allocations)) {
+      BOOST_TEST_MESSAGE("Skipping host atomic regression without device USM");
+      return;
+    }
+    __acpp_if_target_host(
+      atomic_order_scope_tests::fetch_min_max_check<float>(queue);
+
+      if(atomic_order_scope_tests::supports_type<double>(queue.get_device())) {
+        atomic_order_scope_tests::fetch_min_max_check<double>(queue);
+      }
+    )
+  }
 
 BOOST_AUTO_TEST_SUITE_END()

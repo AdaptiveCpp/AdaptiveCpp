@@ -96,7 +96,10 @@ LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
 bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   std::string Triple = "nvptx64-nvidia-cuda";
 
-#if LLVM_VERSION_MAJOR > 20
+#if LLVM_VERSION_MAJOR > 21
+  std::string DataLayout =
+      "e-p6:32:32-i64:64-i128:128-i256:256-v16:16-v32:32-n16:32:64";
+#elif LLVM_VERSION_MAJOR > 20
   std::string DataLayout =
       "e-p6:32:32-i64:64-i128:128-v16:16-v32:32-n16:32:64";
 #else
@@ -234,7 +237,9 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
                                                     OutputFileName,
                                                     OptOutputFileName};
   if(IsFastMath) {
+#if LLVM_VERSION_MAJOR < 22
     Invocation.push_back("--enable-unsafe-fp-math");
+#endif
     Invocation.push_back("--enable-no-infs-fp-math");
     Invocation.push_back("--enable-no-nans-fp-math");
     Invocation.push_back("--enable-no-signed-zeros-fp-math");
@@ -317,7 +322,7 @@ AddressSpaceMap LLVMToPtxTranslator::getAddressSpaceMap() const {
   return ASMap;
 }
 
-std::unique_ptr<LLVMToBackendTranslator>
+ACPP_DEFAULT_VISIBILITY std::unique_ptr<LLVMToBackendTranslator>
 createLLVMToPtxTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToPtxTranslator>(KernelNames);
 }

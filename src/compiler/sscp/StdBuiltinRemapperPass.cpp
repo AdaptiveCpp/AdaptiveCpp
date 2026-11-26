@@ -12,6 +12,7 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/IR/Function.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
 #include <unordered_set>
@@ -97,6 +98,103 @@ static constexpr std::array explicitly_mapped_builtins = {
   ACPP_DECLARE_FINITE_BUILTIN_MAPPING(tan)
 };
 
+namespace {
+
+void remapComplexAbs(llvm::Module &M, llvm::StringRef Name,
+                     llvm::Type *ScalarTy, llvm::StringRef HypotName) {
+  auto *F = M.getFunction(Name);
+  if(!F || !F->isDeclaration() || F->use_empty())
+    return;
+
+  const unsigned ScalarBits = ScalarTy->getPrimitiveSizeInBits();
+  auto IsComponent = [&](llvm::Type *T) {
+    return T == ScalarTy || T->isIntegerTy(ScalarBits);
+  };
+  auto IsPair = [&](llvm::Type *T) {
+    if(auto *AT = llvm::dyn_cast<llvm::ArrayType>(T))
+      return AT->getNumElements() == 2 && IsComponent(AT->getElementType());
+    if(auto *ST = llvm::dyn_cast<llvm::StructType>(T))
+      return !ST->isOpaque() && ST->getNumElements() == 2 &&
+             IsComponent(ST->getElementType(0)) &&
+             IsComponent(ST->getElementType(1));
+    return false;
+  };
+
+  if(F->isVarArg() || F->getReturnType() != ScalarTy ||
+     (F->arg_size() != 1 && F->arg_size() != 2))
+    return;
+
+  auto *ArgTy = F->getArg(0)->getType();
+  auto *VectorTy = llvm::FixedVectorType::get(ScalarTy, 2);
+  const bool Split = F->arg_size() == 2 && IsComponent(ArgTy) &&
+                     IsComponent(F->getArg(1)->getType());
+  const bool Aggregate = IsPair(ArgTy);
+  const bool Packed = ArgTy == VectorTy || ArgTy->isIntegerTy(2 * ScalarBits);
+  const bool Indirect = ArgTy->isPointerTy() &&
+      !F->hasParamAttribute(0, llvm::Attribute::SwiftError) &&
+      !F->hasParamAttribute(0, llvm::Attribute::InAlloca) &&
+      !F->hasParamAttribute(0, llvm::Attribute::ByRef) &&
+      !F->hasParamAttribute(0, llvm::Attribute::Preallocated) &&
+      (!F->hasParamAttribute(0, llvm::Attribute::ByVal) ||
+       IsPair(F->getParamByValType(0)));
+  if(!Split && !(F->arg_size() == 1 && (Aggregate || Packed || Indirect))) {
+    HIPSYCL_DEBUG_WARNING << "StdBuiltinRemapper: Unsupported complex argument ABI for "
+                         << Name.str() << "\n";
+    return;
+  }
+
+  auto *HypotTy = llvm::FunctionType::get(ScalarTy, {ScalarTy, ScalarTy}, false);
+  if(auto *Existing = M.getNamedValue(HypotName)) {
+    auto *Hypot = llvm::dyn_cast<llvm::Function>(Existing);
+    if(!Hypot || Hypot->getFunctionType() != HypotTy ||
+       Hypot->getCallingConv() != llvm::CallingConv::C)
+      return;
+  }
+
+  // Preserve the host ABI at existing call sites, but do not retain the libm
+  // name: LLVM could otherwise turn the wrapper back into a library call.
+  auto *Wrapper = llvm::Function::Create(F->getFunctionType(),
+      llvm::GlobalValue::InternalLinkage, "__acpp_" + Name, M);
+  Wrapper->setCallingConv(F->getCallingConv());
+  Wrapper->setAttributes(F->getAttributes());
+  Wrapper->removeFnAttr(llvm::Attribute::NoInline);
+  Wrapper->removeFnAttr(llvm::Attribute::OptimizeNone);
+  Wrapper->addFnAttr(llvm::Attribute::AlwaysInline);
+  llvm::IRBuilder<> Builder{llvm::BasicBlock::Create(M.getContext(), "entry", Wrapper)};
+  llvm::Value *Real;
+  llvm::Value *Imag;
+  auto *Arg = Wrapper->getArg(0);
+  if(Split) {
+    Real = Arg;
+    Imag = Wrapper->getArg(1);
+  } else if(Aggregate) {
+    // AArch64 uses arrays; Arm hard/soft-float ABIs use structs/integer arrays.
+    Real = Builder.CreateExtractValue(Arg, {0});
+    Imag = Builder.CreateExtractValue(Arg, {1});
+  } else if(Packed) {
+    // x86-64 SysV passes complex float as <2 x float>, Windows as i64.
+    auto *Pair = Builder.CreateBitCast(Arg, VectorTy);
+    Real = Builder.CreateExtractElement(Pair, Builder.getInt32(0));
+    Imag = Builder.CreateExtractElement(Pair, Builder.getInt32(1));
+  } else {
+    // Indirect arguments (e.g. x86 byval and Windows complex double) store two
+    // consecutive components. Do not assume a stronger alignment than the ABI.
+    auto *PtrTy = llvm::PointerType::get(ScalarTy, ArgTy->getPointerAddressSpace());
+    auto *Ptr = Builder.CreatePointerCast(Arg, PtrTy);
+    Real = Builder.CreateAlignedLoad(ScalarTy, Ptr, llvm::Align(1));
+    Imag = Builder.CreateAlignedLoad(ScalarTy,
+        Builder.CreateConstGEP1_32(ScalarTy, Ptr, 1), llvm::Align(1));
+  }
+  Real = Builder.CreateBitCast(Real, ScalarTy);
+  Imag = Builder.CreateBitCast(Imag, ScalarTy);
+  // hypot handles scaling, signed zeros and Inf/NaN without naive squaring.
+  auto Hypot = M.getOrInsertFunction(HypotName, HypotTy);
+  Builder.CreateRet(Builder.CreateCall(Hypot, {Real, Imag}));
+  F->replaceAllUsesWith(Wrapper);
+}
+
+}
+
 llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
                                                     llvm::ModuleAnalysisManager &MAM) {
 
@@ -156,6 +254,11 @@ llvm::PreservedAnalyses StdBuiltinRemapperPass::run(llvm::Module &M,
       }
     }
   }
+
+  remapComplexAbs(M, "cabsf", llvm::Type::getFloatTy(M.getContext()),
+                  "__acpp_sscp_hypot_f32");
+  remapComplexAbs(M, "cabs", llvm::Type::getDoubleTy(M.getContext()),
+                  "__acpp_sscp_hypot_f64");
 
   return llvm::PreservedAnalyses::none();
 }

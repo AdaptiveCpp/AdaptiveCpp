@@ -39,7 +39,7 @@ q.submit([&](sycl::handler& cgh){
   });
 });
 ```
-Here, the the range of the buffer for both `acc1` and `acc2` will have to be passed into the kernel, because the compiler cannot know in general that the buffers have the same size. After all, the buffer size is a runtime parameter and in general unknown at compile-time. Consequently, the range of the accessors will be duplicated for both `acc1` and `acc2`, and take up unnecessary space in the kernel. In standard SYCL 2020, there is no way for the user to enforce that the accessor sizes are, in fact, equal and hence only need to be stored once.
+Here, the range of the buffer for both `acc1` and `acc2` will have to be passed into the kernel, because the compiler cannot know in general that the buffers have the same size. After all, the buffer size is a runtime parameter and in general unknown at compile-time. Consequently, the range of the accessors will be duplicated for both `acc1` and `acc2`, and take up unnecessary space in the kernel. In standard SYCL 2020, there is no way for the user to enforce that the accessor sizes are, in fact, equal and hence only need to be stored once.
 
 ## AdaptiveCpp accessor variants
 

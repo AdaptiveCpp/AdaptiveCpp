@@ -20,8 +20,7 @@
 
 namespace hipsycl::libkernel::sscp {
 
-namespace {
-
+namespace detail {
 template <typename OutType, typename BinaryOperation>
 OutType sg_reduce_impl(OutType x, BinaryOperation binary_op, __acpp_int32 active_threads) {
   const __acpp_uint32 lrange = __acpp_sscp_get_subgroup_max_size();
@@ -38,12 +37,12 @@ OutType sg_reduce_impl(OutType x, BinaryOperation binary_op, __acpp_int32 active
   return __builtin_bit_cast(
       OutType, sg_select(__builtin_bit_cast(typename integer_type<OutType>::type, local_x), 0));
 }
-} // namespace
+} // namespace detail
 
 template <__acpp_sscp_algorithm_op binary_op, typename OutType> OutType sg_reduce(OutType x) {
   using op = typename get_op<binary_op>::type;
   const __acpp_uint32 lrange = __acpp_sscp_get_subgroup_size();
-  return sg_reduce_impl(x, op{}, lrange);
+  return detail::sg_reduce_impl(x, op{}, lrange);
 }
 
 template <__acpp_uint64 shmem_array_length, typename OutType, typename MemoryType,
@@ -58,7 +57,7 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
   const __acpp_uint32 num_subgroups = (wg_size + max_sg_size - 1) / max_sg_size;
   const __acpp_uint32 subgroup_id = wg_lid / max_sg_size;
 
-  OutType local_reduce_result = sg_reduce_impl(x, op, sg_size);
+  OutType local_reduce_result = detail::sg_reduce_impl(x, op, sg_size);
 
   // Sum up until all sgs can load their data into shmem
   if (subgroup_id < shmem_array_length) {
@@ -92,7 +91,7 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
   if (wg_lid < first_sg_size) {
     local_reduce_result = shrd_mem[wg_lid];
     int active_threads = num_subgroups < first_sg_size ? num_subgroups : first_sg_size;
-    local_reduce_result = sg_reduce_impl(local_reduce_result, op, active_threads);
+    local_reduce_result = detail::sg_reduce_impl(local_reduce_result, op, active_threads);
   }
 
   // Do a final broadcast

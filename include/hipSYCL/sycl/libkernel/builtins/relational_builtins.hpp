@@ -26,6 +26,7 @@ namespace detail {
     is_valid_relational_scalar<builtin_input_element_t<T>>::value &&
     builtin_input_is_nonscalar_v<T>
   > {};
+  }
 
 #define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_UNARY_T_RET_BOOL(T, builtin_name, builtin_func) \
   HIPSYCL_BUILTIN bool builtin_name(T x) noexcept {                                          \
@@ -109,6 +110,7 @@ HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, islessgreater)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isordered)
 HIPSYCL_RELATIONAL_BUILTIN(BINARY_T_T_RET_BOOL, isunordered)
 
+namespace detail {
 template<typename T>
 struct is_valid_relational_signed_integer_scalar
     : is_in_type_set<signed char, short, int, long, long long>::scalar_tester<T>
@@ -127,7 +129,7 @@ struct is_valid_relational_integer
                                              : is_valid_relational_signed_integer_scalar<
                                                    builtin_input_element_t<T>>::value>
 {};
-
+}
 #define HIPSYCL_RELATIONAL_INTEGER_BUILTIN(arity, builtin_name) \
     HIPSYCL_RELATIONAL_INTEGER_BUILTIN_OVERLOADED_IMPL( \
         HIPSYCL_PP_CONCATENATE(HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_, arity), \

@@ -26,6 +26,7 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/User.h>
 #include <llvm/IR/Argument.h>
@@ -420,6 +421,8 @@ inline void replaceLLVMIntrinsicsWithAcppBuiltins(
       if(!Replacement) {
         Replacement = llvm::Function::Create(F->getFunctionType(),
                                              llvm::GlobalValue::ExternalLinkage, RM[1], M);
+      }
+      if(F->getFunctionType() == Replacement->getFunctionType()) {
         F->replaceAllUsesWith(Replacement);
       }
     }
@@ -457,10 +460,89 @@ inline void replaceLLVMIntrinsicsWithAcppBuiltins(llvm::Module& M) {
     IntrinsicMapping{"llvm.acos.f64", "__acpp_sscp_acos_f64"},
     // atan at least with LLVM 20 needs remapping
     IntrinsicMapping{"llvm.atan.f32", "__acpp_sscp_atan_f32"},
-    IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"}
+    IntrinsicMapping{"llvm.atan.f64", "__acpp_sscp_atan_f64"},
+    // sinh, cosh, tanh and atan2 not fine in LLVM 21
+    IntrinsicMapping{"llvm.sinh.f32", "__acpp_sscp_sinh_f32"},
+    IntrinsicMapping{"llvm.sinh.f64", "__acpp_sscp_sinh_f64"},
+    IntrinsicMapping{"llvm.cosh.f32", "__acpp_sscp_cosh_f32"},
+    IntrinsicMapping{"llvm.cosh.f64", "__acpp_sscp_cosh_f64"},
+    IntrinsicMapping{"llvm.tanh.f32", "__acpp_sscp_tanh_f32"},
+    IntrinsicMapping{"llvm.tanh.f64", "__acpp_sscp_tanh_f64"},
+    IntrinsicMapping{"llvm.atan2.f32", "__acpp_sscp_atan2_f32"},
+    IntrinsicMapping{"llvm.atan2.f64", "__acpp_sscp_atan2_f64"}
   };
 
   replaceLLVMIntrinsicsWithAcppBuiltins<IntrinsicReplacementMap.size()>(M, IntrinsicReplacementMap);
+}
+
+// llvm.modf returns {fractional part, integral part}, and some backends
+// cannot select it. The acpp builtins return the fractional part and
+// store the integral part through a pointer.
+inline void replaceLLVMModfWithAcppBuiltins(llvm::Module& M) {
+  using IntrinsicMapping = std::array<const char*, 2>;
+  static constexpr std::array ModfReplacementMap = {
+    IntrinsicMapping{"llvm.modf.f32", "__acpp_sscp_modf_f32"},
+    IntrinsicMapping{"llvm.modf.f64", "__acpp_sscp_modf_f64"}
+  };
+
+  for(auto& RM : ModfReplacementMap) {
+    llvm::Function* F = M.getFunction(RM[0]);
+    if(!F) {
+      continue;
+    }
+    llvm::Type* FloatTy = F->getFunctionType()->getParamType(0);
+    llvm::PointerType* PtrTy = llvm::PointerType::getUnqual(M.getContext());
+    llvm::FunctionCallee Replacement = M.getOrInsertFunction(RM[1], FloatTy, FloatTy, PtrTy);
+
+    for(llvm::User* U : llvm::make_early_inc_range(F->users())) {
+      auto* CI = llvm::dyn_cast<llvm::CallInst>(U);
+      if(!CI) {
+        continue;
+      }
+      llvm::BasicBlock& Entry = CI->getFunction()->getEntryBlock();
+      llvm::IRBuilder<> Builder{&Entry, Entry.getFirstInsertionPt()};
+      llvm::Value* IntPart = Builder.CreateAlloca(FloatTy);
+
+      Builder.SetInsertPoint(CI);
+      llvm::Value* FracPart = Builder.CreateCall(
+          Replacement, {CI->getArgOperand(0), Builder.CreateAddrSpaceCast(IntPart, PtrTy)});
+      llvm::Value* Result = llvm::PoisonValue::get(CI->getType());
+      Result = Builder.CreateInsertValue(Result, FracPart, 0);
+      Result = Builder.CreateInsertValue(Result, Builder.CreateLoad(FloatTy, IntPart), 1);
+
+      CI->replaceAllUsesWith(Result);
+      CI->eraseFromParent();
+    }
+  }
+}
+
+// Some backends lower frem inexactly (clang emits frem for std::fmod
+// with -fno-math-errno). Replace scalar frem with the acpp fmod builtins.
+inline void replaceFRemWithAcppBuiltins(llvm::Module& M) {
+  llvm::SmallVector<llvm::BinaryOperator*, 8> FRems;
+  for(auto& F : M) {
+    for(auto& BB : F) {
+      for(auto& I : BB) {
+        if(auto* BO = llvm::dyn_cast<llvm::BinaryOperator>(&I)) {
+          if(BO->getOpcode() == llvm::Instruction::FRem &&
+             (BO->getType()->isFloatTy() || BO->getType()->isDoubleTy())) {
+            FRems.push_back(BO);
+          }
+        }
+      }
+    }
+  }
+
+  for(auto* BO : FRems) {
+    llvm::Type* FloatTy = BO->getType();
+    const char* Name = FloatTy->isFloatTy() ? "__acpp_sscp_fmod_f32" : "__acpp_sscp_fmod_f64";
+    llvm::FunctionCallee Replacement = M.getOrInsertFunction(Name, FloatTy, FloatTy, FloatTy);
+
+    llvm::IRBuilder<> Builder{BO};
+    llvm::Value* Result = Builder.CreateCall(Replacement, {BO->getOperand(0), BO->getOperand(1)});
+    BO->replaceAllUsesWith(Result);
+    BO->eraseFromParent();
+  }
 }
 
 }

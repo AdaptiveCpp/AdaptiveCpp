@@ -190,6 +190,7 @@ struct ReplaceIntrinsics : llvm::PassInfoMixin<ReplaceIntrinsics> {
     }
     Replacement["llvm.powi.f32.i32"] = {acpp_prefix + "pown_f32", -1};
     Replacement["llvm.powi.f32.i64"] = {acpp_prefix + "pown_f32", -1};
+    Replacement["llvm.modf.f32"] = {acpp_prefix + "modf_struct_f32", -1};
     Replacement["__assert_rtn"] = {"__acpp_sscp_assert_fail", -1};
     for (const auto& [Name, Mapping, ArgCount] : remapped_llvm_count_builtins) {
       Replacement[llvm_prefix + Name + ".i8"] = {acpp_prefix + Mapping + "_u8", ArgCount};

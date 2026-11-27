@@ -74,7 +74,10 @@ ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN2(copysign)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN3(fma)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN2(fmin)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN2(fmax)
-ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN2(fmod)
+// fast::fmod (the default) is inexact, e.g. fmod(1.5f, 0.1f) gives ~0
+HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_fmod_f32(f32 x, f32 y) {
+  return __acpp_sscp_metal_math_f32_f32_f32("precise::fmod", x, y);
+}
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN2(fdim)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN2(pow)
 ACPP_SSCP_MAP_METAL_FLOAT_BUILTIN2(nextafter)
@@ -206,6 +209,14 @@ HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_frexp_f32(f32 x, i32* exp) {
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_modf_f32(f32 x, f32* iptr) {
   return __acpp_sscp_metal_math_f32_f32_f32ptr("modf(%s, *__pointer_cast<float>(%s))", x, iptr);
+}
+
+// Replacement for llvm.modf.f32 (LLVM >= 21)
+struct __acpp_modf_result_f32 { f32 fract; f32 integral; };
+HIPSYCL_SSCP_BUILTIN __acpp_modf_result_f32 __acpp_sscp_modf_struct_f32(f32 x) {
+  __acpp_modf_result_f32 r;
+  r.fract = __acpp_sscp_modf_f32(x, &r.integral);
+  return r;
 }
 
 HIPSYCL_SSCP_BUILTIN f32 __acpp_sscp_lgamma_r_f32(f32 x, i32* signp) {

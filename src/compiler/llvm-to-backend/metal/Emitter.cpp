@@ -283,6 +283,7 @@ bool MetalEmitter::emitFunction(Function& F, const Node& node) {
 
   bool success = emitArgStruct(F) &&
     emitSignature(F) &&
+    emitThreadgroupGlobals(F) &&
     emitDeclarations() &&
     emitNode(node, 1);
 
@@ -583,6 +584,24 @@ bool MetalEmitter::emitDeclarations() {
     os << indent(1) << ty << " " << name << ";\n";
   }
   os << "\n";
+  return true;
+}
+
+// MSL allows threadgroup variables only in kernel scope. This works because all
+// functions are inlined into kernels, if not, MSL fails to compile (fix separately)
+bool MetalEmitter::emitThreadgroupGlobals(const Function& F) {
+  for (const GlobalVariable& GV : M.globals()) {
+    if (GV.getAddressSpace() != 3) {
+      continue;
+    }
+    for (const User* U : GV.users()) {
+      auto* I = dyn_cast<Instruction>(U);
+      if (I && I->getFunction() == &F) {
+        os << indent(1) << "threadgroup " << mapType(GV.getValueType()) << " " << valueName(&GV) << ";\n";
+        break;
+      }
+    }
+  }
   return true;
 }
 

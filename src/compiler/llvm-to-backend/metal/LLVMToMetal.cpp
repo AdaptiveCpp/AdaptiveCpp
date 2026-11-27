@@ -18,6 +18,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+#include "hipSYCL/compiler/utils/ConstantExpressions.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
@@ -673,6 +674,18 @@ bool LLVMToMetalTranslator::translateToBackendFormat(llvm::Module& FlavoredModul
   }
 
   unifyCallSiteStructReturnTypes(FlavoredModule);
+
+  // MetalEmitter cannot emit constant expressions on static local memory
+  // (e.g. a GEP with constant offset), so turn them into instructions.
+  for (llvm::GlobalVariable& GV : FlavoredModule.globals()) {
+    if (GV.getAddressSpace() != ASMap[AddressSpace::Local]) continue;
+    llvm::SmallVector<llvm::ConstantExpr*> CEUsers;
+    for (auto* U : GV.users())
+      if (auto* CE = llvm::dyn_cast<llvm::ConstantExpr>(U))
+        CEUsers.push_back(CE);
+    for (auto* CE : CEUsers)
+      utils::unfoldConstantExpression(CE);
+  }
 
   std::unordered_set<std::string> kernelNames(KernelNames.begin(), KernelNames.end());
 

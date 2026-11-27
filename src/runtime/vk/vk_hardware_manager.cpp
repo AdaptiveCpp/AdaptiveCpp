@@ -109,13 +109,20 @@ vk_hardware_context::vk_hardware_context(
 
   // Portability subset extensions used to enable MoltenVK.
   // Calibrated timestamps extension used to enable event profiling.
-  std::array<std::pair<const char *, uint16_t>, 3> optional_exts = {
+  // Shader core properties/builtins extensions used to query
+  // max_compute_units, not EXT/KHR so we need the vendor extensions.
+  std::array<std::pair<const char *, uint16_t>, 5> optional_exts = {
       std::make_pair(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
                      vk_device_extensions::khr_portability_subset),
       std::make_pair(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
                      vk_device_extensions::khr_calibrated_timestamps),
       std::make_pair(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
-                     vk_device_extensions::ext_calibrated_timestamps)};
+                     vk_device_extensions::ext_calibrated_timestamps),
+      std::make_pair(VK_AMD_SHADER_CORE_PROPERTIES_EXTENSION_NAME,
+                     vk_device_extensions::amd_shader_core_properties),
+      std::make_pair(VK_ARM_SHADER_CORE_BUILTINS_EXTENSION_NAME,
+                     vk_device_extensions::arm_shader_core_builtins)};
+
   auto is_ext_supported = [&phys_dev_extensions](const char *ext_name) {
     return std::any_of(
         std::begin(phys_dev_extensions), std::end(phys_dev_extensions),
@@ -195,6 +202,22 @@ vk_hardware_context::vk_hardware_context(
   sg_control_props.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES;
 
+  VkPhysicalDeviceShaderCorePropertiesAMD amd_shader_core_props{};
+  amd_shader_core_props.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD;
+
+  VkPhysicalDeviceShaderCoreBuiltinsPropertiesARM arm_shader_core_props{};
+  arm_shader_core_props.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_BUILTINS_PROPERTIES_ARM;
+
+  if (are_extensions_enabled(
+          vk_device_extensions::amd_shader_core_properties)) {
+    sg_control_props.pNext = &amd_shader_core_props;
+  } else if (are_extensions_enabled(
+                 vk_device_extensions::arm_shader_core_builtins)) {
+    sg_control_props.pNext = &arm_shader_core_props;
+  }
+
   VkPhysicalDeviceSubgroupProperties sg_props{};
   sg_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
   sg_props.pNext = &sg_control_props;
@@ -210,6 +233,19 @@ vk_hardware_context::vk_hardware_context(
 
   vkGetPhysicalDeviceProperties2(*phys_device, &properties);
   _subgroup_size = sg_props.subgroupSize;
+
+  if (are_extensions_enabled(
+          vk_device_extensions::amd_shader_core_properties)) {
+    // AMD GPUs are organized hierarchically into shader engines, each
+    // containing a number of shader arrays, each of which in turn contains a
+    // number of compute units.
+    _max_compute_units = amd_shader_core_props.shaderEngineCount *
+                         amd_shader_core_props.shaderArraysPerEngineCount *
+                         amd_shader_core_props.computeUnitsPerShaderArray;
+  } else if (are_extensions_enabled(
+                 vk_device_extensions::arm_shader_core_builtins)) {
+    _max_compute_units = arm_shader_core_props.shaderCoreCount;
+  }
 
   if (sg_props.supportedOperations & VK_SUBGROUP_FEATURE_BASIC_BIT) {
     _physical_dev_features |= vk_device_features::groupNonUniform;
@@ -436,7 +472,7 @@ bool vk_hardware_context::has(device_support_aspect aspect) const {
 std::size_t vk_hardware_context::get_property(device_uint_property prop) const {
   switch (prop) {
   case device_uint_property::max_compute_units:
-    return 1; // No matching VK query
+    return _max_compute_units;
   case device_uint_property::max_work_group_range0:
     return _limits.maxComputeWorkGroupCount[0];
   case device_uint_property::max_work_group_range1:
@@ -466,28 +502,40 @@ std::size_t vk_hardware_context::get_property(device_uint_property prop) const {
     return _max_num_subgroups;
   case device_uint_property::needs_dimension_flip:
     return true;
+  // Vulkan/SPIR-V has no notion of a preferred/native vector width. We
+  // therefore report a width of 1 (no vectorization advantage) for every
+  // scalar type the device supports in shader code, and 0 for types that
+  // require an unsupported capability.
   case device_uint_property::preferred_vector_width_char:
-  case device_uint_property::preferred_vector_width_double:
-  case device_uint_property::preferred_vector_width_float:
-  case device_uint_property::preferred_vector_width_half:
-  case device_uint_property::preferred_vector_width_int:
-  case device_uint_property::preferred_vector_width_long:
-  case device_uint_property::preferred_vector_width_short:
   case device_uint_property::native_vector_width_char:
-  case device_uint_property::native_vector_width_double:
-  case device_uint_property::native_vector_width_float:
-  case device_uint_property::native_vector_width_half:
-  case device_uint_property::native_vector_width_int:
-  case device_uint_property::native_vector_width_long:
+    return (_physical_dev_features & vk_device_features::shaderInt8) ? 1 : 0;
+  case device_uint_property::preferred_vector_width_short:
   case device_uint_property::native_vector_width_short:
-    return 1; // TODO - figure out mapping
+    return (_physical_dev_features & vk_device_features::shaderInt16) ? 1 : 0;
+  case device_uint_property::preferred_vector_width_int:
+  case device_uint_property::native_vector_width_int:
+    // 32-bit integers are always supported by Vulkan compute shaders.
+    return 1;
+  case device_uint_property::preferred_vector_width_long:
+  case device_uint_property::native_vector_width_long:
+    return (_physical_dev_features & vk_device_features::shaderInt64) ? 1 : 0;
+  case device_uint_property::preferred_vector_width_half:
+  case device_uint_property::native_vector_width_half:
+    return (_physical_dev_features & vk_device_features::shaderFloat16) ? 1 : 0;
+  case device_uint_property::preferred_vector_width_float:
+  case device_uint_property::native_vector_width_float:
+    // 32-bit floats are always supported by Vulkan compute shaders.
+    return 1;
+  case device_uint_property::preferred_vector_width_double:
+  case device_uint_property::native_vector_width_double:
+    return (_physical_dev_features & vk_device_features::shaderFloat64) ? 1 : 0;
   case device_uint_property::max_clock_speed:
-    return 0; // TODO - figure out mapping
+    // Vulkan has no API or extensions for querying the device clock frequency.
+    return 0;
   case device_uint_property::max_malloc_size:
     return std::min(_allocator->get_global_mem_size(), _max_alloc_size);
   case device_uint_property::address_bits:
     return 64; // spirv64 only for now
-  // TODO - Don't support images for now
   case device_uint_property::max_read_image_args:
   case device_uint_property::max_write_image_args:
   case device_uint_property::image2d_max_width:
@@ -498,22 +546,39 @@ std::size_t vk_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::image_max_buffer_size:
   case device_uint_property::image_max_array_size:
   case device_uint_property::max_samplers:
-    return 0;
+    return 0; // Images are not currently supported
   case device_uint_property::max_parameter_size:
-    // TODO - figure out mapping
-    return std::numeric_limits<std::size_t>::max();
-  case device_uint_property::mem_base_addr_align:
-    return 0; // TODO - figure out mapping
+    // Scalar/POD kernel arguments are passed via push constants, but
+    // arguments that do not fit fallback to being lowered to uniform-buffers.
+    // So there is no single hard limit, but report the push constant limit,
+    // which bounds the "fast path" used for ordinary/small argument lists.
+    return _limits.maxPushConstantsSize;
+  case device_uint_property::mem_base_addr_align: {
+    // Reports the bit-width of the largest built-in SYCL vector type this
+    // device can represent (`sycl::vec<T,16>`)
+    const bool has_8_byte_scalar_type =
+        (_physical_dev_features & vk_device_features::shaderInt64) ||
+        (_physical_dev_features & vk_device_features::shaderFloat64);
+    const std::size_t largest_scalar_bytes = has_8_byte_scalar_type ? 8 : 4;
+    return 16 * largest_scalar_bytes * 8;
+  }
   case device_uint_property::global_mem_cache_line_size:
-    return _limits.nonCoherentAtomSize;
   case device_uint_property::global_mem_cache_size:
-    return 0; // TODO - figure out mapping
+    // Vulkan has no portable query for cache sizes, and has() already
+    // reports global_mem_cache/_read_only/_read_write as unsupported.
+    return 0;
   case device_uint_property::global_mem_size:
     return _allocator->get_global_mem_size();
   case device_uint_property::max_constant_buffer_size:
-    return 0; // TODO - figure out mapping
+    // Constant kernel arguments are passed as uniform buffer bindings
+    return _limits.maxUniformBufferRange;
   case device_uint_property::max_constant_args:
-    // TODO - figure out mapping
+    // Every constant argument that shares a binding is merged into one
+    // descriptor, addressed by offset within a single buffer.
+    // clspv can pack arbitrarily many of them into few/one binding(s). The
+    // real limit is the total byte size of such a binding,
+    // reported via max_constant_buffer_size, so there is no separate
+    // hard cap on argument count to report here.
     return std::numeric_limits<std::size_t>::max();
   case device_uint_property::local_mem_size:
     return _limits.maxComputeSharedMemorySize;
@@ -524,7 +589,9 @@ std::size_t vk_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::vendor_id:
     return _properties.vendorID;
   case device_uint_property::architecture:
-    return 0; // TODO - figure out mapping
+    // Vulkan deviceID is a unique identifier for the physical device among
+    // devices available from the vendor
+    return _properties.deviceID;
   case device_uint_property::backend_id:
     return static_cast<int>(backend_id::vk);
   case device_uint_property::queue_priority_range_low:

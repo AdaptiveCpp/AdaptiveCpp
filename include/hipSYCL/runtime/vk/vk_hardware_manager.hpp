@@ -49,6 +49,8 @@ enum extension_bits : uint16_t {
   khr_calibrated_timestamps = 1 << 1,
   ext_calibrated_timestamps = 1 << 2,
   ext_subgroup_size_control = 1 << 3,
+  amd_shader_core_properties = 1 << 4,
+  arm_shader_core_builtins = 1 << 5,
 };
 } // namespace vk_device_extensions
 
@@ -123,6 +125,7 @@ private:
   bool _subgroup_size_selection = false;
   size_t _max_num_subgroups{};
   size_t _max_alloc_size{};
+  size_t _max_compute_units = 1; // Overridden by extensions (if available)
 
   int _dev_id;
   uint16_t _physical_dev_features;

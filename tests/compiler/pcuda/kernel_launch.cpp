@@ -29,15 +29,15 @@ __global__ void wrapper(T* in, T* out) {
 
 struct complex_struct {
   int a; int b;
-  double c; double d;
+  float c; float d;
   float e; bool f;
   void* ptr;
 
   complex_struct(int x) {
     a = x;
     b = x;
-    c = static_cast<double>(x);
-    d = static_cast<double>(x+1);
+    c = static_cast<float>(x);
+    d = static_cast<float>(x+1);
     e = static_cast<float>(c+d);
     f = x > 4;
     ptr = reinterpret_cast<void*>(x);

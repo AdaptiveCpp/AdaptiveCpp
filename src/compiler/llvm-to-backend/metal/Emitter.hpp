@@ -62,6 +62,7 @@ private:
   bool emitArgStruct(llvm::Function& F);
   bool emitSignature(llvm::Function& F);
   bool emitDeclarations();
+  bool emitThreadgroupGlobals(const llvm::Function& F);
   bool emitNode(const hl::Node& node, int level);
   bool emitBasicBlock(const llvm::BasicBlock* BB, int level);
   bool emitInstruction(const llvm::Instruction& I, int level);

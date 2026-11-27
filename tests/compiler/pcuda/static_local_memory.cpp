@@ -145,11 +145,11 @@ int main() {
   // CHECK: 1
   // CHECK: 1
   // CHECK: 1
-  run<vec<int,4>,double,int>();
+  run<vec<int,4>,float,int>();
 
   // CHECK: 1
   // CHECK: 1
   // CHECK: 1
   // CHECK: 1
-  run<char,vec<double,2>,vec<float,4>>();
+  run<char,vec<float,2>,vec<float,4>>();
 }

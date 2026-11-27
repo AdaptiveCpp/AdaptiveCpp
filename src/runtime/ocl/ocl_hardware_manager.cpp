@@ -277,12 +277,15 @@ bool ocl_hardware_context::has_cl_khr_subgroup_extended_types_extension() const 
   return _has_cl_khr_subgroup_extended_types_extension;
 }
 
-bool ocl_hardware_context::platform_supports_builtin_ids() const {
+bool ocl_hardware_context::target_prefers_builtin_ids() const {
   // This enables lowering to high level SPIR-V builtin IDs, such as
-  // get_local_linear_id(). These should be supported by all platforms,
-  // in principle, but Intel CPU OpenCL has a related bug:
+  // get_local_linear_id(). This can be used to whitelist specific
+  // platforms / targets if it is known to be beneficial.
+  // Intel CPU OpenCL has a get_local_linear_id() related bug:
   // https://github.com/intel/llvm/issues/23541
-  if (_platform_name == "Portable Computing Language")
+  // PoCL kernel compiler for cpu target has local_linear_id dependent
+  // optimization, so we opt for it.
+  if (_platform_name == "Portable Computing Language" && is_cpu())
     return true;
 
   // Other platforms can be whitelisted here if found beneficial.

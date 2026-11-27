@@ -70,7 +70,7 @@ public:
   bool has_intel_extension_profile() const;
   bool has_cl_khr_priority_hints_extension() const;
   bool has_cl_khr_subgroup_extended_types_extension() const;
-  bool platform_supports_builtin_ids() const;
+  bool target_prefers_builtin_ids() const;
   bool has_native_fp32_atomics() const;
   bool has_native_fp64_atomics() const;
   uint64_t get_device_uid() const;

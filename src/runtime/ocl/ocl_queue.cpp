@@ -176,7 +176,7 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index,
 
   _reflection_map = glue::jit::construct_default_reflection_map(dev_ctx);
   _reflection_map["target_has_ocl_subgroup_extended_types"] = dev_ctx->has_cl_khr_subgroup_extended_types_extension();
-  _reflection_map["ocl_platform_supports_builtin_id_variables"] = dev_ctx->platform_supports_builtin_ids();
+  _reflection_map["ocl_target_prefers_builtin_id_variables"] = dev_ctx->target_prefers_builtin_ids();
   _reflection_map["target_has_spirv_native_fp32_atomics"] =
       dev_ctx->has_native_fp32_atomics() ? 1 : 0;
   _reflection_map["target_has_spirv_native_fp64_atomics"] =

@@ -108,18 +108,19 @@ T __acpp_sscp_typed_get_global_linear_id() {
   }
 }
 
-size_t __spirv_BuiltInLocalInvocationIndex();
+// Itanium-mangled manually so it also works when the host uses the MSVC ABI.
+extern "C" size_t _Z35__spirv_BuiltInLocalInvocationIndexv();
 
-extern "C" bool __acpp_sscp_jit_reflect_knows_ocl_platform_supports_builtin_id_variables();
-extern "C" bool __acpp_sscp_jit_reflect_ocl_platform_supports_builtin_id_variables();
+extern "C" bool __acpp_sscp_jit_reflect_knows_ocl_target_prefers_builtin_id_variables();
+extern "C" bool __acpp_sscp_jit_reflect_ocl_target_prefers_builtin_id_variables();
 
 template<int Dim, class T>
 T __acpp_sscp_typed_get_local_linear_id() {
 
-  // Some OpenCL platforms may benefit from SPIR-V builtin (PoCL does).
-  if(__acpp_sscp_jit_reflect_knows_ocl_platform_supports_builtin_id_variables())
-    if(__acpp_sscp_jit_reflect_ocl_platform_supports_builtin_id_variables())
-      return __spirv_BuiltInLocalInvocationIndex();
+  // Some OpenCL platforms may benefit from exposed SPIR-V builtin (PoCL does).
+  if(__acpp_sscp_jit_reflect_knows_ocl_target_prefers_builtin_id_variables())
+    if(__acpp_sscp_jit_reflect_ocl_target_prefers_builtin_id_variables())
+      return _Z35__spirv_BuiltInLocalInvocationIndexv();
 
   if constexpr(Dim == 1) {
     return (T)__acpp_sscp_get_local_id_x();

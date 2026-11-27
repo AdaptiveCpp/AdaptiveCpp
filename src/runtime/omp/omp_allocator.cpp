@@ -42,7 +42,11 @@ numa_amap_t& get_numa_allocation_map() {
 #endif
 
 omp_allocator::omp_allocator(const device_id &my_device)
-    : _my_device{my_device} {}
+    : _my_device{my_device} {
+#ifdef LIB_NUMA_AVAILABLE
+  (void)get_numa_allocation_map();
+#endif
+}
 
 void *omp_allocator::raw_allocate(size_t min_alignment, size_t size_bytes,
                                   const allocation_hints &hints) {

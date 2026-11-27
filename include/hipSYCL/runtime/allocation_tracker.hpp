@@ -20,6 +20,7 @@ namespace rt {
 
 class allocation_tracker {
 public:
+  static void init();
   static bool query_allocation(const void *ptr, allocation_info &out,
                                uint64_t &root_address);
   static bool register_allocation(const void *ptr, std::size_t size,

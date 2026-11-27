@@ -25,6 +25,10 @@ amap_t& get_allocation_map() {
 
 }
 
+void allocation_tracker::init() {
+  (void)get_allocation_map();
+}
+
 bool allocation_tracker::register_allocation(const void *ptr, std::size_t size,
                          const allocation_info &info) {
   using value_type = amap_t::value_type;

@@ -501,4 +501,23 @@ BOOST_AUTO_TEST_CASE(buffer_uninitialized) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_static_queue) {
+  static sycl::queue q;
+  constexpr std::size_t size = 1000;
+  std::vector<int> host_data(size, 1);
+
+  {
+    sycl::buffer<int, 1> buf(host_data);
+    q.submit([&](sycl::handler& cgh) {
+      auto acc = buf.get_access<sycl::access::mode::read_write>(cgh);
+      cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
+        acc[idx] = static_cast<int>(idx[0] + 1);
+      });
+    });
+  }
+
+  for (std::size_t i = 0; i < size; ++i)
+    BOOST_CHECK_EQUAL(host_data[i], static_cast<int>(i + 1));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

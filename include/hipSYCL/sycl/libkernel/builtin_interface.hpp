@@ -720,29 +720,35 @@ HIPSYCL_BUILTIN bool __acpp_isunordered(T x, T y) noexcept
 template<class T>
 HIPSYCL_BUILTIN auto __acpp_all(T x) noexcept
 {
-  using ReturnType = std::conditional_t<is_sycl_marray<T>::value, bool, int>;
-  bool all_msb_set = true;
-  for (size_t i = 0; i < T::size(); ++i) {
-    if (x[i] >= 0) {
-      all_msb_set = false;
-      break; 
+    if constexpr (detail::is_sycl_marray<T>::value) {
+        return __acpp_all_of(x.begin(), x.end(), [](bool val) { return val; });
+    } else {
+        bool all_msb_set = true;
+        for (size_t i = 0; i < T::size(); ++i) {
+            if (x[i] >= 0) {
+                all_msb_set = false;
+                break;
+            }
+        }
+        return static_cast<int>(all_msb_set);
     }
-  }
-  return static_cast<ReturnType>(all_msb_set);
 }
 
 template<class T>
 HIPSYCL_BUILTIN auto __acpp_any(T x) noexcept
 {
-  using ReturnType = std::conditional_t<is_sycl_marray<T>::value, bool, int>;
-  bool no_msb_set = true;
-  for (size_t i = 0; i < T::size(); ++i) {
-    if (x[i] < 0) {
-      no_msb_set = false;
-      break; 
+    if constexpr (detail::is_sycl_marray<T>::value) {
+        return __acpp_any_of(x.begin(), x.end(), [](bool val) { return val; });
+    } else {
+        bool no_msb_set = true;
+        for (size_t i = 0; i < T::size(); ++i) {
+            if (x[i] < 0) {
+                no_msb_set = false;
+                break;
+            }
+        }
+        return static_cast<int>(!no_msb_set);
     }
-  }
-  return static_cast<ReturnType>(!no_msb_set);
 }
 
 }

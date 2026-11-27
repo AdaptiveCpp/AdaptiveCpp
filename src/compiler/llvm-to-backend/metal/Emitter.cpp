@@ -1008,7 +1008,10 @@ void MetalEmitter::emitBinaryOperator(const BinaryOperator* BO, const std::strin
       os << indent(level) << name << " = as_type<" << resultType << ">((__as_signed(" << lhs << ")) % (__as_signed(" << rhs << ")));\n";
       break;
     case Instruction::FRem:
-      os << indent(level) << name << " = fmod(" << lhs << ", " << rhs << ");\n";
+      // fast::fmod is inexact; precise::fmod has no half vector overloads
+      os << indent(level) << name << " = "
+         << (BO->getType()->getScalarType()->isFloatTy() ? "precise::" : "")
+         << "fmod(" << lhs << ", " << rhs << ");\n";
       break;
 
     case Instruction::Shl:

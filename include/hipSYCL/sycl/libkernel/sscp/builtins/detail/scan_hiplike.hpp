@@ -27,8 +27,8 @@ OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
 
   const __acpp_uint32 wg_lid = __acpp_sscp_typed_get_local_linear_id<3, int>();
   const __acpp_uint32 max_sg_size = __acpp_sscp_get_subgroup_max_size();
-  const __acpp_int32 sg_size = __acpp_sscp_get_subgroup_size();
-
+  const __acpp_uint32 sg_size = __acpp_sscp_get_subgroup_size();
+  const __acpp_uint32 num_sg = __acpp_sscp_get_num_subgroups();
   const __acpp_uint32 subgroup_id = wg_lid / max_sg_size;
 
   const bool last_item_in_sg = (wg_lid % sg_size) == (sg_size - 1);
@@ -49,11 +49,20 @@ OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
                                  __acpp_sscp_memory_order::acq_rel);
   if (subgroup_id == 0) {
-    shrd_mem[wg_lid] = sg_inclusive_scan(shrd_mem[wg_lid], op);
+    // we only care about the result of the first 32 elements of the
+    // subgroup prefixes
+    OutType sg_val = (wg_lid < num_sg) ? shrd_mem[wg_lid] : OutType{};
+    auto result = sg_inclusive_scan<SharedMemorySize>(sg_val, op);
+    if (wg_lid < SharedMemorySize) {
+      shrd_mem[wg_lid] = result;
+    }
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
                                  __acpp_sscp_memory_order::acq_rel);
-  return subgroup_id > 0 ? op(shrd_mem[subgroup_id - 1], sg_scan_result) : sg_scan_result;
+  OutType result = subgroup_id > 0 ? op(shrd_mem[subgroup_id - 1], sg_scan_result) : sg_scan_result;
+  __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
+                                 __acpp_sscp_memory_order::acq_rel);
+  return result;
 }
 
 } // namespace hipsycl::libkernel::sscp

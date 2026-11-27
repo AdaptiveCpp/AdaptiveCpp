@@ -20,10 +20,11 @@
 
 namespace hipsycl::libkernel::sscp {
 
-template <typename T, typename BinaryOperation>
+template <__acpp_uint32 custom_lrange = 0, typename T, typename BinaryOperation>
 T sg_inclusive_scan(T x, BinaryOperation binary_op) {
   const __acpp_uint32 lid = __acpp_sscp_get_subgroup_local_id();
-  const __acpp_uint32 lrange = __acpp_sscp_get_subgroup_max_size();
+  const __acpp_uint32 lrange =
+      custom_lrange == 0 ? __acpp_sscp_get_subgroup_max_size() : custom_lrange;
   const __acpp_uint64 subgroup_size = __acpp_sscp_get_subgroup_size();
   auto local_x = x;
   for (__acpp_int32 i = 1; i < lrange; i *= 2) {

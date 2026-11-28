@@ -158,7 +158,8 @@ of variables.
 
 All the runtime functionality and synchronization of SYCL is expected to work, although
 some optional features are not supported. Most notably only device USM is available,
-and not host or shared USM. However, there is no support of backend interop at this time.
+and not host or shared USM. Backend interop is supported for devices, contexts,
+events and USM allocations, see [Interoperability with Vulkan](#interoperability-with-vulkan).
 
 The holes in support arise from deficiencies in the compilation of kernel code. Features
 which are not supported for use in kernels targeting Vulkan SPIR-V are:
@@ -195,6 +196,133 @@ Devices known to be well supported by the backend include:
 Other devices are untested and support status is unknown.
 
 [1] A workaround to this issue is to set the `ACPP_PERSISTENT_RUNTIME=1` environment variable.
+
+## Interoperability with Vulkan
+
+The Vulkan backend exposes its native objects, allowing a SYCL application to
+share work and data with code that submits to Vulkan itself. This interop API
+is only available in builds with Vulkan support and when the Vulkan headers are
+available to user code. Check for the `SYCL_EXT_ACPP_BACKEND_VK` macro to detect
+the former, and for `ACPP_EXT_VK_INTEROP` to detect both. Since the
+interop API is expressed with the Vulkan C API, it does not require Vulkan-HPP.
+
+| What         | How                                                                 | Native type                                |
+| ------------ | ------------------------------------------------------------------- | ------------------------------------------ |
+| Platform     | `sycl::get_native<sycl::backend::vk>(platform)`                     | `VkInstance`                               |
+| Device       | `sycl::get_native<sycl::backend::vk>(device)`                       | `VkPhysicalDevice`                         |
+| Context      | `sycl::get_native<sycl::backend::vk>(context)`                      | `VkDevice`                                 |
+| Event        | `sycl::get_native<sycl::backend::vk>(event)`                        | `hipsycl::rt::vk_event_native_handle`      |
+| USM pointer  | `sycl::get_native_allocation<sycl::backend::vk>(ptr, context)`      | `hipsycl::rt::vk_allocation_native_handle` |
+| Import event | `sycl::make_event<sycl::backend::vk>(handle, context)`              | `hipsycl::rt::vk_event_native_handle`      |
+
+* `hipsycl::rt::vk_event_native_handle`: a timeline `VkSemaphore`, its signal value and the `VkDevice` it belongs to.
+* `hipsycl::rt::vk_allocation_native_handle`: the `VkBuffer` backing the allocation, the offset of `ptr` within it,
+   and the number of remaining bytes.
+
+`sycl::device` maps to `VkPhysicalDevice` and `sycl::context` to `VkDevice`,
+because a `VkPhysicalDevice` is an immutable description of the hardware, which
+is the role of `sycl::device`. While the logical device is the object
+that owns allocations and queues, which is the role of a `sycl::context`.
+
+A `hipsycl::rt::vk_allocation_native_handle` object's last member is the number of remaining bytes
+rather than size so that the members can be passed directly to
+`VkDescriptorBufferInfo {buffer, offset, range}` without any pointer arithmetic.
+
+Because the mapping must be unambiguous, `sycl::get_native<sycl::backend::vk>(context)`
+**requires that the context contains exactly one Vulkan device**. Note that the
+default context of a queue contains every Vulkan device of the system, so use a
+context created for the device instead, e.g. `sycl::context{q.get_device()}`.
+`sycl::make_event<sycl::backend::vk>()` uses the `device` member of the handle
+to find the device of the context the semaphore belongs to, which may only be
+left as `VK_NULL_HANDLE` if the context contains a single Vulkan device.
+
+`sycl::get_native<sycl::backend::vk>(queue)` is **not provided**, because
+AdaptiveCpp may use a different backend queue for each operation.
+
+### Sharing USM allocations
+
+Device USM pointers of the Vulkan backend are device addresses obtained from
+`VK_KHR_buffer_device_address`, and therefore always describe a region inside a
+`VkBuffer`. `sycl::get_native_allocation()` returns that buffer, which is what is
+needed to bind the memory as a descriptor. It accepts any pointer inside an
+allocation, not just its base pointer. For a pointer that does not belong to any
+allocation of the context, a `VK_NULL_HANDLE` `VkBuffer` is returned.
+
+```c++
+#include <sycl/sycl.hpp>
+#include <vulkan/vulkan_core.h>
+
+sycl::queue q;
+float *data = sycl::malloc_device<float>(1024, q);
+
+auto allocation = sycl::get_native_allocation<sycl::backend::vk>(
+    data + 16, q.get_context());
+// allocation.buffer is the VkBuffer, allocation.offset is the offset of
+// data + 16 within it, and allocation.size the number of bytes until the
+// end of the allocation.
+VkDescriptorBufferInfo buffer_info{allocation.buffer, allocation.offset,
+                                   allocation.size};
+```
+
+Two caveats apply when such a buffer is used by code outside of AdaptiveCpp:
+
+* The buffers are created with `VK_SHARING_MODE_EXCLUSIVE`. If the application
+  submits to a different queue family than the one AdaptiveCpp uses, it has to
+  perform queue family ownership transfers.
+* AdaptiveCpp only makes its writes available up to its own barriers. The
+  application needs to insert a buffer memory barrier with the appropriate
+  stage and access masks after waiting for AdaptiveCpp's work, and before
+  signalling a semaphore value that AdaptiveCpp waits on.
+
+### Synchronizing with Vulkan work
+
+Events of the Vulkan backend are backed by timeline semaphores of the
+`VkDevice` that AdaptiveCpp has created for the device. AdaptiveCpp submits the
+operation before returning the handle, and the application can wait for it on
+the host:
+
+```c++
+sycl::event e = q.parallel_for(sycl::range<1>{1024},
+                               [=](sycl::id<1> i) { data[i] = i[0]; });
+
+auto handle = sycl::get_native<sycl::backend::vk>(e);
+// handle.semaphore is a timeline VkSemaphore of handle.device, handle.value the
+// value it attains once the operation has completed.
+VkSemaphoreWaitInfo wait_info{};
+wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+wait_info.semaphoreCount = 1;
+wait_info.pSemaphores = &handle.semaphore;
+wait_info.pValues = &handle.value;
+vkWaitSemaphores(handle.device, &wait_info, UINT64_MAX);
+```
+
+The semaphore returned here is owned by AdaptiveCpp, and the **application must
+not signal values on it**: the runtime allocates the values of its own timeline,
+and signalling them from outside would satisfy its internal waits early. To make
+SYCL wait for application work, import an application owned timeline semaphore
+of the same `VkDevice` instead:
+
+```c++
+// The VkDevice that AdaptiveCpp has created for the queue's device
+VkDevice device =
+    sycl::get_native<sycl::backend::vk>(sycl::context{q.get_device()});
+
+// app_semaphore is a timeline semaphore created on device, which the
+// application signals app_value on, e.g. with vkSignalSemaphore() ...
+sycl::event imported = sycl::make_event<sycl::backend::vk>(
+    {app_semaphore, app_value, device}, q.get_context());
+
+q.submit([&](sycl::handler &cgh) {
+  cgh.depends_on(imported);
+  cgh.parallel_for(sycl::range<1>{1024}, [=](sycl::id<1> i) { data[i] *= 2; });
+});
+```
+
+### Limitations
+
+The interop API exposes the objects that AdaptiveCpp creates itself, it cannot
+adopt a `VkInstance` or `VkDevice` created by the application.
+There is no interop for `sycl::buffer`, images or samplers.
 
 ## Benchmarks
 

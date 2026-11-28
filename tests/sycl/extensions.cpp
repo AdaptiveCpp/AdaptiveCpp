@@ -1581,5 +1581,135 @@ BOOST_AUTO_TEST_CASE(get_native_allocation) {
 }
 #endif
 
+#if defined(ACPP_EXT_VK_INTEROP)
+// Contexts also contain the host device, so only count the Vulkan devices
+static std::size_t num_vk_devices(const sycl::context &ctx) {
+  std::size_t count = 0;
+  for (const sycl::device &dev : ctx.get_devices()) {
+    if (dev.get_backend() == sycl::backend::vk) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+BOOST_AUTO_TEST_CASE(get_native_vk_device) {
+  namespace s = sycl;
+
+  s::queue q;
+  if (q.get_device().get_backend() != s::backend::vk) {
+    BOOST_TEST_MESSAGE("Skipping get_native_vk_device: not a Vulkan device");
+    return;
+  }
+
+  VkPhysicalDevice physical_device =
+      s::get_native<s::backend::vk>(q.get_device());
+  BOOST_CHECK(physical_device != VK_NULL_HANDLE);
+
+  VkInstance instance =
+      s::get_native<s::backend::vk>(q.get_device().get_platform());
+  BOOST_CHECK(instance != VK_NULL_HANDLE);
+
+  // The default context of a queue may contain several Vulkan devices, while
+  // a VkDevice can only be obtained from a context with a single one.
+  VkDevice device = s::get_native<s::backend::vk>(s::context{q.get_device()});
+  BOOST_CHECK(device != VK_NULL_HANDLE);
+}
+
+BOOST_AUTO_TEST_CASE(get_native_vk_event) {
+  namespace s = sycl;
+
+  s::queue q{s::property::queue::in_order{}};
+  if (q.get_device().get_backend() != s::backend::vk) {
+    BOOST_TEST_MESSAGE("Skipping get_native_vk_event: not a Vulkan device");
+    return;
+  }
+
+  s::event event = q.single_task([]() {});
+  auto native_event = s::get_native<s::backend::vk>(event);
+
+  BOOST_CHECK(native_event.semaphore != VK_NULL_HANDLE);
+  BOOST_CHECK(native_event.value != 0);
+  BOOST_CHECK(native_event.device ==
+              s::get_native<s::backend::vk>(s::context{q.get_device()}));
+  event.wait();
+}
+
+BOOST_AUTO_TEST_CASE(make_vk_event) {
+  namespace s = sycl;
+
+  const s::property_list props{s::property::queue::in_order{}};
+  s::queue producer{props};
+  if (producer.get_device().get_backend() != s::backend::vk) {
+    BOOST_TEST_MESSAGE("Skipping make_vk_event: not a Vulkan device");
+    return;
+  }
+
+  // The default context contains all Vulkan devices of the platform, the
+  // device of the native event selects the right one.
+  s::context ctx = producer.get_context();
+  s::queue consumer{ctx, producer.get_device(), props};
+  constexpr std::size_t n = 1;
+  int *value = s::malloc_device<int>(n, producer);
+  BOOST_REQUIRE(value != nullptr);
+
+  s::event produced = producer.single_task([=]() { *value = 41; });
+  auto native_event = s::get_native<s::backend::vk>(produced);
+  BOOST_REQUIRE(native_event.semaphore != VK_NULL_HANDLE);
+
+  s::event imported = s::make_event<s::backend::vk>(native_event, ctx);
+
+  s::event consumed = consumer.submit([&](s::handler &cgh) {
+    cgh.depends_on(imported);
+    cgh.single_task([=]() { *value += 1; });
+  });
+  consumed.wait();
+
+  int result = 0;
+  consumer.copy(value, &result, n).wait();
+  BOOST_CHECK_EQUAL(result, 42);
+
+  s::free(value, producer);
+}
+
+#if defined(ACPP_EXT_GET_NATIVE_ALLOCATION)
+BOOST_AUTO_TEST_CASE(get_native_vk_allocation) {
+  namespace s = sycl;
+
+  s::queue q;
+  if (q.get_device().get_backend() != s::backend::vk) {
+    BOOST_TEST_MESSAGE(
+        "Skipping get_native_vk_allocation: not a Vulkan device");
+    return;
+  }
+
+  constexpr std::size_t n = 64;
+  int *ptr = s::malloc_device<int>(n, q);
+  BOOST_REQUIRE(ptr != nullptr);
+
+  auto allocation =
+      s::get_native_allocation<s::backend::vk>(ptr, q.get_context());
+  BOOST_CHECK(allocation.buffer != VK_NULL_HANDLE);
+  BOOST_CHECK_EQUAL(allocation.offset, 0u);
+  BOOST_CHECK(allocation.size >= n * sizeof(int));
+
+  auto shifted_allocation =
+      s::get_native_allocation<s::backend::vk>(ptr + 1, q.get_context());
+  BOOST_CHECK(shifted_allocation.buffer == allocation.buffer);
+  BOOST_CHECK_EQUAL(shifted_allocation.offset, sizeof(int));
+  BOOST_CHECK_EQUAL(shifted_allocation.size, allocation.size - sizeof(int));
+
+  // Pointers that do not belong to a Vulkan allocation are not described by
+  // any buffer.
+  int host_value = 0;
+  auto invalid_allocation =
+      s::get_native_allocation<s::backend::vk>(&host_value, q.get_context());
+  BOOST_CHECK(invalid_allocation.buffer == VK_NULL_HANDLE);
+
+  s::free(ptr, q);
+}
+#endif // ACPP_EXT_GET_NATIVE_ALLOCATION
+#endif // ACPP_EXT_VK_INTEROP
+
 BOOST_AUTO_TEST_SUITE_END()
 

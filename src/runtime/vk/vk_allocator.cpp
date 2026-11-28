@@ -205,6 +205,28 @@ vk_alloc_info *vk_allocator::find_user_alloc(vk::DeviceAddress ptr) {
   return nullptr;
 }
 
+bool vk_allocator::get_native_allocation(
+    const void *ptr, vk_allocation_native_handle &out) const {
+  std::lock_guard<std::mutex> lock{_mutex};
+
+  const auto dev_ptr = reinterpret_cast<vk::DeviceAddress>(ptr);
+  for (const auto &alloc : _allocs) {
+    const vk_alloc_info &alloc_info = alloc.second;
+    assert(alloc_info._type == vk_alloc_type::USER);
+    assert(alloc_info._base_ptr.has_value());
+    const vk::DeviceAddress base = alloc_info._base_ptr.value();
+    const vk::DeviceAddress end = base + alloc_info.bytes;
+    if (dev_ptr >= base && dev_ptr < end) {
+      out.buffer = *alloc_info._buffer;
+      out.offset = dev_ptr - base;
+      out.size = end - dev_ptr;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 vk_alloc_info *vk_allocator::staging_allocate(size_t size_bytes) {
   constexpr vk::BufferUsageFlags usage_flags =
       vk::BufferUsageFlagBits::eTransferSrc |

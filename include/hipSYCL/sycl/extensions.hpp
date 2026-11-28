@@ -81,6 +81,8 @@
 #define ACPP_EXT_TARGET_NUMA_NODE_PROPERTY
 #define ACPP_EXT_DEVICE_FREE_MEMORY
 #define ACPP_EXT_GET_NATIVE_ALLOCATION
+// ACPP_EXT_VK_INTEROP is defined by glue/vk/vk_interop.hpp if the Vulkan
+// headers are available
 
 // KHR extensions
 

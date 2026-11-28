@@ -12,6 +12,7 @@
 #pragma once
 
 #include "../allocator.hpp"
+#include "hipSYCL/runtime/vk/vk_native_objects.hpp"
 #include <mutex>
 #include <unordered_map>
 #include <vulkan/vulkan_raii.hpp>
@@ -36,7 +37,8 @@ struct vk_alloc_info {
   vk::MemoryPropertyFlags _mem_flags;
 };
 
-class vk_allocator : public backend_allocator {
+class vk_allocator : public backend_allocator,
+                     public vk_native_allocation_provider {
 public:
   vk_allocator() {}
   vk_allocator(vk_hardware_context *hw_ctx, rt::device_id dev);
@@ -64,6 +66,9 @@ public:
   std::size_t get_global_mem_size() const;
 
   vk_alloc_info *find_user_alloc(vk::DeviceAddress ptr);
+
+  bool get_native_allocation(const void *ptr,
+                             vk_allocation_native_handle &out) const override;
 
   vk_alloc_info *staging_allocate(size_t size_bytes);
 

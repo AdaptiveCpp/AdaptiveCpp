@@ -123,11 +123,30 @@ inline std::string type_to_string(const trivially_copyable_12_byte_type &v) {
 template<typename T>
 struct is_sycl_vec : std::false_type {};
 
-template<typename T, int N>
-struct is_sycl_vec<sycl::vec<T, N>> : std::true_type {};
+template<typename T, int N, class VectorStorage>
+struct is_sycl_vec<sycl::vec<T, N, VectorStorage>> : std::true_type
+{};
 
 template<typename T>
-inline constexpr bool is_sycl_vec_v = is_sycl_vec<T>::value;
+inline constexpr bool is_sycl_vec_v = is_sycl_vec<std::remove_cv_t<T>>::value;
+
+template<typename T>
+struct is_sycl_marray : std::false_type
+{};
+
+template<typename T, std::size_t N> // size_t vs sycl::vec using int
+struct is_sycl_marray<sycl::marray<T, N>> : std::true_type
+{};
+
+template<typename T>
+inline constexpr bool is_sycl_marray_v = is_sycl_marray<std::remove_cv_t<T>>::value;
+
+template<std::size_t N>
+struct is_sycl_marray_bool<sycl::marray<bool, N>> : std::true_type
+{};
+
+template<typename T>
+inline constexpr bool is_sycl_marray_bool_v = is_sycl_marray_bool<std::remove_cv_t<T>>::value;
 
 inline uint32_t get_subgroup_size(const sycl::queue& q) {
   auto sizes = q.get_device().get_info<sycl::info::device::sub_group_sizes>();

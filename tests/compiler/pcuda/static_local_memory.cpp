@@ -46,6 +46,14 @@ __global__ void multi_alloc_kernel(T1* out1, T2* out2, T3* out3) {
   }
 }
 
+__shared__ int file_scope_mem[64];
+
+__global__ void file_scope_kernel(int* out) {
+  file_scope_mem[threadIdx.x] = threadIdx.x;
+  __syncthreads();
+  out[threadIdx.x] = file_scope_mem[63 - threadIdx.x];
+}
+
 template<class T, int N>
 struct vec {
   T data [N];
@@ -152,4 +160,16 @@ int main() {
   // CHECK: 1
   // CHECK: 1
   run<char,vec<float,2>,vec<float,4>>();
+
+  // CHECK: 1
+  int* out;
+  pcudaMallocManaged(&out, 64 * sizeof(int));
+  pcudaLaunchKernelGGL(file_scope_kernel, 1, 64, 0, 0, out);
+  pcudaDeviceSynchronize();
+  bool file_scope_ok = true;
+  for(int i = 0; i < 64; ++i)
+    if(out[i] != 63 - i)
+      file_scope_ok = false;
+  std::cout << file_scope_ok << std::endl;
+  pcudaFree(out);
 }

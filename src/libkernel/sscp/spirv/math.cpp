@@ -11,8 +11,6 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/math.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 
-#define PI 3.14159265358979323846
-
 #define HIPSYCL_DEFINE_SSCP_SPIRV_OCL_INTRINSIC(name)                          \
   float __spirv_ocl_##name(float);                                             \
   double __spirv_ocl_##name(double);
@@ -58,25 +56,21 @@
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(acos)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(acosh)
 
-HIPSYCL_SSCP_BUILTIN float __acpp_sscp_acospi_f32(float x) { return __acpp_sscp_acos_f32(x) / PI; }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_acospi_f64(double x) { return __acpp_sscp_acos_f64(x) / PI; }
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(acospi)
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(asin)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(asinh)
 
-HIPSYCL_SSCP_BUILTIN float __acpp_sscp_asinpi_f32(float x) { return __acpp_sscp_asin_f32(x) / PI; }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_asinpi_f64(double x) { return __acpp_sscp_asin_f64(x) / PI; }
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(asinpi)
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(atan)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(atan2)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(atanh)
 
 
-HIPSYCL_SSCP_BUILTIN float __acpp_sscp_atanpi_f32(float x) { return __acpp_sscp_atan_f32(x) / PI; }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_atanpi_f64(double x) { return __acpp_sscp_atan_f64(x) / PI; }
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(atanpi)
 
-HIPSYCL_SSCP_BUILTIN float __acpp_sscp_atan2pi_f32(float x, float y) { return __acpp_sscp_atan2_f32(x, y) / PI; }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_atan2pi_f64(double x, double y) { return __acpp_sscp_atan2_f64(x, y) / PI; }
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(atan2pi)
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(cbrt)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(ceil)
@@ -84,8 +78,7 @@ HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(copysign)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(cos)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(cosh)
 
-HIPSYCL_SSCP_BUILTIN float __acpp_sscp_cospi_f32(float x) { return __acpp_sscp_cos_f32(x * PI); }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_cospi_f64(double x) { return __acpp_sscp_cos_f64(x * PI); }
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(cospi)
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(erf)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(erfc)
@@ -197,8 +190,7 @@ HIPSYCL_SSCP_BUILTIN void __acpp_sscp_sincos_f64(double x, double* sinval,
 }
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sinh)
 
-HIPSYCL_SSCP_BUILTIN float __acpp_sscp_sinpi_f32(float x) { return __acpp_sscp_sin_f32(x * PI); }
-HIPSYCL_SSCP_BUILTIN double __acpp_sscp_sinpi_f64(double x) { return __acpp_sscp_sin_f64(x * PI); }
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sinpi)
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(tan)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(tanh)

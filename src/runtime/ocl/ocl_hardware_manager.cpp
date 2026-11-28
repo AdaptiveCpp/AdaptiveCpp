@@ -339,7 +339,7 @@ bool ocl_hardware_context::has(device_support_aspect aspect) const {
     return false;
     break;
   case device_support_aspect::fp64:
-    return true;
+    return info_query<CL_DEVICE_DOUBLE_FP_CONFIG, cl_device_fp_config>(_dev) != 0;
     break;
   case device_support_aspect::atomic64:
     return true;

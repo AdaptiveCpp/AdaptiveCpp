@@ -26,7 +26,7 @@ namespace detail {
     is_valid_relational_scalar<builtin_input_element_t<T>>::value &&
     builtin_input_is_nonscalar_v<T>
   > {};
-  } // namespace detail
+} // namespace detail
 
 #define HIPSYCL_RELATIONAL_BUILTIN_GENERATOR_UNARY_T_RET_BOOL(T, builtin_name, builtin_func) \
   HIPSYCL_BUILTIN bool builtin_name(T x) noexcept {                                          \

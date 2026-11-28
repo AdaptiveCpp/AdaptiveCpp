@@ -242,15 +242,23 @@ public:
     }
 
     if(IsFastMath) {
-      NeededBitcodeLibs.push_back("oclc_correctly_rounded_sqrt_off.bc");
-      NeededBitcodeLibs.push_back("oclc_daz_opt_on.bc");
       NeededBitcodeLibs.push_back("oclc_finite_only_on.bc");
       NeededBitcodeLibs.push_back("oclc_unsafe_math_on.bc");
     } else {
-      NeededBitcodeLibs.push_back("oclc_correctly_rounded_sqrt_on.bc");
-      NeededBitcodeLibs.push_back("oclc_daz_opt_off.bc");
       NeededBitcodeLibs.push_back("oclc_finite_only_off.bc");
       NeededBitcodeLibs.push_back("oclc_unsafe_math_off.bc");
+    }
+
+    // These control libraries were removed from the device libs (and the
+    // corresponding __oclc_* variables are no longer referenced by ocml)
+    // in ROCm 10. Older device libs still need them, so only link them
+    // if they exist.
+    const std::vector<std::string> OptionalBitcodeLibs = {
+        IsFastMath ? "oclc_correctly_rounded_sqrt_off.bc" : "oclc_correctly_rounded_sqrt_on.bc",
+        IsFastMath ? "oclc_daz_opt_on.bc" : "oclc_daz_opt_off.bc"};
+    for(const auto& L : OptionalBitcodeLibs) {
+      if(common::filesystem::exists(common::filesystem::join_path(DeviceLibPath, L)))
+        NeededBitcodeLibs.push_back(L);
     }
 
     BitcodeFiles.clear();

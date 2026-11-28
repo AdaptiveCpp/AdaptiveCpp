@@ -23,6 +23,7 @@
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Analysis/DomTreeUpdater.h>
 #include <llvm/Analysis/DominanceFrontier.h>
 #include <llvm/Analysis/IteratedDominanceFrontier.h>
 #include <llvm/Analysis/PostDominators.h>
@@ -1558,8 +1559,16 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::LoopInfo &LI,
                              llvm::PostDominatorTree &PDT, bool IsSscp) {
 
+#if LLVM_VERSION_MAJOR >= 23
+  // The `Before` parameter of SplitBlock was removed in LLVM 23. This is what it used to do.
+  llvm::DomTreeUpdater DTU(DT, llvm::DomTreeUpdater::UpdateStrategy::Lazy);
+  auto *Body = llvm::splitBlockBefore(&F.getEntryBlock(), F.getEntryBlock().getFirstInsertionPt(),
+                                      &DTU, &LI, nullptr, "wibody");
+  DTU.flush();
+#else
   auto *Body = llvm::SplitBlock(&F.getEntryBlock(), &*F.getEntryBlock().getFirstInsertionPt(), &DT,
                                 &LI, nullptr, "wibody", true);
+#endif
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG());
 
   Body = Body->getSingleSuccessor();

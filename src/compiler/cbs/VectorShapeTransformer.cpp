@@ -122,11 +122,18 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
     // AdaptiveCpp CBS: we moved allocas out of the wi-loop.
     return VectorShape::varying();
   }
+#if LLVM_VERSION_MAJOR >= 23
+  case Instruction::CondBr: {
+    const auto &branch = cast<CondBrInst>(I);
+    return getObservedShape(BB, *branch.getCondition());
+  }
+#else
   case Instruction::Br: {
     const auto &branch = cast<BranchInst>(I);
     assert(branch.isConditional());
     return getObservedShape(BB, *branch.getCondition());
   }
+#endif
   case Instruction::Switch: {
     const auto &sw = cast<SwitchInst>(I);
     return getObservedShape(BB, *sw.getCondition());

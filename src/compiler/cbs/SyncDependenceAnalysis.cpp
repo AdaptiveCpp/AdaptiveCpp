@@ -111,6 +111,7 @@
 #include "llvm/IR/Function.h"
 
 #include <functional>
+#include <set>
 #include <stack>
 #include <unordered_set>
 

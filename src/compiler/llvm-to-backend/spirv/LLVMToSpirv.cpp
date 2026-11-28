@@ -53,6 +53,13 @@ static const char* DynamicLocalMemArrayName = "__acpp_sscp_spirv_dynamic_local_m
 #define SPIRV_INTEL_LONG_CONSTANT_EXT_NAME "SPV_INTEL_long_constant_composite"
 #endif
 
+// SPV_INTEL_fast_composite was deprecated and removed from llvm-spirv 23.
+#if LLVM_VERSION_MAJOR >= 23
+#define SPIRV_INTEL_FAST_COMPOSITE_EXT ""
+#else
+#define SPIRV_INTEL_FAST_COMPOSITE_EXT "+SPV_INTEL_fast_composite,"
+#endif
+
 void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
   llvm::SmallVector<std::string> Args {"-spirv-max-version=1.3",
       "-spirv-debug-info-version=ocl-100",
@@ -65,7 +72,7 @@ void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
       "INTEL_unstructured_loop_controls,+SPV_INTEL_fpga_reg,+SPV_INTEL_blocking_pipes,+SPV_INTEL_"
       "function_pointers,+SPV_INTEL_kernel_attributes,+SPV_INTEL_io_pipes,+SPV_INTEL_inline_"
       "assembly,+SPV_INTEL_arbitrary_precision_integers,+SPV_INTEL_float_controls2,+SPV_INTEL_"
-      "vector_compute,+SPV_INTEL_fast_composite,+SPV_INTEL_fpga_buffer_location,+SPV_INTEL_joint_"
+      "vector_compute," SPIRV_INTEL_FAST_COMPOSITE_EXT "+SPV_INTEL_fpga_buffer_location,+SPV_INTEL_joint_"
       "matrix,+SPV_INTEL_arbitrary_precision_fixed_point,+SPV_INTEL_arbitrary_precision_floating_"
       "point,+SPV_INTEL_arbitrary_precision_floating_point,+SPV_INTEL_variable_length_array,+SPV_"
       "INTEL_fp_fast_math_mode,+SPV_INTEL_fpga_cluster_attributes,+SPV_INTEL_loop_fuse,+"

@@ -117,7 +117,7 @@ llvm::PreservedAnalyses ExternDynamicLocalMemoryPass::run(llvm::Module& M, llvm:
   llvm::SmallVector<llvm::GlobalVariable*> GVs;
 
   for (auto &GV : M.globals()) {
-    if (GV.getLinkage() == llvm::GlobalValue::ExternalLinkage &&
+    if (GV.getLinkage() == llvm::GlobalValue::ExternalLinkage && GV.isDeclaration() &&
         GV.getName().contains(LocalMemoryABITag)) {
       GVs.push_back(&GV);
     }
